@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "client",
+    "slug": "eventsapp",
+    "scheme": "client",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "bundleIdentifier": "com.client.app",
+      "infoPlist": {
+        "UIApplicationSupportsIndirectInputEvents": false,
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.614163396040-nctv2m1sivooo3skrdsiv5sa9manm5c5"
+            ]
+          }
+        ]
+      }
+    },
+    "android": {
+      "package": "com.myapp.app"
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "430a9e40-9bda-4cc6-954a-625e4926da47"
+      }
+    },
+    "plugins": [
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.614163396040-nctv2m1sivooo3skrdsiv5sa9manm5c5"
+        }
+      ]
+    ],
+    "owner": "mirhadiseyidli",
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
