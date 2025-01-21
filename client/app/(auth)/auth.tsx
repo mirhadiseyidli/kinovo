@@ -18,38 +18,38 @@ export default function AuthScreen(onLoginSuccess: any) {
   const router = useRouter();
 
   return (
-    <View className="flex-[1] px-[2%]">
+    <ThemedView className="flex-[1] px-[2%]">
       {/* Logo Background Section */}
-      <View className="flex-[3.5] w-full h-full items-center justify-end">
-        <Text className="flex-[1] flex-shrink absolute bottom-[10%] text-[6vw]">LOGO HERE</Text>
-      </View>
+      <ThemedView className="flex-[3.5] w-full h-full items-center justify-end">
+        <ThemedText className="flex-[1] flex-shrink absolute bottom-[10%] text-[6vw]">LOGO HERE</ThemedText>
+      </ThemedView>
 
       {/* Login Section */}
-      <View className="flex-[5] items-center justify-center mb-[5%]">
+      <ThemedView className="flex-[5] items-center justify-center mb-[5%]">
         <EmailLogin onLoginSuccess={onLoginSuccess} />
-      </View>
+      </ThemedView>
       
       {/* Separator */}
-      <View className='flex-[0.2] flex-row items-center justify-center'>
-        <View className="flex-1 h-px bg-gray-300" />
-        <Text className="flex-shrink mx-4 text-gray-500 text-center leading-none">or continue with</Text>
-        <View className="flex-1 h-px bg-gray-300" />
-      </View>
+      <ThemedView className='flex-[0.2] flex-row items-center justify-center'>
+        <ThemedView className="flex-1 h-px bg-gray-300" />
+        <ThemedText className="flex-shrink mx-4 text-gray-500 text-center leading-none">or continue with</ThemedText>
+        <ThemedView className="flex-1 h-px bg-gray-300" />
+      </ThemedView>
         
         {/* OAuth Buttons */}
-      <View className='flex-[1] flex-row w-[100%] h-[100%] px-[10%] items-center justify-evenly'>
+      <ThemedView className='flex-[1] flex-row w-[100%] h-[100%] px-[10%] items-center justify-evenly'>
         <AppleOAuth onLoginSuccess={onLoginSuccess} />
         <FacebookOAuth onLoginSuccess={onLoginSuccess} />
         {/* <GoogleOAuth onLoginSuccess={onLoginSuccess} /> */}
-      </View>
+      </ThemedView>
 
       {/* Sign Up Link */}
-      <View className="flex-[0.5] flex-row items-center justify-center">
-        <Text className='flex-shrink'>Don't have an account?</Text>
+      <ThemedView className="flex-[0.5] flex-row items-center justify-center">
+        <ThemedText className='flex-shrink'>Don't have an account?</ThemedText>
         <TouchableOpacity onPress={() => router.push('/')}>
-          <Text className="flex-shrink text-blue-500 font-semibold underline ml-1">Sign Up</Text>
+          <ThemedText className="flex-shrink text-blue-500 font-semibold underline ml-1">Sign Up</ThemedText>
         </TouchableOpacity>
-      </View>
-    </View>
+      </ThemedView>
+    </ThemedView>
   );
 };

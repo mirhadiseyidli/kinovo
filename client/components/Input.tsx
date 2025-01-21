@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, TextInput, Text, TextInputProps } from 'react-native';
+import { ThemedView } from './ThemedView';
 
 interface InputProps extends TextInputProps {
   value: string;
@@ -18,7 +19,7 @@ const Input: React.FC<InputProps> = ({
   ...props
 }) => {
   return (
-    <View className="w-full aspect-auto mb-2">
+    <ThemedView className="w-full aspect-auto mb-2">
       <TextInput
         className={`border rounded-lg px-3 py-3 text-start text-[3.5vw] ${
           error ? 'border-red-500' : 'border-gray-300'
@@ -30,7 +31,7 @@ const Input: React.FC<InputProps> = ({
         {...props}
       />
       {error && <Text className="text-red-500 text-[3vw] mt-1">{error}</Text>}
-    </View>
+    </ThemedView>
   );
 };
 

@@ -1,41 +1,70 @@
 import React from 'react';
-import { View, Text, Dimensions } from 'react-native';
+import { View, Text, Image, Dimensions } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { ThemedView } from './ThemedView';
+import { ThemedText } from './ThemedText';
 
 interface SuggestedEventProps {
-  icon: string;
   title: string;
   location: string;
+  date: string;
+  time: string;
+  imageUrl: any;
 }
 
-const SuggestedEvent: React.FC<SuggestedEventProps> = ({ icon, title, location }) => {
+const SuggestedEvent: React.FC<SuggestedEventProps> = ({
+  title,
+  location,
+  date,
+  time,
+  imageUrl,
+}) => {
   const screenWidth = Dimensions.get('window').width;
 
   return (
-    <View
-      style={{ 
+    <ThemedView
+      style={{
         width: screenWidth * 0.9,
+        borderRadius: 16, // Match the rounded corners of the child
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 3 }, // Shadow only on the bottom
-        shadowOpacity: 0.1,
-        shadowRadius: 2, // Smooth shadow edges
-        elevation: 3, // For Android
-      }} // 90% of the screen width
-      className="bg-teal-100 rounded-2xl p-4 my-2 self-start"
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 2,
+        elevation: 2, // For Android
+        backgroundColor: 'transparent', // Make sure the shadow is visible
+        alignSelf: 'center', // Center horizontally
+        marginVertical: 8,
+      }}
     >
-      <View className='flex-row items-center'>
-        {/* Event Icon */}
-        <View className='mr-4'>
-          <Feather name="calendar" size={20} color="#0d9488" />
-        </View>
+      {/* Inner Container with Rounded Corners */}
+      <ThemedView
+        className="bg-white border border-gray-100 overflow-hidden rounded-xl"
+        style={{
+          borderRadius: 16, // Rounded corners
+        }}
+      >
+        {/* Event Image */}
+        <Image
+          source={imageUrl}
+          className="w-full h-40"
+        />
 
         {/* Event Details */}
-        <View className="">
-          <Text className="text-lg font-bold text-teal-700">{title}</Text>
-          <Text className="text-teal-600">{location}</Text>
-        </View>
-      </View>
-    </View>
+        <ThemedView className="p-4">
+          <ThemedText className="text-lg font-bold text-gray-900 mb-2">{title}</ThemedText>
+          <ThemedView className="flex-row items-center mb-1">
+            <Feather name="map-pin" size={16} color="#6B7280" />
+            <ThemedText className="text-sm text-gray-500 ml-2">{location}</ThemedText>
+          </ThemedView>
+          <ThemedView className="flex-row items-center">
+            <Feather name="clock" size={16} color="#6B7280" />
+            <ThemedText className="text-sm text-gray-500 ml-2">
+              {date} • {time}
+            </ThemedText>
+          </ThemedView>
+        </ThemedView>
+      </ThemedView>
+    </ThemedView>
   );
 };
 

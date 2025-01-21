@@ -10,7 +10,7 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 export default function Calendar() {
   return (
       <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Explore</ThemedText>
+        <ThemedText>Explore</ThemedText>
       </ThemedView>
   );
 }

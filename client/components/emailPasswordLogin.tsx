@@ -49,15 +49,15 @@ const EmailLogin: React.FC<EmailLoginProps> = ({ onLoginSuccess }) => {
   };
 
   return (
-    <View className="flex-1 w-full px-5 justify-around">
+    <ThemedView className="flex-1 w-full px-5 justify-around">
       {/* Form Section */}
-      <View className="flex-1 w-full h-full items-center">
-        <Text className="text-[6vw] mb-2 text-center">Welcome Back!</Text>
-        <Text className="text-[3.5vw] text-gray-500 text-center">Log into your account</Text>
-      </View>
+      <ThemedView className="flex-1 w-full h-full items-center">
+        <ThemedText className="text-[6vw] mb-2 text-center">Welcome Back!</ThemedText>
+        <ThemedText className="text-[3.5vw] text-gray-500 text-center">Log into your account</ThemedText>
+      </ThemedView>
 
       {/* Input Fields */}
-      <View className="flex-1 w-full h-full justify-end">
+      <ThemedView className="flex-1 w-full h-full justify-end">
         <Input
           value={email}
           onChangeText={handleEmailChange}
@@ -73,12 +73,12 @@ const EmailLogin: React.FC<EmailLoginProps> = ({ onLoginSuccess }) => {
           error={errors.password}
           secureTextEntry
         />
-      </View>
+      </ThemedView>
 
       {/* Remember Me & Forgot Password */}
-      <View className="flex-[0.15] flex-row w-full h-full justify-between items-center">
-        <View className="flex-row flex-shrink items-center">
-          <View className="flex-shrink aspect-square h-[80%] mr-[3%]">
+      <ThemedView className="flex-[0.15] flex-row w-full h-full justify-between items-center">
+        <ThemedView className="flex-row flex-shrink items-center">
+          <ThemedView className="flex-shrink aspect-square h-[80%] mr-[3%]">
             <CheckBox
               value={isChecked}
               onValueChange={setIsChecked}
@@ -86,22 +86,22 @@ const EmailLogin: React.FC<EmailLoginProps> = ({ onLoginSuccess }) => {
               tintColors={{ true: '#007BFF', false: '#D1D5DB' }}
               style={{ height: '100%', width: '100%', flexShrink: 1 }}
             />
-          </View>
-          <Text className="text-[3.5vw] text-gray-500">Remember Me</Text>
-        </View>
-        <Text className="text-[3.5vw] text-blue-500">Forgot Password?</Text>
-      </View>
+          </ThemedView>
+          <ThemedText className="text-[3.5vw] text-gray-500">Remember Me</ThemedText>
+        </ThemedView>
+        <ThemedText className="text-[3.5vw] text-blue-500">Forgot Password?</ThemedText>
+      </ThemedView>
 
       {/* Login Button */}
-      <View className="flex-1 w-full h-full justify-end">
+      <ThemedView className="flex-1 w-full h-full justify-end">
         <TouchableOpacity
           className="items-center justify-center bg-teal-400 py-3 rounded-lg active:bg-gray-800"
           onPress={handleLogin}
         >
-          <Text className="flex-shrink text-white text-[4vw] font-medium">Login</Text>
+          <ThemedText className="flex-shrink text-white text-[4vw] font-medium">Login</ThemedText>
         </TouchableOpacity>
-      </View>
-    </View>
+      </ThemedView>
+    </ThemedView>
   );
 };
 

@@ -11,7 +11,7 @@ import 'react-native-reanimated';
 const backArrow = require('../assets/back-arrow.png')
 
 export default function RootLayout() {
-  let colorScheme = useColorScheme();
+  const colorScheme = useColorScheme();
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>

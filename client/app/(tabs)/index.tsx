@@ -80,9 +80,9 @@ function Content({ isLoggedIn, onLoginSuccess }: ContentProps) {
   const colorScheme = useColorScheme();
 
   return (
-    <View
-      className="flex-1 bg-gray-200"
-      style={{ paddingTop: insets.top }}
+    <ThemedView
+      className="flex-1 bg-white"
+      style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
     >
       <StatusBar
         barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'}
@@ -92,6 +92,6 @@ function Content({ isLoggedIn, onLoginSuccess }: ContentProps) {
       ) : (
         <AuthScreen onLoginSuccess={onLoginSuccess} />
       )}
-    </View>
+    </ThemedView>
   );
 }

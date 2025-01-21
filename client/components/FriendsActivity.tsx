@@ -1,103 +1,86 @@
-import React, { useRef } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  Dimensions,
-} from 'react-native';
+import React from 'react';
+import { View, Text, ScrollView, Dimensions } from 'react-native';
 import Activity from './Activity';
-import { ThemedText } from './ThemedText';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedView } from './ThemedView';
+import { ThemedText } from './ThemedText';
+
+const profilePic1 = require('../assets/profile-pic-1.webp');
+const profilePic2 = require('../assets/profile-pic-2.jpeg');
+const { height: screenHeight } = Dimensions.get('window');
 
 const FriendsActivity: React.FC = () => {
-  const scrollViewRef = useRef<ScrollView>(null);
-  const screenHeight = Dimensions.get('window').height;
-
+  const insets = useSafeAreaInsets();
+  const dynamicPadding = Math.min(Math.max(screenHeight * 0.05, 1), Math.max(screenHeight * 0.05, 10));
   const activities = [
     {
       id: 1,
       friendName: 'Sarah',
-      activityTitle: 'City Bike Tour',
-      date: '2023-07-18',
-      time: '10:00 AM',
-      description:
-        'Join Sarah and 15 others for an exciting bike tour around the city! Discover hidden gems and enjoy the urban landscape.',
+      friendImage: profilePic1, // Replace with actual image URL
+      activityTitle: 'is attending Tech Summit',
+      eventTitle: 'Tech Summit 2025',
+      location: 'Convention Center, NYC',
+      date: 'March 15, 2025',
+      time: '9:00 AM',
     },
     {
       id: 2,
       friendName: 'Mike',
-      activityTitle: 'Beach Cleanup',
-      date: '2023-07-20',
-      time: '08:00 AM',
-      description:
-        'Help Mike and the local community keep our beaches clean and beautiful.',
+      friendImage: profilePic2, // Replace with actual image URL
+      activityTitle: 'is going to Jazz Night',
+      eventTitle: 'Jazz Night',
+      location: 'Blue Note Jazz Club',
+      date: 'February 24, 2025',
+      time: '8:00 PM',
     },
     {
       id: 3,
-      friendName: 'Emily',
-      activityTitle: 'Yoga in the Park',
-      date: '2023-07-21',
-      time: '07:00 AM',
-      description:
-        'Start your day right with Emily and fellow yoga enthusiasts in the serene city park.',
+      friendName: 'Sarah',
+      friendImage: profilePic1, // Replace with actual image URL
+      activityTitle: 'is attending Tech Summit',
+      eventTitle: 'Tech Summit 2025',
+      location: 'Convention Center, NYC',
+      date: 'March 15, 2025',
+      time: '9:00 AM',
     },
     {
       id: 4,
-      friendName: 'Alex',
-      activityTitle: 'Rock Climbing Workshop',
-      date: '2023-07-22',
-      time: '02:00 PM',
-      description:
-        'Learn the basics of rock climbing with Alex and experienced instructors.',
-    },
-    {
-      id: 5,
-      friendName: 'Olivia',
-      activityTitle: 'Charity Run',
-      date: '2023-07-23',
-      time: '09:00 AM',
-      description:
-        'Join Olivia in a 5K run to raise funds for the local animal shelter.',
-    },
-    {
-      id: 6,
-      friendName: 'Daniel',
-      activityTitle: 'Photography Walk',
-      date: '2023-07-24',
-      time: '04:00 PM',
-      description:
-        'Explore the city\'s most photogenic spots with Daniel and other photography enthusiasts.',
-    },
-    {
-      id: 7,
-      friendName: 'Sophia',
-      activityTitle: 'Cooking Class',
-      date: '2023-07-25',
-      time: '06:00 PM',
-      description:
-        'Learn to cook delicious, healthy meals with Sophia and a professional chef.',
+      friendName: 'Mike',
+      friendImage: profilePic2, // Replace with actual image URL
+      activityTitle: 'is going to Jazz Night',
+      eventTitle: 'Jazz Night',
+      location: 'Blue Note Jazz Club',
+      date: 'February 24, 2025',
+      time: '8:00 PM',
     },
   ];
 
   return (
-    <View className="flex-1 p-4 bg-white">
+    <ThemedView className="flex-1 p-4 bg-white w-full">
       {/* Header */}
-      <Text className="text-lg font-bold mb-4">Friends' Activity</Text>
+      <ThemedText className="text-lg font-bold text-gray-900 mb-4">Friends' Activity</ThemedText>
 
-      {/* Scrollable Activities */}
-      <ScrollView ref={scrollViewRef} className="flex-1">
+      {/* Activities List */}
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingBottom: insets.bottom + dynamicPadding, // Add extra padding for the tab bar height
+        }}
+      >
         {activities.map((activity) => (
           <Activity
             key={activity.id}
             friendName={activity.friendName}
+            friendImage={activity.friendImage}
             activityTitle={activity.activityTitle}
+            eventTitle={activity.eventTitle}
             date={activity.date}
             time={activity.time}
-            description={activity.description}
+            location={activity.location}
           />
         ))}
       </ScrollView>
-    </View>
+    </ThemedView>
   );
 };
 

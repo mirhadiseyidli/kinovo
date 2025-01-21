@@ -29,7 +29,7 @@ const HomeScreen = () => {
   };
 
   return (
-    <View className="flex-1">
+    <ThemedView className="flex-1 bg-white">
       {/* Scrollable Content */}
       <ScrollView
         ref={scrollViewRef}
@@ -37,26 +37,26 @@ const HomeScreen = () => {
         onScroll={handleScroll}
         scrollEventThrottle={16}
       >
-        <View className='flex flex-col gap-0.5'>
-          <View className="flex-[1]">
+        <ThemedView className='flex flex-col gap-0.5'>
+          <ThemedView className="flex-[1]">
             <Header />
-          </View>
-          <View className='flex-[1] items-center justify-center'>
+          </ThemedView>
+          {/* <View className='flex-[1] items-center justify-center'>
             <EventSuggestions />
-          </View>
-          <View className='flex-[1] items-center justify-center'>
+          </View> */}
+          <ThemedView className='flex-[1] items-center justify-center'>
             <UpcomingEvents />
-          </View>
-          <View className='flex-[1] items-center justify-center'>
+          </ThemedView>
+          {/* <View className='flex-[1] items-center justify-center'>
             <FriendsActivity />
-          </View>
-        </View>
+          </View> */}
+        </ThemedView>
       </ScrollView>
 
       {/* Floating Button */}
       <TouchableOpacity
         onPress={handleButtonPress}
-        className="absolute bottom-6 right-6 bg-teal-300 rounded-full p-4 shadow-lg"
+        className="absolute bottom-20 right-6 bg-teal-300 rounded-full p-4 shadow-lg"
       >
         <Feather
           name={showScrollToTop ? 'arrow-up' : 'plus'} // Dynamic icon based on scroll
@@ -64,7 +64,7 @@ const HomeScreen = () => {
           color="white"
         />
       </TouchableOpacity>
-    </View>
+    </ThemedView>
   );
 };
 

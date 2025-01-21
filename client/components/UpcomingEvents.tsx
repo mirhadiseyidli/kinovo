@@ -1,63 +1,110 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import UpcomingEvent from './UpcomingEvent';
+import { ThemedText } from './ThemedText';
+import { ThemedView } from './ThemedView';
+import { IconSymbol } from './ui/IconSymbol';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { Colors } from '@/constants/Colors';
+
+const friendImage1 = require('../assets/profile-pic-1.webp');
+const eventImage1 = require('../assets/soccer-field.jpg');
+const friendImage2 = require('../assets/profile-pic-2.jpeg');
+const eventImage2 = require('../assets/tennis-court.jpg');
 
 const UpcomingEvents: React.FC = () => {
+  const colorScheme = useColorScheme();
   const events = [
     {
       id: 1,
-      title: 'Morning Yoga in the Park',
-      date: '7/14/2023',
-      time: '09:00 AM',
+      friendName: 'John Smith',
+      friendImage: friendImage1,
+      eventTitle: 'Web3 Workshop',
+      date: 'Tomorrow',
+      time: '2:00 PM',
+      location: 'Tech Hub, Silicon Valley',
+      remainingDays: 'in 1 day',
+      eventImage: eventImage1,
     },
     {
       id: 2,
-      title: 'Local Football Match',
-      date: '7/15/2023',
-      time: '02:00 PM',
+      friendName: 'Sarah Wilson',
+      friendImage: friendImage2,
+      eventTitle: 'Jazz Night',
+      date: 'Sat',
+      time: '8:00 PM',
+      location: 'Blue Note Jazz Club',
+      remainingDays: 'in 3 days',
+      eventImage: eventImage2,
     },
     {
       id: 3,
-      title: 'Evening Run Group',
-      date: '7/17/2023',
-      time: '07:00 PM',
+      friendName: 'Michael Brown',
+      friendImage: friendImage1,
+      eventTitle: 'Tech Meetup',
+      date: 'Sun',
+      time: '5:00 PM',
+      location: 'Downtown Center',
+      remainingDays: 'in 4 days',
+      eventImage: eventImage1,
     },
     {
       id: 4,
-      title: 'Mountain Biking Adventure',
-      date: '7/19/2023',
-      time: '10:00 AM',
-    },
-    {
-      id: 5,
-      title: 'Community Garden Meetup',
-      date: '7/21/2023',
-      time: '03:00 PM',
+      friendName: 'Emily Davis',
+      friendImage: friendImage2,
+      eventTitle: 'Art Exhibition',
+      date: 'Mon',
+      time: '6:00 PM',
+      location: 'Art Hub',
+      remainingDays: 'in 5 days',
+      eventImage: eventImage2,
     },
   ];
 
+  // Limit the number of displayed events to 3
+  const limitedEvents = events.slice(0, 3);
+
   return (
-    <View className="bg-white w-full p-4">
+    <ThemedView className="flex-1 w-full p-4">
       {/* Header */}
-      <Text className="text-lg font-bold mb-4">Upcoming Events</Text>
+      <ThemedView className="flex-row justify-between items-center mb-6">
+        <ThemedText className="text-md font-bold">Upcoming Events</ThemedText>
+        <TouchableOpacity className="flex-row items-center">
+          <ThemedText className="text-md">View Calendar</ThemedText>
+          <IconSymbol
+            name="chevron.right"
+            size={12}
+            color={Colors[colorScheme ?? 'dark'].tint}
+          />
+        </TouchableOpacity>
+      </ThemedView>
 
       {/* Event List */}
-      <ScrollView>
-        {events.map((event) => (
-          <UpcomingEvent
-            key={event.id}
-            title={event.title}
-            date={event.date}
-            time={event.time}
-          />
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {limitedEvents.map((event, index) => (
+          <View 
+            key={event.id} 
+            className='flex flex-shrink'
+            style={{ marginBottom: index < limitedEvents.length - 1 ? 16 : 0 }}
+          >
+            <UpcomingEvent
+              friendName={event.friendName}
+              friendImage={event.friendImage}
+              eventTitle={event.eventTitle}
+              date={event.date}
+              time={event.time}
+              location={event.location}
+              remainingDays={event.remainingDays}
+              eventImage={event.eventImage}
+            />
+            {/* Divider Line */}
+            {index < 2 && (
+              <View className="border-b border-gray-300" />
+            )}
+          </View>
         ))}
       </ScrollView>
-
-      {/* View Calendar Button */}
-      <TouchableOpacity className="mt-4 bg-teal-500 rounded-lg p-3">
-        <Text className="text-white text-center font-bold">View Calendar</Text>
-      </TouchableOpacity>
-    </View>
+    </ThemedView>
   );
 };
 

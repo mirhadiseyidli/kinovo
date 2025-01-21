@@ -1,28 +1,68 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, ScrollView, Dimensions } from 'react-native';
 import SuggestedEvent from './SuggestedEvent';
-import { ThemedText } from './ThemedText';
 import { ThemedView } from './ThemedView';
+import { ThemedText } from './ThemedText';
+
+const bikingTrail = require('../assets/biking-trail.jpg');
+const hikingPlace = require('../assets/hiking-place.jpg');
+const soccerField = require('../assets/soccer-field.jpg');
+const tennisCourt = require('../assets/tennis-court.jpg');
+const conferenceRoom = require('../assets/conference-room.webp');
 
 const EventSuggestions: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
 
   const events = [
-    { id: 1, icon: 'calendar', title: 'Weekend Hike', location: 'Green Valley' },
-    { id: 2, icon: 'calendar', title: 'Morning Cycle', location: 'Sunrise Trail' },
-    { id: 3, icon: 'calendar', title: 'Kayaking Fun', location: 'Blue River' },
-    { id: 4, icon: 'calendar', title: 'Rock Climbing', location: 'Eagle Rock' },
-    { id: 5, icon: 'calendar', title: 'Camping Trip', location: 'Pine Woods' },
+    {
+      id: 1,
+      title: 'Weekend Hike',
+      location: 'Green Valley',
+      date: 'March 10, 2025',
+      time: '8:00 AM',
+      imageUrl: hikingPlace,
+    },
+    {
+      id: 2,
+      title: 'Morning Cycle',
+      location: 'Sunrise Trail',
+      date: 'March 11, 2025',
+      time: '6:00 AM',
+      imageUrl: bikingTrail,
+    },
+    {
+      id: 3,
+      title: 'Kayaking Fun',
+      location: 'Blue River',
+      date: 'March 12, 2025',
+      time: '9:00 AM',
+      imageUrl: soccerField,
+    },
+    {
+      id: 4,
+      title: 'Rock Climbing',
+      location: 'Eagle Rock',
+      date: 'March 13, 2025',
+      time: '7:00 AM',
+      imageUrl: tennisCourt,
+    },
+    {
+      id: 5,
+      title: 'Camping Trip',
+      location: 'Pine Woods',
+      date: 'March 14, 2025',
+      time: '5:00 PM',
+      imageUrl: conferenceRoom,
+    },
   ];
 
   const screenWidth = Dimensions.get('window').width;
 
   const handleScrollEndDrag = (event: any) => {
     const offsetX = event.nativeEvent.contentOffset.x;
-    const index = Math.round(offsetX / screenWidth); // Calculate the closest index
+    const index = Math.round(offsetX / screenWidth);
 
-    // Snap to the nearest item
     if (scrollRef.current) {
       scrollRef.current.scrollTo({
         x: index * screenWidth,
@@ -35,8 +75,8 @@ const EventSuggestions: React.FC = () => {
 
   const handleMomentumScrollEnd = (event: any) => {
     const offsetX = event.nativeEvent.contentOffset.x;
-    const index = Math.round(offsetX / screenWidth); // Calculate the closest index
-    setCurrentIndex(index); // Update the current index
+    const index = Math.round(offsetX / screenWidth);
+    setCurrentIndex(index);
   };
 
   const scrollToItem = (index: number) => {
@@ -46,61 +86,58 @@ const EventSuggestions: React.FC = () => {
         animated: true,
       });
     }
-    setCurrentIndex(index); // Update the current index
+    setCurrentIndex(index);
   };
 
   return (
-    <View className="p-4 bg-white">
+    <ThemedView className="p-4 items-center bg-white">
       {/* Header */}
-      <Text className="text-lg font-bold mb-4">Event Suggestions</Text>
+      <ThemedView style={{ width: screenWidth * 0.9 }}>
+        <ThemedText className="text-lg font-bold mb-4 text-start">Event Suggestions</ThemedText>
+      </ThemedView>
 
       {/* Horizontal Carousel */}
-      <ScrollView
-        ref={scrollRef}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        onScrollEndDrag={handleScrollEndDrag} // Trigger snapping after drag
-        onMomentumScrollEnd={handleMomentumScrollEnd} // Update current index
-        scrollEventThrottle={16}
-        className="mb-4"
-      >
-        {events.map((event) => (
-          <View
-            key={event.id}
-            style={{
-              width: screenWidth, // Full width for each event
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
-          >
-            <SuggestedEvent
-              icon={event.icon}
-              title={event.title}
-              location={event.location}
-            />
-          </View>
-        ))}
-
-        {/* See More Button as the Last Item */}
-        <View
-          style={{
-            width: screenWidth, // Full width for proper snapping
-            justifyContent: 'center',
-            alignItems: 'flex-start',
-          }}
+      <ThemedView className="mx-auto" style={{ width: screenWidth }}>
+        <ScrollView
+          ref={scrollRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          onScrollEndDrag={handleScrollEndDrag}
+          onMomentumScrollEnd={handleMomentumScrollEnd}
+          scrollEventThrottle={16}
+          className="mb-4"
         >
-          <Text className="bg-teal-500 text-white font-bold p-4 rounded-lg text-center w-[90%]">
-            See More Events
-          </Text>
-        </View>
-      </ScrollView>
+          {events.map((event) => (
+            <ThemedView
+              className='shadow-md shadow-gray-100 justify-center items-center'
+              key={event.id}
+              style={{ width: screenWidth }}
+            >
+              <SuggestedEvent
+                title={event.title}
+                location={event.location}
+                date={event.date}
+                time={event.time}
+                imageUrl={event.imageUrl}
+              />
+            </ThemedView>
+          ))}
+
+          {/* See More Button as the Last Item */}
+          <ThemedView className='items-center justify-center' style={{ width: screenWidth }}>
+            <ThemedText className="bg-teal-500 text-white font-bold p-4 rounded-lg text-center w-[80%]">
+              See More Events
+            </ThemedText>
+          </ThemedView>
+        </ScrollView>
+      </ThemedView>
 
       {/* Pagination Dots */}
-      <View className="flex-row justify-center mt-2 gap-1">
+      <ThemedView className="flex-row justify-center mt-2 gap-1">
         {events.map((_, index) => (
-          <View
+          <ThemedView
             key={index}
-            onTouchStart={() => scrollToItem(index)} // Allow tapping on dots
+            onTouchStart={() => scrollToItem(index)}
             className={`h-2 w-2 rounded-full ${
               currentIndex === index ? 'bg-teal-500' : 'bg-gray-300'
             }`}
@@ -108,14 +145,14 @@ const EventSuggestions: React.FC = () => {
         ))}
 
         {/* Dot for See More Button */}
-        <View
-          onTouchStart={() => scrollToItem(events.length)} // Scroll to the See More button
+        <ThemedView
+          onTouchStart={() => scrollToItem(events.length)}
           className={`h-2 w-2 rounded-full ${
             currentIndex === events.length ? 'bg-teal-500' : 'bg-gray-300'
           }`}
         />
-      </View>
-    </View>
+      </ThemedView>
+    </ThemedView>
   );
 };
 

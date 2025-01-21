@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { View, Alert, Text, TouchableOpacity } from 'react-native';
 import axios from 'axios';
 import Input from '../../components/Input'; // Import the reusable input component
+import { ThemedView } from '@/components/ThemedView';
+import { ThemedText } from '@/components/ThemedText';
 
 const EmailSignUp: React.FC = () => {
   const [firstName, setFirstName] = useState('');
@@ -91,12 +93,12 @@ const EmailSignUp: React.FC = () => {
   };
 
   return (
-    <View className="flex px-6">
-      <View className="mt-36 mb-16 items-center justify-center">
-        <Text className="text-3xl">LOGO HERE</Text>
-      </View>
+    <ThemedView className="flex px-6">
+      <ThemedView className="mt-36 mb-16 items-center justify-center">
+        <ThemedText className="text-3xl">LOGO HERE</ThemedText>
+      </ThemedView>
       
-      <View className="flex flex-col">
+      <ThemedView className="flex flex-col">
         <Input
           value={firstName}
           onChangeText={setFirstName}
@@ -133,15 +135,15 @@ const EmailSignUp: React.FC = () => {
           error={errors.password}
           secureTextEntry
         />
-      </View>
+      </ThemedView>
       
       <TouchableOpacity
         className="mt-16 bg-black py-3 rounded-lg active:bg-gray-800"
         onPress={handleSignUp}
       >
-        <Text className="text-white text-center text-lg font-medium">Sign Up</Text>
+        <ThemedText className="text-white text-center text-lg font-medium">Sign Up</ThemedText>
       </TouchableOpacity>
-    </View>
+    </ThemedView>
   );
 };
 
