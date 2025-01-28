@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, Image } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { ThemedView } from './ThemedView';
-import { ThemedText } from './ThemedText';
+import { ThemedView } from '@/components/ThemedView';
+import { ThemedText } from '@/components/ThemedText';
 
 interface ActivityProps {
   friendName: string;

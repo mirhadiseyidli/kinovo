@@ -1,16 +1,16 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import UpcomingEvent from './UpcomingEvent';
-import { ThemedText } from './ThemedText';
-import { ThemedView } from './ThemedView';
-import { IconSymbol } from './ui/IconSymbol';
+import Event from '@/components/Event';
+import { ThemedText } from '@/components/ThemedText';
+import { ThemedView } from '@/components/ThemedView';
+import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 
-const friendImage1 = require('../assets/profile-pic-1.webp');
-const eventImage1 = require('../assets/soccer-field.jpg');
-const friendImage2 = require('../assets/profile-pic-2.jpeg');
-const eventImage2 = require('../assets/tennis-court.jpg');
+const friendImage1 = require('@/assets/profile-pic-1.webp');
+const eventImage1 = require('@/assets/soccer-field.jpg');
+const friendImage2 = require('@/assets/profile-pic-2.jpeg');
+const eventImage2 = require('@/assets/tennis-court.jpg');
 
 const UpcomingEvents: React.FC = () => {
   const colorScheme = useColorScheme();
@@ -67,10 +67,10 @@ const UpcomingEvents: React.FC = () => {
   return (
     <ThemedView className="flex-1 w-full p-4">
       {/* Header */}
-      <ThemedView className="flex-row justify-between items-center mb-6">
+      <ThemedView className="flex-row justify-between items-center mb-4">
         <ThemedText className="text-md font-bold">Upcoming Events</ThemedText>
         <TouchableOpacity className="flex-row items-center">
-          <ThemedText className="text-md">View Calendar</ThemedText>
+          <ThemedText className="text-md mr-1">View Calendar</ThemedText>
           <IconSymbol
             name="chevron.right"
             size={12}
@@ -84,10 +84,9 @@ const UpcomingEvents: React.FC = () => {
         {limitedEvents.map((event, index) => (
           <View 
             key={event.id} 
-            className='flex flex-shrink'
-            style={{ marginBottom: index < limitedEvents.length - 1 ? 16 : 0 }}
+            className='flex flex-shrink mb-4'
           >
-            <UpcomingEvent
+            <Event
               friendName={event.friendName}
               friendImage={event.friendImage}
               eventTitle={event.eventTitle}
@@ -99,7 +98,11 @@ const UpcomingEvents: React.FC = () => {
             />
             {/* Divider Line */}
             {index < 2 && (
-              <View className="border-b border-gray-300" />
+              <View
+                className={`border-b ${
+                  colorScheme === 'dark' ? 'border-gray-600' : 'border-gray-300'
+                }`}
+              />
             )}
           </View>
         ))}

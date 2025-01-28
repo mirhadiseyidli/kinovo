@@ -9,6 +9,7 @@ import { useColorScheme } from '../../hooks/useColorScheme';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Feather from '@expo/vector-icons/Feather';
 import { ProfileIcon } from '@/components/ui/ProfileIcon';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 export default function TabsLayout() {
   const colorScheme = useColorScheme();
@@ -18,31 +19,34 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'dark'].tint,
-        // tabBarActiveTintColor: '#4fb9af',
-        // tabBarInactiveTintColor: colorScheme === 'dark' ? 'light-content' : 'dark-content',
         headerShown: false,
-        tabBarBackground: TabBarBackground,
         tabBarShowLabel: false,
+        tabBarHideOnKeyboard: true,
         tabBarStyle: Platform.select({
           ios: {
             position: 'absolute', // Keeps the position absolute on iOS
             backgroundColor: Colors[colorScheme ?? 'dark'].background, // Dark or light theme
             borderTopWidth: 1, // Border width
-            borderTopColor: Colors[colorScheme ?? 'dark'].background, // Gray-100 hex code
+            borderTopColor: Colors[colorScheme ?? 'dark'].border, // Gray-100 hex code
             shadowOpacity: 0.1, // Slight shadow for depth
             elevation: 3, // Android shadow
             paddingTop: 4, // Add padding at the top
             itemsAlign: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            animation: 'spring',
           },
           default: {
-            // backgroundColor: colorScheme === 'dark' ? '#333' : '#F3F4F6', // Background for other platforms
-            backgroundColor: '#F3F4F6', // Dark or light theme
+            backgroundColor: Colors[colorScheme ?? 'dark'].background, // Background for other platforms
             borderTopWidth: 1, // Border width
-            borderTopColor: '#F3F4F6', // Gray-100 hex code
+            borderTopColor: Colors[colorScheme ?? 'dark'].border, // Gray-100 hex code
             paddingTop: 10, // Add padding at the top
           },
         }),
+        tabBarVisibilityAnimationConfig: {
+          hide: {
+            animation: 'spring'
+          }
+        }
       }}
     >
       <Tabs.Screen
@@ -57,6 +61,13 @@ export default function TabsLayout() {
         options={{
           title: 'Explore',
           tabBarIcon: ({ color }) => <Feather name="search" size={28} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="create"
+        options={{
+          title: 'Create',
+          tabBarIcon: ({ color }) => <Ionicons name="add-circle-outline" size={28} color={color} />,
         }}
       />
       <Tabs.Screen

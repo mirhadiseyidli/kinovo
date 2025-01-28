@@ -5,7 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColorScheme } from '../../hooks/useColorScheme';
-import HomeScreen from '../../components/HomeScreen';
+import HomeScreen from '../../components/Home/HomeScreen';
 import AuthScreen from '../(auth)/auth';
 import { ThemedView } from '@/components/ThemedView';
 import '../../styles/global.css'; // NativeWind styles
@@ -73,7 +73,7 @@ export default function Home() {
       onLoginSuccess={handleLogin}
     />
   );
-}
+};
 
 function Content({ isLoggedIn, onLoginSuccess }: ContentProps) {
   const insets = useSafeAreaInsets();
@@ -81,8 +81,8 @@ function Content({ isLoggedIn, onLoginSuccess }: ContentProps) {
 
   return (
     <ThemedView
-      className="flex-1 bg-white"
-      style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+      className="flex-1"
+      style={{ paddingTop: insets.top, paddingBottom: insets.bottom}}
     >
       <StatusBar
         barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'}

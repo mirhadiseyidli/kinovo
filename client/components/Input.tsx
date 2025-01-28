@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, TextInput, Text, TextInputProps } from 'react-native';
-import { ThemedView } from './ThemedView';
+import { ThemedView } from '@/components/ThemedView';
 
 interface InputProps extends TextInputProps {
   value: string;

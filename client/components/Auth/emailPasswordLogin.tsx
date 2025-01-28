@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { View, Alert, Text, TouchableOpacity } from 'react-native';
 import CheckBox from '@react-native-community/checkbox';
 import axios from 'axios';
-import Input from './Input'; // Import the reusable input component
-import { ThemedView } from './ThemedView';
-import { ThemedText } from './ThemedText';
+import Input from '@/components/Input'; // Import the reusable input component
+import { ThemedView } from '@/components/ThemedView';
+import { ThemedText } from '@/components/ThemedText';
 
 interface EmailLoginProps {
   onLoginSuccess: (token: string) => void;

@@ -24,7 +24,6 @@ export const ProfileIcon: React.FC<ProfileIconProps> = ({
         width: size,
         height: size,
         borderRadius: size / 2,
-        backgroundColor: 'white',
         overflow: 'hidden',
         justifyContent: 'center',
         alignItems: 'center',

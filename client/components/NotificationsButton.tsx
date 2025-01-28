@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { ThemedView } from './ThemedView';
+import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 
@@ -12,7 +12,7 @@ const NotificationsButton: React.FC<{ count: number }> = ({ count }) => {
     <TouchableOpacity className="relative">
       {/* Notification Bell Icon */}
       <ThemedView className="w-9 h-9 justify-center items-center">
-        <Feather name="bell" size={24} color={Colors[colorScheme ?? 'dark'].tint} />
+        <Feather name="bell" size={28} color={Colors[colorScheme ?? 'dark'].tint} />
       </ThemedView>
 
       {/* Badge */}

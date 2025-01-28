@@ -1,16 +1,20 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, ScrollView, Dimensions } from 'react-native';
-import SuggestedEvent from './SuggestedEvent';
-import { ThemedView } from './ThemedView';
-import { ThemedText } from './ThemedText';
+import { View, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
+import EventCardView from '@/components/Explore/EventCardView';
+import { ThemedView } from '@/components/ThemedView';
+import { ThemedText } from '@/components/ThemedText';
+import { IconSymbol } from '@/components/ui/IconSymbol';
+import { Colors } from '@/constants/Colors';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { Feather } from '@expo/vector-icons';
 
-const bikingTrail = require('../assets/biking-trail.jpg');
-const hikingPlace = require('../assets/hiking-place.jpg');
-const soccerField = require('../assets/soccer-field.jpg');
-const tennisCourt = require('../assets/tennis-court.jpg');
-const conferenceRoom = require('../assets/conference-room.webp');
+const bikingTrail = require('@/assets/biking-trail.jpg');
+const hikingPlace = require('@/assets/hiking-place.jpg');
+const soccerField = require('@/assets/soccer-field.jpg');
+const tennisCourt = require('@/assets/tennis-court.jpg');
+const conferenceRoom = require('@/assets/conference-room.webp');
 
-const EventSuggestions: React.FC = () => {
+const NearbyEvents: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
 
@@ -89,15 +93,32 @@ const EventSuggestions: React.FC = () => {
     setCurrentIndex(index);
   };
 
+  const colorScheme = useColorScheme();
+
   return (
-    <ThemedView className="p-4 items-center bg-white">
+    <ThemedView 
+      className="flex-1"
+      style={{ width: screenWidth }}
+    >
       {/* Header */}
-      <ThemedView style={{ width: screenWidth * 0.9 }}>
-        <ThemedText className="text-lg font-bold mb-4 text-start">Event Suggestions</ThemedText>
+      <ThemedView className='flex flex-row items-center gap-2 mb-2 px-4'>
+        <Feather name="map-pin" size={16} color={Colors[colorScheme ?? 'dark'].tint} />
+        <ThemedText className='text-lg font-bold'>San Francisco</ThemedText>
+      </ThemedView>
+      <ThemedView className="flex-row justify-between items-center mb-4 px-4">
+        <ThemedText className="text-md font-bold">Nearby Events</ThemedText>
+        <TouchableOpacity className="flex-row items-center">
+          <ThemedText className="text-md mr-1">View All</ThemedText>
+          <IconSymbol
+            name="chevron.right"
+            size={12}
+            color={Colors[colorScheme ?? 'dark'].tint}
+          />
+        </TouchableOpacity>
       </ThemedView>
 
       {/* Horizontal Carousel */}
-      <ThemedView className="mx-auto" style={{ width: screenWidth }}>
+      <ThemedView style={{ width: screenWidth }}>
         <ScrollView
           ref={scrollRef}
           horizontal
@@ -109,11 +130,11 @@ const EventSuggestions: React.FC = () => {
         >
           {events.map((event) => (
             <ThemedView
-              className='shadow-md shadow-gray-100 justify-center items-center'
+              className='flex-1 flex-row items-center px-4'
               key={event.id}
               style={{ width: screenWidth }}
             >
-              <SuggestedEvent
+              <EventCardView
                 title={event.title}
                 location={event.location}
                 date={event.date}
@@ -125,7 +146,13 @@ const EventSuggestions: React.FC = () => {
 
           {/* See More Button as the Last Item */}
           <ThemedView className='items-center justify-center' style={{ width: screenWidth }}>
-            <ThemedText className="bg-teal-500 text-white font-bold p-4 rounded-lg text-center w-[80%]">
+            <ThemedText 
+              className="font-bold p-4 rounded-lg text-center w-[80%]"
+              style={{
+                backgroundColor: Colors[colorScheme ?? 'dark'].tint,
+                color: Colors[colorScheme ?? 'dark'].background
+              }}
+            >
               See More Events
             </ThemedText>
           </ThemedView>
@@ -133,27 +160,35 @@ const EventSuggestions: React.FC = () => {
       </ThemedView>
 
       {/* Pagination Dots */}
-      <ThemedView className="flex-row justify-center mt-2 gap-1">
+      <View className="flex-row justify-center gap-1">
         {events.map((_, index) => (
-          <ThemedView
+          <View
             key={index}
             onTouchStart={() => scrollToItem(index)}
-            className={`h-2 w-2 rounded-full ${
-              currentIndex === index ? 'bg-teal-500' : 'bg-gray-300'
-            }`}
+            className="h-2 w-2 rounded-full"
+            style={{
+              backgroundColor:
+                currentIndex === index
+                  ? Colors[colorScheme ?? 'dark'].tint // Active state
+                  : Colors[colorScheme ?? 'dark'].border, // Inactive state
+            }}
           />
         ))}
 
         {/* Dot for See More Button */}
-        <ThemedView
+        <View
           onTouchStart={() => scrollToItem(events.length)}
-          className={`h-2 w-2 rounded-full ${
-            currentIndex === events.length ? 'bg-teal-500' : 'bg-gray-300'
-          }`}
+          className="h-2 w-2 rounded-full"
+          style={{
+            backgroundColor:
+              currentIndex === events.length
+                ? Colors[colorScheme ?? 'dark'].tint // Active state
+                : Colors[colorScheme ?? 'dark'].border, // Inactive state
+          }}
         />
-      </ThemedView>
+      </View>
     </ThemedView>
   );
 };
 
-export default EventSuggestions;
+export default NearbyEvents;

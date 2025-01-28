@@ -3,8 +3,8 @@ import { View, Button, Alert, Image, TouchableOpacity } from 'react-native';
 import { GoogleSignin, statusCodes, isSuccessResponse, isErrorWithCode } from '@react-native-google-signin/google-signin';
 import { GOOGLE_CLIENT_ID_IOS } from '@env';
 import axios from 'axios';
-import AuthButton from './AuthButton';
-const googleLogo = require('../assets/google-logo.png');
+import AuthButton from '@/components/Auth/AuthButton';
+const googleLogo = require('@/assets/google-logo.png');
 
 interface GoogleOAuthProps {
   onLoginSuccess: (idToken: string) => void; // Explicit type for the login success callback

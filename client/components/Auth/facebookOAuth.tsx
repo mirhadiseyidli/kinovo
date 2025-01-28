@@ -3,21 +3,21 @@ import { View, Button, Alert, Image, TouchableOpacity } from 'react-native';
 import { GoogleSignin, statusCodes, isSuccessResponse, isErrorWithCode } from '@react-native-google-signin/google-signin';
 import { GOOGLE_CLIENT_ID_IOS } from '@env';
 import axios from 'axios';
-import AuthButton from './AuthButton';
+import AuthButton from '@/components/Auth/AuthButton';
 
-const appleLogo = require('../assets/apple-logo.png');
+const facebookLogo = require('@/assets/facebook-logo.png');
 
-interface AppleOAuthProps {
+interface FacebookOAuthProps {
   onLoginSuccess: (idToken: string) => void; // Explicit type for the login success callback
 }
 
-const AppleOAuth: React.FC<AppleOAuthProps> = ({ onLoginSuccess }) => {
+const FacebookOAuth: React.FC<FacebookOAuthProps> = ({ onLoginSuccess }) => {
   // Configure Google Sign-In
   // GoogleSignin.configure({
   //   iosClientId: GOOGLE_CLIENT_ID_IOS, // [iOS] Specify the iOS client ID
   // });
 
-  const appleSignIn = async () => {}
+  const facebookSignIn = async () => {}
   //   try {
   //     await GoogleSignin.hasPlayServices();
   //     const userInfo = await GoogleSignin.signIn();
@@ -65,8 +65,8 @@ const AppleOAuth: React.FC<AppleOAuthProps> = ({ onLoginSuccess }) => {
   // };
 
   return (
-    <AuthButton onPress={appleSignIn} logo={appleLogo} />
+    <AuthButton onPress={facebookSignIn} logo={facebookLogo} />
   );
 };
 
-export default AppleOAuth;
+export default FacebookOAuth;

@@ -1,0 +1,191 @@
+import React from 'react';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import Event from '@/components/Event';
+import { ThemedText } from '@/components/ThemedText';
+import { ThemedView } from '@/components/ThemedView';
+import { IconSymbol } from '@/components/ui/IconSymbol';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { Colors } from '@/constants/Colors';
+
+const friendImage1 = require('@/assets/profile-pic-1.webp');
+const eventImage1 = require('@/assets/soccer-field.jpg');
+const friendImage2 = require('@/assets/profile-pic-2.jpeg');
+const eventImage2 = require('@/assets/tennis-court.jpg');
+
+const EventSuggestions: React.FC = () => {
+  const colorScheme = useColorScheme();
+  const events = [
+    {
+      id: 1,
+      friendName: 'John Smith',
+      friendImage: friendImage1,
+      eventTitle: 'Web3 Workshop',
+      date: 'Tomorrow',
+      time: '2:00 PM',
+      location: 'Tech Hub, Silicon Valley',
+      remainingDays: 'in 1 day',
+      eventImage: eventImage1,
+    },
+    {
+      id: 2,
+      friendName: 'Sarah Wilson',
+      friendImage: friendImage2,
+      eventTitle: 'Jazz Night',
+      date: 'Sat',
+      time: '8:00 PM',
+      location: 'Blue Note Jazz Club',
+      remainingDays: 'in 3 days',
+      eventImage: eventImage2,
+    },
+    {
+      id: 3,
+      friendName: 'Michael Brown',
+      friendImage: friendImage1,
+      eventTitle: 'Tech Meetup',
+      date: 'Sun',
+      time: '5:00 PM',
+      location: 'Downtown Center',
+      remainingDays: 'in 4 days',
+      eventImage: eventImage1,
+    },
+    {
+      id: 4,
+      friendName: 'Emily Davis',
+      friendImage: friendImage2,
+      eventTitle: 'Art Exhibition',
+      date: 'Mon',
+      time: '6:00 PM',
+      location: 'Art Hub',
+      remainingDays: 'in 5 days',
+      eventImage: eventImage2,
+    },
+    {
+      id: 5,
+      friendName: 'John Smith',
+      friendImage: friendImage1,
+      eventTitle: 'Web3 Workshop',
+      date: 'Tomorrow',
+      time: '2:00 PM',
+      location: 'Tech Hub, Silicon Valley',
+      remainingDays: 'in 1 day',
+      eventImage: eventImage1,
+    },
+    {
+      id: 6,
+      friendName: 'Sarah Wilson',
+      friendImage: friendImage2,
+      eventTitle: 'Jazz Night',
+      date: 'Sat',
+      time: '8:00 PM',
+      location: 'Blue Note Jazz Club',
+      remainingDays: 'in 3 days',
+      eventImage: eventImage2,
+    },
+    {
+      id: 7,
+      friendName: 'Michael Brown',
+      friendImage: friendImage1,
+      eventTitle: 'Tech Meetup',
+      date: 'Sun',
+      time: '5:00 PM',
+      location: 'Downtown Center',
+      remainingDays: 'in 4 days',
+      eventImage: eventImage1,
+    },
+    {
+      id: 8,
+      friendName: 'Emily Davis',
+      friendImage: friendImage2,
+      eventTitle: 'Art Exhibition',
+      date: 'Mon',
+      time: '6:00 PM',
+      location: 'Art Hub',
+      remainingDays: 'in 5 days',
+      eventImage: eventImage2,
+    },
+    {
+      id: 9,
+      friendName: 'John Smith',
+      friendImage: friendImage1,
+      eventTitle: 'Web3 Workshop',
+      date: 'Tomorrow',
+      time: '2:00 PM',
+      location: 'Tech Hub, Silicon Valley',
+      remainingDays: 'in 1 day',
+      eventImage: eventImage1,
+    },
+    {
+      id: 10,
+      friendName: 'Sarah Wilson',
+      friendImage: friendImage2,
+      eventTitle: 'Jazz Night',
+      date: 'Sat',
+      time: '8:00 PM',
+      location: 'Blue Note Jazz Club',
+      remainingDays: 'in 3 days',
+      eventImage: eventImage2,
+    },
+    {
+      id: 11,
+      friendName: 'Michael Brown',
+      friendImage: friendImage1,
+      eventTitle: 'Tech Meetup',
+      date: 'Sun',
+      time: '5:00 PM',
+      location: 'Downtown Center',
+      remainingDays: 'in 4 days',
+      eventImage: eventImage1,
+    },
+    {
+      id: 12,
+      friendName: 'Emily Davis',
+      friendImage: friendImage2,
+      eventTitle: 'Art Exhibition',
+      date: 'Mon',
+      time: '6:00 PM',
+      location: 'Art Hub',
+      remainingDays: 'in 5 days',
+      eventImage: eventImage2,
+    },
+  ];
+
+  return (
+    <ThemedView className="flex-1 w-full p-4">
+      {/* Header */}
+      <ThemedView className="flex-row justify-between items-center mb-4">
+        <ThemedText className="text-md font-bold">Events You Might Like</ThemedText>
+      </ThemedView>
+
+      {/* Event List */}
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {events.map((event, index) => (
+          <View 
+            key={event.id} 
+            className='flex flex-shrink mb-4'
+          >
+            <Event
+              friendName={event.friendName}
+              friendImage={event.friendImage}
+              eventTitle={event.eventTitle}
+              date={event.date}
+              time={event.time}
+              location={event.location}
+              remainingDays={event.remainingDays}
+              eventImage={event.eventImage}
+            />
+            {/* Divider Line */}
+            {index < 2 && (
+              <View
+                className={`border-b ${
+                  colorScheme === 'dark' ? 'border-gray-600' : 'border-gray-300'
+                }`}
+              />
+            )}
+          </View>
+        ))}
+      </ScrollView>
+    </ThemedView>
+  );
+};
+
+export default EventSuggestions;

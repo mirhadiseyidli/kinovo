@@ -1,12 +1,12 @@
 import React from 'react';
 import { View, Text, ScrollView, Dimensions } from 'react-native';
-import Activity from './Activity';
+import Activity from '@/components/Explore/Activity';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ThemedView } from './ThemedView';
-import { ThemedText } from './ThemedText';
+import { ThemedView } from '@/components/ThemedView';
+import { ThemedText } from '@/components/ThemedText';
 
-const profilePic1 = require('../assets/profile-pic-1.webp');
-const profilePic2 = require('../assets/profile-pic-2.jpeg');
+const profilePic1 = require('@/assets/profile-pic-1.webp');
+const profilePic2 = require('@/assets/profile-pic-2.jpeg');
 const { height: screenHeight } = Dimensions.get('window');
 
 const FriendsActivity: React.FC = () => {

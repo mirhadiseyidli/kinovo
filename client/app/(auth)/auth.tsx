@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import EmailLogin from '../../components/emailPasswordLogin';
-import GoogleOAuth from '../../components/googleOAuth';
-import AppleOAuth from '../../components/appleOAuth';
-import FacebookOAuth from '../../components/facebookOAuth';
+import EmailLogin from '../../components/Auth/emailPasswordLogin';
+import GoogleOAuth from '../../components/Auth/googleOAuth';
+import AppleOAuth from '../../components/Auth/appleOAuth';
+import FacebookOAuth from '../../components/Auth/facebookOAuth';
 import { useRouter } from 'expo-router';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
