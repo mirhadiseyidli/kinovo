@@ -3,6 +3,7 @@ import { View, ScrollView, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import PastEvent from '@/components/Home/PastEvent';
 import { ThemedText } from '@/components/ThemedText';
+import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
@@ -12,7 +13,10 @@ const pastEventData = [
     id: 1,
     title: 'Tech Conference',
     date: '2024-12-15',
-    attendees: [require('@/assets/profile-pic-1.webp'), require('@/assets/profile-pic-2.jpeg')],
+    attendees: [
+      { name: 'Emma', image: require('@/assets/profile-pic-1.webp') },
+      { name: 'Mike', image: require('@/assets/profile-pic-2.jpeg') }
+    ],
     image: require('@/assets/soccer-field.jpg'),
   },
   {
@@ -20,9 +24,8 @@ const pastEventData = [
     title: 'Summer Festival',
     date: '2024-08-20',
     attendees: [
-      require('@/assets/profile-pic-1.webp'),
-      require('@/assets/profile-pic-2.jpeg'),
-      require('@/assets/profile-pic-1.webp'),
+      { name: 'Emma', image: require('@/assets/profile-pic-1.webp') },
+      { name: 'Mike', image: require('@/assets/profile-pic-2.jpeg') }
     ],
     image: require('@/assets/hiking-place.jpg'),
   },
@@ -30,21 +33,34 @@ const pastEventData = [
     id: 3,
     title: 'Startup Meetup',
     date: '2024-07-05',
-    attendees: [require('@/assets/profile-pic-1.webp')],
+    attendees: [
+      { name: 'Emma', image: require('@/assets/profile-pic-1.webp') },
+      { name: 'Mike', image: require('@/assets/profile-pic-2.jpeg') },
+      { name: 'Emma', image: require('@/assets/profile-pic-1.webp') },
+      { name: 'Mike', image: require('@/assets/profile-pic-2.jpeg') },
+      { name: 'Emma', image: require('@/assets/profile-pic-1.webp') },
+      { name: 'Mike', image: require('@/assets/profile-pic-2.jpeg') }
+    ],
     image: require('@/assets/conference-room.webp'),
   },
   {
     id: 4,
     title: 'Art Exhibition',
     date: '2024-06-30',
-    attendees: [require('@/assets/profile-pic-2.jpeg')],
+    attendees: [
+      { name: 'Emma', image: require('@/assets/profile-pic-1.webp') },
+      { name: 'Mike', image: require('@/assets/profile-pic-2.jpeg') }
+    ],
     image: require('@/assets/tennis-court.jpg'),
   },
   {
     id: 5,
     title: 'Tech Conference',
     date: '2024-06-15',
-    attendees: [require('@/assets/profile-pic-1.webp'), require('@/assets/profile-pic-2.jpeg')],
+    attendees: [
+      { name: 'Emma', image: require('@/assets/profile-pic-1.webp') },
+      { name: 'Mike', image: require('@/assets/profile-pic-2.jpeg') }
+    ],
     image: require('@/assets/soccer-field.jpg'),
   },
 ];
@@ -76,37 +92,53 @@ const PastEvents: React.FC = () => {
   const tabBarHeight = useBottomTabBarHeight(); // Get the tab bar height dynamically
 
   return (
-    <ScrollView 
-      className="p-4 w-full"
-      contentContainerStyle={{
-        paddingBottom: tabBarHeight / 1.5, // Add padding equal to the tab bar height
-      }}  
-    >
-      {/* Header Section */}
-      <View className="flex-row justify-between items-center mb-4">
-        <ThemedText className="text-md font-bold">Event History</ThemedText>
-        <TouchableOpacity className="flex-row items-center">
-          <ThemedText className="text-sm font-bold text-[#4FB9AF] mr-2">Filter</ThemedText>
-          <Feather name="filter" size={12} color={Colors[colorScheme ?? 'dark'].tint} />
-        </TouchableOpacity>
-      </View>
+    <ThemedView style={{ flex: 1, width: '100%' }}>
+      <ScrollView
+        style={{ width: '100%' }}
+        contentContainerStyle={{
+          paddingBottom: tabBarHeight / 1.5, // Add padding equal to the tab bar height
+        }}
+      >
+        {/* Header Section */}
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 16,
+          }}
+        >
+          <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>
+            Event History
+          </ThemedText>
+          <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <ThemedText style={{ fontSize: 14, marginRight: 8 }}>Filter</ThemedText>
+            <Feather name="filter" size={12} color={Colors[colorScheme ?? 'dark'].tint} />
+          </TouchableOpacity>
+        </View>
 
-      {/* Events Grouped by Month */}
-      {Object.entries(groupedEvents).map(([month, events]) => (
-        <View key={month}>
-          <ThemedText className="text-sm font-bold text-white mb-4">{month}</ThemedText>
-          {events.map((event) => (
-            <PastEvent
-              key={event.id}
-              title={event.title}
-              date={event.date}
-              attendees={event.attendees}
-              image={event.image}
-            />
+        {/* Events Grouped by Month */}
+        <View style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {Object.entries(groupedEvents).map(([month, events]) => (
+            <View key={month} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <ThemedText style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 8 }}>
+                {month}
+              </ThemedText>
+
+              {events.map((event) => (
+                <PastEvent
+                  key={event.id}
+                  title={event.title}
+                  date={event.date}
+                  attendees={event.attendees}
+                  image={event.image}
+                />
+              ))}
+            </View>
           ))}
         </View>
-      ))}
-    </ScrollView>
+      </ScrollView>
+    </ThemedView>
   );
 };
 

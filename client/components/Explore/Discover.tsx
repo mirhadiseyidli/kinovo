@@ -16,7 +16,7 @@ const DiscoverScreen = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showScrollToTop, setShowScrollToTop] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
-  const tabBarHeight = useBottomTabBarHeight(); // Get tab bar height dynamically
+  const tabBarHeight = useBottomTabBarHeight() || 50; // Get tab bar height dynamically
   const insets = useSafeAreaInsets(); // Safe area insets
 
   const handleScroll = (event: any) => {
@@ -25,11 +25,11 @@ const DiscoverScreen = () => {
   };
 
   return (
-    <ThemedView className="flex-1">
+    <ThemedView style={{ flex: 1 }}>
       {/* Header Positioned at the Top */}
       <ThemedView
-        className="flex-grow"
         style={{
+          flexGrow: 1,
           maxHeight: tabBarHeight - insets.bottom, // Combine tabBarHeight and top inset
           marginBottom: 6,
         }}
@@ -40,12 +40,16 @@ const DiscoverScreen = () => {
       {/* Scrollable Content */}
       <ScrollView
         ref={scrollViewRef}
-        className="flex-1 flex-col" // Add margin equal to header height
+        style={{ 
+          flex: 1,
+          flexDirection: 'column',
+          paddingBottom: tabBarHeight,
+        }} // Ensure scrolling layout
         onScroll={handleScroll}
         scrollEventThrottle={16}
       >
         {/* Search Bar */}
-        <ThemedView className="mb-4 items-center">
+        <ThemedView style={{ marginBottom: 16, alignItems: 'center' }}>
           <SearchBar
             placeholder="Search for events or friends..."
             value={searchQuery}
@@ -54,17 +58,17 @@ const DiscoverScreen = () => {
         </ThemedView>
 
         {/* Main Content */}
-        <ThemedView className='flex flex-col gap-0.5'>
-          <ThemedView className='flex-[1] items-center justify-center'>
+        <ThemedView style={{ display: 'flex', flex: 1, flexDirection: 'column', gap: 24, paddingHorizontal: 16 }}>
+          <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <NearbyEvents />
           </ThemedView>
-          <ThemedView className='flex-[1] items-center justify-center'>
+          <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <Categories />
           </ThemedView>
-          <ThemedView className='flex-[1] items-center justify-center'>
+          <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <Cities />
           </ThemedView>
-          <ThemedView className='flex-[1] items-center justify-center'>
+          <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <EventSuggestions />
           </ThemedView>
         </ThemedView>

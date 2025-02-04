@@ -93,9 +93,9 @@ const EmailSignUp: React.FC = () => {
   };
 
   return (
-    <ThemedView className="flex px-6">
-      <ThemedView className="mt-36 mb-16 items-center justify-center">
-        <ThemedText className="text-3xl">LOGO HERE</ThemedText>
+    <ThemedView style={{ flex: 1, paddingHorizontal: 24 }}>
+      <ThemedView style={{ marginTop: 144, marginBottom: 64, alignItems: 'center', justifyContent: 'center' }}>
+        <ThemedText style={{ fontSize: 24 }}>LOGO HERE</ThemedText>
       </ThemedView>
       
       <ThemedView className="flex flex-col">
@@ -137,11 +137,8 @@ const EmailSignUp: React.FC = () => {
         />
       </ThemedView>
       
-      <TouchableOpacity
-        className="mt-16 bg-black py-3 rounded-lg active:bg-gray-800"
-        onPress={handleSignUp}
-      >
-        <ThemedText className="text-white text-center text-lg font-medium">Sign Up</ThemedText>
+      <TouchableOpacity style={{ marginTop: 64, backgroundColor: 'black', paddingVertical: 12, borderRadius: 8, opacity: 0.8 }} onPress={handleSignUp}>
+        <ThemedText style={{ color: 'white', textAlign: 'center', fontSize: 18, fontWeight: '500' }}>Sign Up</ThemedText>
       </TouchableOpacity>
     </ThemedView>
   );

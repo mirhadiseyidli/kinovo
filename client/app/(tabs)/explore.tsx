@@ -12,8 +12,7 @@ export default function Explore() {
 
   return (
     <ThemedView
-      className="flex-1"
-      style={{ paddingTop: insets.top, paddingBottom: insets.bottom}}
+      style={{ flex: 1, paddingTop: insets.top, paddingBottom: insets.bottom}}
     >
       <StatusBar
         barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'}

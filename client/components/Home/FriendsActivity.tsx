@@ -56,12 +56,14 @@ const FriendsActivity: React.FC = () => {
   ];
 
   return (
-    <ThemedView className="flex-1 p-4 bg-white w-full">
+    <ThemedView style={{ flex: 1, width: '100%' }}>
       {/* Header */}
-      <ThemedText className="text-lg font-bold text-gray-900 mb-4">Friends' Activity</ThemedText>
+      <ThemedText style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 16 }}>
+        Friends' Activity
+      </ThemedText>
 
       {/* Activities List */}
-      <ScrollView 
+      <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingBottom: insets.bottom + dynamicPadding, // Add extra padding for the tab bar height

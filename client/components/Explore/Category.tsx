@@ -16,30 +16,41 @@ const Category: React.FC<CategoryProps> = ({ iconName, label, iconColor }) => {
   const colorScheme = useColorScheme();
 
   return (
-    <ThemedView 
-      className="flex-1 w-full items-center justify-center"
+    <ThemedView
       style={{
-        borderRadius: 16, // Match the rounded corners of the child
+        flex: 1,
+        width: '100%',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 16,
         shadowColor: Colors[colorScheme ?? 'dark'].tint,
         shadowOffset: { width: 0, height: 0.5 },
         shadowOpacity: 0.2,
         shadowRadius: 2,
         elevation: 2, // For Android
-        backgroundColor: 'transparent', // Make sure the shadow is visible
-        alignSelf: 'center', // Center horizontally
+        backgroundColor: 'transparent',
+        alignSelf: 'center',
         marginVertical: 8,
       }}
     >
       <ThemedView
-        className="overflow-hidden rounded-sm"
         style={{
+          overflow: 'hidden',
           borderRadius: 16, // Rounded corners
-          aspectRatio: 1
+          aspectRatio: 1,
         }}
       >
-        <ThemedView className="p-4 items-center justify-center">
+        <ThemedView
+          style={{
+            padding: 16,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
           <Feather name={iconName} size={28} color={iconColor} />
-          <ThemedText className="text-sm font-medium text-gray-900 mt-2">{label}</ThemedText>
+          <ThemedText style={{ fontSize: 12, fontWeight: '500', marginTop: 8 }}>
+            {label}
+          </ThemedText>
         </ThemedView>
       </ThemedView>
     </ThemedView>

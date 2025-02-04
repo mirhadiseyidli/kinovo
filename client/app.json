@@ -23,7 +23,9 @@
               "com.googleusercontent.apps.614163396040-nctv2m1sivooo3skrdsiv5sa9manm5c5"
             ]
           }
-        ]
+        ],
+        "NSPhotoLibraryUsageDescription": "Allow this app to access your photo library.",
+        "NSCameraUsageDescription": "Allow this app to access your camera."
       }
     },
     "android": {

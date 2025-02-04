@@ -20,9 +20,12 @@ const City: React.FC<CityProps> = ({ name, image }) => {
       : 'rgba(200, 200, 200, 0.7)'; // Darkish gray for light mode
 
   return (
-    <ThemedView 
-      className="flex-1 w-full items-center justify-center"
+    <ThemedView
       style={{
+        flex: 1,
+        width: '100%',
+        alignItems: 'center',
+        justifyContent: 'center',
         borderRadius: 16, // Match the rounded corners of the child
         shadowColor: Colors[colorScheme ?? 'dark'].tint,
         shadowOffset: { width: 0, height: 0.5 },
@@ -34,24 +37,37 @@ const City: React.FC<CityProps> = ({ name, image }) => {
       }}
     >
       <ThemedView
-        className="flex-1 overflow-hidden rounded-sm"
         style={{
+          flex: 1,
+          overflow: 'hidden',
           borderRadius: 16, // Rounded corners
           aspectRatio: 1,
-          width: '90%'
+          width: '90%',
         }}
       >
         <ImageBackground
           source={image}
           resizeMode="cover"
-          className="flex w-full h-full"
+          style={{
+            flex: 1,
+            width: '100%',
+            height: '100%',
+          }}
         >
           <BlurView
             intensity={50}
-            className="absolute bottom-0 w-full py-2 px-3"
-            style={{ backgroundColor }}
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              width: '100%',
+              paddingVertical: 8,
+              paddingHorizontal: 12,
+              backgroundColor,
+            }}
           >
-            <ThemedText className="text-white text-sm font-bold">{name}</ThemedText>
+            <ThemedText style={{ color: 'white', fontSize: 14, fontWeight: 'bold' }}>
+              {name}
+            </ThemedText>
           </BlurView>
         </ImageBackground>
       </ThemedView>

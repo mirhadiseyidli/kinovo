@@ -13,29 +13,37 @@ interface SearchBarProps {
 
 const SearchBar: React.FC<SearchBarProps> = ({ placeholder, value, onChangeText }) => {
   const colorScheme = useColorScheme();
+  const themeColors = Colors[colorScheme ?? 'dark'];
 
   return (
-    <ThemedView 
-      className="flex-row items-center rounded-lg p-3 justify-center w-[95%]"
+    <ThemedView
       style={{
-        borderWidth: 1, // Explicitly define the border width
-        borderStyle: 'solid',
-        borderColor: Colors[colorScheme ?? 'dark'].border,
-        shadowColor: Colors[colorScheme ?? 'dark'].tint,
-        shadowOffset: { width: 0, height: 0.5 },
-        shadowOpacity: 0.2,
-        shadowRadius: 2,
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderRadius: 16,
+        padding: 12,
+        justifyContent: 'center',
+        width: '95%',
+        backgroundColor: themeColors.inputBackgroundColor,
       }}
     >
       {/* Search Icon */}
-      <Feather name="search" size={20} color={Colors[colorScheme ?? 'dark'].border} className="mr-2" />
+      <Feather
+        name="search"
+        size={20}
+        color={themeColors.icon}
+        style={{ marginRight: 8 }}
+      />
       {/* Search Input */}
       <TextInput
         placeholder={placeholder}
-        placeholderTextColor={Colors[colorScheme ?? 'dark'].border} // Light gray placeholder text
+        placeholderTextColor={themeColors.placeholderTextColor} // Light gray placeholder text
         value={value}
         onChangeText={onChangeText}
-        className="flex-1 text-gray-700"
+        style={{
+          flex: 1,
+          color: themeColors.tint, // Equivalent to text-gray-700
+        }}
       />
     </ThemedView>
   );

@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import Friend from '@/components/Home/Friend';
+import { View, Text, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import Friend from '@/components/Friend';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -20,32 +20,39 @@ const friendData = [
 
 const SeeWhatFriendsAreUpTo: React.FC = () => {
   const colorScheme = useColorScheme();
+  const screenWidth = Dimensions.get('window').width;
 
   return (
-    <ThemedView className="pl-4 pb-4">
+    <ThemedView style={{ flex: 1 }}>
       {/* Header */}
-      <ThemedView className="flex-row justify-between items-center mb-4">
-        <ThemedText className="text-md font-bold text-gray-800">Friends' Events</ThemedText>
-        <TouchableOpacity className='flex-row items-center pr-4'>
-          <ThemedText className="text-md text-green-500 mr-1">See All</ThemedText>
-          <IconSymbol
-            name="chevron.right"
-            size={12}
-            color={Colors[colorScheme ?? 'dark'].tint}
-          />
+      <ThemedView
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 16,
+          paddingHorizontal: 16,
+        }}
+      >
+        <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>Friends' Events</ThemedText>
+        <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <ThemedText style={{ fontSize: 14, marginRight: 4 }}>See All</ThemedText>
+          <IconSymbol name="chevron.right" size={12} color={Colors[colorScheme ?? 'dark'].tint} />
         </TouchableOpacity>
       </ThemedView>
 
       {/* Friends List */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        {friendData.map((friend) => (
-          <Friend
-            key={friend.id}
-            name={friend.name}
-            image={friend.image}
-            eventCount={friend.eventCount}
-          />
-        ))}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ width: screenWidth }}
+        contentContainerStyle={{ paddingLeft: 16, paddingRight: screenWidth * 0.04 }}
+      >
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          {friendData.map((friend) => (
+            <Friend key={friend.id} name={friend.name} image={friend.image} eventCount={friend.eventCount} showName={true} />
+          ))}
+        </View>
       </ScrollView>
     </ThemedView>
   );

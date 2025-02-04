@@ -1,18 +1,21 @@
 import React from 'react';
-import { View, Text, ImageBackground, Image } from 'react-native';
+import { View, ImageBackground, Dimensions } from 'react-native';
 import { BlurView } from 'expo-blur'; // Add expo-blur for the blur effect
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { ThemedText } from '@/components/ThemedText';
+import Friend from '@/components/Friend';
 
 interface PastEventProps {
   title: string;
   date: string;
-  attendees: any[];
+  attendees: { name: string; image: any; eventCount: number }[];
   image: any;
 }
 
 const PastEvent: React.FC<PastEventProps> = ({ title, date, attendees, image }) => {
   const colorScheme = useColorScheme(); // Get current color scheme
+  const screenWidth = Dimensions.get('window').width;
+  const defaultSize = screenWidth * 0.18; // Default: 18% of screen width
 
   // Background color based on theme
   const backgroundColor =
@@ -24,8 +27,10 @@ const PastEvent: React.FC<PastEventProps> = ({ title, date, attendees, image }) 
     <ImageBackground
       source={image}
       resizeMode="cover"
-      className="w-full h-40 rounded-lg mb-4"
       style={{
+        width: '100%',
+        height: 160, // Fixed height
+        borderRadius: 12, // Ensure rounded corners
         overflow: 'hidden',
       }}
     >
@@ -33,30 +38,34 @@ const PastEvent: React.FC<PastEventProps> = ({ title, date, attendees, image }) 
       <BlurView
         intensity={50}
         tint={colorScheme === 'dark' ? 'dark' : 'light'}
-        className="absolute bottom-0 w-full flex-row justify-between items-center py-2 px-4 rounded-b-lg"
-        style={{ backgroundColor }}
+        style={{
+          backgroundColor,
+          width: '100%',
+          height: '30%',
+          position: 'absolute',
+          bottom: 0,
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          paddingVertical: 8,
+          paddingHorizontal: 16,
+          borderBottomLeftRadius: 12,
+          borderBottomRightRadius: 12,
+        }}
       >
         {/* Event Info */}
-        <View className="flex-1">
-          <ThemedText className="text-sm font-bold text-white">{title}</ThemedText>
-          <ThemedText className="text-xs text-gray-300">{date}</ThemedText>
+        <View style={{ flex: 1 }}>
+          <ThemedText style={{ fontSize: 12, fontWeight: 'bold' }}>{title}</ThemedText>
+          <ThemedText style={{ fontSize: 12 }}>{date}</ThemedText>
         </View>
 
         {/* Attendees */}
-        <View className="flex-row items-center ml-4">
-          {attendees.slice(0, 4).map((attendee, index) => (
-            <Image
-              key={index}
-              source={attendee}
-              className={`w-8 h-8 rounded-full ${index > 0 ? '-ml-2' : ''}`}
-              resizeMode="cover"
-            />
-          ))}
-          {attendees.length > 4 && (
-            <View className="w-8 h-8 rounded-full bg-white -ml-2 items-center justify-center">
-              <Text className="text-sm text-gray-800">+{attendees.length - 4}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {attendees.slice(0, 3).map((friend, index) => (
+            <View key={index} style={{ marginLeft: index > 0 ? -12 : 0 }}>
+              <Friend name={friend.name} image={friend.image} eventCount={friend.eventCount} size={32} />
             </View>
-          )}
+          ))}
         </View>
       </BlurView>
     </ImageBackground>

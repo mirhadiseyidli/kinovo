@@ -32,14 +32,25 @@ const Activity: React.FC<ActivityProps> = ({
       }}
     >
       {/* Friend Information */}
-      <ThemedView className="flex-row items-center mb-2">
+      <ThemedView
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          marginBottom: 8,
+        }}
+      >
         <Image
-          source={ friendImage }
-          className="w-10 h-10 rounded-full mr-3"
+          source={friendImage}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            marginRight: 12,
+          }}
         />
         <ThemedView>
-          <ThemedText className="font-bold text-gray-900">{friendName}</ThemedText>
-          <ThemedText className="text-gray-500 text-sm">{activityTitle}</ThemedText>
+          <ThemedText style={{ fontWeight: 'bold', color: '#1F2937' }}>{friendName}</ThemedText>
+          <ThemedText style={{ color: '#6B7280', fontSize: 14 }}>{activityTitle}</ThemedText>
         </ThemedView>
       </ThemedView>
 
@@ -55,15 +66,27 @@ const Activity: React.FC<ActivityProps> = ({
           borderRadius: 12, // Match rounded corners of the child
         }}
       >
-        <ThemedView className="bg-white rounded-lg border border-gray-100 p-4">
-          <ThemedText className="font-bold text-gray-900 mb-2">{eventTitle}</ThemedText>
-          <ThemedView className="flex-row items-center mb-1">
+        <ThemedView
+          style={{
+            backgroundColor: 'white',
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: '#F3F4F6',
+            padding: 16,
+          }}
+        >
+          <ThemedText style={{ fontWeight: 'bold', color: '#1F2937', marginBottom: 8 }}>
+            {eventTitle}
+          </ThemedText>
+          <ThemedView style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
             <Feather name="map-pin" size={16} color="#6B7280" />
-            <ThemedText className="text-sm text-gray-500 ml-2">{location}</ThemedText>
+            <ThemedText style={{ fontSize: 14, color: '#6B7280', marginLeft: 8 }}>
+              {location}
+            </ThemedText>
           </ThemedView>
-          <ThemedView className="flex-row items-center">
+          <ThemedView style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Feather name="clock" size={16} color="#6B7280" />
-            <ThemedText className="text-sm text-gray-500 ml-2">
+            <ThemedText style={{ fontSize: 14, color: '#6B7280', marginLeft: 8 }}>
               {date}, {time}
             </ThemedText>
           </ThemedView>

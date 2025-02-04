@@ -8,7 +8,6 @@ import { useColorScheme } from '../../hooks/useColorScheme';
 import HomeScreen from '../../components/Home/HomeScreen';
 import AuthScreen from '../(auth)/auth';
 import { ThemedView } from '@/components/ThemedView';
-import '../../styles/global.css'; // NativeWind styles
 
 interface ContentProps {
   isLoggedIn: boolean;
@@ -81,8 +80,7 @@ function Content({ isLoggedIn, onLoginSuccess }: ContentProps) {
 
   return (
     <ThemedView
-      className="flex-1"
-      style={{ paddingTop: insets.top, paddingBottom: insets.bottom}}
+      style={{ flex: 1, paddingTop: insets.top, paddingBottom: insets.bottom}}
     >
       <StatusBar
         barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'}

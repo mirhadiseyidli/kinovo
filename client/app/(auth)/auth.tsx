@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Dimensions } from 'react-native';
 import EmailLogin from '../../components/Auth/emailPasswordLogin';
 import GoogleOAuth from '../../components/Auth/googleOAuth';
 import AppleOAuth from '../../components/Auth/appleOAuth';
@@ -11,45 +11,54 @@ import { ThemedText } from '@/components/ThemedText';
 const loginBg = require('../../assets/login-bg.jpg');
 
 interface AuthProps {
-  onLoginSuccess: (idToken: string) => void; // Explicit type for the login success callback
+  onLoginSuccess: (idToken: string) => void;
 }
 
 export default function AuthScreen(onLoginSuccess: any) {
   const router = useRouter();
+  const { width } = Dimensions.get('window');
+  const fontSize = width * 0.06; // Equivalent to 6vw
+
 
   return (
-    <ThemedView className="flex-[1] px-[2%]">
+    <ThemedView style={{ flex: 1, paddingHorizontal: '2%' }}>
       {/* Logo Background Section */}
-      <ThemedView className="flex-[3.5] w-full h-full items-center justify-end">
-        <ThemedText className="flex-[1] flex-shrink absolute bottom-[10%] text-[6vw]">LOGO HERE</ThemedText>
+      <ThemedView style={{ flex: 3.5, width: '100%', height: '100%', alignItems: 'center', justifyContent: 'flex-end' }}>
+        <ThemedText style={{ position: 'absolute', bottom: '10%', fontSize: fontSize, flex: 1, flexShrink: 1 }}>
+          LOGO HERE
+        </ThemedText>
       </ThemedView>
 
       {/* Login Section */}
-      <ThemedView className="flex-[5] items-center justify-center mb-[5%]">
+      <ThemedView style={{ flex: 5, alignItems: 'center', justifyContent: 'center', marginBottom: '5%' }}>
         <EmailLogin onLoginSuccess={onLoginSuccess} />
       </ThemedView>
       
       {/* Separator */}
-      <ThemedView className='flex-[0.2] flex-row items-center justify-center'>
-        <ThemedView className="flex-1 h-px bg-gray-300" />
-        <ThemedText className="flex-shrink mx-4 text-gray-500 text-center leading-none">or continue with</ThemedText>
-        <ThemedView className="flex-1 h-px bg-gray-300" />
+      <ThemedView style={{ flex: 0.2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+        <ThemedView style={{ flex: 1, height: 1, backgroundColor: '#D1D5DB' }} />
+        <ThemedText style={{ flexShrink: 1, marginHorizontal: 16, color: '#6B7280', textAlign: 'center', lineHeight: undefined }}>
+          or continue with
+        </ThemedText>
+        <ThemedView style={{ flex: 1, height: 1, backgroundColor: '#D1D5DB' }} />
       </ThemedView>
-        
-        {/* OAuth Buttons */}
-      <ThemedView className='flex-[1] flex-row w-[100%] h-[100%] px-[10%] items-center justify-evenly'>
+      
+      {/* OAuth Buttons */}
+      <ThemedView style={{ flex: 1, flexDirection: 'row', width: '100%', height: '100%', paddingHorizontal: '10%', alignItems: 'center', justifyContent: 'space-evenly' }}>
         <AppleOAuth onLoginSuccess={onLoginSuccess} />
         <FacebookOAuth onLoginSuccess={onLoginSuccess} />
         {/* <GoogleOAuth onLoginSuccess={onLoginSuccess} /> */}
       </ThemedView>
-
+      
       {/* Sign Up Link */}
-      <ThemedView className="flex-[0.5] flex-row items-center justify-center">
-        <ThemedText className='flex-shrink'>Don't have an account?</ThemedText>
-        <TouchableOpacity onPress={() => router.push('/')}>
-          <ThemedText className="flex-shrink text-blue-500 font-semibold underline ml-1">Sign Up</ThemedText>
+      <ThemedView style={{ flex: 0.5, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+        <ThemedText style={{ flexShrink: 1 }}>Don't have an account?</ThemedText>
+        <TouchableOpacity onPress={() => router.push('/') }>
+          <ThemedText style={{ flexShrink: 1, color: '#3B82F6', fontWeight: '600', textDecorationLine: 'underline', marginLeft: 4 }}>
+            Sign Up
+          </ThemedText>
         </TouchableOpacity>
       </ThemedView>
     </ThemedView>
   );
-};
+}

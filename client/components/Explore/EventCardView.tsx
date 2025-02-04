@@ -1,7 +1,6 @@
 import React from 'react';
-import { View, Text, ImageBackground, Dimensions } from 'react-native';
+import { View, ImageBackground, Dimensions } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -23,56 +22,51 @@ const EventCardView: React.FC<SuggestedEventProps> = ({
   imageUrl,
 }) => {
   const screenWidth = Dimensions.get('window').width;
-
   const colorScheme = useColorScheme();
 
+  const backgroundColor =
+    colorScheme === 'dark' ? 'rgba(50, 50, 50, 0.6)' : 'rgba(200, 200, 200, 0.6)';
+
   return (
-    <ThemedView
-      className='flex-1 w-full items-center justify-center'
+    <ImageBackground
+      source={imageUrl}
+      resizeMode="cover"
       style={{
         width: screenWidth * 0.9,
-        borderRadius: 16, // Match the rounded corners of the child
-        shadowColor: Colors[colorScheme ?? 'dark'].tint,
-        shadowOffset: { width: 0.5, height: 0.5 },
-        shadowOpacity: 0.2,
-        shadowRadius: 2,
-        elevation: 2, // For Android
-        alignSelf: 'center', // Center horizontally
+        borderRadius: 16,
+        overflow: 'hidden',
+        aspectRatio: 1.9,
+        alignSelf: 'center',
         marginVertical: 8,
       }}
     >
-      {/* Inner Container with Rounded Corners */}
-      <ThemedView
-        className="flex-1 overflow-hidden rounded-sm"
+      {/* Blurry Overlay */}
+      <BlurView
+        intensity={50}
+        tint={colorScheme === 'dark' ? 'dark' : 'light'}
         style={{
-          borderRadius: 16, // Rounded corners
-          aspectRatio: 1.7,
-          width: '100%'
+          backgroundColor,
+          width: '100%',
+          position: 'absolute',
+          bottom: 0,
+          paddingVertical: 10,
+          paddingHorizontal: 14,
+          borderBottomLeftRadius: 16,
+          borderBottomRightRadius: 16,
         }}
       >
-        {/* Event Image */}
-        <ImageBackground
-          source={imageUrl}
-          resizeMode="cover"
-          className="flex w-full h-full"
-        />
-
         {/* Event Details */}
-        <ThemedView className="absolute bottom-0 w-full py-2 px-3" style={{ height: '30%' }}>
-          <ThemedText className="text-xs font-bold mb-1">{title}</ThemedText>
-          <ThemedView className="flex-row items-center mb-1">
-            <Feather name="map-pin" size={10} color={Colors[colorScheme ?? 'dark'].tint} />
-            <ThemedText className="text-xs ml-2">{location}</ThemedText>
-          </ThemedView>
-          <ThemedView className="flex-row items-center">
-            <Feather name="clock" size={10} color={Colors[colorScheme ?? 'dark'].tint} />
-            <ThemedText className="text-xs ml-2">
-              {date} • {time}
-            </ThemedText>
-          </ThemedView>
-        </ThemedView>
-      </ThemedView>
-    </ThemedView>
+        <ThemedText style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 4 }}>{title}</ThemedText>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+          <Feather name="map-pin" size={12} color={Colors[colorScheme ?? 'dark'].tint} />
+          <ThemedText style={{ fontSize: 12, marginLeft: 6 }}>{location}</ThemedText>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Feather name="clock" size={12} color={Colors[colorScheme ?? 'dark'].tint} />
+          <ThemedText style={{ fontSize: 12, marginLeft: 6 }}>{date} • {time}</ThemedText>
+        </View>
+      </BlurView>
+    </ImageBackground>
   );
 };
 

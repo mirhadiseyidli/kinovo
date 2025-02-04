@@ -150,19 +150,16 @@ const EventSuggestions: React.FC = () => {
   ];
 
   return (
-    <ThemedView className="flex-1 w-full p-4">
+    <ThemedView style={{ flex: 1, width: '100%' }}>
       {/* Header */}
-      <ThemedView className="flex-row justify-between items-center mb-4">
-        <ThemedText className="text-md font-bold">Events You Might Like</ThemedText>
+      <ThemedView style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>Events You Might Like</ThemedText>
       </ThemedView>
 
       {/* Event List */}
       <ScrollView showsVerticalScrollIndicator={false}>
         {events.map((event, index) => (
-          <View 
-            key={event.id} 
-            className='flex flex-shrink mb-4'
-          >
+          <View key={event.id}>
             <Event
               friendName={event.friendName}
               friendImage={event.friendImage}
@@ -174,11 +171,13 @@ const EventSuggestions: React.FC = () => {
               eventImage={event.eventImage}
             />
             {/* Divider Line */}
-            {index < 2 && (
+            {index < events.length - 1 && (
               <View
-                className={`border-b ${
-                  colorScheme === 'dark' ? 'border-gray-600' : 'border-gray-300'
-                }`}
+                style={{
+                  height: 1,
+                  backgroundColor: Colors[colorScheme ?? 'dark'].border,
+                  marginVertical: 16,
+                }}
               />
             )}
           </View>

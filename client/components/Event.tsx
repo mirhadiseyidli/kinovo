@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Image } from 'react-native';
+import { View, Text, Image, Dimensions } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
@@ -29,50 +29,53 @@ const UpcomingEvent: React.FC<UpcomingEventProps> = ({
 }) => {
   
   const colorScheme = useColorScheme();
+  const { width } = Dimensions.get('window');
+  const height = width / 4;
+
 
   return (
-    <ThemedView className="flex-row overflow-hidden mb-4 bg-transparent items-center">
+    <ThemedView style={{ flexDirection: 'row', width: '100%', overflow: 'hidden', backgroundColor: 'transparent', alignItems: 'center' }}>
       {/* Event Image */}
-      <ThemedView className="aspect-square h-[100%] mr-4">
+      <ThemedView style={{ width: height ,height: height, marginRight: 16 }}>
         <Image 
           source={eventImage}
-          className="w-full h-full rounded-md"
+          style={{ width: '100%', height: '100%', borderRadius: 8 }}
           resizeMode="cover"
         />
       </ThemedView>
 
       {/* Event Details */}
-      <ThemedView className="flex-1 justify-center">
+      <ThemedView style={{ flex: 1, justifyContent: 'center' }}>
         {/* Friend Info */}
-        <ThemedView className="flex-row items-center mb-2 justify-between">
-          <ThemedView className='flex-row items-center justify-start'>
+        <ThemedView style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, justifyContent: 'space-between' }}>
+          <ThemedView style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start' }}>
             <Image
               source={friendImage}
-              className="aspect-square w-[16%] rounded-full mr-2"
+              style={{ aspectRatio: 1, width: '16%', borderRadius: 50, marginRight: 8 }}
             />
-            <ThemedText className="text-[12px] font-medium text-gray-800">{friendName}</ThemedText>
+            <ThemedText style={{ fontSize: 12, fontWeight: '500', color: `${Colors[colorScheme ?? 'dark'].tint}` }}>{friendName}</ThemedText>
           </ThemedView>
-          <ThemedView className='flex-row items-center justify-center'>
-            <Feather name="clock" size={16} color={Colors[colorScheme ?? 'dark'].tint} className='mr-2'/>
-            <ThemedText className="text-[12px] text-green-600 ml-auto">{remainingDays}</ThemedText>
+          <ThemedView style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+            <Feather name="clock" size={16} color={Colors[colorScheme ?? 'dark'].tint} style={{ marginRight: 8 }} />
+            <ThemedText style={{ fontSize: 12, color: `${Colors[colorScheme ?? 'dark'].tint}`, marginLeft: 'auto' }}>{remainingDays}</ThemedText>
           </ThemedView>
         </ThemedView>
 
         {/* Event Title */}
-        <ThemedText className="text-[12px] font-medium text-gray-900 mb-2">{eventTitle}</ThemedText>
+        <ThemedText style={{ fontSize: 12, fontWeight: '500', color: `${Colors[colorScheme ?? 'dark'].tint}`, marginBottom: 8 }}>{eventTitle}</ThemedText>
 
         {/* Event Date and Time */}
-        <View className="flex-row items-center mb-1">
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
           <Feather name="clock" size={14} color={Colors[colorScheme ?? 'dark'].tint} />
-          <ThemedText className="text-xs text-gray-600 ml-2">
+          <ThemedText style={{ fontSize: 10, color: `${Colors[colorScheme ?? 'dark'].tint}`, marginLeft: 8 }}>
             {date}, {time}
           </ThemedText>
         </View>
 
         {/* Event Location */}
-        <View className="flex-row items-center">
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Feather name="map-pin" size={14} color={Colors[colorScheme ?? 'dark'].tint} />
-          <ThemedText className="text-xs text-gray-600 ml-2">{location}</ThemedText>
+          <ThemedText style={{ fontSize: 10, color: `${Colors[colorScheme ?? 'dark'].tint}`, marginLeft: 8 }}>{location}</ThemedText>
         </View>
       </ThemedView>
     </ThemedView>

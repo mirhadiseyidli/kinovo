@@ -65,12 +65,12 @@ const UpcomingEvents: React.FC = () => {
   const limitedEvents = events.slice(0, 3);
 
   return (
-    <ThemedView className="flex-1 w-full p-4">
+    <ThemedView style={{ flex: 1, width: '100%' }}>
       {/* Header */}
-      <ThemedView className="flex-row justify-between items-center mb-4">
-        <ThemedText className="text-md font-bold">Upcoming Events</ThemedText>
-        <TouchableOpacity className="flex-row items-center">
-          <ThemedText className="text-md mr-1">View Calendar</ThemedText>
+      <ThemedView style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <ThemedText style={{ fontSize: 14, fontWeight: 'bold' }}>Upcoming Events</ThemedText>
+        <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <ThemedText style={{ fontSize: 14, marginRight: 4 }}>View Calendar</ThemedText>
           <IconSymbol
             name="chevron.right"
             size={12}
@@ -80,33 +80,34 @@ const UpcomingEvents: React.FC = () => {
       </ThemedView>
 
       {/* Event List */}
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {limitedEvents.map((event, index) => (
-          <View 
-            key={event.id} 
-            className='flex flex-shrink mb-4'
-          >
-            <Event
-              friendName={event.friendName}
-              friendImage={event.friendImage}
-              eventTitle={event.eventTitle}
-              date={event.date}
-              time={event.time}
-              location={event.location}
-              remainingDays={event.remainingDays}
-              eventImage={event.eventImage}
-            />
-            {/* Divider Line */}
-            {index < 2 && (
-              <View
-                className={`border-b ${
-                  colorScheme === 'dark' ? 'border-gray-600' : 'border-gray-300'
-                }`}
+      <View style={{ flex: 1 }}>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {limitedEvents.map((event, index) => (
+            <View key={event.id}>
+              <Event
+                friendName={event.friendName}
+                friendImage={event.friendImage}
+                eventTitle={event.eventTitle}
+                date={event.date}
+                time={event.time}
+                location={event.location}
+                remainingDays={event.remainingDays}
+                eventImage={event.eventImage}
               />
-            )}
-          </View>
-        ))}
-      </ScrollView>
+              {/* Divider Line */}
+              {index < limitedEvents.length - 1 && (
+                <View
+                  style={{
+                    height: 1,
+                    backgroundColor: Colors[colorScheme ?? 'dark'].border,
+                    marginVertical: 16,
+                  }}
+                />
+              )}
+            </View>
+          ))}
+        </ScrollView>
+      </View>
     </ThemedView>
   );
 };

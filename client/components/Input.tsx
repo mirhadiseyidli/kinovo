@@ -19,22 +19,30 @@ const Input: React.FC<InputProps> = ({
   ...props
 }) => {
   return (
-    <ThemedView className="w-full aspect-auto mb-2">
+    <ThemedView style={{ width: '100%', aspectRatio: 'auto', marginBottom: 8 }}>
       <TextInput
-        className={`border rounded-lg px-3 py-3 text-start text-[3.5vw] ${
-          error ? 'border-red-500' : 'border-gray-300'
-        }`}
+        style={{
+          borderWidth: 1,
+          borderRadius: 8,
+          paddingHorizontal: 12,
+          paddingVertical: 12,
+          textAlign: 'left',
+          fontSize: 14, // Approximate equivalent to text-[3.5vw] (adjust as needed)
+          borderColor: error ? 'red' : '#D1D5DB', // Tailwind border-red-500 or border-gray-300
+        }}
         placeholder={placeholder}
         value={value}
         onChangeText={onChangeText}
         secureTextEntry={secureTextEntry}
         {...props}
       />
-      {error && <Text className="text-red-500 text-[3vw] mt-1">{error}</Text>}
+      {error && (
+        <Text style={{ color: 'red', fontSize: 12, marginTop: 4 }}>
+          {error}
+        </Text>
+      )}
     </ThemedView>
   );
 };
 
 export default Input;
-
-// className={`border rounded-lg px-3 py-3 mb-2 ${errors.email ? 'border-red-500' : 'border-gray-300'}`}

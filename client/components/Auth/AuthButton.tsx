@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, Image, Alert, ImageSourcePropType } from 'react-native';
+import { TouchableOpacity, Image, ImageSourcePropType, Dimensions } from 'react-native';
 
 interface AuthButtonProps {
   onPress: () => void; // Function to handle button press
@@ -7,15 +7,37 @@ interface AuthButtonProps {
   backgroundColor?: string; // Optional background color
 }
 
-const AuthButton: React.FC<AuthButtonProps> = ({ onPress, logo, backgroundColor = 'bg-white' }) => {
+const { width } = Dimensions.get('window');
+
+// Function to calculate button size dynamically based on screen width
+const getSize = (percentage: number) => (width * percentage) / 100;
+
+const AuthButton: React.FC<AuthButtonProps> = ({ onPress, logo, backgroundColor = 'white' }) => {
   return (
     <TouchableOpacity
       onPress={onPress}
-      className={`flex-shrink h-[60%] aspect-square ${backgroundColor} rounded-full items-center justify-center shadow-lg active:shadow-none`}
+      style={{
+        flexShrink: 1,
+        height: '60%',
+        aspectRatio: 1, // Keeps it square
+        backgroundColor,
+        borderRadius: 9999, // Makes it fully rounded
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+        elevation: 5, // Android shadow
+      }}
+      activeOpacity={0.8} // ✅ Fix: activeOpacity moved outside of style
     >
       <Image
-        source={logo} // Logo for the button
-        className="w-[50%] h-[50%]"
+        source={logo}
+        style={{
+          width: getSize(10), // 10% of screen width
+          height: getSize(10), // Keep same aspect ratio
+        }}
         resizeMode="contain"
       />
     </TouchableOpacity>

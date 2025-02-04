@@ -1,14 +1,19 @@
 import React, { useState } from 'react';
-import { View, Alert, Text, TouchableOpacity } from 'react-native';
+import { View, Alert, TouchableOpacity, Dimensions } from 'react-native';
 import CheckBox from '@react-native-community/checkbox';
 import axios from 'axios';
-import Input from '@/components/Input'; // Import the reusable input component
+import Input from '@/components/Input';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 
 interface EmailLoginProps {
   onLoginSuccess: (token: string) => void;
 }
+
+const { width } = Dimensions.get('window');
+
+// Function to calculate font size relative to screen width
+const getFontSize = (percentage: number) => (width * percentage) / 100;
 
 const EmailLogin: React.FC<EmailLoginProps> = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState('');
@@ -49,15 +54,17 @@ const EmailLogin: React.FC<EmailLoginProps> = ({ onLoginSuccess }) => {
   };
 
   return (
-    <ThemedView className="flex-1 w-full px-5 justify-around">
+    <ThemedView style={{ flex: 1, width: '100%', paddingHorizontal: 20, justifyContent: 'space-around' }}>
       {/* Form Section */}
-      <ThemedView className="flex-1 w-full h-full items-center">
-        <ThemedText className="text-[6vw] mb-2 text-center">Welcome Back!</ThemedText>
-        <ThemedText className="text-[3.5vw] text-gray-500 text-center">Log into your account</ThemedText>
+      <ThemedView style={{ flex: 1, width: '100%', height: '100%', alignItems: 'center' }}>
+        <ThemedText style={{ fontSize: getFontSize(6), marginBottom: 8, textAlign: 'center' }}>Welcome Back!</ThemedText>
+        <ThemedText style={{ fontSize: getFontSize(3.5), color: '#6B7280', textAlign: 'center' }}>
+          Log into your account
+        </ThemedText>
       </ThemedView>
 
       {/* Input Fields */}
-      <ThemedView className="flex-1 w-full h-full justify-end">
+      <ThemedView style={{ flex: 1, width: '100%', height: '100%', justifyContent: 'flex-end' }}>
         <Input
           value={email}
           onChangeText={handleEmailChange}
@@ -76,9 +83,18 @@ const EmailLogin: React.FC<EmailLoginProps> = ({ onLoginSuccess }) => {
       </ThemedView>
 
       {/* Remember Me & Forgot Password */}
-      <ThemedView className="flex-[0.15] flex-row w-full h-full justify-between items-center">
-        <ThemedView className="flex-row flex-shrink items-center">
-          <ThemedView className="flex-shrink aspect-square h-[80%] mr-[3%]">
+      <ThemedView
+        style={{
+          flex: 0.15,
+          flexDirection: 'row',
+          width: '100%',
+          height: '100%',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
+        <ThemedView style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <ThemedView style={{ aspectRatio: 1, height: '80%', marginRight: '3%' }}>
             <CheckBox
               value={isChecked}
               onValueChange={setIsChecked}
@@ -87,18 +103,25 @@ const EmailLogin: React.FC<EmailLoginProps> = ({ onLoginSuccess }) => {
               style={{ height: '100%', width: '100%', flexShrink: 1 }}
             />
           </ThemedView>
-          <ThemedText className="text-[3.5vw] text-gray-500">Remember Me</ThemedText>
+          <ThemedText style={{ fontSize: getFontSize(3.5), color: '#6B7280' }}>Remember Me</ThemedText>
         </ThemedView>
-        <ThemedText className="text-[3.5vw] text-blue-500">Forgot Password?</ThemedText>
+        <ThemedText style={{ fontSize: getFontSize(3.5), color: '#3B82F6' }}>Forgot Password?</ThemedText>
       </ThemedView>
 
       {/* Login Button */}
-      <ThemedView className="flex-1 w-full h-full justify-end">
+      <ThemedView style={{ flex: 1, width: '100%', height: '100%', justifyContent: 'flex-end' }}>
         <TouchableOpacity
-          className="items-center justify-center bg-teal-400 py-3 rounded-lg active:bg-gray-800"
+          activeOpacity={0.8} // ✅ Moved outside of style
+          style={{
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: '#14B8A6',
+            paddingVertical: 12,
+            borderRadius: 8,
+          }}
           onPress={handleLogin}
         >
-          <ThemedText className="flex-shrink text-white text-[4vw] font-medium">Login</ThemedText>
+          <ThemedText style={{ fontSize: getFontSize(4), fontWeight: '500', color: 'white' }}>Login</ThemedText>
         </TouchableOpacity>
       </ThemedView>
     </ThemedView>

@@ -23,32 +23,34 @@ const Categories: React.FC = () => {
   const colorScheme = useColorScheme();
 
   return (
-    <ThemedView 
-      className="flex-1"
-      style={{ width: screenWidth }}
-    >
+    <ThemedView style={{ flex: 1, width: screenWidth }}>
       {/* Section Header */}
-      <ThemedView className="flex-row justify-between items-center mb-4 px-4">
-        <ThemedText className="text-md font-bold">Categories</ThemedText>
-        <TouchableOpacity className="flex-row items-center">
-          <ThemedText className="text-md mr-1">View All</ThemedText>
-          <IconSymbol
-            name="chevron.right"
-            size={12}
-            color={Colors[colorScheme ?? 'dark'].tint}
-          />
+      <ThemedView
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 16,
+          paddingHorizontal: 16,
+        }}
+      >
+        <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>Categories</ThemedText>
+        <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <ThemedText style={{ fontSize: 16, marginRight: 4 }}>View All</ThemedText>
+          <IconSymbol name="chevron.right" size={12} color={Colors[colorScheme ?? 'dark'].tint} />
         </TouchableOpacity>
       </ThemedView>
 
       {/* Scrollable Categories */}
-      <ThemedView style={{ width: screenWidth }} className='px-4'>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className='flex'>
-          <ThemedView className="flex-row gap-4">
+      <ThemedView style={{ width: screenWidth, paddingHorizontal: 16 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
+          <ThemedView style={{ flexDirection: 'row', gap: 16 }}>
             {categories.map((category) => (
               <ThemedView
                 key={category.id}
-                className="items-center justify-center"
                 style={{
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   borderRadius: 16,
                   borderColor: Colors[colorScheme ?? 'dark'].border,
                 }}

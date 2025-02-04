@@ -7,18 +7,40 @@ import { Colors } from '@/constants/Colors';
 
 const NotificationsButton: React.FC<{ count: number }> = ({ count }) => {
   const colorScheme = useColorScheme();
-  
+  const themeColors = Colors[colorScheme ?? 'dark'];
+
   return (
-    <TouchableOpacity className="relative">
+    <TouchableOpacity style={{ position: 'relative' }}>
       {/* Notification Bell Icon */}
-      <ThemedView className="w-9 h-9 justify-center items-center">
-        <Feather name="bell" size={28} color={Colors[colorScheme ?? 'dark'].tint} />
+      <ThemedView
+        style={{
+          width: 36,
+          height: 36,
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
+        <Feather name="bell" size={28} color={themeColors.tint} />
       </ThemedView>
 
       {/* Badge */}
       {count > 0 && (
-        <View className="absolute top-[0.1] right-[0.1] bg-red-500 w-4 h-4 rounded-full justify-center items-center">
-          <Text className="text-white text-xs font-bold">{count}</Text>
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            backgroundColor: 'red',
+            width: 16,
+            height: 16,
+            borderRadius: 8,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <Text style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>
+            {count}
+          </Text>
         </View>
       )}
     </TouchableOpacity>

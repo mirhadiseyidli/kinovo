@@ -96,24 +96,18 @@ const NearbyEvents: React.FC = () => {
   const colorScheme = useColorScheme();
 
   return (
-    <ThemedView 
-      className="flex-1"
-      style={{ width: screenWidth }}
-    >
+    <ThemedView style={{ flex: 1, width: screenWidth }}>
       {/* Header */}
-      <ThemedView className='flex flex-row items-center gap-2 mb-2 px-4'>
+      <ThemedView style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, paddingHorizontal: 16 }}>
         <Feather name="map-pin" size={16} color={Colors[colorScheme ?? 'dark'].tint} />
-        <ThemedText className='text-lg font-bold'>San Francisco</ThemedText>
+        <ThemedText style={{ fontSize: 18, fontWeight: 'bold' }}>San Francisco</ThemedText>
       </ThemedView>
-      <ThemedView className="flex-row justify-between items-center mb-4 px-4">
-        <ThemedText className="text-md font-bold">Nearby Events</ThemedText>
-        <TouchableOpacity className="flex-row items-center">
-          <ThemedText className="text-md mr-1">View All</ThemedText>
-          <IconSymbol
-            name="chevron.right"
-            size={12}
-            color={Colors[colorScheme ?? 'dark'].tint}
-          />
+
+      <ThemedView style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, paddingHorizontal: 16 }}>
+        <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>Nearby Events</ThemedText>
+        <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <ThemedText style={{ fontSize: 16, marginRight: 4 }}>View All</ThemedText>
+          <IconSymbol name="chevron.right" size={12} color={Colors[colorScheme ?? 'dark'].tint} />
         </TouchableOpacity>
       </ThemedView>
 
@@ -126,31 +120,25 @@ const NearbyEvents: React.FC = () => {
           onScrollEndDrag={handleScrollEndDrag}
           onMomentumScrollEnd={handleMomentumScrollEnd}
           scrollEventThrottle={16}
-          className="mb-4"
+          style={{ marginBottom: 16 }}
         >
           {events.map((event) => (
-            <ThemedView
-              className='flex-1 flex-row items-center px-4'
-              key={event.id}
-              style={{ width: screenWidth }}
-            >
-              <EventCardView
-                title={event.title}
-                location={event.location}
-                date={event.date}
-                time={event.time}
-                imageUrl={event.imageUrl}
-              />
+            <ThemedView key={event.id} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, width: screenWidth }}>
+              <EventCardView title={event.title} location={event.location} date={event.date} time={event.time} imageUrl={event.imageUrl} />
             </ThemedView>
           ))}
 
           {/* See More Button as the Last Item */}
-          <ThemedView className='items-center justify-center' style={{ width: screenWidth }}>
+          <ThemedView style={{ alignItems: 'center', justifyContent: 'center', width: screenWidth }}>
             <ThemedText 
-              className="font-bold p-4 rounded-lg text-center w-[80%]"
               style={{
+                fontWeight: 'bold',
+                padding: 16,
+                borderRadius: 8,
+                textAlign: 'center',
+                width: '80%',
                 backgroundColor: Colors[colorScheme ?? 'dark'].tint,
-                color: Colors[colorScheme ?? 'dark'].background
+                color: Colors[colorScheme ?? 'dark'].background,
               }}
             >
               See More Events
@@ -160,17 +148,16 @@ const NearbyEvents: React.FC = () => {
       </ThemedView>
 
       {/* Pagination Dots */}
-      <View className="flex-row justify-center gap-1">
+      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 4 }}>
         {events.map((_, index) => (
           <View
             key={index}
             onTouchStart={() => scrollToItem(index)}
-            className="h-2 w-2 rounded-full"
             style={{
-              backgroundColor:
-                currentIndex === index
-                  ? Colors[colorScheme ?? 'dark'].tint // Active state
-                  : Colors[colorScheme ?? 'dark'].border, // Inactive state
+              height: 8,
+              width: 8,
+              borderRadius: 4,
+              backgroundColor: currentIndex === index ? Colors[colorScheme ?? 'dark'].tint : Colors[colorScheme ?? 'dark'].border,
             }}
           />
         ))}
@@ -178,12 +165,11 @@ const NearbyEvents: React.FC = () => {
         {/* Dot for See More Button */}
         <View
           onTouchStart={() => scrollToItem(events.length)}
-          className="h-2 w-2 rounded-full"
           style={{
-            backgroundColor:
-              currentIndex === events.length
-                ? Colors[colorScheme ?? 'dark'].tint // Active state
-                : Colors[colorScheme ?? 'dark'].border, // Inactive state
+            height: 8,
+            width: 8,
+            borderRadius: 4,
+            backgroundColor: currentIndex === events.length ? Colors[colorScheme ?? 'dark'].tint : Colors[colorScheme ?? 'dark'].border,
           }}
         />
       </View>
