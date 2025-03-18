@@ -71,18 +71,19 @@ const findMe = async (req, res) => {
         return res.status(401).json({ message: 'Unauthorized: User not logged in' });
       }
 
-      const userId = req.user._id;
-      const user = await User.findById(userId);
+      const userId = req.user.id;
+      const user = await User.findOne({ uuid: userId }).select('-password_hash');
+      console.log(user)
       if (!user) {
           return res.status(404).json({ message: 'User not found' });
       }
-      res.json(user);
+      res.status(200).json(user);
   } catch (error) {
       res.status(500).json({ message: 'Server error' });
   }
 };
 
-async function getUser(req, res, next) {
+const getUser = async (req, res, next) => {
   let found_user;
   try {
     found_user = await User.findOne({ _id: req.params.id }).select('-password_hash');
@@ -97,6 +98,120 @@ async function getUser(req, res, next) {
   next();
 };
 
+const getUserFriendByEmailSearch = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Unauthorized: User not logged in' });
+    }
+
+    const { email } = req.query.query;
+    const found_user = await User.findOne({ uuid: req.user.id }).populate({
+      path: 'friends',
+      match: { email: { $regex: email, $options: 'i' } }, // Case-insensitive search
+      select: '-password_hash'
+    });
+
+    res.status(200).json(found_user.friends);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+}
+
+const getUserFriendByNameSearch = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Unauthorized: User not logged in' });
+    }
+
+    const { name } = req.query.query;
+    const found_user = await User.findOne({ uuid: req.user.id }).populate({
+      path: 'friends',
+      match: { $or: [
+        { first_name: { $regex: name, $options: 'i' } }, 
+        { last_name: { $regex: name, $options: 'i' } }
+      ]}, // Case-insensitive search by first or last name
+      select: '-password_hash'
+    });
+
+    res.status(200).json(found_user.friends);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+}
+
+const sendFriendRequest = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Unauthorized: User not logged in' });
+    }
+
+    const { receiverId } = req.body;
+    const senderId = req.user.id;
+
+    if (senderId === receiverId) {
+      return res.status(400).json({ message: 'You cannot send a friend request to yourself' });
+    }
+
+    const receiver = await User.findById(receiverId);
+    if (!receiver) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const existingRequest = receiver.friend_requests.find(
+      req => req.sender.toString() === senderId && req.receiver.toString() === receiverId
+    );
+
+    if (existingRequest) {
+      return res.status(400).json({ message: 'Friend request already sent' });
+    }
+
+    receiver.friend_requests.push({ sender: senderId, receiver: receiverId, status: 'pending' });
+    await receiver.save();
+
+    res.status(200).json({ message: 'Friend request sent successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+const respondToAFriendRequest = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Unauthorized: User not logged in' });
+    }
+
+    const { requestId, status } = req.body;
+    const userId = req.user.id;
+
+    if (!['accepted', 'rejected'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const friendRequest = user.friend_requests.find(req => req._id.toString() === requestId);
+
+    if (!friendRequest || friendRequest.receiver.toString() !== userId) {
+      return res.status(404).json({ message: 'Friend request not found or unauthorized' });
+    }
+
+    friendRequest.status = status;
+    await user.save();
+
+    if (status === 'accepted') {
+      await User.findByIdAndUpdate(userId, { $push: { friends: friendRequest.sender } });
+      await User.findByIdAndUpdate(friendRequest.sender, { $push: { friends: userId } });
+    }
+
+    res.status(200).json({ message: `Friend request ${status}` });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 module.exports = { 
   getUserProfile,
   getUsers,
@@ -104,21 +219,9 @@ module.exports = {
   editUser,
   createUser,
   findMe,
-  getUser
-};
-
-// POST /api/users/signup
-// 	•	Create a new user account.
-// 	•	Body: { "name": "", "email": "", "password": "" }
-// 	2.	POST /api/users/login
-// 	•	Authenticate a user and generate a session token.
-// 	•	Body: { "email": "", "password": "" }
-// 	3.	GET /api/users/profile
-// 	•	Retrieve the current user’s profile.
-// 	•	Headers: Authorization: Bearer <token>
-// 	4.	PUT /api/users/profile
-// 	•	Update the user’s profile (e.g., name, profile picture).
-// 	•	Body: { "name": "", "profile_picture_url": "" }
-// 	5.	POST /api/users/logout
-// 	•	End the current user’s session.
-// 	•	Headers: Authorization: Bearer <token>
+  getUser,
+  getUserFriendByEmailSearch,
+  getUserFriendByNameSearch,
+  sendFriendRequest,
+  respondToAFriendRequest
+ };

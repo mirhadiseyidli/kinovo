@@ -8,7 +8,7 @@ import AuthButton from '@/components/Auth/AuthButton';
 const appleLogo = require('@/assets/apple-logo.png');
 
 interface AppleOAuthProps {
-  onLoginSuccess: (idToken: string) => void; // Explicit type for the login success callback
+  onLoginSuccess: (accessToken: string, refreshToken: string) => void; // Explicit type for the login success callback
 }
 
 const AppleOAuth: React.FC<AppleOAuthProps> = ({ onLoginSuccess }) => {

@@ -18,19 +18,20 @@ const Description: React.FC = () => {
   };
 
   return (
-    <ThemedView style={{ marginBottom: 24 }}>
+    <ThemedView style={{ marginBottom: 24, justifyContent: 'center' }}>
       <View
         style={{
           flexDirection: 'row',
           backgroundColor: themeColors.inputBackgroundColor,
           borderRadius: 8,
           paddingHorizontal: 16,
-          paddingVertical: 16,
+          paddingVertical: 8,
           height: screenWidth / 3, // One-third of screen height
+          alignItems: 'flex-start'
         }}
       >
         {/* Feather Icon */}
-        <Feather name="edit-3" size={18} color={themeColors.placeholderTextColor} style={{ marginRight: 10 }} />
+        <Feather name="edit" size={20} color={themeColors.placeholderTextColor} style={{ marginRight: 10, marginTop: 4 }} />
 
         {/* Text Input */}
         <TextInput
@@ -42,8 +43,8 @@ const Description: React.FC = () => {
           numberOfLines={4} // Used for iOS hint but height is set dynamically
           style={{
             flex: 1, // Take remaining space
-            fontSize: 14,
-            textAlignVertical: 'top',
+            fontSize: 16,
+            color: themeColors.text
           }}
         />
       </View>

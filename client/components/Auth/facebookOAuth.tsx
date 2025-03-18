@@ -8,7 +8,7 @@ import AuthButton from '@/components/Auth/AuthButton';
 const facebookLogo = require('@/assets/facebook-logo.png');
 
 interface FacebookOAuthProps {
-  onLoginSuccess: (idToken: string) => void; // Explicit type for the login success callback
+  onLoginSuccess: (accessToken: string, refreshToken: string) => void; // Explicit type for the login success callback
 }
 
 const FacebookOAuth: React.FC<FacebookOAuthProps> = ({ onLoginSuccess }) => {

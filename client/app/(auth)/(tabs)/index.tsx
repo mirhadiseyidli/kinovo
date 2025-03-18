@@ -4,9 +4,9 @@ import { useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useColorScheme } from '../../hooks/useColorScheme';
-import HomeScreen from '../../components/Home/HomeScreen';
-import AuthScreen from '../(auth)/auth';
+import { useColorScheme } from '../../../hooks/useColorScheme';
+import HomeScreen from '../../../components/Home/HomeScreen';
+import AuthScreen from '../../login';
 import { ThemedView } from '@/components/ThemedView';
 
 interface ContentProps {
@@ -22,8 +22,6 @@ export default function Home() {
   const [isCheckingToken, setIsCheckingToken] = useState(true);
 
   useEffect(() => {
-    SplashScreen.preventAutoHideAsync();
-
     const checkLoginState = async () => {
       try {
         const token = await AsyncStorage.getItem('accessToken');
@@ -32,7 +30,6 @@ export default function Home() {
         console.error('Error checking token:', error);
       } finally {
         setIsCheckingToken(false);
-        await SplashScreen.hideAsync();
       }
     };
 
@@ -85,11 +82,7 @@ function Content({ isLoggedIn, onLoginSuccess }: ContentProps) {
       <StatusBar
         barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'}
       />
-      {isLoggedIn ? (
         <HomeScreen />
-      ) : (
-        <AuthScreen onLoginSuccess={onLoginSuccess} />
-      )}
     </ThemedView>
   );
 }

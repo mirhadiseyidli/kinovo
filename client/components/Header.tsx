@@ -17,7 +17,7 @@ const Header: React.FC = () => {
       }}
     >
       {/* Left */}
-      <ThemedText style={{ fontSize: 21 }}>LOGO HERE</ThemedText>
+      <ThemedText style={{ fontSize: 32, fontFamily: 'Didot', fontWeight: 'bold' }}>Kinovo</ThemedText>
 
       {/* Right - Notifications Button */}
       <ThemedView style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>

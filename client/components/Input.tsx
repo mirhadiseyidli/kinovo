@@ -6,19 +6,20 @@ interface InputProps extends TextInputProps {
   value: string;
   onChangeText: (text: string) => void;
   placeholder: string;
-  error?: string;
   secureTextEntry?: boolean;
+  leftIcon?: React.ReactNode;
 }
 
 const Input: React.FC<InputProps> = ({
   value,
   onChangeText,
   placeholder,
-  error,
   secureTextEntry = false,
+  leftIcon,
   ...props
 }) => {
   return (
+    // Need to add leftIcon to placeholder
     <ThemedView style={{ width: '100%', aspectRatio: 'auto', marginBottom: 8 }}>
       <TextInput
         style={{
@@ -28,7 +29,6 @@ const Input: React.FC<InputProps> = ({
           paddingVertical: 12,
           textAlign: 'left',
           fontSize: 14, // Approximate equivalent to text-[3.5vw] (adjust as needed)
-          borderColor: error ? 'red' : '#D1D5DB', // Tailwind border-red-500 or border-gray-300
         }}
         placeholder={placeholder}
         value={value}
@@ -36,11 +36,6 @@ const Input: React.FC<InputProps> = ({
         secureTextEntry={secureTextEntry}
         {...props}
       />
-      {error && (
-        <Text style={{ color: 'red', fontSize: 12, marginTop: 4 }}>
-          {error}
-        </Text>
-      )}
     </ThemedView>
   );
 };

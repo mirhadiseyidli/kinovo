@@ -1,11 +1,9 @@
 const mongoose = require('mongoose');
 const validator = require('validator');
-const { v4: uuidv4 } = require('uuid');
 
 const usersSchema = new mongoose.Schema({
-  user_id: {
+  uuid: {
     type: String,
-    default: uuidv4, // Generate UUID for user_id
     unique: true,
     required: true,
   },
@@ -58,6 +56,29 @@ const usersSchema = new mongoose.Schema({
     type: Date,
     default: null,
   },
+  friends: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Users',
+  }],
+  friend_requests: [{
+    sender: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Users',
+    },
+    receiver: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Users',
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'accepted', 'rejected'],
+      default: 'pending',
+    },
+    created_at: {
+      type: Date,
+      default: Date.now(),
+    }
+  }]
 });
 
 module.exports = mongoose.model('Users', usersSchema);

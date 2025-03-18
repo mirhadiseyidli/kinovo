@@ -1,11 +1,20 @@
-import React, { useState } from 'react';
-import { View, TextInput, TouchableOpacity, Text, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, TextInput, TouchableOpacity, Text, Dimensions, FlatList } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import Friend from '@/components/Friend';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
+
+interface Friend {
+  id: number;
+  name: string;
+  image?: any;
+}
 
 const initialAttendees = [
   { id: 1, name: 'John Doe', image: require('@/assets/profile-pic-1.webp') },
@@ -21,7 +30,9 @@ const initialAttendees = [
 ];
 
 const Attendees: React.FC = () => {
-  const [attendees, setAttendees] = useState(initialAttendees);
+  const [attendees, setAttendees] = useState<Friend[]>([]);
+  const [inputValue, setInputValue] = useState('');
+  const [suggestions, setSuggestions] = useState<Friend[]>([]);
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const placeholder = "Add People";
@@ -29,14 +40,65 @@ const Attendees: React.FC = () => {
   const screenWidth = Dimensions.get('window').width;
   const maxVisibleFriends = Math.floor(screenWidth / 90); // Estimate based on circle + margin (50px + 6px)
 
-  // Remove attendee by ID
+  const getFriend = async (query: string) => {
+    if (!query.trim()) {
+      setSuggestions([]);
+      return;
+    }
+
+    try {
+      const accessToken = await AsyncStorage.getItem('accessToken');
+      if (!accessToken) throw new Error('No access token');
+
+      const emailSearch = axios.get(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/users/me/friends/email?query=${query}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        },
+      });
+
+      // console.log(emailSearch)
+
+      const nameSearch = axios.get(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/users/me/friends/name?query=${query}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        },
+      });
+
+      // console.log(nameSearch)
+
+      const [emailResults, nameResults] = await Promise.all([emailSearch, nameSearch]);
+
+      const combinedResults = [...emailResults.data, ...nameResults.data];
+      const uniqueResults: Friend[] = Array.from(new Map(combinedResults.map((item: Friend) => [item.name.toLowerCase(), item])).values());
+
+      setSuggestions(uniqueResults);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      getFriend(inputValue);
+    }, 300);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [inputValue]);
+
+  const handleAdd = (friend: Friend) => {
+    setAttendees((prev: Friend[]) => [...prev, friend]);
+    setInputValue('');
+    setSuggestions([]);
+  };
+
   const handleRemove = (id: number) => {
     setAttendees((prev) => prev.filter((friend) => friend.id !== id));
   };
 
   return (
     <ThemedView style={{ marginBottom: 24 }}>
-      {/* Input Field with Icon */}
       <View
         style={{
           flexDirection: 'row',
@@ -44,30 +106,41 @@ const Attendees: React.FC = () => {
           backgroundColor: themeColors.inputBackgroundColor,
           borderRadius: 8,
           paddingHorizontal: 16,
-          paddingVertical: 10,
+          paddingVertical: 8,
           marginBottom: 16,
-          height: screenWidth / 10
+          height: 52
         }}
       >
-        <Feather name="user-plus" size={18} color={themeColors.placeholderTextColor} style={{ marginRight: 10 }} />
+        <Feather name="user-plus" size={16} color={themeColors.placeholderTextColor} style={{ marginRight: 10 }} />
         <TextInput
           placeholder={placeholder}
           placeholderTextColor={themeColors.placeholderTextColor}
           style={{
             flex: 1,
-            fontSize: 14,
+            fontSize: 16,
+            color: themeColors.text
           }}
+          value={inputValue}
+          onChangeText={setInputValue}
         />
       </View>
+
+      {/* Suggestions List */}
+      <FlatList
+        data={suggestions}
+        renderItem={({ item }) => (
+          <TouchableOpacity onPress={() => handleAdd(item)}>
+            <Text style={{ color: themeColors.text }}>{item.name}</Text>
+          </TouchableOpacity>
+        )}
+        keyExtractor={(item) => item.id.toString()}
+      />
 
       {/* Attendees List */}
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         {attendees.slice(0, maxVisibleFriends - 1).map((friend) => (
-          <View style={{ position: 'relative', marginRight: 8 }} key={friend.id}>
-            {/* Friend Circle */}
-            <Friend name={friend.name} image={friend.image} size={40} />
-
-            {/* Remove Button (Small "X") */}
+          <View style={{ marginRight: 8, alignItems: 'center', justifyContent: 'center' }} key={friend.id}>
+            <Friend name={friend.name} image={friend.image} size={52} />
             <TouchableOpacity
               style={{
                 position: 'absolute',
@@ -87,22 +160,21 @@ const Attendees: React.FC = () => {
           </View>
         ))}
 
-        {/* Show "+X" for remaining attendees */}
         {attendees.length > maxVisibleFriends && (
-          <View
+          <TouchableOpacity
             style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
+              width: 52,
+              height: 52,
+              borderRadius: 30,
               backgroundColor: themeColors.inputBackgroundColor,
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <ThemedText style={{ fontSize: 14, fontWeight: 'bold' }}>
+            <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>
               +{attendees.length - (maxVisibleFriends - 1)}
             </ThemedText>
-          </View>
+          </TouchableOpacity>
         )}
       </View>
     </ThemedView>

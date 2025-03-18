@@ -4,10 +4,9 @@ import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import DiscoverScreen from '@/components/Explore/Discover';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useColorScheme } from '../../hooks/useColorScheme';
-import CreateEvent from '@/components/CreateEvent/CreateEvent';
+import { useColorScheme } from '../../../hooks/useColorScheme';
 
-export default function Create() {
+export default function Explore() {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
 
@@ -18,7 +17,7 @@ export default function Create() {
       <StatusBar
         barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'}
       />
-        <CreateEvent />
+        <DiscoverScreen />
     </ThemedView>
   );
 }
