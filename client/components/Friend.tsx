@@ -29,18 +29,12 @@ const Friend: React.FC<FriendProps> = ({ name, image, eventCount = 0, size, show
           position: 'relative',
           alignItems: 'center',
           justifyContent: 'center',
-          marginBottom: 4,
           width: imageSize,
           height: imageSize,
           backgroundColor: 'transparent',
           borderRadius: imageSize / 2,
           borderWidth: eventCount > 0 ? 2 : 0,
-          borderColor: eventCount > 0 ? '#22c55e' : 'transparent',
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 1 },
-          shadowOpacity: 0.2,
-          shadowRadius: 1,
-          elevation: 3, // Adds shadow for Android
+          borderColor: eventCount > 0 ? '#22c55e' : 'transparent'
         }}
       >
         <Image
@@ -87,6 +81,7 @@ const Friend: React.FC<FriendProps> = ({ name, image, eventCount = 0, size, show
             fontSize: 10,
             textAlign: 'center',
             maxWidth: imageSize * 1.2, // Restrict width for truncation
+            marginTop: 4
           }}
         >
           {truncateName(name, 10)}

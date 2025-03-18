@@ -1,56 +1,10 @@
-// const express = require('express');
-// const passport = require('passport');
-// const { generateAccessToken, generateRefreshToken } = require('../utils/token');
-
-// const router = express.Router();
-
-// // Initiate Google OAuth
-// router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-
-// // Handle the OAuth callback
-// router.get('/google/callback',
-//   passport.authenticate('google', { failureRedirect: '/login', session: true }),
-//   (req, res) => {
-//     const user = req.user;
-//     console.log(user)
-//     const accessToken = generateAccessToken({ _id: user._id, google_id: user.google_id, email: user.email, role: user.role });
-//     const refreshToken = generateRefreshToken({ _id: user._id, google_id: user.id, email: user.email, role: user.role });
-
-//     // Send tokens to the client
-//     res.cookie('accessToken', accessToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production' });
-//     res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production' });
-//     const redirectUrl = `myapp://login?accessToken=${accessToken}&refreshToken=${refreshToken}`;
-//     res.redirect(redirectUrl); // Use deep link for React Native
-//   }
-// );
-
-// // Logout route
-// router.get('/logout', (req, res, next) => {
-//   req.logout(function(err) {
-//     if (err) {
-//       return next(err); // Pass the error to the next middleware for handling
-//     }
-//     req.session.destroy((err) => {
-//       if (err) {
-//         return next(err);
-//       }
-//       // Clear cookies
-//       res.clearCookie('XSRF-TOKEN'); 
-//       res.clearCookie('accessToken');
-//       res.clearCookie('refreshToken');
-//       res.redirect('myapp://logout'); // Redirect to the login page after logout
-//     });
-//   });
-// });
-
-// module.exports = router;
-
 const express = require('express');
 const { verifyIdToken } = require('../utils/googleAuth');
 const User = require('../database/schemas/usersSchema');
 const { generateAccessToken, generateRefreshToken } = require('../utils/token');
 const bcrypt = require('bcrypt');
 const logger = require('winston'); // Optional for logging
+const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
 const router = express.Router();
@@ -78,6 +32,7 @@ router.post('/google', async (req, res) => {
     if (!user) {
       logger.info(`Creating new user for Google ID: ${userId}`);
       user = await User.create({
+        uuid: uuidv4(),
         first_name: firstName,
         last_name: lastName,
         username: email,
@@ -90,14 +45,14 @@ router.post('/google', async (req, res) => {
     const userDataFromDB = await User.findOne({ google_id: userId }).select('-password');
 
     // Generate Access and Refresh Tokens
-    const accessToken = generateAccessToken({ id: userDataFromDB.user_id, email: user.email });
-    const refreshToken = generateRefreshToken({ id: userDataFromDB.user_id, email: user.email });
+    const accessToken = generateAccessToken({ id: userDataFromDB.uuid, email: user.email });
+    const refreshToken = generateRefreshToken({ id: userDataFromDB.uuid, email: user.email });
 
     // Respond with user info and tokens
     res.json({
       success: true,
       user: {
-        id: userDataFromDB.user_id,
+        id: userDataFromDB.uuid,
         email: userDataFromDB.email,
         first_name: userDataFromDB.first_name,
         last_name: userDataFromDB.last_name,
@@ -135,14 +90,14 @@ router.post('/login', async (req, res) => {
     }
 
     // Generate tokens
-    const accessToken = generateAccessToken({ id: user.user_id, email: user.email });
-    const refreshToken = generateRefreshToken({ id: user.user_id, email: user.email });
+    const accessToken = generateAccessToken({ id: user.uuid, email: user.email });
+    const refreshToken = generateRefreshToken({ id: user.uuid, email: user.email });
 
     // Respond with user info and tokens
     return res.json({
       success: true,
       user: {
-        id: user.user_id,
+        id: user.uuid,
         email: user.email,
         first_name: user.first_name,
         last_name: user.last_name,
@@ -176,6 +131,7 @@ router.post('/signup', async (req, res) => {
 
   if (!existingUser) {
     existingUser = await User.create({
+      uuid: uuidv4(),
       first_name: firstName,
       last_name: lastName,
       username: email,
@@ -188,13 +144,13 @@ router.post('/signup', async (req, res) => {
   const userDataFromDB = await User.findOne({ email: email  }).select('-password');
 
   if(userDataFromDB) {
-    const accessToken = generateAccessToken({ id: userDataFromDB.user_id, email: userDataFromDB.email });
-    const refreshToken = generateRefreshToken({ id: userDataFromDB.user_id, email: userDataFromDB.email });
+    const accessToken = generateAccessToken({ id: userDataFromDB.uuid, email: userDataFromDB.email });
+    const refreshToken = generateRefreshToken({ id: userDataFromDB.uuid, email: userDataFromDB.email });
 
     return res.status(200).json({
       success: true,
       user: {
-        id: userDataFromDB.user_id,
+        id: userDataFromDB.uuid,
         email: userDataFromDB.email,
         first_name: userDataFromDB.first_name,
         last_name: userDataFromDB.last_name,

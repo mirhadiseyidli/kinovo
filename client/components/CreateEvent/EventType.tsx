@@ -58,27 +58,38 @@ const Category: React.FC<CategoryProps> = ({ onCategorySelect }) => {
           borderRadius: 8,
           backgroundColor: themeColors.inputBackgroundColor,
           elevation: 5,
-          height: screenWidth / 10,
+          height: 52,
         }}
       >
         {/* Category Selection */}
-        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
-          <Feather
-            name="tag"
-            size={16}
-            color={themeColors.placeholderTextColor}
-            style={{ marginRight: 8 }}
-          />
-          <ThemedText
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Feather
+              name="tag"
+              size={16}
+              color={themeColors.placeholderTextColor}
+              style={{ marginRight: 8 }}
+            />
+            <ThemedText
+              style={{
+                fontSize: 16,
+                color: themeColors.placeholderTextColor,
+              }}
+            >
+              Select Category
+            </ThemedText>
+          </View>
+          <TouchableOpacity onPress={openCategoryOptions}
             style={{
-              fontSize: 14,
-              color: themeColors.placeholderTextColor,
+              backgroundColor: Colors[colorScheme ?? 'dark'].background,
+              paddingVertical: 8,
+              paddingHorizontal: 12,
+              borderRadius: 8,
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
           >
-            Select Category
-          </ThemedText>
-          <TouchableOpacity style={{ flex: 1, alignItems: 'flex-end' }} onPress={openCategoryOptions}>
-            <ThemedText style={{ fontSize: 16, fontWeight: '400', color: '#007AFF' }}>
+            <ThemedText style={{ fontSize: 16, fontWeight: '400', color: themeColors.text }}>
               {selectedCategory ?? 'Select'}
             </ThemedText>
           </TouchableOpacity>

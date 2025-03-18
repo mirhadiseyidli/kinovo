@@ -12,13 +12,13 @@ const { width } = Dimensions.get('window');
 // Function to calculate button size dynamically based on screen width
 const getSize = (percentage: number) => (width * percentage) / 100;
 
-const AuthButton: React.FC<AuthButtonProps> = ({ onPress, logo, backgroundColor = 'white' }) => {
+const AuthButton: React.FC<AuthButtonProps> = ({ onPress, logo, backgroundColor='white' }) => {
   return (
     <TouchableOpacity
       onPress={onPress}
       style={{
         flexShrink: 1,
-        height: '60%',
+        height: '70%',
         aspectRatio: 1, // Keeps it square
         backgroundColor,
         borderRadius: 9999, // Makes it fully rounded
@@ -35,8 +35,8 @@ const AuthButton: React.FC<AuthButtonProps> = ({ onPress, logo, backgroundColor 
       <Image
         source={logo}
         style={{
-          width: getSize(10), // 10% of screen width
-          height: getSize(10), // Keep same aspect ratio
+          width: getSize(7), // 7% of screen width
+          height: getSize(7), // Keep same aspect ratio
         }}
         resizeMode="contain"
       />

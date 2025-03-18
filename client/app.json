@@ -1,19 +1,17 @@
 {
   "expo": {
-    "name": "client",
+    "name": "Kinovo",
     "slug": "eventsapp",
     "scheme": "client",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/logo.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
     "ios": {
+      "config": {
+        "googleMapsApiKey":  "process.env.EXPO_PUBLIC_GOOGLE_MAPS_API"
+      },
       "bundleIdentifier": "com.client.app",
       "infoPlist": {
         "UIApplicationSupportsIndirectInputEvents": false,
@@ -25,7 +23,9 @@
           }
         ],
         "NSPhotoLibraryUsageDescription": "Allow this app to access your photo library.",
-        "NSCameraUsageDescription": "Allow this app to access your camera."
+        "NSCameraUsageDescription": "Allow this app to access your camera.",
+        "NSLocationWhenInUseUsageDescription": "This app needs access to your location for better event suggestions.",
+        "NSLocationAlwaysUsageDescription": "We use your location to improve recommendations."
       }
     },
     "android": {
@@ -43,9 +43,11 @@
       [
         "@react-native-google-signin/google-signin",
         {
-          "iosUrlScheme": "com.googleusercontent.apps.614163396040-nctv2m1sivooo3skrdsiv5sa9manm5c5"
+          "iosUrlScheme": "com.googleusercontent.apps.614163396040-nctv2m1sivooo3skrdsiv5sa9manm5c5",
+          "iosClientId": "614163396040-nctv2m1sivooo3skrdsiv5sa9manm5c5.apps.googleusercontent.com"
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "owner": "mirhadiseyidli",
     "experiments": {

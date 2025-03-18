@@ -21,11 +21,11 @@ const EventName: React.FC = () => {
           borderRadius: 8,
           paddingHorizontal: 16,
           paddingVertical: 8,
-          height: screenWidth / 10,
+          height: 52,
         }}
       >
         {/* Feather Icon */}
-        <Feather name="type" size={18} color={themeColors.placeholderTextColor} style={{ marginRight: 10 }} />
+        <Feather name="type" size={16} color={themeColors.placeholderTextColor} style={{ marginRight: 10 }} />
 
         {/* Text Input */}
         <TextInput
@@ -33,7 +33,8 @@ const EventName: React.FC = () => {
           placeholderTextColor={themeColors.placeholderTextColor}
           style={{
             flex: 1, // Take up the remaining space
-            fontSize: 14,
+            fontSize: 16,
+            color: themeColors.text
           }}
         />
       </View>
