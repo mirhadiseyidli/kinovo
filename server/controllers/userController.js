@@ -22,7 +22,7 @@ const getUsers = async (req, res) => {
   }
 };
 
-const deleteUsers = (getUser, async (req, res) => {
+const deleteUsers = async (req, res) => {
   let user;
   try {
     user = await User.deleteOne({ _id: res.user.id }).select('-password_hash');
@@ -30,7 +30,7 @@ const deleteUsers = (getUser, async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
-});
+};
 
 const editUser = async (req, res) => {
   const { id } = req.params;
