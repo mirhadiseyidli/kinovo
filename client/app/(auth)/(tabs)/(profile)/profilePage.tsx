@@ -1,6 +1,6 @@
 import { useAuthSession } from "@/components/Auth/AuthProvider";
 import { useState, useRef, useEffect } from "react";
-import { View, Text, Button, ScrollView, Alert } from "react-native";
+import { View, Text, Button, ScrollView } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { ThemedView } from "@/components/ThemedView";
 import UserProfilePreview from "@/components/ProfileAndSettings/Settings/UserProfilePreview";
@@ -13,22 +13,18 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Header from "@/components/Header";
 import AppInfoSettings from "@/components/ProfileAndSettings/Settings/AppInfoSettings";
+import { ThemedText } from "@/components/ThemedText";
+import UserGeneralInfo from "@/components/ProfileAndSettings/Profile/UserGeneralInfo";
+import FavoriteActivities from "@/components/ProfileAndSettings/Profile/FavoriteActivities";
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from "axios";
-import * as SecureStore from 'expo-secure-store';
 import { useUser } from '@/context/UserContext';
 
-export default function ProfileTab() {
-  const { signOut } = useAuthSession()
+
+const ProfilePage = () => {
   const [ showScrollToTop, setShowScrollToTop ] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const tabBarHeight = useBottomTabBarHeight(); // Get tab bar height dynamically
   const insets = useSafeAreaInsets();
-  const { user } = useUser();
-
-  const logout = () => {
-     signOut();
-  }
 
   const handleScroll = (event: any) => {
     const offsetY = event.nativeEvent.contentOffset.y;
@@ -36,52 +32,22 @@ export default function ProfileTab() {
   };
 
   return (
-    <ThemedView style={{ flex: 1, paddingTop: insets.top, paddingBottom: tabBarHeight }}>
-      <ThemedView 
-        style={{
-          flex: 1,
-          flexGrow: 1,
-          maxHeight: tabBarHeight - insets.bottom, // Combine tabBarHeight and top inset
-          marginBottom: 6
-        }}
-      >
-        <Header />
-      </ThemedView>
+    <ThemedView style={{ flex: 1, paddingBottom: tabBarHeight }}>
       <ScrollView
         ref={scrollViewRef}
         style={{ 
           flex: 1,
-          paddingBottom: tabBarHeight + insets.bottom
+          paddingBottom: tabBarHeight + insets.bottom,
         }}
         onScroll={handleScroll}
         scrollEventThrottle={16}
       >
-        <ThemedView style={{ display: 'flex', flex: 1, flexDirection: 'column' }}>
-          <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <UserProfilePreview />
-          </ThemedView>
-          <ThemedView style={{ flex: 1 }}>
-            <UserSettings />
-          </ThemedView>
-          <ThemedView style={{ flex: 1 }}>
-            <PreferenceSettings />
-          </ThemedView>
-          <ThemedView style={{ flex: 1 }}>
-            <ResourcesSettings />
-          </ThemedView>
-          <ThemedView style={{ flex: 1 }}>
-            <LegalAndPrivacySettings />
-          </ThemedView>
-          <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 32 }}>
-            <SignOutComponent 
-              onPress={logout} 
-            />
-          </ThemedView>
-          <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <AppInfoSettings />
-          </ThemedView>
+        <ThemedView style={{ flex: 1, marginBottom: 48 }}>
+          <UserGeneralInfo />
         </ThemedView>
       </ScrollView>
     </ThemedView>
   );
 }
+
+export default ProfilePage;

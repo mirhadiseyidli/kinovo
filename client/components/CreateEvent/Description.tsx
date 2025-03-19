@@ -31,7 +31,7 @@ const Description: React.FC = () => {
         }}
       >
         {/* Feather Icon */}
-        <Feather name="edit" size={20} color={themeColors.placeholderTextColor} style={{ marginRight: 10, marginTop: 4 }} />
+        <Feather name="edit" size={24} color={themeColors.placeholderTextColor} style={{ marginRight: 10 }} />
 
         {/* Text Input */}
         <TextInput

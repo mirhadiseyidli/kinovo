@@ -47,6 +47,11 @@ const usersSchema = new mongoose.Schema({
     type: String,
     required: false,
   },
+  bio: {
+    type: String,
+    default: null,
+    maxlength: 300
+  },
   created_at: {
     type: Date,
     default: Date.now(),  // Date & Time at the time of request
@@ -77,7 +82,22 @@ const usersSchema = new mongoose.Schema({
     created_at: {
       type: Date,
       default: Date.now(),
+    },
+  }],
+  location: {
+    city: { type: String, default: null },
+    state: { type: String, default: null },
+    coordinates: {
+      lat: { type: Number, default: null },
+      lng: { type: Number, default: null }
     }
+  },
+  events: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Events',
+  }],
+  favorite_activities: [{
+    type: String
   }]
 });
 

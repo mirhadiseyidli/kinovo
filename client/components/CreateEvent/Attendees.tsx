@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, TextInput, TouchableOpacity, Text, Dimensions, FlatList } from 'react-native';
+import { View, TextInput, TouchableOpacity, Text, Dimensions, ScrollView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
@@ -8,26 +8,12 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
 
 interface Friend {
   id: number;
   name: string;
   image?: any;
 }
-
-const initialAttendees = [
-  { id: 1, name: 'John Doe', image: require('@/assets/profile-pic-1.webp') },
-  { id: 2, name: 'Jane Smith', image: require('@/assets/profile-pic-2.jpeg') },
-  { id: 3, name: 'Sam Wilson', image: require('@/assets/profile-pic-2.jpeg') },
-  { id: 4, name: 'Emily Brown', image: require('@/assets/profile-pic-1.webp') },
-  { id: 5, name: 'Chris Evans', image: require('@/assets/profile-pic-2.jpeg') },
-  { id: 6, name: 'John Doe', image: require('@/assets/profile-pic-1.webp') },
-  { id: 7, name: 'Jane Smith', image: require('@/assets/profile-pic-2.jpeg') },
-  { id: 8, name: 'Sam Wilson', image: require('@/assets/profile-pic-2.jpeg') },
-  { id: 9, name: 'Emily Brown', image: require('@/assets/profile-pic-1.webp') },
-  { id: 10, name: 'Chris Evans', image: require('@/assets/profile-pic-2.jpeg') },
-];
 
 const Attendees: React.FC = () => {
   const [attendees, setAttendees] = useState<Friend[]>([]);
@@ -56,15 +42,11 @@ const Attendees: React.FC = () => {
         },
       });
 
-      // console.log(emailSearch)
-
       const nameSearch = axios.get(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/users/me/friends/name?query=${query}`, {
         headers: {
           Authorization: `Bearer ${accessToken}`
         },
       });
-
-      // console.log(nameSearch)
 
       const [emailResults, nameResults] = await Promise.all([emailSearch, nameSearch]);
 
@@ -126,15 +108,21 @@ const Attendees: React.FC = () => {
       </View>
 
       {/* Suggestions List */}
-      <FlatList
-        data={suggestions}
-        renderItem={({ item }) => (
-          <TouchableOpacity onPress={() => handleAdd(item)}>
-            <Text style={{ color: themeColors.text }}>{item.name}</Text>
+      <ScrollView style={{ maxHeight: 250 }} nestedScrollEnabled={true}>
+        {suggestions.map((item, index) => (
+          <TouchableOpacity
+            key={index}
+            style={{
+              padding: 12,
+              borderBottomWidth: index !== suggestions.length - 1 ? 1 : 0,
+              borderBottomColor: themeColors.background,
+            }}
+            onPress={() => handleAdd(item)}
+          >
+            <Text style={{ fontWeight: 'bold', color: themeColors.text }}>{item.name}</Text>
           </TouchableOpacity>
-        )}
-        keyExtractor={(item) => item.id.toString()}
-      />
+        ))}
+      </ScrollView>
 
       {/* Attendees List */}
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>

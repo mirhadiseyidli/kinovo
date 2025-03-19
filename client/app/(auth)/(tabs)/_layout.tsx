@@ -90,7 +90,7 @@ export default function TabsLayout() {
           listeners={() => ({
             tabPress: (e) => {
               e.preventDefault(); // Prevent default tab navigation
-              router.push('/(auth)/(tabs)/(modals)/create-event'); // Open modal without replacing background
+              router.replace('/(auth)/(tabs)/(modals)/create-event'); // Open modal without replacing background
             },
           })}
         />
@@ -112,6 +112,18 @@ export default function TabsLayout() {
         />
         <Tabs.Screen
           name="(modals)/create-event"
+          options={{
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="(profile)/profilePage"
+          options={{
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="(profile)/editProfile"
           options={{
             href: null,
           }}

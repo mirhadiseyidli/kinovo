@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Text, Image, Dimensions } from 'react-native';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { Colors } from '@/constants/Colors';
 
 interface FriendProps {
   name: string;
@@ -16,6 +18,8 @@ const Friend: React.FC<FriendProps> = ({ name, image, eventCount = 0, size, show
   const defaultSize = screenWidth * 0.18; // Default: 18% of screen width
   const imageSize = size || defaultSize; // Use provided size or default
   const badgeSize = imageSize * 0.3; // Badge size relative to the image
+  const colorScheme = useColorScheme();
+  const themeColors = Colors[colorScheme ?? 'dark'];
 
   const truncateName = (name: string, maxLength: number) => {
     return name.length > maxLength ? `${name.substring(0, maxLength)}...` : name;
@@ -34,7 +38,7 @@ const Friend: React.FC<FriendProps> = ({ name, image, eventCount = 0, size, show
           backgroundColor: 'transparent',
           borderRadius: imageSize / 2,
           borderWidth: eventCount > 0 ? 2 : 0,
-          borderColor: eventCount > 0 ? '#22c55e' : 'transparent'
+          borderColor: eventCount > 0 ? themeColors.mountainGreen : 'transparent'
         }}
       >
         <Image
@@ -57,12 +61,7 @@ const Friend: React.FC<FriendProps> = ({ name, image, eventCount = 0, size, show
               position: 'absolute',
               bottom: -badgeSize * 0.15,
               right: -badgeSize * 0.15,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.2,
-              shadowRadius: 1,
-              elevation: 3, // Adds shadow for Android
-              backgroundColor: '#22c55e',
+              backgroundColor: themeColors.mountainGreen,
               alignItems: 'center',
               justifyContent: 'center',
             }}
