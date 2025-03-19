@@ -30,6 +30,10 @@ const LocationComponent: React.FC = () => {
   const [inputText, setInputText] = useState('');
   const [coordinates, setCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationPermission, setLocationPermission] = useState(false);
+  const {width, height} = Dimensions.get('window');
+  const ASPECT_RATIO = width / height;
+  const LATITUDE_DELTA = 0.0922;
+  const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
 
   useEffect(() => {
     const requestLocationPermission = async () => {
@@ -133,7 +137,7 @@ const LocationComponent: React.FC = () => {
             height: screenWidth / 10,
           }}
         >
-          <Feather name="map-pin" size={18} color={themeColors.placeholderTextColor} style={{ marginRight: 10 }} />
+          <Feather name="map-pin" size={24} color={themeColors.placeholderTextColor} style={{ marginRight: 10 }} />
           <TextInput
             autoCorrect={false} // Prevents unnecessary text input errors
             keyboardType="default" // Explicitly define the keyboard type
@@ -219,8 +223,8 @@ const LocationComponent: React.FC = () => {
               region={{
                 latitude: coordinates.latitude,
                 longitude: coordinates.longitude,
-                latitudeDelta: 0.01, // Zooms in closer
-                longitudeDelta: 0.01, // Zooms in closer
+                latitudeDelta: LATITUDE_DELTA, // Zooms in closer
+                longitudeDelta: LONGITUDE_DELTA, // Zooms in closer
               }}
             >
               <Marker coordinate={coordinates} title={selectedLocation || 'Selected Location'} pinColor={themeColors.mountainGreen}/>

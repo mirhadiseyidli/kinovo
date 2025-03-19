@@ -9,12 +9,6 @@ import HomeScreen from '../../../components/Home/HomeScreen';
 import AuthScreen from '../../login';
 import { ThemedView } from '@/components/ThemedView';
 
-interface ContentProps {
-  isLoggedIn: boolean;
-  onLoginSuccess: (token: string) => void;
-  // onLogoutSuccess: () => void;
-}
-
 export default function Home() {
   const router = useRouter();
   const colorScheme = useColorScheme();
@@ -45,15 +39,6 @@ export default function Home() {
     }
   };
 
-  // const handleLogout = async () => {
-  //   try {
-  //     await AsyncStorage.removeItem('accessToken');
-  //     setIsLoggedIn(false);
-  //   } catch (error) {
-  //     console.error('Error during logout:', error);
-  //   }
-  // };
-
   if (isCheckingToken) {
     // Show a loading indicator while checking the token
     return (
@@ -64,20 +49,17 @@ export default function Home() {
   }
 
   return (
-    <Content
-      isLoggedIn={isLoggedIn}
-      onLoginSuccess={handleLogin}
-    />
+    <Content />
   );
 };
 
-function Content({ isLoggedIn, onLoginSuccess }: ContentProps) {
+function Content() {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
 
   return (
     <ThemedView
-      style={{ flex: 1, paddingTop: insets.top, paddingBottom: insets.bottom}}
+      style={{ flex: 1, paddingTop: insets.top, paddingBottom: insets.bottom }}
     >
       <StatusBar
         barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'}

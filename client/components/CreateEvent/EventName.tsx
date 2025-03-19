@@ -25,7 +25,7 @@ const EventName: React.FC = () => {
         }}
       >
         {/* Feather Icon */}
-        <Feather name="type" size={16} color={themeColors.placeholderTextColor} style={{ marginRight: 10 }} />
+        <Feather name="type" size={24} color={themeColors.placeholderTextColor} style={{ marginRight: 10 }} />
 
         {/* Text Input */}
         <TextInput

@@ -66,7 +66,7 @@ const Category: React.FC<CategoryProps> = ({ onCategorySelect }) => {
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Feather
               name="tag"
-              size={16}
+              size={24}
               color={themeColors.placeholderTextColor}
               style={{ marginRight: 8 }}
             />
