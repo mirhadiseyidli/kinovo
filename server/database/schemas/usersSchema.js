@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const validator = require('validator');
+const { CountryCodes } = require('validator/lib/isISO31661Alpha2');
 
 const usersSchema = new mongoose.Schema({
   uuid: {
@@ -30,6 +31,34 @@ const usersSchema = new mongoose.Schema({
       message: "Please provide a valid email address",
     },
   },
+  email_verified: {
+    type: Boolean,
+    default: false,
+    required: true,
+  },
+  phone_number: {
+    country_code: {
+      type: String,
+      default: null,
+      required: function () {
+        return !this.google_id; // Required only for non-Google users
+      }
+    },
+    area_code: {
+      type: String,
+      default: null,
+      required: function () {
+        return !this.google_id; // Required only for non-Google users
+      }
+    },
+    phone_num: {
+      type: String,
+      default: null,
+      required: function () {
+        return !this.google_id; // Required only for non-Google users
+      }
+    }
+  },
   // TODO: Password hashes before going into Database?
   password: {
     type: String,
@@ -47,6 +76,10 @@ const usersSchema = new mongoose.Schema({
     type: String,
     required: false,
   },
+  cover_photo: {
+    type: String,
+    required: false,
+  },
   bio: {
     type: String,
     default: null,
@@ -59,34 +92,16 @@ const usersSchema = new mongoose.Schema({
   },
   last_login_at: {
     type: Date,
-    default: null,
+    default: Date.now(),
   },
   friends: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Users',
   }],
-  friend_requests: [{
-    sender: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Users',
-    },
-    receiver: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Users',
-    },
-    status: {
-      type: String,
-      enum: ['pending', 'accepted', 'rejected'],
-      default: 'pending',
-    },
-    created_at: {
-      type: Date,
-      default: Date.now(),
-    },
-  }],
   location: {
     city: { type: String, default: null },
     state: { type: String, default: null },
+    text: { type: String, default: null },
     coordinates: {
       lat: { type: Number, default: null },
       lng: { type: Number, default: null }
@@ -97,8 +112,24 @@ const usersSchema = new mongoose.Schema({
     ref: 'Events',
   }],
   favorite_activities: [{
-    type: String
-  }]
+    type: String,
+    default: []
+  }],
+  social_handles: {
+    _id: false,
+    instagram: {
+      username: {
+        type: String,
+        default: null
+      }
+    },
+    facebook: {
+      username: {
+        type: String,
+        default: null
+      }
+    },
+  },
 });
 
 module.exports = mongoose.model('Users', usersSchema);

@@ -18,7 +18,6 @@ import UserGeneralInfo from "@/components/ProfileAndSettings/Profile/UserGeneral
 import FavoriteActivities from "@/components/ProfileAndSettings/Profile/FavoriteActivities";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import EditUserGeneralInfo from "@/components/ProfileAndSettings/Profile/EditUserGeneralInfo";
-import { useUser } from '@/context/UserContext';
 
 const EditProfile = () => {
   const [ showScrollToTop, setShowScrollToTop ] = useState(false);

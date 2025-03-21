@@ -7,6 +7,7 @@ import SeeWhatFriendsAreUpTo from '@/components/Home/SeeWhatFriendsAreUpTo';
 import PastEvents from '@/components/Home/PastEvents';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+// import AISummary from './AISummary';
 
 const HomeScreen = () => {
   const [showScrollToTop, setShowScrollToTop] = useState(false);
@@ -52,6 +53,9 @@ const HomeScreen = () => {
         scrollEventThrottle={16}
       >
         <ThemedView style={{ display: 'flex', flex: 1, flexDirection: 'column', gap: 24, paddingHorizontal: 16 }}>
+          {/* <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <AISummary />
+          </ThemedView> */}
           <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <UpcomingEvents />
           </ThemedView>

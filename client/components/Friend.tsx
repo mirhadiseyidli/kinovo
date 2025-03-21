@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Image, Dimensions } from 'react-native';
+import { View, Text, Image, Dimensions, TouchableOpacity } from 'react-native';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -26,7 +26,7 @@ const Friend: React.FC<FriendProps> = ({ name, image, eventCount = 0, size, show
   };
 
   return (
-    <View style={{ alignItems: 'center' }}>
+    <TouchableOpacity style={{ alignItems: 'center' }}>
       {/* Friend Image with Event Count Badge */}
       <View
         style={{
@@ -86,7 +86,7 @@ const Friend: React.FC<FriendProps> = ({ name, image, eventCount = 0, size, show
           {truncateName(name, 10)}
         </ThemedText>
       )}
-    </View>
+    </TouchableOpacity>
   );
 };
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Image, Dimensions } from 'react-native';
+import { View, Text, Image, Dimensions, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
@@ -34,7 +34,7 @@ const UpcomingEvent: React.FC<UpcomingEventProps> = ({
 
 
   return (
-    <ThemedView style={{ flexDirection: 'row', width: '100%', overflow: 'hidden', backgroundColor: 'transparent', alignItems: 'center' }}>
+    <TouchableOpacity style={{ flexDirection: 'row', width: '100%', overflow: 'hidden', backgroundColor: 'transparent', alignItems: 'center' }}>
       {/* Event Image */}
       <ThemedView style={{ width: height ,height: height, marginRight: 16 }}>
         <Image 
@@ -78,7 +78,7 @@ const UpcomingEvent: React.FC<UpcomingEventProps> = ({
           <ThemedText style={{ fontSize: 10, color: `${Colors[colorScheme ?? 'dark'].tint}`, marginLeft: 8 }}>{location}</ThemedText>
         </View>
       </ThemedView>
-    </ThemedView>
+    </TouchableOpacity>
   );
 };
 

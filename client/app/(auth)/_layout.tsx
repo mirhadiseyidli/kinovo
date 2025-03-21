@@ -1,11 +1,11 @@
-import {useAuthSession} from "@/components/Auth/AuthProvider";
-import {Redirect, Stack} from 'expo-router';
-import {Text} from 'react-native';
-import {ReactNode} from "react";
-import { UserProvider } from '@/context/UserContext';
+import { useAuthSession } from "@/components/Auth/AuthProvider";
+import { Redirect, Stack } from 'expo-router';
+import { Text } from 'react-native';
+import { ReactNode } from "react";
+import { LocationProvider } from '@/context/LocationContext'; // ✅ Import LocationProvider
 
 export default function RootLayout(): ReactNode {
-  const {accessToken, isLoading} = useAuthSession()
+  const { accessToken, isLoading } = useAuthSession();
 
   if (isLoading) {
     return <Text>Loading...</Text>;
@@ -16,7 +16,7 @@ export default function RootLayout(): ReactNode {
   }
 
   return (
-    <UserProvider>
+    <LocationProvider>
       <Stack
         screenOptions={{
           headerShown: false
@@ -24,6 +24,6 @@ export default function RootLayout(): ReactNode {
       >
         <Stack.Screen name="(tabs)" />
       </Stack>
-    </UserProvider>
+    </LocationProvider>
   );
 }

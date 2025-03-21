@@ -112,8 +112,8 @@ const PastEvents: React.FC = () => {
             Event History
           </ThemedText>
           <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <ThemedText style={{ fontSize: 14, marginRight: 8 }}>Filter</ThemedText>
-            <Feather name="filter" size={12} color={Colors[colorScheme ?? 'dark'].tint} />
+            <ThemedText style={{ fontSize: 16, marginRight: 8 }}>Filter</ThemedText>
+            <Feather name="filter" size={14} color={Colors[colorScheme ?? 'dark'].tint} />
           </TouchableOpacity>
         </View>
 

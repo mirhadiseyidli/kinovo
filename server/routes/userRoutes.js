@@ -3,7 +3,7 @@ const {
   getUserProfile,
   getUsers,
   deleteUsers,
-  editUser,
+  editMyProfile,
   createUser, 
   findMe,
   getUser,
@@ -32,6 +32,6 @@ router.get('/me/friends/:name', authMiddleware, getUserFriendByNameSearch, getUs
 router.post('/user/friends/requests/actions', sendFriendRequest);
 router.post('/user/friends/requests/responses', respondToAFriendRequest);
 router.delete('/:id', getUser, deleteUsers);
-router.get('/:id', editUser);
+router.patch('/user/edit/myprofile', authMiddleware, editMyProfile);
 
 module.exports = router;

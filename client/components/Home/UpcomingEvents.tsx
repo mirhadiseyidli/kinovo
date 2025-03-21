@@ -68,9 +68,9 @@ const UpcomingEvents: React.FC = () => {
     <ThemedView style={{ flex: 1, width: '100%' }}>
       {/* Header */}
       <ThemedView style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <ThemedText style={{ fontSize: 14, fontWeight: 'bold' }}>Upcoming Events</ThemedText>
+        <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>Upcoming Events</ThemedText>
         <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <ThemedText style={{ fontSize: 14, marginRight: 4 }}>View Calendar</ThemedText>
+          <ThemedText style={{ fontSize: 16, marginRight: 4 }}>View Calendar</ThemedText>
           <IconSymbol
             name="chevron.right"
             size={12}
