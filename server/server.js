@@ -8,6 +8,7 @@ const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');
 const tokenRoutes = require('./routes/tokenRoutes');
 const userRoutes = require('./routes/userRoutes');
+const aiRoutes = require('./routes/aiRoutes');
 // const searchRoutes = require('./routes/searchRoutes');
 
 const app = express();
@@ -50,6 +51,7 @@ app.get('/api/check-auth', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/token', tokenRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/assistants', aiRoutes);
 // app.use('/api/search', searchRoutes);
 
 // Start Server

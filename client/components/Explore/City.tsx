@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ImageBackground } from 'react-native';
+import { View, Text, ImageBackground, TouchableOpacity } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -20,7 +20,7 @@ const City: React.FC<CityProps> = ({ name, image }) => {
       : 'rgba(200, 200, 200, 0.7)'; // Darkish gray for light mode
 
   return (
-    <ThemedView
+    <TouchableOpacity
       style={{
         flex: 1,
         width: '100%',
@@ -71,7 +71,7 @@ const City: React.FC<CityProps> = ({ name, image }) => {
           </BlurView>
         </ImageBackground>
       </ThemedView>
-    </ThemedView>
+    </TouchableOpacity>
   );
 };
 

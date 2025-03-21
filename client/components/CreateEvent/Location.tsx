@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Dimensions,
@@ -22,6 +22,7 @@ import { Colors } from '@/constants/Colors';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import axios from 'axios';
+import { useLocation } from '@/context/LocationContext';
 
 const LocationComponent: React.FC = () => {
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
@@ -29,31 +30,11 @@ const LocationComponent: React.FC = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [inputText, setInputText] = useState('');
   const [coordinates, setCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [locationPermission, setLocationPermission] = useState(false);
+  const { locationPermission } = useLocation();
   const {width, height} = Dimensions.get('window');
   const ASPECT_RATIO = width / height;
-  const LATITUDE_DELTA = 0.0922;
+  const LATITUDE_DELTA = 0.05;
   const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
-
-  useEffect(() => {
-    const requestLocationPermission = async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-    
-      if (status !== 'granted') {
-        Alert.alert(
-          "Location Permission Denied",
-          "Enable location access in settings to use this feature."
-        );
-        setLocationPermission(false);
-        return;
-      }
-      setLocationPermission(true);
-      return;
-    };
-
-    requestLocationPermission();
-  }, []);
-
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const screenWidth = Dimensions.get('window').width;
@@ -66,7 +47,7 @@ const LocationComponent: React.FC = () => {
 
     try {
       let response = await axios.post(
-        `https://places.googleapis.com/v1/places:searchText?key=${process.env.EXPO_PUBLIC_GOOGLE_MAPS_API}`,
+        `https://places.googleapis.com/v1/places:searchText`,
         { textQuery: text },
         {
           headers: {
@@ -167,16 +148,20 @@ const LocationComponent: React.FC = () => {
         {/* Suggestions Dropdown */}
         {suggestions.length > 0 && (
           <ThemedView style={{
+            position: 'absolute',
+            top: '110%', // Positions right below the input field
+            left: 0,
+            width: '100%',
             backgroundColor: themeColors.inputBackgroundColor,
             borderRadius: 8,
-            marginTop: 8,
             paddingVertical: 5,
             maxHeight: 250, // Ensuring enough space for scrolling
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 2 },
             shadowOpacity: 0.2,
             shadowRadius: 4,
-            elevation: 3
+            elevation: 3,
+            zIndex: 1000, // Ensures it overlays other components
           }}>
             <ScrollView style={{ maxHeight: 250 }} nestedScrollEnabled={true}>
               {suggestions.map((item, index) => (
@@ -213,7 +198,7 @@ const LocationComponent: React.FC = () => {
           }}>
             <MapView
               loadingEnabled={true}
-              showsUserLocation={locationPermission}
+              showsUserLocation={locationPermission === true}
               userInterfaceStyle={colorScheme === 'dark' ? 'dark' : 'light'}
               style={{ 
                 width: '100%', 

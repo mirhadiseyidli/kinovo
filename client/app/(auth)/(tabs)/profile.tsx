@@ -16,7 +16,6 @@ import AppInfoSettings from "@/components/ProfileAndSettings/Settings/AppInfoSet
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from "axios";
 import * as SecureStore from 'expo-secure-store';
-import { useUser } from '@/context/UserContext';
 
 export default function ProfileTab() {
   const { signOut } = useAuthSession()
@@ -24,10 +23,17 @@ export default function ProfileTab() {
   const scrollViewRef = useRef<ScrollView>(null);
   const tabBarHeight = useBottomTabBarHeight(); // Get tab bar height dynamically
   const insets = useSafeAreaInsets();
-  const { user } = useUser();
 
   const logout = () => {
-     signOut();
+    Alert.alert(
+      "Sign Out",
+      "You're about to sign out",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Sign Out", onPress: () => signOut(), style: 'destructive' }
+      ],
+      { cancelable: true }
+    );
   }
 
   const handleScroll = (event: any) => {

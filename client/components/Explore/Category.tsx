@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
@@ -16,7 +16,7 @@ const Category: React.FC<CategoryProps> = ({ iconName, label, iconColor }) => {
   const colorScheme = useColorScheme();
 
   return (
-    <ThemedView
+    <TouchableOpacity
       style={{
         flex: 1,
         width: '100%',
@@ -53,7 +53,7 @@ const Category: React.FC<CategoryProps> = ({ iconName, label, iconColor }) => {
           </ThemedText>
         </ThemedView>
       </ThemedView>
-    </ThemedView>
+    </TouchableOpacity>
   );
 };
 

@@ -36,7 +36,7 @@ const SeeWhatFriendsAreUpTo: React.FC = () => {
       >
         <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>Friends' Events</ThemedText>
         <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <ThemedText style={{ fontSize: 14, marginRight: 4 }}>See All</ThemedText>
+          <ThemedText style={{ fontSize: 16, marginRight: 4 }}>See All</ThemedText>
           <IconSymbol name="chevron.right" size={12} color={Colors[colorScheme ?? 'dark'].tint} />
         </TouchableOpacity>
       </ThemedView>

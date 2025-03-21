@@ -15,39 +15,6 @@ export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isCheckingToken, setIsCheckingToken] = useState(true);
 
-  useEffect(() => {
-    const checkLoginState = async () => {
-      try {
-        const token = await AsyncStorage.getItem('accessToken');
-        setIsLoggedIn(!!token);
-      } catch (error) {
-        console.error('Error checking token:', error);
-      } finally {
-        setIsCheckingToken(false);
-      }
-    };
-
-    checkLoginState();
-  }, []);
-
-  const handleLogin = async (token: string) => {
-    try {
-      await AsyncStorage.setItem('accessToken', token);
-      setIsLoggedIn(true);
-    } catch (error) {
-      console.error('Error during login:', error);
-    }
-  };
-
-  if (isCheckingToken) {
-    // Show a loading indicator while checking the token
-    return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator size="large" color="#007AFF" />
-      </View>
-    );
-  }
-
   return (
     <Content />
   );

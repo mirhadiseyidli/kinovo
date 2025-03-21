@@ -23,22 +23,23 @@ const getUsers = async (req, res) => {
 };
 
 const deleteUsers = async (req, res) => {
+  console.log(res.user)
   let user;
   try {
-    user = await User.deleteOne({ _id: res.user.id }).select('-password_hash');
+    user = await User.deleteOne({ uuid: res.user.uuid }).select('-password_hash');
     res.status(200).json('Deleted the user');
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
 };
 
-const editUser = async (req, res) => {
-  const { id } = req.params;
-  const updateFields = req.params;
+const editMyProfile = async (req, res) => {
+  const uuid = req.user.id;
+  const updateFields = req.body;
 
   try {
     const user = await User.findOneAndUpdate(
-      { _id: id }, 
+      { uuid: uuid }, 
       { $set: updateFields }, 
       { new: true } 
     ).select('-password_hash');
@@ -86,7 +87,7 @@ const findMe = async (req, res) => {
 const getUser = async (req, res, next) => {
   let found_user;
   try {
-    found_user = await User.findOne({ _id: req.params.id }).select('-password_hash');
+    found_user = await User.findOne({ uuid: req.params.id }).select('-password_hash');
     if (found_user == null) {
       return res.status(404).json({ message: 'Cannot find the user' });
     };
@@ -216,7 +217,7 @@ module.exports = {
   getUserProfile,
   getUsers,
   deleteUsers,
-  editUser,
+  editMyProfile,
   createUser,
   findMe,
   getUser,

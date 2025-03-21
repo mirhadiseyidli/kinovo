@@ -16,7 +16,7 @@ const UserSettings = () => {
       <SettingComponent 
         icon="user" 
         title="Account Settings" 
-        onPress={() => console.log('pushed')} 
+        onPress={() => router.push('/(auth)/(tabs)/(profile)/accountSettings')} 
       />
       <SettingComponent 
         icon="user-plus" 
@@ -28,5 +28,3 @@ const UserSettings = () => {
 };
 
 export default UserSettings;
-
-// router.push('/account-settings')

@@ -17,7 +17,6 @@ import { ThemedText } from "@/components/ThemedText";
 import UserGeneralInfo from "@/components/ProfileAndSettings/Profile/UserGeneralInfo";
 import FavoriteActivities from "@/components/ProfileAndSettings/Profile/FavoriteActivities";
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useUser } from '@/context/UserContext';
 
 
 const ProfilePage = () => {

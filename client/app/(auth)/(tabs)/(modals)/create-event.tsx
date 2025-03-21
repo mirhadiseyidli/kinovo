@@ -10,28 +10,14 @@ import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { Colors } from '@/constants/Colors';
 
-export default function Create() {
-  const router = useRouter();
-  const [visible, setVisible] = useState(true);
-
-  useEffect(() => {
-    setVisible(true);
-  }, [visible]);
-
+export default function Create({ visible, onRequestClose }: { visible: boolean; onRequestClose: () => void }) {
   return (
     <ThemedView style={{ flex: 1 }}>
       <Modal
         visible={visible}
         animationType="slide"
         presentationStyle='formSheet'
-        onShow={() => {
-          if (router.canGoBack()) {
-            router.back();
-          }
-        }}
-        onRequestClose={() => {
-          setVisible(false);
-        }}
+        onRequestClose={onRequestClose}
       >
         <ThemedView style={{ flex: 1, paddingTop: 8 }}>
           <CreateEvent />
