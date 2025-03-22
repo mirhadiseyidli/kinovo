@@ -174,7 +174,7 @@ const EventSuggestions: React.FC = () => {
             {index < events.length - 1 && (
               <View
                 style={{
-                  height: 1,
+                  height: 0.3,
                   backgroundColor: Colors[colorScheme ?? 'dark'].border,
                   marginVertical: 16,
                 }}

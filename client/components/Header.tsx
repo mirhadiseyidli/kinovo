@@ -17,7 +17,7 @@ const Header: React.FC = () => {
       }}
     >
       {/* Left */}
-      <ThemedText style={{ fontSize: 32, fontFamily: 'Didot', fontWeight: 'bold' }}>Kinovo</ThemedText>
+      <ThemedText style={{ fontSize: 32, fontFamily: 'Helvetica Neue Bold', fontWeight: 'bold', letterSpacing: -1 }}>Kinovo</ThemedText>
 
       {/* Right - Notifications Button */}
       <ThemedView style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
