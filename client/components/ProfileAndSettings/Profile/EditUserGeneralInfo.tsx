@@ -14,8 +14,10 @@ import EditUserCoverPhotos from './EditUserCoverPhoto';
 import EditUserProfilePhotos from './EditUserProfilePhoto';
 import SaveUserChangesButton from './SaveUserChangesButton';
 import SavedMessage from '@/components/SavedMessage';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const EditUserGeneralInfo = () => {
+  const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { user, refetchUser } = useUserData();

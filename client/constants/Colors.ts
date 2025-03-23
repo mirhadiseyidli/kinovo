@@ -20,6 +20,8 @@ export const Colors = {
     placeholderTextColor: '#c2c7ca',
     textSecondary: '#6B7280',
     mountainGreen: '#3ac0a8',
+    skeletonBoxColor: '#e0e0e0',
+    skeletonLoadingColor: 'rgba(255, 255, 255, 0.6)',
   },
   dark: {
     text: '#ECEDEE',
@@ -34,5 +36,7 @@ export const Colors = {
     placeholderTextColor: '#7e7e8a',
     textSecondary: '#cecece',
     mountainGreen: '#3ac0a8',
+    skeletonBoxColor: '#2a2a2e',
+    skeletonLoadingColor: 'rgba(255, 255, 255, 0.15)',
   },
 };

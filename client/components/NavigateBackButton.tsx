@@ -12,30 +12,35 @@ const NavigateBackButton = ({
   size = 24,
   color,
   backgroundColor,
+  top,
+  left,
 }: {
   iconName?: import('@/components/ui/IconSymbol').IconSymbolName;
   size?: number;
   color?: string;
   backgroundColor?: string;
+  top?: number,
+  left?: number
 }) => {
   const colorScheme = useColorScheme();
+  const insets = useSafeAreaInsets();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const iconColor = color ?? themeColors.text;
   const bgColor = backgroundColor ?? themeColors.background;
   const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const posTop = top ?? insets.top + 4;
+  const posLeft = left ?? 16
 
   return (
     <TouchableOpacity 
       style={{ 
         position: 'absolute', 
-        top: 16, 
-        left: 16, 
+        top: posTop, 
+        left: posLeft, 
         backgroundColor: bgColor, 
         padding: 8, 
-        borderRadius: 8, 
-        marginTop: insets.top,
-        zIndex: 10
+        borderRadius: 8,
+        zIndex: 10,
       }}
       onPress={() => router.back()}
     >

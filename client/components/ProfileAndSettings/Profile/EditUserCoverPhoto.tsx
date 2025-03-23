@@ -51,7 +51,7 @@ const EditUserCoverPhotos = ({
         style={{ 
           position: 'absolute', 
           right: 16, 
-          top: 16, 
+          top: 4, 
           backgroundColor: themeColors.background, 
           padding: 12, 
           borderRadius: 8, 
