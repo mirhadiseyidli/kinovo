@@ -37,7 +37,7 @@ const HomeScreen = () => {
           flex: 1,
           flexGrow: 1,
           maxHeight: tabBarHeight - insets.bottom, // Combine tabBarHeight and top inset
-          marginBottom: 6
+          marginBottom: 6,
         }}
       >
         <Header />

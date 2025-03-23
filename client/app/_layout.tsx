@@ -1,87 +1,126 @@
-import AuthProvider from "@/components/Auth/AuthProvider";
+import AuthProvider, { useAuthSession } from "@/components/Auth/AuthProvider";
 import { Slot } from "expo-router";
-import { ReactNode, useState, useEffect } from "react";
+import { ReactNode, useState, useEffect, useCallback } from "react";
 import { View, Image, ActivityIndicator, Animated, Dimensions } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { ThemedText } from "@/components/ThemedText";
+import KinovoSplash from "@/components/KinovoSplash";
+import HomePageLoadingSkeleton from "@/components/LoadingSkeletons/HomePageLoadingSkeleton";
 
-SplashScreen.preventAutoHideAsync(); // Prevent splash from auto-hiding
+export default function RootLayout(): JSX.Element {
+  return (
+    <AuthProvider>
+      <InnerLayout />
+    </AuthProvider>
+  );
+}
 
-export default function RootLayout(): ReactNode {
-  SplashScreen.hideAsync(); // Hide splash screen after animation
+function InnerLayout(): JSX.Element {
+  const { isLoading } = useAuthSession();
+  const [appIsReady, setAppIsReady] = useState(false);
   const [isLogoLoaded, setIsLogoLoaded] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
-  const logoFadeAnim = useState(new Animated.Value(1))[0]; // Initial opacity for logo
-  const loadingFadeAnim = useState(new Animated.Value(1))[0]; // Initially visible
-  const screenFadeAnim = useState(new Animated.Value(0))[0]; // Fade-in for the main app
+  const [minimumSkeletonShown, setMinimumSkeletonShown] = useState(false);
+  const logoFadeAnim = useState(new Animated.Value(1))[0];
+  const loadingFadeAnim = useState(new Animated.Value(1))[0];
+  const screenFadeAnim = useState(new Animated.Value(0))[0];
   const colorScheme = useColorScheme();
-  const themeColors = Colors[colorScheme ?? 'dark']; // Get theme colors dynamically
+  const themeColors = Colors[colorScheme ?? 'dark'];
   const { width, height } = Dimensions.get("window");
 
   useEffect(() => {
-    // Start logo fade-out
-    setTimeout(() => {
-      Animated.timing(logoFadeAnim, {
-        toValue: 0,
-        duration: 500, // Smooth fade-out for the logo
-        useNativeDriver: true,
-      }).start(() => {
-        setIsLogoLoaded(true); // Mark logo as loaded
-        
-        // Keep loading indicator visible and prevent blank screen
+    async function prepare() {
+      try {
+        await SplashScreen.preventAutoHideAsync();
+
+        // Delay splash screen fade out
         setTimeout(() => {
-          Animated.timing(loadingFadeAnim, {
-            toValue: 0,
-            duration: 500, // Fade-out loading indicator
-            useNativeDriver: true,
-          }).start(() => {
-            setIsLoaded(true);
-            Animated.timing(screenFadeAnim, {
-              toValue: 1,
-              duration: 500, // Fade-in app content
-              useNativeDriver: true,
-            }).start();
-          });
-        }, 1500); // Ensure loading indicator remains visible for enough time
-      });
-    }, 1500); // Keep logo visible for a short while before fading
+          setIsLogoLoaded(true);
+        }, 1500);
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+    prepare();
   }, []);
 
-  if (!isLoaded) {
-    return (
-      <View 
-        style={{ 
-          flex: 1, 
-          backgroundColor: themeColors.background, 
-          justifyContent: "center", 
+  useEffect(() => {
+    if (isLogoLoaded) {
+      const timeout = setTimeout(() => {
+        setMinimumSkeletonShown(true);
+      }, 1500);
+      return () => clearTimeout(timeout);
+    }
+  }, [isLogoLoaded]);
+
+  useEffect(() => {
+    if (isLogoLoaded) {
+      Animated.timing(logoFadeAnim, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      }).start(() => {
+        setIsLoaded(true);
+      });
+    }
+  }, [isLogoLoaded]);
+
+  useEffect(() => {
+    if (!isLoading && minimumSkeletonShown) {
+      setAppIsReady(true);
+    }
+  }, [isLoading, minimumSkeletonShown]);
+
+  useEffect(() => {
+    if (isLoaded && appIsReady) {
+      Animated.timing(loadingFadeAnim, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      }).start(() => {
+        Animated.timing(screenFadeAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }).start();
+      });
+    }
+  }, [isLoaded, appIsReady]);
+
+  const onLayoutRootView = useCallback(async () => {
+    if (appIsReady) {
+      await SplashScreen.hideAsync();
+    }
+  }, [appIsReady]);
+
+  return (
+    !appIsReady ? (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: themeColors.background,
+          justifyContent: "center",
           alignItems: "center",
         }}
+        onLayout={onLayoutRootView}
       >
-        {/* Logo Transition */}
         {!isLogoLoaded && (
-          <Animated.View style={{ opacity: logoFadeAnim, alignItems: "center", justifyContent: 'center' }}>
-            <Image source={require('@/assets/logo_2.png')} style={{ width: width * 0.5, height: width * 0.5, resizeMode: "contain" }} />
-            <ThemedText style={{ fontSize: 40, fontFamily: 'Didot', fontWeight: 'bold', alignSelf: 'center' }}>Kinovo</ThemedText>
+          <Animated.View style={{ opacity: logoFadeAnim, width: "100%", height: "100%" }}>
+            <KinovoSplash />
           </Animated.View>
         )}
-
-        {/* Loading Indicator Transition */}
-        {isLogoLoaded && !isLoaded && (
-          <Animated.View style={{ opacity: loadingFadeAnim }}>
-            <ActivityIndicator size="large" color={themeColors.text} />
+        {isLogoLoaded && !appIsReady && (
+          <Animated.View style={{ opacity: loadingFadeAnim, width: "100%", height: "100%" }}>
+            <HomePageLoadingSkeleton />
           </Animated.View>
         )}
       </View>
-    );
-  }
-
-  return (
-    <AuthProvider>
-      <Animated.View style={{ flex: 1, opacity: screenFadeAnim }}>
+    ) : (
+      <Animated.View style={{ flex: 1, opacity: screenFadeAnim }} onLayout={onLayoutRootView}>
         <Slot />
       </Animated.View>
-    </AuthProvider>
+    )
   );
 }

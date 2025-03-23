@@ -31,11 +31,6 @@ export const EditUserLocation = ({
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [locationSuggestions, setLocationSuggestions] = useState<any[]>([]);
-  // const [placeId, setPlaceId] = useState('');
-  // const [locationCity, setLocationCity] = useState('');
-  // const [locationState, setLocationState] = useState('');
-  // const [locationLatitude, setLocationLatitude] = useState<string | null>(null);
-  // const [locationLongitude, setLocationLongitude] = useState<string | null>(null);
 
   const fetchLocationSuggestions = async (text: string) => {
     if (!text.trim()) {

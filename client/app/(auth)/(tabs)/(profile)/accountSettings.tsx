@@ -12,6 +12,10 @@ import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
+import SettingsPageTitle from '@/components/ProfileAndSettings/Settings/SettingsPageTitle';
+import NavigateBackButton from '@/components/NavigateBackButton';
+import SettingsPageHeader from '@/components/ProfileAndSettings/Settings/SettingsPageHeader';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 
 // interface LocationSuggestion {
 //   placePrediction: {
@@ -26,6 +30,7 @@ const accountSettings = () => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight(); // Get tab bar height dynamically
 
   const refreshAccessToken = async () => {
     try {
@@ -61,34 +66,55 @@ const accountSettings = () => {
   // }
 
   return (
-    <ThemedView style={{ flex: 1 }}>
-      <View 
+    <ThemedView style={{ flex: 1, paddingTop: insets.top }}>
+      <ThemedView
+        style={{
+          flex: 1,
+          flexGrow: 1,
+          maxHeight: tabBarHeight - insets.bottom, // Combine tabBarHeight and top inset
+          marginBottom: 6,
+        }}
+      >
+        <SettingsPageHeader label='Account Settings'/>
+      </ThemedView>
+      <ScrollView
+        // ref={scrollViewRef}
+        style={{ 
+          flex: 1,
+          paddingBottom: tabBarHeight
+        }}
+        // onScroll={handleScroll}
+        scrollEventThrottle={16}
+      >
+        <ThemedView style={{ display: 'flex', flex: 1, flexDirection: 'column', gap: 24, paddingHorizontal: 16 }}>
+          {/* <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <AISummary />
+          </ThemedView> */}
+          {/* <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <UpcomingEvents />
+          </ThemedView>
+          <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <SeeWhatFriendsAreUpTo />
+          </ThemedView>
+          <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <PastEvents />
+          </ThemedView> */}
+        </ThemedView>
+      </ScrollView>
+      
+      {/* <View 
         style={{
           width: '100%',
-          marginTop: insets.top,
+          paddingTop: insets.top,
           position: 'relative',
           paddingVertical: 10,
         }}
-      >
+      > */}
         {/* Back Button */}
-        <TouchableOpacity 
-          style={{ 
-            position: 'absolute',
-            left: 16,
-            backgroundColor: themeColors.background, 
-            padding: 8, 
-            borderRadius: 8, 
-            zIndex: 10,
-          }}
-          onPress={() => router.back()}
-        >
-          <IconSymbol name="chevron.left" size={24} color={themeColors.text} />
-        </TouchableOpacity>
-        <View style={{ alignItems: 'center' }}>
-          <ThemedText style={{ fontSize: 18, fontWeight: 'bold' }}>Account Settings</ThemedText>
-        </View>
-      </View>
-      {/* Other content goes here */}
+        {/* <NavigateBackButton />
+        <SettingsPageTitle label='Account Settings' /> */}
+        {/* Other content goes here */}
+      {/* </View> */}
     </ThemedView>
       );
     };

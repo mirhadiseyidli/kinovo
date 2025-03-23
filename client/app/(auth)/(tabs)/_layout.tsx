@@ -71,7 +71,7 @@ export default function TabsLayout() {
                 animation: 'spring'
               }
             },
-            animation: 'fade', // ✅ Prevents flashin
+            animation: 'shift', // ✅ Prevents flashin
           }}
         >
           <Tabs.Screen
@@ -79,7 +79,7 @@ export default function TabsLayout() {
             options={{
               title: 'Home',
               tabBarIcon: ({ color }) => <Feather name="home" size={28} color={color} />,
-              animation: 'fade'
+              animation: 'shift'
             }}
           />
           <Tabs.Screen
@@ -87,7 +87,7 @@ export default function TabsLayout() {
             options={{
               title: 'Explore',
               tabBarIcon: ({ color }) => <Feather name="search" size={28} color={color} />,
-              animation: 'fade'
+              animation: 'shift'
             }}
           />
           <Tabs.Screen
@@ -110,7 +110,7 @@ export default function TabsLayout() {
             options={{
               title: 'Calendar',
               tabBarIcon: ({ color }) => <Feather name="calendar" size={28} color={color} />,
-              animation: 'fade'
+              animation: 'shift'
             }}
           />
           <Tabs.Screen
@@ -118,7 +118,7 @@ export default function TabsLayout() {
             options={{
               title: 'Profile',
               tabBarIcon: ({ color }) => <ProfileIcon color={color}/>,
-              animation: 'fade'
+              animation: 'shift'
             }}
           />
           <Tabs.Screen
@@ -141,6 +141,12 @@ export default function TabsLayout() {
           />
           <Tabs.Screen
             name="(profile)/accountSettings"
+            options={{
+              href: null,
+            }}
+          />
+          <Tabs.Screen
+            name="(profile)/(manageFriends)"
             options={{
               href: null,
             }}

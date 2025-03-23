@@ -157,15 +157,9 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
         isLoading
       }}
     >
-      <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
-        {isLoading ? (
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'transparent' }}>
-            <ActivityIndicator size="large" color="#0000ff" />
-          </View>
-        ) : (
-          children
-        )}
-      </Animated.View>
+      <View style={{ flex: 1 }}>
+        {children}
+      </View>
     </AuthContext.Provider>
   );
 };
