@@ -3,9 +3,13 @@ import { Redirect, Stack } from 'expo-router';
 import { Text } from 'react-native';
 import { ReactNode } from "react";
 import { LocationProvider } from '@/context/LocationContext'; // ✅ Import LocationProvider
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { Colors } from '@/constants/Colors';
 
 export default function RootLayout(): ReactNode {
   const { accessToken, isLoading } = useAuthSession();
+  const colorScheme = useColorScheme();
+  const themeColors = Colors[colorScheme ?? 'dark'];
 
   if (isLoading) {
     return <Text>Loading...</Text>;
@@ -23,6 +27,21 @@ export default function RootLayout(): ReactNode {
         }}
       >
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen 
+          name="(createEvent)"
+          options={{ 
+            title: 'Create Event',
+            presentation: 'modal', 
+            headerShown: true,
+            headerStyle: { 
+              backgroundColor: themeColors.background
+            },
+            headerTintColor: themeColors.text,
+            headerTitleStyle: {
+              fontWeight: 'bold'
+            }
+          }}
+        />
       </Stack>
     </LocationProvider>
   );
