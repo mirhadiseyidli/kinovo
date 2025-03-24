@@ -1,6 +1,6 @@
 import { Stack, Tabs, useRouter, Link } from 'expo-router';
 import React, { useRef, useState } from 'react';
-import { Platform, View } from 'react-native';
+import { Platform, View, Easing } from 'react-native';
 import { HapticTab } from '@/components/HapticTab';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import TabBarBackground from '@/components/ui/TabBarBackground';
@@ -12,20 +12,20 @@ import { ProfileIcon } from '@/components/ui/ProfileIcon';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import Options from '@/components/CreateEvent/Options';
-import Create from '@/app/(auth)/(tabs)/(modals)/create-event';
+import Create from '@/app/(auth)/(createEvent)/EventDateAndLocation';
 
 export default function TabsLayout() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const color = colorScheme === 'dark' ? 'light-content' : 'dark-content';
-  const [visible, setVisible] = useState(Boolean);
+  const [visibility, setVisibility] = useState(false);
 
   const handleModalOpen = () => {
-    setVisible(true);
+    setVisibility(true);
   };
 
   const handleModalClose = () => {
-    setVisible(false)
+    setVisibility(false)
   }
 
   return (
@@ -39,6 +39,8 @@ export default function TabsLayout() {
           initialRouteName="index"
           backBehavior="history"
           screenOptions={{
+            lazy: true,
+            tabBarButton: HapticTab,
             tabBarActiveTintColor: Colors[colorScheme ?? 'dark'].tint,
             headerShown: false,
             tabBarShowLabel: false,
@@ -54,7 +56,7 @@ export default function TabsLayout() {
                 paddingTop: 4, // Add padding at the top
                 itemsAlign: 'center',
                 justifyContent: 'center',
-                animation: 'spring',
+                // animation: 'spring',
               },
               default: {
                 backgroundColor: Colors[colorScheme ?? 'dark'].background, // Background for other platforms
@@ -71,12 +73,23 @@ export default function TabsLayout() {
                 animation: 'spring'
               }
             },
-            animation: 'shift', // ✅ Prevents flashin
+            transitionSpec: {
+              animation: 'spring',
+              config: {
+                stiffness: 1000,
+                damping: 80,  // Increased damping to reduce oscillations
+                mass: 3,
+                overshootClamping: true,  // Prevents overshoot and shaking
+                restDisplacementThreshold: 0.01,
+                restSpeedThreshold: 0.01,
+              },
+            }
           }}
         >
           <Tabs.Screen
             name="index"
             options={{
+              lazy: true,
               title: 'Home',
               tabBarIcon: ({ color }) => <Feather name="home" size={28} color={color} />,
               animation: 'shift'
@@ -85,6 +98,7 @@ export default function TabsLayout() {
           <Tabs.Screen
             name="explore"
             options={{
+              lazy: true,
               title: 'Explore',
               tabBarIcon: ({ color }) => <Feather name="search" size={28} color={color} />,
               animation: 'shift'
@@ -101,13 +115,14 @@ export default function TabsLayout() {
             listeners={() => ({
               tabPress: (e) => {
                 e.preventDefault(); // Prevent default tab navigation
-                handleModalOpen();
+                router.push('/(auth)/(createEvent)/EventDetails');
               },
             })}
           />
           <Tabs.Screen
             name="calendar"
             options={{
+              lazy: true,
               title: 'Calendar',
               tabBarIcon: ({ color }) => <Feather name="calendar" size={28} color={color} />,
               animation: 'shift'
@@ -116,15 +131,10 @@ export default function TabsLayout() {
           <Tabs.Screen
             name="profile"
             options={{
+              lazy: true,
               title: 'Profile',
               tabBarIcon: ({ color }) => <ProfileIcon color={color}/>,
               animation: 'shift'
-            }}
-          />
-          <Tabs.Screen
-            name="(modals)/create-event"
-            options={{
-              href: null,
             }}
           />
           <Tabs.Screen
@@ -152,9 +162,6 @@ export default function TabsLayout() {
             }}
           />
         </Tabs>
-      </View>
-      <View style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}>
-        <Create visible={visible} onRequestClose={handleModalClose} />
       </View>
     </>
   );
