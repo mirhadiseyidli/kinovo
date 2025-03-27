@@ -11,7 +11,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import type { CreateEventTabParamList } from '@/types/allTypes';
 
-export default function EventDetails() {
+export default React.memo(function EventDetails() {
   const navigation = useNavigation<NavigationProp<CreateEventTabParamList>>();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
@@ -47,4 +47,4 @@ export default function EventDetails() {
       />
     </ThemedView>
   );
-}
+});

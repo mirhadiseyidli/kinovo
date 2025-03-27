@@ -12,7 +12,7 @@ import React, { useState } from 'react';
 import { View } from 'react-native';
 import type { CreateEventTabParamList } from '@/types/allTypes';
 
-export default function EventDateAndLocation() {
+export default React.memo(function EventDateAndLocation() {
   const navigation = useNavigation<NavigationProp<CreateEventTabParamList>>();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
@@ -66,4 +66,4 @@ export default function EventDateAndLocation() {
       </View>
     </ThemedView>
   );
-};
+});

@@ -5,7 +5,7 @@ import { useColorScheme } from '../../../hooks/useColorScheme';
 import HomeScreen from '../../../components/Home/HomeScreen';
 import { ThemedView } from '@/components/ThemedView';
 
-export default function Home() {
+export default React.memo(function Home() {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
 
@@ -19,4 +19,4 @@ export default function Home() {
         <HomeScreen />
     </ThemedView>
   );
-};
+});

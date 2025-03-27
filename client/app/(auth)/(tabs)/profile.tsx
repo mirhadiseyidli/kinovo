@@ -12,8 +12,9 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Header from "@/components/Header";
 import AppInfoSettings from "@/components/ProfileAndSettings/Settings/AppInfoSettings";
+import React from "react";
 
-export default function ProfileTab() {
+export default React.memo(function ProfileTab() {
   const { signOut } = useAuthSession()
   const [ showScrollToTop, setShowScrollToTop ] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -86,4 +87,4 @@ export default function ProfileTab() {
       </ScrollView>
     </ThemedView>
   );
-}
+})
