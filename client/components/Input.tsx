@@ -1,14 +1,7 @@
 import React from 'react';
 import { View, TextInput, Text, TextInputProps } from 'react-native';
 import { ThemedView } from '@/components/ThemedView';
-
-interface InputProps extends TextInputProps {
-  value: string;
-  onChangeText: (text: string) => void;
-  placeholder: string;
-  secureTextEntry?: boolean;
-  leftIcon?: React.ReactNode;
-}
+import { InputProps } from '@/types/allTypes';
 
 const Input: React.FC<InputProps> = ({
   value,

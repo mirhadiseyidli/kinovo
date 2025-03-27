@@ -8,13 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { Feather } from '@expo/vector-icons';
 import { useAuthSession } from "@/components/Auth/AuthProvider";
-
-interface User {
-  first_name: string;
-  last_name: string;
-  email: string;
-  profile_picture: string;
-}
+import { User } from '@/types/allTypes';
 
 const UserProfilePreview: React.FC = () => {
   const { signOut } = useAuthSession()

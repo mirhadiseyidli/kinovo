@@ -4,12 +4,7 @@ import { Feather } from '@expo/vector-icons';
 import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-
-interface SearchBarProps {
-  placeholder: string;
-  value: string;
-  onChangeText: (text: string) => void;
-}
+import { SearchBarProps } from '@/types/allTypes';
 
 const SearchBar: React.FC<SearchBarProps> = ({ placeholder, value, onChangeText }) => {
   const colorScheme = useColorScheme();
@@ -23,7 +18,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ placeholder, value, onChangeText 
         borderRadius: 16,
         padding: 12,
         justifyContent: 'center',
-        width: '95%',
+        width: '100%',
         backgroundColor: themeColors.inputBackgroundColor,
       }}
     >

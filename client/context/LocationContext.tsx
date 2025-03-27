@@ -1,10 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import * as Location from 'expo-location';
 import { Alert } from 'react-native';
-
-interface LocationContextProps {
-  locationPermission: boolean | null;
-}
+import { LocationContextProps } from '@/types/allTypes';
 
 const LocationContext = createContext<LocationContextProps | undefined>(undefined);
 

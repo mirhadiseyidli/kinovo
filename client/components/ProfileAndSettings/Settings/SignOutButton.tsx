@@ -4,10 +4,7 @@ import { Octicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
-
-interface SignOutItemProps {
-  onPress: () => void;
-}
+import { SignOutItemProps } from '@/types/allTypes';
 
 const SignOutComponent: React.FC<SignOutItemProps> = ({ onPress }) => {
   const colorScheme = useColorScheme();

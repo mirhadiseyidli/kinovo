@@ -5,14 +5,9 @@ import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { ExploreCategoryProps } from '@/types/allTypes';
 
-interface CategoryProps {
-  iconName: any;
-  label: string;
-  iconColor: string;
-}
-
-const Category: React.FC<CategoryProps> = ({ iconName, label, iconColor }) => {
+const Category: React.FC<ExploreCategoryProps> = ({ iconName, label, iconColor }) => {
   const colorScheme = useColorScheme();
 
   return (

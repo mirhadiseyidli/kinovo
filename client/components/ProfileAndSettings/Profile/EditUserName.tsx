@@ -2,20 +2,14 @@ import React from 'react';
 import { View, Text, TextInput } from "react-native";
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { EditUserNameProps } from '@/types/allTypes';
 
 const UserNameEdit = ({
   label,
   value,
   onChangeText,
   placeholder
-}: {
-  label: string;
-  value: string;
-  onChangeText: (text: string) => void;
-  placeholder: string;
-  placeholderTextColor: string;
-  themeColors: any;
-}) => {
+}: EditUserNameProps) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
 

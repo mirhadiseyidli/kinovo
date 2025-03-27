@@ -7,6 +7,8 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Feather } from '@expo/vector-icons';
+import { NearbyEvent } from '@/types/allTypes';
+import { ScrollHandlerEvent } from '@/types/allTypes';
 
 const bikingTrail = require('@/assets/biking-trail.jpg');
 const hikingPlace = require('@/assets/hiking-place.jpg');
@@ -18,7 +20,7 @@ const NearbyEvents: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
 
-  const events = [
+  const events: NearbyEvent[] = [
     {
       id: 1,
       title: 'Weekend Hike',
@@ -63,7 +65,7 @@ const NearbyEvents: React.FC = () => {
 
   const screenWidth = Dimensions.get('window').width;
 
-  const handleScrollEndDrag = (event: any) => {
+  const handleScrollEndDrag = (event: ScrollHandlerEvent) => {
     const offsetX = event.nativeEvent.contentOffset.x;
     const index = Math.round(offsetX / screenWidth);
 
@@ -77,13 +79,13 @@ const NearbyEvents: React.FC = () => {
     setCurrentIndex(index);
   };
 
-  const handleMomentumScrollEnd = (event: any) => {
+  const handleMomentumScrollEnd = (event: ScrollHandlerEvent) => {
     const offsetX = event.nativeEvent.contentOffset.x;
     const index = Math.round(offsetX / screenWidth);
     setCurrentIndex(index);
   };
 
-  const scrollToItem = (index: number) => {
+  const scrollToItem = (index: number): void => {
     if (scrollRef.current) {
       scrollRef.current.scrollTo({
         x: index * screenWidth,
@@ -122,7 +124,7 @@ const NearbyEvents: React.FC = () => {
           scrollEventThrottle={16}
           style={{ marginBottom: 16 }}
         >
-          {events.map((event) => (
+          {events.map((event: NearbyEvent) => (
             <ThemedView key={event.id} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, width: screenWidth }}>
               <EventCardView title={event.title} location={event.location} date={event.date} time={event.time} imageUrl={event.imageUrl} />
             </ThemedView>
@@ -137,8 +139,8 @@ const NearbyEvents: React.FC = () => {
                 borderRadius: 8,
                 textAlign: 'center',
                 width: '80%',
-                backgroundColor: Colors[colorScheme ?? 'dark'].tint,
-                color: Colors[colorScheme ?? 'dark'].background,
+                backgroundColor: Colors[colorScheme ?? 'dark'].mountainGreen,
+                color: Colors[colorScheme ?? 'dark'].text,
               }}
             >
               See More Events

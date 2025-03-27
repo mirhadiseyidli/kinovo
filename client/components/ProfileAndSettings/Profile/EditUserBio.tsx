@@ -2,18 +2,9 @@ import React from 'react';
 import { View, Text, TextInput, Dimensions } from "react-native";
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { EditUserBioProps } from '@/types/allTypes';
 
-const EditUserBio = ({
-  label,
-  value,
-  onChangeText,
-  placeholder,
-}: {
-  label: string;
-  value: string;
-  onChangeText: (text: string) => void;
-  placeholder: string;
-}) => {
+const EditUserBio = ({ label, value, onChangeText, placeholder }: EditUserBioProps) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const screenWidth = Dimensions.get('window').width;

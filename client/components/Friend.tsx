@@ -4,14 +4,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-
-interface FriendProps {
-  name: string;
-  image: any;
-  eventCount?: number;
-  size?: number;
-  showName?: boolean;
-}
+import type { FriendProps } from '@/types/allTypes';
 
 const Friend: React.FC<FriendProps> = ({ name, image, eventCount = 0, size, showName }) => {
   const screenWidth = Dimensions.get('window').width;

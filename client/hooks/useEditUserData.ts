@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 import axios from 'axios';
+import { EditUserProfileParams } from '@/types/allTypes';
 
 export const useEditUserProfile = ({
   firstName,
@@ -14,19 +15,9 @@ export const useEditUserProfile = ({
   locationLatitude,
   locationLongitude,
   instagramUsername,
-  facebookUsername
-}: {
-  firstName: string;
-  lastName: string;
-  bio: string;
-  locationCity: string;
-  locationState: string;
-  locationInput: string;
-  locationLatitude: string | null;
-  locationLongitude: string | null;
-  instagramUsername: string;
-  facebookUsername: string;
-}) => {
+  facebookUsername,
+  dateOfBirth
+}: EditUserProfileParams) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showSavedMessage, setShowSavedMessage] = useState(false);
 
@@ -75,7 +66,8 @@ export const useEditUserProfile = ({
           facebook: {
             username: facebookUsername,
           }
-        }
+        },
+        date_of_birth: dateOfBirth
       };
 
       const response = await axios.patch(

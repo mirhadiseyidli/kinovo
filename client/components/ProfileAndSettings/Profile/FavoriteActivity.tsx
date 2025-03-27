@@ -2,10 +2,7 @@ import React from 'react';
 import { Text, View, TouchableOpacity } from 'react-native';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-
-interface FavoriteActivityProps {
-  activity: string;
-}
+import { FavoriteActivityProps } from '@/types/allTypes';
 
 const FavoriteActivity: React.FC<FavoriteActivityProps> = ({ activity }) => {
   const colorScheme = useColorScheme();

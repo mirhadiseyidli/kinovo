@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { ScrollView } from 'react-native';
+import React, { useState, useRef, useCallback } from 'react';
+import { ScrollView, RefreshControl } from 'react-native';
 import Header from '@/components/Header';
 import UpcomingEvents from '@/components/Home/UpcomingEvents';
 import { ThemedView } from '@/components/ThemedView';
@@ -14,21 +14,23 @@ const HomeScreen = () => {
   const scrollViewRef = useRef<ScrollView>(null);
   const tabBarHeight = useBottomTabBarHeight(); // Get tab bar height dynamically
   const insets = useSafeAreaInsets(); // Safe area insets
+  const [refreshing, setRefreshing] = useState(false);
 
   const handleScroll = (event: any) => {
     const offsetY = event.nativeEvent.contentOffset.y;
     setShowScrollToTop(offsetY > 50); // Toggle button state after a small scroll
   };
 
-  const handleButtonPress = () => {
-    if (showScrollToTop) {
-      // Scroll to top
-      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-    } else {
-      // Create Event Logic
-      console.log('Create Event Pressed');
-    }
-  };
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    // TODO: Call your data fetching logic here
+    // Example:
+    fetchSuggestions().finally(() => setRefreshing(false));
+  }, []);
+
+  const fetchSuggestions = async () => {
+    console.log('test')
+  }
 
   return (
     <ThemedView style={{ flex: 1 }}>
@@ -50,7 +52,12 @@ const HomeScreen = () => {
           paddingBottom: tabBarHeight
         }}
         onScroll={handleScroll}
-        scrollEventThrottle={16}
+        scrollEventThrottle={8}
+        scrollEnabled={true}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         <ThemedView style={{ display: 'flex', flex: 1, flexDirection: 'column', gap: 24, paddingHorizontal: 16 }}>
           {/* <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>

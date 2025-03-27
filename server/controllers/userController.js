@@ -14,8 +14,9 @@ const getUserProfile = async (req, res) => {
 };
 
 const getUsers = async (req, res) => {
+  console.log(req.user)
   try {
-    const users = await User.find().select('-password_hash');
+    const users = await User.find().select('-password');
     res.status(200).json(users);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
@@ -23,26 +24,27 @@ const getUsers = async (req, res) => {
 };
 
 const deleteUsers = async (req, res) => {
-  console.log(res.user)
   let user;
+  console.log(res.user._id)
   try {
-    user = await User.deleteOne({ uuid: res.user.uuid }).select('-password_hash');
-    res.status(200).json('Deleted the user');
+    user = await User.deleteOne({ _id: res.user._id }).select('-password');
+    console.log('deleted', user)
+    res.status(200).json('Deleted the user', user);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
 };
 
 const editMyProfile = async (req, res) => {
-  const uuid = req.user.id;
+  const user_id = req.user._id;
   const updateFields = req.body;
 
   try {
     const user = await User.findOneAndUpdate(
-      { uuid: uuid }, 
+      { _id: user_id }, 
       { $set: updateFields }, 
       { new: true } 
-    ).select('-password_hash');
+    ).select('-password');
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -56,7 +58,7 @@ const editMyProfile = async (req, res) => {
 
 const createUser = async (req, res) => {
   try {
-    const { userData } = req.params;
+    const userData = req.body;
 
     const user = await User.create(userData);
 
@@ -72,8 +74,8 @@ const findMe = async (req, res) => {
         return res.status(401).json({ message: 'Unauthorized: User not logged in' });
       }
 
-      const userId = req.user.id;
-      const user = await User.findOne({ uuid: userId }).select('-password_hash');
+      const userId = req.user._id;
+      const user = await User.findOne({ _id: userId }).select('-password');
       console.log(user)
       if (!user) {
           return res.status(404).json({ message: 'User not found' });
@@ -85,9 +87,11 @@ const findMe = async (req, res) => {
 };
 
 const getUser = async (req, res, next) => {
+  console.log(req)
   let found_user;
   try {
-    found_user = await User.findOne({ uuid: req.params.id }).select('-password_hash');
+    console.log(req.query._id)
+    found_user = await User.findOne({ _id: req.query._id }).select('-password');
     if (found_user == null) {
       return res.status(404).json({ message: 'Cannot find the user' });
     };
@@ -106,10 +110,10 @@ const getUserFriendByEmailSearch = async (req, res) => {
     }
 
     const { email } = req.query.query;
-    const found_user = await User.findOne({ uuid: req.user.id }).populate({
+    const found_user = await User.findOne({ _id: req.user.id }).populate({
       path: 'friends',
       match: { email: { $regex: email, $options: 'i' } }, // Case-insensitive search
-      select: '-password_hash'
+      select: '-password'
     });
 
     res.status(200).json(found_user.friends);
@@ -125,13 +129,13 @@ const getUserFriendByNameSearch = async (req, res) => {
     }
 
     const { name } = req.query.query;
-    const found_user = await User.findOne({ uuid: req.user.id }).populate({
+    const found_user = await User.findOne({ _id: req.user.id }).populate({
       path: 'friends',
       match: { $or: [
         { first_name: { $regex: name, $options: 'i' } }, 
         { last_name: { $regex: name, $options: 'i' } }
       ]}, // Case-insensitive search by first or last name
-      select: '-password_hash'
+      select: '-password'
     });
 
     res.status(200).json(found_user.friends);

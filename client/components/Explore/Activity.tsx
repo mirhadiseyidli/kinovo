@@ -3,16 +3,7 @@ import { View, Text, Image } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
-
-interface ActivityProps {
-  friendName: string;
-  friendImage: any;
-  activityTitle: string;
-  eventTitle: string;
-  date: string;
-  time: string;
-  location: string;
-}
+import { ActivityProps } from '@/types/allTypes';
 
 const Activity: React.FC<ActivityProps> = ({
   friendName,

@@ -25,6 +25,7 @@ router.post('/google', async (req, res) => {
 
     const firstName = payload.given_name || 'FirstName';
     const lastName = payload.family_name || 'LastName';
+    const fullName = `${payload.given_name} ${payload.family_name}` || 'Full Name'
     const profilePicture = payload.picture;
     const email_verified = payload.email_verified;
 
@@ -33,9 +34,9 @@ router.post('/google', async (req, res) => {
     if (!user) {
       logger.info(`Creating new user for Google ID: ${userId}`);
       user = await User.create({
-        uuid: uuidv4(),
         first_name: firstName,
         last_name: lastName,
+        full_name: fullName,
         username: email,
         email: email,
         email_verified: email_verified,
@@ -45,19 +46,21 @@ router.post('/google', async (req, res) => {
     }
 
     const userDataFromDB = await User.findOne({ google_id: userId }).select('-password');
+    console.log(userDataFromDB)
 
     // Generate Access and Refresh Tokens
-    const accessToken = generateAccessToken({ id: userDataFromDB.uuid, email: user.email });
-    const refreshToken = generateRefreshToken({ id: userDataFromDB.uuid, email: user.email });
+    const accessToken = generateAccessToken({ _id: userDataFromDB._id, email: user.email });
+    const refreshToken = generateRefreshToken({ _id: userDataFromDB._id, email: user.email });
 
     // Respond with user info and tokens
     res.json({
       success: true,
       user: {
-        id: userDataFromDB.uuid,
+        _id: userDataFromDB._id,
         email: userDataFromDB.email,
         first_name: userDataFromDB.first_name,
         last_name: userDataFromDB.last_name,
+        full_name: userDataFromDB.full_name,
         profile_picture: userDataFromDB.profile_picture,
       },
       accessToken,
@@ -92,17 +95,18 @@ router.post('/login', async (req, res) => {
     }
 
     // Generate tokens
-    const accessToken = generateAccessToken({ id: user.uuid, email: user.email });
-    const refreshToken = generateRefreshToken({ id: user.uuid, email: user.email });
+    const accessToken = generateAccessToken({ _id: user._id, email: user.email });
+    const refreshToken = generateRefreshToken({ _id: user._id, email: user.email });
 
     // Respond with user info and tokens
     return res.json({
       success: true,
       user: {
-        id: user.uuid,
+        _id: user._id,
         email: user.email,
         first_name: user.first_name,
         last_name: user.last_name,
+        full_name: `${user.first_name} ${user.last_name}`,
         profile_picture: user.profile_picture,
       },
       accessToken,
@@ -133,7 +137,6 @@ router.post('/signup', async (req, res) => {
 
   if (!existingUser) {
     existingUser = await User.create({
-      uuid: uuidv4(),
       first_name: firstName,
       last_name: lastName,
       username: email,
@@ -146,16 +149,17 @@ router.post('/signup', async (req, res) => {
   const userDataFromDB = await User.findOne({ email: email  }).select('-password');
 
   if(userDataFromDB) {
-    const accessToken = generateAccessToken({ id: userDataFromDB.uuid, email: userDataFromDB.email });
-    const refreshToken = generateRefreshToken({ id: userDataFromDB.uuid, email: userDataFromDB.email });
+    const accessToken = generateAccessToken({ _id: userDataFromDB._id, email: userDataFromDB.email });
+    const refreshToken = generateRefreshToken({ _id: userDataFromDB._id, email: userDataFromDB.email });
 
     return res.status(200).json({
       success: true,
       user: {
-        id: userDataFromDB.uuid,
+        _id: userDataFromDB._id,
         email: userDataFromDB.email,
         first_name: userDataFromDB.first_name,
         last_name: userDataFromDB.last_name,
+        full_name: `${userDataFromDB.first_name} ${userDataFromDB.last_name}`,
         profile_picture: userDataFromDB.profile_picture,
       },
       accessToken,

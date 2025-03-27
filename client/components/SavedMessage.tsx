@@ -5,12 +5,9 @@ import { Colors } from '@/constants/Colors';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { SavedMessageProps } from '@/types/allTypes';
 
-const SavedMessage = ({
-  visible = false
-}: {
-  visible?: boolean;
-}) => {
+const SavedMessage = ({ visible = false }: SavedMessageProps) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const screenWidth = Dimensions.get('window').width;

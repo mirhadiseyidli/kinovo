@@ -10,12 +10,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import React, { useState } from 'react';
 import { View } from 'react-native';
-
-type CreateEventTabParamList = {
-  "Details": undefined;
-  'Date & Location': undefined;
-  'Attendees & Options': undefined;
-};
+import type { CreateEventTabParamList } from '@/types/allTypes';
 
 export default function EventDateAndLocation() {
   const navigation = useNavigation<NavigationProp<CreateEventTabParamList>>();

@@ -22,6 +22,7 @@ export const Colors = {
     mountainGreen: '#3ac0a8',
     skeletonBoxColor: '#e0e0e0',
     skeletonLoadingColor: 'rgba(255, 255, 255, 0.6)',
+    buttonBackgroundColor: 'rgba(255, 255, 255, 0.1)' // for light gray tint on dark background
   },
   dark: {
     text: '#ECEDEE',
@@ -38,5 +39,6 @@ export const Colors = {
     mountainGreen: '#3ac0a8',
     skeletonBoxColor: '#2a2a2e',
     skeletonLoadingColor: 'rgba(255, 255, 255, 0.15)',
+    buttonBackgroundColor: 'rgba(0, 0, 0, 0.1)' // dark gray tint, better for light backgrounds
   },
 };

@@ -4,14 +4,9 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
 import { Feather, Octicons } from '@expo/vector-icons';
+import { SaveUserChangesButtonProps } from '@/types/allTypes';
 
-const SaveUserChangesButton = ({
-  isLoading,
-  onPress,
-}: {
-  isLoading: boolean;
-  onPress: () => void;
-}) => {
+const SaveUserChangesButton = ({ isLoading, onPress }: SaveUserChangesButtonProps) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const screenWidth = Dimensions.get('window').width;

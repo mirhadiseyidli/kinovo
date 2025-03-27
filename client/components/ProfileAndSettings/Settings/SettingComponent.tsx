@@ -4,12 +4,7 @@ import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
-
-interface SettingItemProps {
-  icon: keyof typeof Feather.glyphMap;
-  title: string;
-  onPress: () => void;
-}
+import { SettingItemProps } from '@/types/allTypes';
 
 const SettingComponent: React.FC<SettingItemProps> = ({ icon, title, onPress }) => {
   const colorScheme = useColorScheme();

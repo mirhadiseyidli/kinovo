@@ -1,7 +1,6 @@
 import { useAuthSession } from "@/components/Auth/AuthProvider";
 import { useState, useRef, useEffect } from "react";
 import { View, Text, Button, ScrollView, Alert } from "react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { ThemedView } from "@/components/ThemedView";
 import UserProfilePreview from "@/components/ProfileAndSettings/Settings/UserProfilePreview";
 import UserSettings from "@/components/ProfileAndSettings/Settings/UserSettings";
@@ -13,9 +12,6 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Header from "@/components/Header";
 import AppInfoSettings from "@/components/ProfileAndSettings/Settings/AppInfoSettings";
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from "axios";
-import * as SecureStore from 'expo-secure-store';
 
 export default function ProfileTab() {
   const { signOut } = useAuthSession()

@@ -1,7 +1,6 @@
-const User = require('../database/schemas/userSchema');
-const Drone = require('../database/schemas/droneSchema');
+const User = require('../database/schemas/usersSchema');
 
-const searchAll = async (req, res) => {
+const searchPeople = async (req, res) => {
     try {
         const { term } = req.query; // Search query from frontend
 
@@ -10,15 +9,20 @@ const searchAll = async (req, res) => {
         }
 
         // Query both users and drones collections in parallel
-        const [users, drones] = await Promise.all([
-            User.find({ email: { $regex: term, $options: 'i' } }), // Search users by email
-            Drone.find({ name: { $regex: term, $options: 'i' } })   // Search drones by name
-        ]);
+        const users = await User.find({
+            $or: [
+                { email: { $regex: term, $options: 'i' } },
+                { username: { $regex: term, $options: 'i' } },
+                { first_name: { $regex: term, $options: 'i' } },
+                { last_name: { $regex: term, $options: 'i' } },
+                { full_name: { $regex: term, $options: 'i' } },
+                { phone_number: { $regex: term, $options: 'i' } }
+            ]
+        });
 
         // Combine the results into one response
         const results = {
             users,
-            drones
         };
 
         res.json(results);
@@ -28,4 +32,4 @@ const searchAll = async (req, res) => {
     }
 };
 
-module.exports = { searchAll };
+module.exports = { searchPeople };

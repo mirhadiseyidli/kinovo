@@ -8,17 +8,12 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-interface Friend {
-  id: number;
-  name: string;
-  image?: any;
-}
+import type { AttendeeFriend } from '@/types/allTypes';
 
 const Attendees: React.FC = () => {
-  const [attendees, setAttendees] = useState<Friend[]>([]);
+  const [attendees, setAttendees] = useState<AttendeeFriend[]>([]);
   const [inputValue, setInputValue] = useState('');
-  const [suggestions, setSuggestions] = useState<Friend[]>([]);
+  const [suggestions, setSuggestions] = useState<AttendeeFriend[]>([]);
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const placeholder = "Add People";
@@ -51,7 +46,7 @@ const Attendees: React.FC = () => {
       const [emailResults, nameResults] = await Promise.all([emailSearch, nameSearch]);
 
       const combinedResults = [...emailResults.data, ...nameResults.data];
-      const uniqueResults: Friend[] = Array.from(new Map(combinedResults.map((item: Friend) => [item.name.toLowerCase(), item])).values());
+      const uniqueResults: AttendeeFriend[] = Array.from(new Map(combinedResults.map((item: AttendeeFriend) => [item.name.toLowerCase(), item])).values());
 
       setSuggestions(uniqueResults);
     } catch (error) {
@@ -69,13 +64,13 @@ const Attendees: React.FC = () => {
     };
   }, [inputValue]);
 
-  const handleAdd = (friend: Friend) => {
-    setAttendees((prev: Friend[]) => [...prev, friend]);
+  const handleAdd = (friend: AttendeeFriend) => {
+    setAttendees((prev: AttendeeFriend[]) => [...prev, friend]);
     setInputValue('');
     setSuggestions([]);
   };
 
-  const handleRemove = (id: number) => {
+  const handleRemove = (id: string) => {
     setAttendees((prev) => prev.filter((friend) => friend.id !== id));
   };
 
@@ -128,7 +123,7 @@ const Attendees: React.FC = () => {
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         {attendees.slice(0, maxVisibleFriends - 1).map((friend) => (
           <View style={{ marginRight: 8, alignItems: 'center', justifyContent: 'center' }} key={friend.id}>
-            <Friend name={friend.name} image={friend.image} size={52} />
+            <Friend id={friend.id} name={friend.name} image={friend.image} size={52} />
             <TouchableOpacity
               style={{
                 position: 'absolute',

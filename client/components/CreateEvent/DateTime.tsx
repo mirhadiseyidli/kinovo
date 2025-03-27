@@ -6,29 +6,26 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { ThemedView } from '../ThemedView';
 import { ThemedText } from '../ThemedText';
+import type { DateTimeState, DatePickerChangeHandler } from '@/types/allTypes';
 
 const DateTime: React.FC = () => {
   const screenWidth = Dimensions.get('window').width;
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
 
-  const [startDate, setStartDate] = useState(new Date());
-  const [endDate, setEndDate] = useState(new Date());
-  const [showStartPicker, setShowStartPicker] = useState(false);
-  const [showEndPicker, setShowEndPicker] = useState(false);
-  const [tempStartDate, setTempStartDate] = useState(startDate);
-  const [tempEndDate, setTempEndDate] = useState(endDate);
+  const [startDate, setStartDate] = useState<DateTimeState['startDate']>(new Date());
+  const [endDate, setEndDate] = useState<DateTimeState['endDate']>(new Date());
+  const [showStartPicker, setShowStartPicker] = useState<DateTimeState['showStartPicker']>(false);
+  const [showEndPicker, setShowEndPicker] = useState<DateTimeState['showEndPicker']>(false);
+  const [tempStartDate, setTempStartDate] = useState<DateTimeState['tempStartDate']>(startDate);
+  const [tempEndDate, setTempEndDate] = useState<DateTimeState['tempEndDate']>(endDate);
 
-  const handleStartDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    if (selectedDate) {
-      setTempStartDate(selectedDate); // Store temp selection
-    }
+  const handleStartDateChange: DatePickerChangeHandler = (event, selectedDate) => {
+    if (selectedDate) setTempStartDate(selectedDate);
   };
-
-  const handleEndDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    if (selectedDate) {
-      setTempEndDate(selectedDate); // Store temp selection
-    }
+  
+  const handleEndDateChange: DatePickerChangeHandler = (event, selectedDate) => {
+    if (selectedDate) setTempEndDate(selectedDate);
   };
 
   return (
@@ -36,7 +33,7 @@ const DateTime: React.FC = () => {
       <ThemedView
         style={{
           alignSelf: 'center',
-          paddingVertical: 16,
+          paddingVertical: 12,
           paddingHorizontal: 20,
           width: '100%',
           borderRadius: 8,
@@ -70,7 +67,7 @@ const DateTime: React.FC = () => {
         </View>
 
         {/* Start Date & Time */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Feather name="circle" size={14} color={themeColors.placeholderTextColor} style={{ marginRight: 8 }} />
             <Text style={{ fontSize: 16, fontWeight: '500', color: themeColors.placeholderTextColor }}>
@@ -137,7 +134,7 @@ const DateTime: React.FC = () => {
         <View style={{ height: 1, backgroundColor: themeColors.placeholderTextColor, opacity: 0.2, marginBottom: 8, marginLeft: 22 }} />
 
         {/* End Date & Time */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Feather name="circle" size={14} color={themeColors.placeholderTextColor} style={{ marginRight: 8 }} />
             <Text style={{ fontSize: 16, fontWeight: '500', color: themeColors.placeholderTextColor }}>

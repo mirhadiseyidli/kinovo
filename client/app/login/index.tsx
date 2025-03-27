@@ -11,13 +11,8 @@ import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BlurView } from 'expo-blur'; 
 import { useAuthSession } from "@/components/Auth/AuthProvider";
-import axios from 'axios';
-
-const loginBg = require('../../assets/login-bg.jpg');
 
 export default function Auth() {
   const router = useRouter();
@@ -49,7 +44,7 @@ export default function Auth() {
             }}
           />
         </View>
-        <ThemedText style={{ fontSize: 40, fontFamily: 'Didot', fontWeight: 'bold', alignSelf: 'center' }}>Kinovo</ThemedText>
+        <ThemedText style={{ fontSize: 40, fontFamily: 'Helvetica Neue Bold', fontWeight: 'bold', letterSpacing: -1, alignSelf: 'center' }}>Kinovo</ThemedText>
       </ThemedView>
 
       {/* Login Section */}

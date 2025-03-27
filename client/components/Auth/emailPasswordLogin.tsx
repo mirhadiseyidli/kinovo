@@ -8,17 +8,14 @@ import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Feather } from '@expo/vector-icons';
-
-interface EmailLoginProps {
-  onLoginSuccess: (accessToken: string, refreshToken: string) => void;
-}
+import { AuthLoginProps } from '@/types/allTypes';
 
 const { width } = Dimensions.get('window');
 
 // Function to calculate font size relative to screen width
 const getFontSize = (percentage: number) => (width * percentage) / 100;
 
-const EmailLogin: React.FC<EmailLoginProps> = ({ onLoginSuccess }) => {
+const EmailLogin: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const screenWidth = Dimensions.get('window').width;
@@ -182,7 +179,7 @@ const EmailLogin: React.FC<EmailLoginProps> = ({ onLoginSuccess }) => {
           }}
           onPress={handleLogin}
         >
-          <ThemedText style={{ fontSize: getFontSize(4), fontWeight: '500', color: themeColors.background }}>Login</ThemedText>
+          <ThemedText style={{ fontSize: getFontSize(4), fontWeight: 'bold', color: themeColors.text }}>Login</ThemedText>
         </TouchableOpacity>
       </ThemedView>
     </ThemedView>
