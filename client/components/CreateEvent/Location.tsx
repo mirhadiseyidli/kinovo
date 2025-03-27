@@ -1,45 +1,34 @@
 import React, { useState } from 'react';
 import {
   View,
-  Dimensions,
-  Image,
   KeyboardAvoidingView,
   Platform,
   TextInput,
   TouchableOpacity,
   Text,
   Animated,
-  Linking,
-  Alert,
   ScrollView
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { MaterialIcons } from '@expo/vector-icons';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import MapView, { Marker } from 'react-native-maps';
-import * as Location from 'expo-location';
 import axios from 'axios';
 import { useLocation } from '@/context/LocationContext';
+import MapViewModal from '../MapViewModal';
+import { Suggestion, Coordinates, GeocodingApiResult, LocationSelectHandler, SelectedLocation, FetchAddressSuggestions } from '@/types/allTypes';
 
 const LocationComponent: React.FC = () => {
-  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<SelectedLocation>(null);
   const [mapVisible] = useState(new Animated.Value(0)); // Controls slide animation
-  const [suggestions, setSuggestions] = useState([]);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [inputText, setInputText] = useState('');
-  const [coordinates, setCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
   const { locationPermission } = useLocation();
-  const {width, height} = Dimensions.get('window');
-  const ASPECT_RATIO = width / height;
-  const LATITUDE_DELTA = 0.05;
-  const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const screenWidth = Dimensions.get('window').width;
 
-  const fetchAddressSuggestions = async (text: string) => {
+  const fetchAddressSuggestions: FetchAddressSuggestions = async (text) => {
     if (!text.trim()) { // Ensure empty input fully clears suggestions
       setSuggestions([]);
       return;
@@ -72,7 +61,7 @@ const LocationComponent: React.FC = () => {
           }
         );
 
-        results = response.data.results.map((item: any) => ({
+        results = response.data.results.map((item: GeocodingApiResult) => ({
           displayName: { text: item.formatted_address },
           formattedAddress: item.formatted_address,
           location: item.geometry.location,
@@ -85,7 +74,7 @@ const LocationComponent: React.FC = () => {
     }
   };
 
-  const handleLocationSelect = async (location: { latitude: number; longitude: number }, description: string) => {
+  const handleLocationSelect: LocationSelectHandler = async (location, description) => {
     setSelectedLocation(description);
     setInputText(description);
     setSuggestions([]);
@@ -114,8 +103,7 @@ const LocationComponent: React.FC = () => {
             backgroundColor: themeColors.inputBackgroundColor,
             borderRadius: 8,
             paddingHorizontal: 16,
-            paddingVertical: 8,
-            height: screenWidth / 10,
+            paddingVertical: 14,
           }}
         >
           <Feather name="map-pin" size={24} color={themeColors.placeholderTextColor} style={{ marginRight: 10 }} />
@@ -123,7 +111,6 @@ const LocationComponent: React.FC = () => {
             autoCorrect={false} // Prevents unnecessary text input errors
             keyboardType="default" // Explicitly define the keyboard type
             style={{
-              flex: 1,
               fontSize: 16,
               color: themeColors.text,
             }}
@@ -196,67 +183,11 @@ const LocationComponent: React.FC = () => {
             width: '100%',
             opacity: mapVisible
           }}>
-            <MapView
-              loadingEnabled={true}
-              showsUserLocation={locationPermission === true}
-              userInterfaceStyle={colorScheme === 'dark' ? 'dark' : 'light'}
-              style={{ 
-                width: '100%', 
-                height: '100%',
-                borderRadius: 8
-              }}
-              region={{
-                latitude: coordinates.latitude,
-                longitude: coordinates.longitude,
-                latitudeDelta: LATITUDE_DELTA, // Zooms in closer
-                longitudeDelta: LONGITUDE_DELTA, // Zooms in closer
-              }}
-            >
-              <Marker coordinate={coordinates} title={selectedLocation || 'Selected Location'} pinColor={themeColors.mountainGreen}/>
-            </MapView>
-
-            {/* Directions Button */}
-            <TouchableOpacity
-              style={{
-                position: 'absolute',
-                bottom: 10,
-                right: 10,
-                backgroundColor: themeColors.background,
-                paddingVertical: 10,
-                paddingHorizontal: 15,
-                borderRadius: 8,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.3,
-                shadowRadius: 4,
-                elevation: 3,
-              }}
-              onPress={() => {
-                Alert.alert(
-                  "Open Apple Maps?",
-                  `Do you want to get directions to "${selectedLocation}"?`,
-                  [
-                    { text: "Cancel", style: "cancel" },
-                    {
-                      text: "Apple Maps",
-                      onPress: () => {
-                        const url = `http://maps.apple.com/?daddr=${coordinates.latitude},${coordinates.longitude}`;
-                        Linking.openURL(url);
-                      },
-                    },
-                    {
-                      text: "Google Maps",
-                      onPress: () => {
-                        const url = `http://maps.google.com/?daddr=${coordinates.latitude},${coordinates.longitude}`;
-                        Linking.openURL(url);
-                      },
-                    },
-                  ]
-                );
-              }}
-            >
-              <FontAwesome name="location-arrow" size={24} color={themeColors.text} />
-            </TouchableOpacity>
+            <MapViewModal
+              locationPermission={locationPermission}
+              coordinates={coordinates}
+              selectedLocation={selectedLocation}
+            />
           </Animated.View>
         )}
       </KeyboardAvoidingView>

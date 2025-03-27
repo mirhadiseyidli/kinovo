@@ -5,17 +5,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-
-interface UpcomingEventProps {
-  friendName: string;
-  friendImage: any;
-  eventTitle: string;
-  date: string;
-  time: string;
-  location: string;
-  remainingDays: string;
-  eventImage: any;
-}
+import { UpcomingEventProps } from '@/types/allTypes';
 
 const UpcomingEvent: React.FC<UpcomingEventProps> = ({
   friendName,

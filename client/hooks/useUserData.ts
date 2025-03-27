@@ -4,31 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 import axios from 'axios';
 import { useAuthSession } from "@/components/Auth/AuthProvider";
-
-interface User {
-  first_name: string;
-  last_name: string;
-  profile_picture: string;
-  coverPhoto?: string;
-  location?: {
-    city: string;
-    state: string;
-    text: string;
-    coordinates: {
-      latitude: string;
-      longitude: string;
-    }
-  };
-  bio?: string;
-  social_handles: {
-    instagram: {
-      username: string,
-    },
-    facebook: {
-      username: string,
-    }
-  }
-}
+import { User } from '@/types/allTypes';
 
 export const useUserData = () => {
   const { signOut } = useAuthSession();

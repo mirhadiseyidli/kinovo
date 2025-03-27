@@ -2,12 +2,6 @@ const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
 
 const friendRequests = new mongoose.Schema({
-  friend_request_id: {
-    type: String,
-    default: uuidv4, // Generate UUID for friendship_id
-    unique: true,
-    required: true,
-  },
   sender: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Users',

@@ -23,7 +23,6 @@ router.post('/refresh-token', tokenMiddleware, (req, res) => {
     const newAccessToken = generateAccessToken({
       _id: decoded._id,
       email: decoded.email,
-      role: decoded.role,
     });
 
     res.status(200).json({ accessToken: newAccessToken });

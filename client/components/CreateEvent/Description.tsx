@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import type { ChangeEventHandler } from '@/types/allTypes';
 import { View, TextInput, Dimensions } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { ThemedView } from '@/components/ThemedView';
@@ -6,14 +7,14 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 
 const Description: React.FC = () => {
-  const [input, setInput] = useState<string>(''); // Track input value
+  const [input, setInput] = useState<ChangeEventHandler['input']>(''); // Track input value
   const placeholder = "Write about your event...";
   const screenWidth = Dimensions.get('window').width;
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
 
   // Handle Text Change
-  const handleTextChange = (text: string) => {
+  const handleTextChange: ChangeEventHandler['handleTextChange'] = (text) => {
     setInput(text.trim() === '' ? '' : text); // If trimmed input is empty, reset to empty string
   };
 

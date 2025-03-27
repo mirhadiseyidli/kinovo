@@ -11,9 +11,7 @@ wss.on('connection', (ws) => {
   ws.on('message', async (message) => {
     try {
       const { userId } = JSON.parse(message);
-      console.log('calling')
       await getAISummary(userId, ws); // Stream assistant response
-      console.log('done')
     } catch (err) {
       console.error('Invalid message or userId:', err.message);
       ws.send('[ERROR]');

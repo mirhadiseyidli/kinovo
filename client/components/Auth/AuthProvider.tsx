@@ -2,30 +2,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { router } from "expo-router";
 import { createContext, RefObject, ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { Animated, ActivityIndicator, View } from 'react-native';
+import { ApiError, AuthContextType, TokenTypes } from '@/types/allTypes';
 
-interface ApiError {
-  response?: {
-    data?: {
-      message?: unknown;
-    };
-  };
-  message: string;
-}
-
-const AuthContext = createContext<{
-  signIn: (accessToken: string, refreshToken: string) => void;
-  signOut: () => void;
-  accessToken: RefObject<string | null> | null;
-  refreshToken: RefObject<string | null> | null;
-  isLoading: boolean;
-}>({
+const AuthContext = createContext<AuthContextType>({
   signIn: () => null,
   signOut: () => null,
   accessToken: null,
   refreshToken: null,
-  isLoading: true
+  isLoading: true,
+  refreshAccessToken: async () => {},
+  checkAuth: async () => {},
 });
 
 // Access the context as a hook
@@ -74,6 +62,7 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
     try {
       const accessToken = accessTokenRef.current;
       if (!accessToken) throw new Error('No access token');
+      console.log(accessToken)
 
       const response = await axios.get(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/check-auth`, {
         headers: { Authorization: `Bearer ${accessToken}` },
@@ -84,10 +73,9 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
       } else {
         await refreshAccessToken();
       }
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error('Token check failed:', (error as ApiError).response?.data?.message || error.message);
-      }
+    } catch (error) {
+      const err = error as ApiError;
+      console.error('Token check failed:', err.response?.data?.message || err.message);
       await refreshAccessToken();
     }
   };
@@ -119,15 +107,14 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
       }
 
       setIsLoading(false);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error('Failed to refresh access token:', (error as ApiError).response?.data?.message || error.message);
-      }
+    } catch (error) {
+      const err = error as ApiError;
+      console.error('Failed to refresh access token:', err.response?.data?.message || err.message);
       signOut();
     }
   };
 
-  const signIn = useCallback(async (accessToken: string, refreshToken: string) => {
+  const signIn: TokenTypes = useCallback(async (accessToken, refreshToken) => {
     fadeTransition(async () => {
       await AsyncStorage.setItem('accessToken', accessToken);
       await SecureStore.setItemAsync('refreshToken', refreshToken);
@@ -154,7 +141,9 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
         signOut,
         accessToken: accessTokenRef,
         refreshToken: refreshTokenRef,
-        isLoading
+        isLoading,
+        refreshAccessToken,
+        checkAuth
       }}
     >
       <View style={{ flex: 1 }}>

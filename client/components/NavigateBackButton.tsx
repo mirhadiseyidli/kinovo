@@ -6,6 +6,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { Router, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { NavigateBackButtonProps } from '@/types/allTypes';
 
 const NavigateBackButton = ({
   iconName = 'chevron.left',
@@ -14,22 +15,15 @@ const NavigateBackButton = ({
   backgroundColor,
   top,
   left,
-}: {
-  iconName?: import('@/components/ui/IconSymbol').IconSymbolName;
-  size?: number;
-  color?: string;
-  backgroundColor?: string;
-  top?: number,
-  left?: number
-}) => {
+}: NavigateBackButtonProps) => {
   const colorScheme = useColorScheme();
   const insets = useSafeAreaInsets();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const iconColor = color ?? themeColors.text;
-  const bgColor = backgroundColor ?? themeColors.background;
+  const bgColor = backgroundColor ?? themeColors.buttonBackgroundColor;
   const router = useRouter();
   const posTop = top ?? insets.top + 4;
-  const posLeft = left ?? 16
+  const posLeft = left ?? 16;
 
   return (
     <TouchableOpacity 

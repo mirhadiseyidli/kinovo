@@ -25,7 +25,8 @@
         "NSPhotoLibraryUsageDescription": "Allow this app to access your photo library.",
         "NSCameraUsageDescription": "Allow this app to access your camera.",
         "NSLocationWhenInUseUsageDescription": "This app needs access to your location for better event suggestions.",
-        "NSLocationAlwaysUsageDescription": "We use your location to improve recommendations."
+        "NSLocationAlwaysUsageDescription": "We use your location to improve recommendations.",
+        "NSContactsUsageDescription": "Allow this app to access your contacts to help connect with your friends."
       }
     },
     "android": {

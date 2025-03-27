@@ -2,13 +2,7 @@ const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
 
 const eventsSchema = new mongoose.Schema({
-  event_id: {
-    type: String,
-    default: uuidv4, // Generate UUID for event_id
-    unique: true,
-    required: true,
-  },
-  creator_id: {
+  creator: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Users', // Refers to Users Schema
     default: null,

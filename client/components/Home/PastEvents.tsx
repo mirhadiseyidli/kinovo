@@ -7,8 +7,9 @@ import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { PastEventItem, GroupedEvents } from '@/types/allTypes';
 
-const pastEventData = [
+const pastEventData: PastEventItem[] = [
   {
     id: 1,
     title: 'Tech Conference',
@@ -65,8 +66,8 @@ const pastEventData = [
   },
 ];
 
-const groupEventsByMonth = (events: any[]) => {
-  const grouped: { [key: string]: any[] } = {};
+const groupEventsByMonth = (events: PastEventItem[]): GroupedEvents => {
+  const grouped: GroupedEvents = {};
   const now = new Date();
 
   events.forEach((event) => {

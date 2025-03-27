@@ -4,18 +4,11 @@ import { BlurView } from 'expo-blur'; // Add expo-blur for the blur effect
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { ThemedText } from '@/components/ThemedText';
 import Friend from '@/components/Friend';
-
-interface PastEventProps {
-  title: string;
-  date: string;
-  attendees: { name: string; image: any; eventCount: number }[];
-  image: any;
-}
+import { PastEventProps } from '@/types/allTypes';
 
 const PastEvent: React.FC<PastEventProps> = ({ title, date, attendees, image }) => {
   const colorScheme = useColorScheme(); // Get current color scheme
   const screenWidth = Dimensions.get('window').width;
-  const defaultSize = screenWidth * 0.18; // Default: 18% of screen width
 
   // Background color based on theme
   const backgroundColor =
@@ -65,7 +58,7 @@ const PastEvent: React.FC<PastEventProps> = ({ title, date, attendees, image }) 
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             {attendees.slice(0, 3).map((friend, index) => (
               <View key={index} style={{ marginLeft: index > 0 ? -12 : 0 }}>
-                <Friend name={friend.name} image={friend.image} eventCount={friend.eventCount} size={32} />
+                <Friend id={friend._id} name={friend.name} image={friend.image} eventCount={friend.eventCount} size={32} />
               </View>
             ))}
           </View>

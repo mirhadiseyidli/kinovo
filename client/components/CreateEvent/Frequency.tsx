@@ -6,6 +6,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import CheckBox from '@react-native-community/checkbox';
+import { DatePickerChangeHandler } from '@/types/allTypes';
 
 const { width } = Dimensions.get('window');
 const getFontSize = (percentage: number) => (width * percentage) / 100;
@@ -73,7 +74,7 @@ const Frequency: React.FC = () => {
     setShowDatePicker(true);
   };
 
-  const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+  const handleDateChange: DatePickerChangeHandler = (event, selectedDate) => {
     setShowDatePicker(false);
     if (selectedDate instanceof Date) {
       setEndDate(selectedDate);
@@ -81,9 +82,9 @@ const Frequency: React.FC = () => {
   };
 
   return (
-    <ThemedView style={{ padding: 16, borderRadius: 12, backgroundColor: Colors[colorScheme ?? 'dark'].inputBackgroundColor, marginBottom: 16 }}>
+    <ThemedView style={{ padding: 16, borderRadius: 8, backgroundColor: Colors[colorScheme ?? 'dark'].inputBackgroundColor, marginBottom: 16 }}>
       {/* Selection: Only Once / Recurring */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 0 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <CheckBox
           value={isRecurring}
           onValueChange={toggleCheck}

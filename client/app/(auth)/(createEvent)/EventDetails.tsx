@@ -9,12 +9,7 @@ import { ButtonWithLabel } from '@/components/ButtonWithLabel';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-
-type CreateEventTabParamList = {
-  "Details": undefined;
-  'Date & Location': undefined;
-  'Attendees & Options': undefined;
-};
+import type { CreateEventTabParamList } from '@/types/allTypes';
 
 export default function EventDetails() {
   const navigation = useNavigation<NavigationProp<CreateEventTabParamList>>();

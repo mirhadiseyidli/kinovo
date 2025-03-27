@@ -42,6 +42,19 @@ export default function RootLayout(): ReactNode {
             }
           }}
         />
+        <Stack.Screen 
+          name="(aboutUser)"
+          options={{ 
+            headerShown: true,
+            headerStyle: { 
+              backgroundColor: themeColors.background
+            },
+            headerTintColor: themeColors.text,
+            headerTitleStyle: {
+              fontWeight: 'bold'
+            }
+          }}
+        />
       </Stack>
     </LocationProvider>
   );

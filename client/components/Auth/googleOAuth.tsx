@@ -3,13 +3,13 @@ import { View, Button, Alert, Image, TouchableOpacity } from 'react-native';
 import { GoogleSignin, statusCodes, isSuccessResponse, isErrorWithCode } from '@react-native-google-signin/google-signin';
 import axios from 'axios';
 import AuthButton from '@/components/Auth/AuthButton';
+import { AuthLoginProps } from '@/types/allTypes';
+import type { ApiError } from '@/types/allTypes';
+
 const googleLogo = require('@/assets/google-logo.png');
 
-interface GoogleOAuthProps {
-  onLoginSuccess: (accessToken: string, refreshToken: string) => void; // Explicit type for the login success callback
-}
 
-const GoogleOAuth: React.FC<GoogleOAuthProps> = ({ onLoginSuccess }) => {
+const GoogleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
   // Configure Google Sign-In
   GoogleSignin.configure({
     iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS, // [iOS] Specify the iOS client ID
@@ -46,24 +46,25 @@ const GoogleOAuth: React.FC<GoogleOAuthProps> = ({ onLoginSuccess }) => {
 
         // Pass both tokens to onLoginSuccess
         onLoginSuccess(accessToken, refreshToken);
-        Alert.alert('Success', 'User authenticated successfully!');
       } else {
         Alert.alert('Error', 'Authentication failed.');
       }
-    } catch (error: unknown) {
-      if (axios.isAxiosError(error)) {
-        if (error.response) {
-          console.error('Backend error:', error.response.data);
-          Alert.alert('Error', `Authentication failed: ${error.response.data.message || 'Unknown server error'}`);
-        } else if (error.request) {
-          console.error('Network error:', error.request);
+    } catch (error) {
+      const err = error as ApiError;
+
+      if (axios.isAxiosError(err)) {
+        if (err.response) {
+          console.error('Backend error:', err.response.data);
+          Alert.alert('Error', `Authentication failed: ${err.response.data.message || 'Unknown server error'}`);
+        } else if (err.request) {
+          console.error('Network error:', err.request);
           Alert.alert('Error', 'Network error. Please try again.');
         } else {
-          console.error('Error:', error.message);
-          Alert.alert('Error', error.message);
+          console.error('Error:', err.message);
+          Alert.alert('Error', err.message);
         }
       } else {
-        console.error('Unknown error:', error);
+        console.error('Unknown error:', err);
         Alert.alert('Error', 'An unknown error occurred.');
       }
     }

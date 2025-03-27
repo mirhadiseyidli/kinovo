@@ -17,49 +17,11 @@ import NavigateBackButton from '@/components/NavigateBackButton';
 import SettingsPageHeader from '@/components/ProfileAndSettings/Settings/SettingsPageHeader';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 
-// interface LocationSuggestion {
-//   placePrediction: {
-//     text: {
-//       text: string;
-//     };
-//     placeId: string;
-//   };
-// }
-
 const accountSettings = () => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight(); // Get tab bar height dynamically
-
-  const refreshAccessToken = async () => {
-    try {
-      const refreshToken = await AsyncStorage.getItem('refreshToken');
-      if (!refreshToken) {
-        console.error('No refresh token available, user needs to log in again.');
-        return;
-      }
-
-      const response = await axios.post(
-        `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/token/refresh-token`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${refreshToken}` },
-        }
-      );
-
-      const newAccessToken = response.data.accessToken;
-
-      if (newAccessToken) {
-        await AsyncStorage.setItem('accessToken', newAccessToken);
-        console.log('Access token refreshed');
-      } else {
-        console.error('Failed to obtain a new access token.');
-      }
-    } catch (error: any) {
-      console.error('Failed to refresh access token:', error.response?.data?.message || error.message);
-    }
-  };
 
   // if (!user) {
   //   return <Text>Loading...</Text>;

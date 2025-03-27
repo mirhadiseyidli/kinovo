@@ -1,12 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, ViewStyle, TextStyle } from 'react-native';
-
-interface ButtonWithLabelProps {
-  label: string;
-  onPress: () => void;
-  containerStyle?: ViewStyle;
-  textStyle?: TextStyle;
-}
+import { ButtonWithLabelProps } from '@/types/allTypes';
 
 export const ButtonWithLabel: React.FC<ButtonWithLabelProps> = ({ label, onPress, containerStyle, textStyle }) => {
 

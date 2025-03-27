@@ -5,12 +5,9 @@ import { Colors } from '@/constants/Colors';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { EditUserCoverPhotosProps } from '@/types/allTypes';
 
-const EditUserCoverPhotos = ({
-  user
-}: {
-  user: { coverPhoto?: string; profile_picture?: string };
-}) => {
+const EditUserCoverPhotos = ({ user }: EditUserCoverPhotosProps) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const insets = useSafeAreaInsets();

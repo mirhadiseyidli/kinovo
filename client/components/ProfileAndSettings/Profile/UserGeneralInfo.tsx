@@ -7,98 +7,111 @@ import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useUser } from '@/context/UserContext';
+import axios from 'axios';
+import { useAuthSession } from '@/components/Auth/AuthProvider';
+import UserInfoTabs from '@/app/(auth)/(aboutUser)/_layout';
+import NavigateBackButton from '@/components/NavigateBackButton';
+import UserProfileActionMenuButton from '@/components/UserProfileActionMenuButton';
+import UserCoverPhoto from './UserCoverPhoto';
+import UserProfilePhoto from './UserProfilePhoto';
+import UserProfileBasicInfo from './UserProfileBasicInfo';
+import AddFriendButton from '@/components/AddFriendButton';
+import ShareUserProfileButton from '@/components/ShareUserProfileButton';
+import AlreadyFriendsAndUnfriendButton from '@/components/AlreadyFriendsAndUnfriendButton';
+import { User, UserGeneralInfoProps } from '@/types/allTypes';
 
-const UserGeneralInfo = () => {
+const UserGeneralInfo = ({ _id }: UserGeneralInfoProps) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const insets = useSafeAreaInsets();
-  const { user } = useUser();
+  const [user, setUser] = useState<User | null>(null);
+  const { refreshAccessToken } = useAuthSession();
+  const [showOptions, setShowOptions] = useState(false);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const token = await AsyncStorage.getItem('accessToken');
+        const response = await axios.get(
+          `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/users/user/get/profile?_id=${_id}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setUser(response.data);
+      } catch (error: any) {
+        if (error.response?.status === 401) {
+          try {
+            await refreshAccessToken();
+            const retryToken = await AsyncStorage.getItem('accessToken');
+            const retryResponse = await axios.get(
+              `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/users/user/get/profile?_id=${_id}`,
+              { headers: { Authorization: `Bearer ${retryToken}` } }
+            );
+            setUser(retryResponse.data);
+          } catch (retryError) {
+            console.error('Retry after token refresh failed:', retryError);
+          }
+        } else {
+          console.error('Failed to fetch friend requests:', error.message);
+        }
+      }
+    };
+
+    fetchUser();
+  }, [_id]);
 
   if (!user) {
     return <Text>Loading...</Text>;
   }
 
   return (
-    <SafeAreaView style={{ alignItems: 'center' }}>
-      <View style={{ 
-        position: 'absolute', 
-        top: 0, 
-        left: 0, 
-        right: 0, 
-        width: '100%', 
-        height: 300, 
-        zIndex: -1,
-      }}>
-        {user.coverPhoto ? (
-          <>
-            <Image
-              source={{ uri: user.coverPhoto }}
-              style={{ width: '100%', height: '100%' }}
-              resizeMode="cover"
-            />
-            <LinearGradient
-              colors={['transparent', 'red', themeColors.background]}
-              style={{ position: 'absolute', width: '100%', height: '100%', bottom: 0 }}
-            />
-          </>
-        ) : (
-          <>
-            <View style={{ width: '100%', height: '100%', backgroundColor: themeColors.mountainGreen }} />
-            <LinearGradient
-              colors={['transparent', themeColors.background]}
-              style={{ position: 'absolute', width: '100%', height: '100%', bottom: 0 }}
-            />
-          </>
-        )}
-      </View>
-      <View style={{ alignItems: 'center', marginTop: 150 }}>
-        <View style={{ width: 140, height: 140, borderRadius: 70, borderWidth: 2, borderColor: themeColors.mountainGreen, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-          {user.profile_picture ? (
-            <Image
-              source={{ uri: user.profile_picture }}
-              style={{ width: '100%', height: '100%' }}
-            />
-          ) : (
-            <Feather name="user" size={80} color={themeColors.mountainGreen} />
-          )}
-        </View>
-      </View>
-      <ThemedText style={{ fontWeight: 'bold', fontSize: 20, marginTop: 24, alignSelf: 'center' }}>{user.first_name} {user.last_name}</ThemedText>
-      {(user.location && (user.location.city !== null && user.location.state !== null)) && (
-        <Text style={{ fontSize: 16, color: 'gray', alignItems: 'center' }}>
-          <Feather name="map-pin" size={16} />
-          <ThemedText>{user.location.city}, {user.location.state}</ThemedText>
-        </Text>
-      )}
-      {user.bio && (
-        <Text style={{ fontSize: 14, color: 'gray', textAlign: 'center', marginVertical: 10 }}>{user.bio}</Text>
-      )}
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', width: '100%', gap: 24 }}>
-        <View style={{ flexDirection: 'column', alignItems: 'center', marginVertical: 10 }}>
-          <ThemedText style={{ marginBottom: 4, fontSize: 14 }}>Friends</ThemedText>
-          <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>{user.friends?.length || 0}</ThemedText>
-        </View>
-        <View style={{ flexDirection: 'column', alignItems: 'center', marginVertical: 10 }}>
-          <ThemedText style={{ marginBottom: 4, fontSize: 14 }}>Events</ThemedText>
-          <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>{user.events?.length || 0}</ThemedText>
-        </View>
-      </View>
-      <TouchableOpacity
-        style={{
-          backgroundColor: Colors[colorScheme ?? 'dark'].mountainGreen,
-          paddingVertical: 10,
-          paddingHorizontal: 16,
-          borderRadius: 8,
-          marginTop: 8
+    <SafeAreaView style={{ flex: 1, alignItems: 'center' }}>
+
+      {/* Navigate Back Button */}
+      <NavigateBackButton />
+      
+      {/* Block/Report user action button */}
+      <UserProfileActionMenuButton
+        showOptions={showOptions}
+        setShowOptions={setShowOptions}
+        onReportUser={() => {
+          setShowOptions(false);
+          // Report user logic here
         }}
-        onPress={() => console.log('Edit Profile')}
-      >
-        <Text style={{ color: Colors[colorScheme ?? 'dark'].text, fontWeight: 'bold' }}>{"Edit Profile"}</Text>
-      </TouchableOpacity>
-      <View style={{ flexDirection: 'row', marginTop: 24, alignItems: 'center', justifyContent: 'center' }}>
-        <Feather name="instagram" size={24} style={{ marginHorizontal: 10, color: themeColors.text }} />
-        <Feather name="facebook" size={24} style={{ marginHorizontal: 10, color: themeColors.text }} />
+        onBlockUser={() => {
+          setShowOptions(false);
+          // Block user logic here
+        }}
+      />
+
+      {/* Cover Photo */}
+      <UserCoverPhoto cover_photo={user.cover_photo}/>
+
+      {/* Profile Photo */}
+      <UserProfilePhoto profile_picture={user.profile_picture}/>
+
+      {/* User Basic Info */}
+      <UserProfileBasicInfo
+        full_name={user.full_name}
+        username={user.username}
+        number_of_friends={user.friends?.length}
+        number_of_events={user.events?.length}
+        instagram_username={user.social_handles?.instagram?.username}
+        facebook_username={user.social_handles?.instagram?.username}
+      />
+
+      {/* Add Friend / Friends and Share Buttons */}
+      <View style={{ flexDirection: 'row', width: '100%', paddingHorizontal: 16, gap: 8 }}>
+        {user._id !== undefined && !user.friends?.some(friend => friend === _id) ? (
+          <AddFriendButton receiver={user._id}/>
+        ) : (
+          <AlreadyFriendsAndUnfriendButton receiver={user._id} />
+        )}
+        <ShareUserProfileButton />
+      </View>
+
+      {/* User Information Tabs: [ 'About', 'Events', 'Friends' ] */}
+      <View style={{ flexGrow: 1, marginTop: 16 }}>
+        {user && <UserInfoTabs user={user} />}
       </View>
     </SafeAreaView>
   );

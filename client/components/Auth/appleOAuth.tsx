@@ -4,14 +4,11 @@ import { GoogleSignin, statusCodes, isSuccessResponse, isErrorWithCode } from '@
 import { GOOGLE_CLIENT_ID_IOS } from '@env';
 import axios from 'axios';
 import AuthButton from '@/components/Auth/AuthButton';
+import { AuthLoginProps } from '@/types/allTypes';
 
 const appleLogo = require('@/assets/apple-logo.png');
 
-interface AppleOAuthProps {
-  onLoginSuccess: (accessToken: string, refreshToken: string) => void; // Explicit type for the login success callback
-}
-
-const AppleOAuth: React.FC<AppleOAuthProps> = ({ onLoginSuccess }) => {
+const AppleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
   // Configure Google Sign-In
   // GoogleSignin.configure({
   //   iosClientId: GOOGLE_CLIENT_ID_IOS, // [iOS] Specify the iOS client ID

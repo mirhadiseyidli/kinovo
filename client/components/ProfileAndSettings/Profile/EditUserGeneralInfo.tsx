@@ -15,6 +15,7 @@ import EditUserProfilePhotos from './EditUserProfilePhoto';
 import SaveUserChangesButton from './SaveUserChangesButton';
 import SavedMessage from '@/components/SavedMessage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import EditDateOfBirth from './EditDateOfBirth';
 
 const EditUserGeneralInfo = () => {
   const insets = useSafeAreaInsets();
@@ -27,11 +28,12 @@ const EditUserGeneralInfo = () => {
   const [locationCity, setLocationCity] = useState(user?.location?.city || '');
   const [locationState, setLocationState] = useState(user?.location?.state || '');
   const [placeId, setPlaceId] = useState(user?.location?.city || '');
-  const [locationLatitude, setLocationLatitude] = useState(user?.location?.coordinates.latitude || null);
-  const [locationLongitude, setLocationLongitude] = useState(user?.location?.coordinates.longitude || null);
+  const [locationLatitude, setLocationLatitude] = useState(user?.location?.coordinates?.lat || null);
+  const [locationLongitude, setLocationLongitude] = useState(user?.location?.coordinates?.lng || null);
   const [locationInput, setLocationInput] = useState(user?.location?.text || '');
   const [instagramUsername, setInstagramUsername] = useState(user?.social_handles?.instagram?.username || '');
   const [facebookUsername, setFacebookUsername] = useState(user?.social_handles?.facebook?.username || '');
+  const [dateOfBirth, setDateOfBirth] = useState(user?.date_of_birth ? new Date(user.date_of_birth) : null);
   const { editMyProfile, isLoading, showSavedMessage } = useEditUserProfile({
     firstName,
     lastName,
@@ -43,6 +45,7 @@ const EditUserGeneralInfo = () => {
     locationLongitude,
     instagramUsername,
     facebookUsername,
+    dateOfBirth
   });
 
   useEffect(() => {
@@ -53,11 +56,12 @@ const EditUserGeneralInfo = () => {
       setLocationCity(user.location?.city || '');
       setLocationState(user.location?.state || '');
       setPlaceId(user.location?.city || '');
-      setLocationLatitude(user.location?.coordinates.latitude || null);
-      setLocationLongitude(user.location?.coordinates.longitude || null);
+      setLocationLatitude(user.location?.coordinates?.lat || null);
+      setLocationLongitude(user.location?.coordinates?.lng || null);
       setLocationInput(user.location?.text || '');
       setInstagramUsername(user.social_handles?.instagram?.username || '');
       setFacebookUsername(user.social_handles?.facebook?.username || '');
+      setDateOfBirth(user?.date_of_birth ? new Date(user.date_of_birth) : null);
     }
   }, [user]);
 
@@ -112,6 +116,9 @@ const EditUserGeneralInfo = () => {
           placeholderTextColor={themeColors.placeholderTextColor}
           themeColors={themeColors}
         />
+
+        {/* Date of Birth */}
+        <EditDateOfBirth dateOfBirth={dateOfBirth} setDateOfBirth={setDateOfBirth} />
 
         {/* Location */}
         <EditUserLocation

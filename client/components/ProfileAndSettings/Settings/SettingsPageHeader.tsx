@@ -5,12 +5,9 @@ import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import NavigateBackButton from '@/components/NavigateBackButton';
 import SettingsPageTitle from './SettingsPageTitle';
+import { SettingsPageHeaderProps } from '@/types/allTypes';
 
-const SettingsPageHeader = ({
-  label,
-}: {
-  label: string;
-}) => {
+const SettingsPageHeader = ({ label }: SettingsPageHeaderProps) => {
   return (
     <ThemedView 
       style={{

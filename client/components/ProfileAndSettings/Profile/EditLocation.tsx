@@ -4,6 +4,7 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-nativ
 import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { EditUserLocationProps, PlaceSuggestion, PlaceDetails } from '@/types/allTypes';
 
 export const EditUserLocation = ({
   label,
@@ -15,22 +16,10 @@ export const EditUserLocation = ({
   setLocationLatitude,
   setLocationLongitude,
   setPlaceId,
-}: {
-  label: string;
-  locationInput: string;
-  setLocationInput: (text: string) => void;
-  placeholder: string;
-  placeholderTextColor: string;
-  themeColors: any;
-  setLocationCity: (text: string) => void;
-  setLocationState: (text: string) => void;
-  setLocationLatitude: (lat: string | null) => void;
-  setLocationLongitude: (lng: string | null) => void;
-  setPlaceId: (id: string) => void;
-}) => {
+}: EditUserLocationProps) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const [locationSuggestions, setLocationSuggestions] = useState<any[]>([]);
+  const [locationSuggestions, setLocationSuggestions] = useState<PlaceSuggestion[]>([]);
 
   const fetchLocationSuggestions = async (text: string) => {
     if (!text.trim()) {
@@ -69,13 +58,13 @@ export const EditUserLocation = ({
         },
       });
 
-      const data = response.data;
+      const data = response.data as PlaceDetails;
 
-      const cityComponent = data.addressComponents.find((component: any) =>
+      const cityComponent = data.addressComponents.find((component) =>
         component.types.includes("locality")
       );
 
-      const stateComponent = data.addressComponents.find((component: any) =>
+      const stateComponent = data.addressComponents.find((component) =>
         component.types.includes("administrative_area_level_1")
       );
 
@@ -153,12 +142,12 @@ export const EditUserLocation = ({
             zIndex: 1000,
           }}>
             <ScrollView style={{ maxHeight: 250 }} nestedScrollEnabled={true}>
-              {Object.values(locationSuggestions).map((suggestion: any, index) => (
+              {locationSuggestions.map((suggestion: PlaceSuggestion, index: number) => (
                 <TouchableOpacity
                   key={index}
                   style={{
                     padding: 12,
-                    borderBottomWidth: index !== Object.values(locationSuggestions).length - 1 ? 1 : 0,
+                    borderBottomWidth: index !== locationSuggestions.length - 1 ? 1 : 0,
                     borderBottomColor: themeColors.background,
                   }}
                   onPress={() => handleLocationSelect(suggestion.placePrediction.text.text, suggestion.placePrediction.placeId)}

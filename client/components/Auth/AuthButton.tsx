@@ -1,11 +1,8 @@
 import React from 'react';
 import { TouchableOpacity, Image, ImageSourcePropType, Dimensions } from 'react-native';
-
-interface AuthButtonProps {
-  onPress: () => void; // Function to handle button press
-  logo: ImageSourcePropType; // Path to the logo image
-  backgroundColor?: string; // Optional background color
-}
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { Colors } from '@/constants/Colors';
+import { AuthButtonProps } from '@/types/allTypes';
 
 const { width } = Dimensions.get('window');
 
@@ -13,6 +10,9 @@ const { width } = Dimensions.get('window');
 const getSize = (percentage: number) => (width * percentage) / 100;
 
 const AuthButton: React.FC<AuthButtonProps> = ({ onPress, logo, backgroundColor='white' }) => {
+  const colorScheme = useColorScheme();
+  const themeColors = Colors[colorScheme ?? 'dark'];
+
   return (
     <TouchableOpacity
       onPress={onPress}

@@ -16,7 +16,7 @@ const DiscoverScreen = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showScrollToTop, setShowScrollToTop] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
-  const tabBarHeight = useBottomTabBarHeight() || 50; // Get tab bar height dynamically
+  const tabBarHeight = useBottomTabBarHeight(); // Get tab bar height dynamically
   const insets = useSafeAreaInsets(); // Safe area insets
 
   const handleScroll = (event: any) => {
@@ -49,7 +49,7 @@ const DiscoverScreen = () => {
         scrollEventThrottle={16}
       >
         {/* Search Bar */}
-        <ThemedView style={{ marginBottom: 16, alignItems: 'center' }}>
+        <ThemedView style={{ marginBottom: 16, alignItems: 'center', paddingHorizontal: 16 }}>
           <SearchBar
             placeholder="Search for events or friends..."
             value={searchQuery}

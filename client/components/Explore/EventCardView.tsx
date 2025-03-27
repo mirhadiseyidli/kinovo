@@ -5,14 +5,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { BlurView } from 'expo-blur';
-
-interface SuggestedEventProps {
-  title: string;
-  location: string;
-  date: string;
-  time: string;
-  imageUrl: any;
-}
+import { SuggestedEventProps } from '@/types/allTypes';
 
 const EventCardView: React.FC<SuggestedEventProps> = ({
   title,

@@ -1,18 +1,16 @@
 const mongoose = require('mongoose');
 const validator = require('validator');
-const { CountryCodes } = require('validator/lib/isISO31661Alpha2');
 
 const usersSchema = new mongoose.Schema({
-  uuid: {
-    type: String,
-    unique: true,
-    required: true,
-  },
   first_name: {
     type: String,
     required: true,
   },
   last_name: {
+    type: String,
+    required: true,
+  },
+  full_name: {
     type: String,
     required: true,
   },
@@ -57,6 +55,13 @@ const usersSchema = new mongoose.Schema({
       required: function () {
         return !this.google_id; // Required only for non-Google users
       }
+    },
+    full_num: {
+      type: String,
+      default: null,
+      required: function () {
+        return !this.google_id; // Required only for non-Google users
+      }
     }
   },
   // TODO: Password hashes before going into Database?
@@ -84,6 +89,10 @@ const usersSchema = new mongoose.Schema({
     type: String,
     default: null,
     maxlength: 300
+  },
+  date_of_birth: {
+    type: Date,
+    required: false,
   },
   created_at: {
     type: Date,

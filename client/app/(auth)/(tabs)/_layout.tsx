@@ -2,31 +2,15 @@ import { Stack, Tabs, useRouter, Link } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import { Platform, View, Easing } from 'react-native';
 import { HapticTab } from '@/components/HapticTab';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import TabBarBackground from '@/components/ui/TabBarBackground';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Feather from '@expo/vector-icons/Feather';
 import { ProfileIcon } from '@/components/ui/ProfileIcon';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import AntDesign from '@expo/vector-icons/AntDesign';
-import Options from '@/components/CreateEvent/Options';
-import Create from '@/app/(auth)/(createEvent)/EventDateAndLocation';
 
 export default function TabsLayout() {
   const router = useRouter();
   const colorScheme = useColorScheme();
-  const color = colorScheme === 'dark' ? 'light-content' : 'dark-content';
-  const [visibility, setVisibility] = useState(false);
-
-  const handleModalOpen = () => {
-    setVisibility(true);
-  };
-
-  const handleModalClose = () => {
-    setVisibility(false)
-  }
 
   return (
     <>
@@ -38,6 +22,7 @@ export default function TabsLayout() {
         <Tabs
           initialRouteName="index"
           backBehavior="history"
+          detachInactiveScreens={false}
           screenOptions={{
             lazy: true,
             tabBarButton: HapticTab,
@@ -76,8 +61,8 @@ export default function TabsLayout() {
             transitionSpec: {
               animation: 'spring',
               config: {
-                stiffness: 1000,
-                damping: 80,  // Increased damping to reduce oscillations
+                stiffness: 500,
+                damping: 300,  // Increased damping to reduce oscillations
                 mass: 3,
                 overshootClamping: true,  // Prevents overshoot and shaking
                 restDisplacementThreshold: 0.01,
@@ -138,7 +123,7 @@ export default function TabsLayout() {
             }}
           />
           <Tabs.Screen
-            name="(profile)/profilePage"
+            name="(profile)/[_id]"
             options={{
               href: null,
             }}

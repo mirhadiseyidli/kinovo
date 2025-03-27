@@ -1,9 +1,9 @@
 const express = require('express');
-const { searchAll } = require('../controllers/searchController');
+const { searchPeople } = require('../controllers/searchController');
 const { authMiddleware, checkRole } = require('../utils/authMiddleware');
 
 const router = express.Router();
 
-router.get('/', authMiddleware, checkRole(["admin", "member"]), searchAll);
+router.get('/users', authMiddleware, searchPeople);
 
 module.exports = router;

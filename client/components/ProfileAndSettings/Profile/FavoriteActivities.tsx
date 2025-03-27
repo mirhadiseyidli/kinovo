@@ -6,10 +6,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { ThemedText } from '@/components/ThemedText';
-
-interface FavoriteActivitiesProps {
-  activities: string[];
-}
+import { FavoriteActivitiesProps } from '@/types/allTypes';
 
 const FavoriteActivities: React.FC<FavoriteActivitiesProps> = ({ activities }) => {
   const colorScheme = useColorScheme();

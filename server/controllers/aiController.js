@@ -5,7 +5,7 @@ require('dotenv').config();
 const getUserEvents = async (userId) => {
   try {
     
-    const user = await User.findOne({ uuid: userId }).select('-password_hash').populate('events');
+    const user = await User.findOne({ user_id: userId }).select('-password_hash').populate('events');
 
     if (!user || !user.events || user.events.length === 0) {
       console.log('No events found for user');

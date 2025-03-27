@@ -6,12 +6,9 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
-
-// Import your tab content components (create these if they don't exist)
 import FriendsList from '@/app/(auth)/(tabs)/(profile)/(manageFriends)/YourFriends';
 import FriendRequests from '@/app/(auth)/(tabs)/(profile)/(manageFriends)/FriendRequests';
-import SyncContacts from '@/app/(auth)/(tabs)/(profile)/(manageFriends)/SyncContacts';
-import FriendSuggestions from '@/app/(auth)/(tabs)/(profile)/(manageFriends)/FriendSuggestions';
+import AddFriends from '@/app/(auth)/(tabs)/(profile)/(manageFriends)/AddFriends';
 
 const Tab = createMaterialTopTabNavigator();
 
@@ -34,19 +31,20 @@ export default function ManageFriendsTabs() {
         <SettingsPageHeader label='Manage Friends'/>
       </ThemedView>
       <Tab.Navigator
-        initialRouteName="Friends"
+        initialRouteName="Add Friends"
         backBehavior='none'
         screenOptions={{
           tabBarIndicatorStyle: { backgroundColor: Colors[colorScheme ?? 'dark'].tint },
           tabBarStyle: { backgroundColor: Colors[colorScheme ?? 'dark'].background },
           tabBarActiveTintColor: Colors[colorScheme ?? 'dark'].tint,
-          tabBarInactiveTintColor: 'gray',
+          tabBarInactiveTintColor: Colors[colorScheme ?? 'dark'].placeholderTextColor,
+          tabBarLabelStyle: { fontWeight: 'bold' },
         }}
       >
         <Tab.Screen 
-          name="Friends" 
-          component={FriendsList} 
-          options={{ title: 'Friends' }} 
+          name="Add Friends" 
+          component={AddFriends} 
+          options={{ title: 'Add Friends' }} 
         />
         <Tab.Screen 
           name="Requests" 
@@ -54,14 +52,9 @@ export default function ManageFriendsTabs() {
           options={{ title: 'Requests' }} 
         />
         <Tab.Screen 
-          name="Contacts" 
-          component={SyncContacts} 
-          options={{ title: 'Contacts' }} 
-        />
-        <Tab.Screen 
-          name="Suggestions" 
-          component={FriendSuggestions} 
-          options={{ title: 'Suggestions' }} 
+          name="Friends" 
+          component={FriendsList} 
+          options={{ title: 'Friends' }} 
         />
       </Tab.Navigator>
     </ThemedView>

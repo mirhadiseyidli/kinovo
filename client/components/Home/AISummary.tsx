@@ -11,10 +11,7 @@
 // import { ThemedText } from '@/components/ThemedText';
 // import { IconSymbol } from '@/components/ui/IconSymbol';
 // import LinearGradient from 'react-native-linear-gradient';
-
-// interface User {
-//   uuid: string;
-// }
+// import { User } from '@/types/allTypes';
 
 // const useGPTWebSocket = () => {
 //   const [summary, setSummary] = useState('');
@@ -76,13 +73,13 @@
 //       setHighlightedSentence('');
 
 //       const currentUser = await fetchUserData();
-//       if (!currentUser?.uuid) return;
+//       if (!currentUser?._id) return;
 
 //       const socket = new WebSocket('ws://localhost:6000');
 
 //       socket.onopen = () => {
 //         setIsLoading(true);
-//         socket.send(JSON.stringify({ userId: currentUser.uuid }));
+//         socket.send(JSON.stringify({ userId: currentUser._id }));
 //       };
 
 //       socket.onmessage = (event) => {

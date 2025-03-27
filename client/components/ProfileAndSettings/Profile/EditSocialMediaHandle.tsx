@@ -3,20 +3,9 @@ import { View, Text, TextInput, Dimensions } from "react-native";
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { Feather } from '@expo/vector-icons';
+import { EditSocialMediaHandleProps } from '@/types/allTypes';
 
-// Removed invalid FeatherGlyphs import
-
-const EditSocialMediaHandle = ({
-  label,
-  value,
-  onChangeText,
-  iconName,
-}: {
-  label: string;
-  value: string;
-  onChangeText: (text: string) => void;
-  iconName: React.ComponentProps<typeof Feather>['name'];
-}) => {
+const EditSocialMediaHandle = ({ label, value, onChangeText, iconName }: EditSocialMediaHandleProps) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
 

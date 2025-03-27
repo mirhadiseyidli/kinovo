@@ -9,7 +9,9 @@ const authRoutes = require('./routes/authRoutes');
 const tokenRoutes = require('./routes/tokenRoutes');
 const userRoutes = require('./routes/userRoutes');
 const aiRoutes = require('./routes/aiRoutes');
-// const searchRoutes = require('./routes/searchRoutes');
+const manageFriendsRoutes = require('./routes/manageFriendsRoutes');
+const searchRoutes = require('./routes/searchRoutes');
+const friendSuggestions = require('./routes/userSuggestionsRoute')
 
 const app = express();
 
@@ -38,9 +40,10 @@ app.get('/api/check-auth', (req, res) => {
 
   try {
     const decoded = verifyAccessToken(token);
+    console.log('server decoded', decoded)
     res.json({
       loggedIn: true,
-      user: { _id: decoded._id, email: decoded.email, role: decoded.role },
+      user: { id: decoded.id, email: decoded.email, role: decoded.role },
     });
   } catch (err) {
     res.status(401).json({ loggedIn: false, message: 'Invalid or expired token' });
@@ -52,7 +55,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/token', tokenRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/assistants', aiRoutes);
-// app.use('/api/search', searchRoutes);
+app.use('/api/search', searchRoutes);
+app.use('/api/managefriends', manageFriendsRoutes);
+app.use('/api/friendsuggestions', friendSuggestions);
 
 // Start Server
 const PORT = process.env.BACKEND_PORT || 5002;

@@ -5,7 +5,6 @@ import { View, Image, ActivityIndicator, Animated, Dimensions } from "react-nati
 import * as SplashScreen from "expo-splash-screen";
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { ThemedText } from "@/components/ThemedText";
 import KinovoSplash from "@/components/KinovoSplash";
 import HomePageLoadingSkeleton from "@/components/LoadingSkeletons/HomePageLoadingSkeleton";
 
@@ -28,7 +27,6 @@ function InnerLayout(): JSX.Element {
   const screenFadeAnim = useState(new Animated.Value(0))[0];
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const { width, height } = Dimensions.get("window");
 
   useEffect(() => {
     async function prepare() {

@@ -5,11 +5,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-
-interface CityProps {
-  name: string;
-  image: any; // Use ImageSourcePropType if using local images
-}
+import { CityProps } from '@/types/allTypes';
 
 const City: React.FC<CityProps> = ({ name, image }) => {
   const colorScheme = useColorScheme();
