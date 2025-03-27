@@ -9,7 +9,7 @@ import React, { useState } from 'react';
 import { View } from 'react-native';
 import type { CreateEventTabParamList } from '@/types/allTypes';
 
-export default function EventAttendeesAndOptions() {
+export default React.memo(function EventAttendeesAndOptions() {
   const navigation = useNavigation<NavigationProp<CreateEventTabParamList>>();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
@@ -63,4 +63,4 @@ export default function EventAttendeesAndOptions() {
       </View>
     </ThemedView>
   );
-}
+})
