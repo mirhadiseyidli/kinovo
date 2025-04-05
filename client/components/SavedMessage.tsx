@@ -27,7 +27,7 @@ const SavedMessage = ({ visible = false }: SavedMessageProps) => {
         zIndex: 10
       }}>
         <View style={{
-          backgroundColor: 'rgba(50, 50, 50, 0.8)',
+          backgroundColor: themeColors.popUpMessageBackgroundColor,
           padding: 25,
           borderRadius: 10,
         }}>

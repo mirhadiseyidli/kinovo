@@ -14,7 +14,7 @@ const friendRequests = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'accepted', 'rejected'],
+    enum: ['pending'],
     default: 'pending',
     required: true
   },
@@ -23,6 +23,13 @@ const friendRequests = new mongoose.Schema({
     default: Date.now(),
     required: true
   },
+});
+
+friendRequests.pre('save', function (next) {
+  if (this.sender.equals(this.receiver)) {
+    return next(new Error('Sender and receiver cannot be the same user.'));
+  }
+  next();
 });
 
 module.exports = mongoose.model('FriendRequests', friendRequests);

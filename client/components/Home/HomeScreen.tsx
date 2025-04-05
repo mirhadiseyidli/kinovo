@@ -7,51 +7,62 @@ import SeeWhatFriendsAreUpTo from '@/components/Home/SeeWhatFriendsAreUpTo';
 import PastEvents from '@/components/Home/PastEvents';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-// import AISummary from './AISummary';
+import { useFocusEffect } from '@react-navigation/native';
 
 const HomeScreen = () => {
-  const [showScrollToTop, setShowScrollToTop] = useState(false);
-  const scrollViewRef = useRef<ScrollView>(null);
   const tabBarHeight = useBottomTabBarHeight(); // Get tab bar height dynamically
   const insets = useSafeAreaInsets(); // Safe area insets
-  const [refreshing, setRefreshing] = useState(false);
-
-  const handleScroll = (event: any) => {
-    const offsetY = event.nativeEvent.contentOffset.y;
-    setShowScrollToTop(offsetY > 50); // Toggle button state after a small scroll
-  };
+  const [refreshing, setRefreshing] = useState(true);
+  const [refreshingUpcomingEvents, setRefreshingUpcomingEvents] = useState(true);
+  const [refreshingSeeWhatFriendsAreUpTo, setRefreshingSeeWhatFriendsAreUpTo] = useState(true);
+  const [refreshingPastEvents, setRefreshingPastEvents] = useState(true);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    // TODO: Call your data fetching logic here
-    // Example:
-    fetchSuggestions().finally(() => setRefreshing(false));
+    setRefreshingUpcomingEvents(true);
+    setRefreshingSeeWhatFriendsAreUpTo(true);
+    setRefreshingPastEvents(true);
   }, []);
 
-  const fetchSuggestions = async () => {
-    console.log('test')
-  }
+  const onFinishRefreshUpcomingEvents = () => {
+    setRefreshingUpcomingEvents(false);
+  };
+
+  const onFinishRefreshSeeWhatFriendsAreUpTo = () => {
+    setRefreshingSeeWhatFriendsAreUpTo(false);
+  };
+
+  const onFinishRefreshPastEvents = () => {
+    setRefreshingPastEvents(false);
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      if (
+        !refreshingUpcomingEvents &&
+        !refreshingSeeWhatFriendsAreUpTo &&
+        !refreshingPastEvents &&
+        refreshing
+      ) {
+        setRefreshing(false);
+      }
+    }, [
+      refreshingUpcomingEvents,
+      refreshingSeeWhatFriendsAreUpTo,
+      refreshingPastEvents
+    ])
+  );
 
   return (
     <ThemedView style={{ flex: 1 }}>
-      <ThemedView
-        style={{
-          flex: 1,
-          flexGrow: 1,
-          maxHeight: tabBarHeight - insets.bottom, // Combine tabBarHeight and top inset
-          marginBottom: 6,
-        }}
-      >
-        <Header />
-      </ThemedView>
       {/* Scrollable Content */}
       <ScrollView
-        ref={scrollViewRef}
+        stickyHeaderIndices={[0]}
+        stickyHeaderHiddenOnScroll={true}
         style={{ 
           flex: 1,
-          paddingBottom: tabBarHeight
+          paddingBottom: tabBarHeight,
         }}
-        onScroll={handleScroll}
         scrollEventThrottle={8}
         scrollEnabled={true}
         showsVerticalScrollIndicator={false}
@@ -59,18 +70,26 @@ const HomeScreen = () => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
+        <ThemedView
+          style={{
+            flex: 1,
+            marginBottom: 6
+          }}
+        >
+          <Header refreshing={refreshing}/>
+        </ThemedView>
         <ThemedView style={{ display: 'flex', flex: 1, flexDirection: 'column', gap: 24, paddingHorizontal: 16 }}>
           {/* <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <AISummary />
           </ThemedView> */}
           <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <UpcomingEvents />
+            <UpcomingEvents refreshing={refreshing} onFinishRefresh={onFinishRefreshUpcomingEvents} />
           </ThemedView>
           <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <SeeWhatFriendsAreUpTo />
+            <SeeWhatFriendsAreUpTo refreshing={refreshing} onFinishRefresh={onFinishRefreshSeeWhatFriendsAreUpTo}/>
           </ThemedView>
           <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <PastEvents />
+            <PastEvents refreshing={refreshing} onFinishRefresh={onFinishRefreshPastEvents}/>
           </ThemedView>
         </ThemedView>
       </ScrollView>

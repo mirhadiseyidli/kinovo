@@ -1,112 +1,120 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import Event from '@/components/Event';
+import EventComponent from '@/components/Event';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { useGetMyEvents } from '@/hooks/useGetMyEvents';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { useFocusEffect } from '@react-navigation/native';
+import { Event } from '@/types/allTypes';
+import { AutoSkeletonView } from 'react-native-auto-skeleton';
 
-const friendImage1 = require('@/assets/profile-pic-1.webp');
-const eventImage1 = require('@/assets/soccer-field.jpg');
-const friendImage2 = require('@/assets/profile-pic-2.jpeg');
-const eventImage2 = require('@/assets/tennis-court.jpg');
-
-const UpcomingEvents: React.FC = () => {
+const UpcomingEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }> = ({ refreshing, onFinishRefresh }) => {
+  const { fetchMyEvents } = useGetMyEvents();
   const colorScheme = useColorScheme();
-  const events = [
-    {
-      id: 1,
-      friendName: 'John Smith',
-      friendImage: friendImage1,
-      eventTitle: 'Web3 Workshop',
-      date: 'Tomorrow',
-      time: '2:00 PM',
-      location: 'Tech Hub, Silicon Valley',
-      remainingDays: 'in 1 day',
-      eventImage: eventImage1,
-    },
-    {
-      id: 2,
-      friendName: 'Sarah Wilson',
-      friendImage: friendImage2,
-      eventTitle: 'Jazz Night',
-      date: 'Sat',
-      time: '8:00 PM',
-      location: 'Blue Note Jazz Club',
-      remainingDays: 'in 3 days',
-      eventImage: eventImage2,
-    },
-    {
-      id: 3,
-      friendName: 'Michael Brown',
-      friendImage: friendImage1,
-      eventTitle: 'Tech Meetup',
-      date: 'Sun',
-      time: '5:00 PM',
-      location: 'Downtown Center',
-      remainingDays: 'in 4 days',
-      eventImage: eventImage1,
-    },
-    {
-      id: 4,
-      friendName: 'Emily Davis',
-      friendImage: friendImage2,
-      eventTitle: 'Art Exhibition',
-      date: 'Mon',
-      time: '6:00 PM',
-      location: 'Art Hub',
-      remainingDays: 'in 5 days',
-      eventImage: eventImage2,
-    },
-  ];
+  const themeColors = Colors[colorScheme ?? 'dark'];
+  const [myEventsList, setMyEventsList] = useState<Event[]>([]);
 
-  // Limit the number of displayed events to 3
-  const limitedEvents = events.slice(0, 3);
+  if (!myEventsList) {
+    <ThemedText>Could't load events</ThemedText>
+  };
+  
+  const fetchEvents = async () => {
+    const myEvents = await fetchMyEvents();
+    const now = new Date();
+    const upcomingEvents = myEvents
+      .filter((event: Event) => event.start_time !== null && new Date(event.start_time) >= now)
+      .sort((a: Event, b: Event) =>
+        new Date(a.start_time ?? 0).getTime() - new Date(b.start_time ?? 0).getTime()
+      )
+      .slice(0, 3);
+    setMyEventsList(upcomingEvents);
+    onFinishRefresh();
+  }
+  
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchEvents();
+    }, [refreshing])
+  );
 
   return (
     <ThemedView style={{ flex: 1, width: '100%' }}>
       {/* Header */}
       <ThemedView style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>Upcoming Events</ThemedText>
-        <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <ThemedText style={{ fontSize: 16, marginRight: 4 }}>View Calendar</ThemedText>
-          <IconSymbol
-            name="chevron.right"
-            size={12}
-            color={Colors[colorScheme ?? 'dark'].tint}
-          />
+        <AutoSkeletonView 
+          isLoading={refreshing} 
+          shimmerBackgroundColor={themeColors.background} 
+          gradientColors={[
+            themeColors.background, 
+            themeColors.inputBackgroundColor
+          ]}
+        >
+          <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>Upcoming Events</ThemedText>
+        </AutoSkeletonView>
+        <TouchableOpacity style={{ alignItems: 'center' }}>
+          <AutoSkeletonView 
+            isLoading={refreshing} 
+            shimmerBackgroundColor={themeColors.background} 
+            gradientColors={[
+              themeColors.background, 
+              themeColors.inputBackgroundColor
+            ]}
+          >
+            <ThemedView style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <ThemedText style={{ fontSize: 16, marginRight: 4 }}>View Calendar</ThemedText>
+              <IconSymbol
+                name="chevron.right"
+                size={12}
+                color={Colors[colorScheme ?? 'dark'].tint}
+              />
+            </ThemedView>
+          </AutoSkeletonView>
         </TouchableOpacity>
       </ThemedView>
 
       {/* Event List */}
       <View style={{ flex: 1 }}>
-        <ScrollView showsVerticalScrollIndicator={false}>
-          {limitedEvents.map((event, index) => (
-            <View key={event.id}>
-              <Event
-                friendName={event.friendName}
-                friendImage={event.friendImage}
-                eventTitle={event.eventTitle}
-                date={event.date}
-                time={event.time}
-                location={event.location}
-                remainingDays={event.remainingDays}
-                eventImage={event.eventImage}
-              />
-              {/* Divider Line */}
-              {index < limitedEvents.length - 1 && (
-                <View
-                  style={{
-                    height: 0.3,
-                    backgroundColor: Colors[colorScheme ?? 'dark'].border,
-                    marginVertical: 16,
-                  }}
-                />
-              )}
-            </View>
-          ))}
-        </ScrollView>
+        {myEventsList.length > 0 ? (
+          <View>
+            {myEventsList.map((event, index) => (
+              <View key={event._id}>
+                <EventComponent event={event} loading={refreshing}/>
+                {/* Divider Line */}
+                {index < myEventsList.length - 1 && (
+                  <View
+                    style={{
+                      height: 0.3,
+                      backgroundColor: Colors[colorScheme ?? 'dark'].border,
+                      marginVertical: 16,
+                    }}
+                  />
+                )}
+              </View>
+            ))}
+          </View>
+        ) : (
+          <AutoSkeletonView 
+            isLoading={refreshing} 
+            shimmerBackgroundColor={themeColors.background} 
+            gradientColors={[
+              themeColors.background, 
+              themeColors.inputBackgroundColor
+            ]}
+          >
+            <ThemedText 
+              style={{ 
+                fontSize: 16, 
+                color: themeColors.placeholderTextColor,
+                textAlign: 'center'
+              }}
+            >
+              {`No upcoming events yet.\nStart something fun — create your first event! 🎉`}
+            </ThemedText>
+          </AutoSkeletonView>
+        )}
       </View>
     </ThemedView>
   );

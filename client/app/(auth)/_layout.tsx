@@ -5,6 +5,7 @@ import { ReactNode } from "react";
 import { LocationProvider } from '@/context/LocationContext'; // ✅ Import LocationProvider
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { EventCreatedMessageProvider } from "@/context/EventCreatedMessageContext";
 
 export default function RootLayout(): ReactNode {
   const { accessToken, isLoading } = useAuthSession();
@@ -21,41 +22,43 @@ export default function RootLayout(): ReactNode {
 
   return (
     <LocationProvider>
-      <Stack
-        screenOptions={{
-          headerShown: false
-        }}
-      >
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen 
-          name="(createEvent)"
-          options={{ 
-            title: 'Create Event',
-            presentation: 'modal', 
-            headerShown: true,
-            headerStyle: { 
-              backgroundColor: themeColors.background
-            },
-            headerTintColor: themeColors.text,
-            headerTitleStyle: {
-              fontWeight: 'bold'
-            }
+      <EventCreatedMessageProvider>
+        <Stack
+          screenOptions={{
+            headerShown: false
           }}
-        />
-        <Stack.Screen 
-          name="(aboutUser)"
-          options={{ 
-            headerShown: true,
-            headerStyle: { 
-              backgroundColor: themeColors.background
-            },
-            headerTintColor: themeColors.text,
-            headerTitleStyle: {
-              fontWeight: 'bold'
-            }
-          }}
-        />
-      </Stack>
+        >
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen 
+            name="(createEvent)"
+            options={{ 
+              title: 'Create Event',
+              presentation: 'modal', 
+              headerShown: true,
+              headerStyle: { 
+                backgroundColor: themeColors.background
+              },
+              headerTintColor: themeColors.text,
+              headerTitleStyle: {
+                fontWeight: 'bold'
+              }
+            }}
+          />
+          <Stack.Screen 
+            name="(aboutUser)"
+            options={{ 
+              headerShown: true,
+              headerStyle: { 
+                backgroundColor: themeColors.background
+              },
+              headerTintColor: themeColors.text,
+              headerTitleStyle: {
+                fontWeight: 'bold'
+              }
+            }}
+          />
+        </Stack>
+      </EventCreatedMessageProvider>
     </LocationProvider>
   );
 }

@@ -1,21 +1,58 @@
 import React, { useState } from 'react';
-import { View, TouchableOpacity, Dimensions, ActionSheetIOS, Alert, Platform } from 'react-native';
+import { View, TouchableOpacity, Dimensions, ActionSheetIOS, Alert, Platform, Animated, TextInput } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
+import CheckBox from '@react-native-community/checkbox';
+import { useCreateEventContext } from '@/context/CreateEventContext';
 
-const Options: React.FC = () => {
+const Options: React.FC<{ setLimit: (value: number | null) => void }> = ({ setLimit }) => {
   const screenWidth = Dimensions.get('window').width;
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
+  const [visibility, setVisibility] = useState('Public');
+  const [capacity, setCapacity] = useState<number | null>(null);
+  const [isLimited, setIsLimited] = useState(false);
+  const colorAnim = useState(new Animated.Value(0))[0];
+  const slideAnim = useState(new Animated.Value(0))[0];
+  const { settingEventVisibility, settingEventCapacity } = useCreateEventContext();
 
-  // ✅ State for Visibility & Capacity
-  const [visibility, setVisibility] = useState<'Public' | 'Private'>('Public');
-  const [capacity, setCapacity] = useState('Unlimited');
+  const toggleCheck = (newValue: boolean) => {
+    setIsLimited(newValue);
 
-  // ✅ Function to Open Native Action Sheet for Visibility
+    if (!newValue) {
+      setCapacity(null);
+      settingEventCapacity(null);
+      setLimit(null);
+    } else if (capacity !== null && capacity > 0) {
+      settingEventCapacity(capacity);
+    }
+
+    Animated.timing(slideAnim, {
+      toValue: newValue ? 1 : 0,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+
+    Animated.timing(colorAnim, {
+      toValue: newValue ? 1 : 0,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const interpolatedColor = colorAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [themeColors.placeholderTextColor, themeColors.text],
+  });
+
+  const animatedHeight = slideAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 44],
+  });
+
   const openVisibilityOptions = () => {
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
@@ -24,40 +61,29 @@ const Options: React.FC = () => {
           cancelButtonIndex: 2,
         },
         (buttonIndex) => {
-          if (buttonIndex === 0) setVisibility('Public');
-          else if (buttonIndex === 1) setVisibility('Private');
+          if (buttonIndex === 0) visibilitySelection('Public');
+          else if (buttonIndex === 1) visibilitySelection('Private');
         }
       );
     } else {
       Alert.alert('Select Visibility', '', [
-        { text: 'Public', onPress: () => setVisibility('Public') },
-        { text: 'Private', onPress: () => setVisibility('Private') },
+        { text: 'Public', onPress: () => visibilitySelection('Public') },
+        { text: 'Private', onPress: () => visibilitySelection('Private') },
         { text: 'Cancel', style: 'cancel' },
       ]);
     }
   };
 
-  // ✅ Function to Open Native Action Sheet for Capacity
-  const openCapacityOptions = () => {
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ['Unlimited', '50 People', '100 People', 'Cancel'],
-          cancelButtonIndex: 3,
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 0) setCapacity('Unlimited');
-          else if (buttonIndex === 1) setCapacity('50 People');
-          else if (buttonIndex === 2) setCapacity('100 People');
-        }
-      );
-    } else {
-      Alert.alert('Select Capacity', '', [
-        { text: 'Unlimited', onPress: () => setCapacity('Unlimited') },
-        { text: '50 People', onPress: () => setCapacity('50 People') },
-        { text: '100 People', onPress: () => setCapacity('100 People') },
-        { text: 'Cancel', style: 'cancel' },
-      ]);
+  const visibilitySelection = (val: string) => {
+    setVisibility(val);
+    settingEventVisibility(val);
+  };
+
+  const onCapacityChange = (num: number) => {
+    setCapacity(num);
+    if (isLimited) {
+      settingEventCapacity(num);
+      setLimit(num);
     }
   };
 
@@ -74,32 +100,41 @@ const Options: React.FC = () => {
           elevation: 5,
         }}
       >
-        {/* Visibility Row */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-          <Feather
-            name="eye"
-            size={16}
-            color={themeColors.placeholderTextColor}
-            style={{ marginRight: 8 }}
-          />
-          <ThemedText
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Feather
+              name="eye"
+              size={16}
+              color={themeColors.placeholderTextColor}
+              style={{ marginRight: 8 }}
+            />
+            <ThemedText
+              style={{
+                fontSize: 16,
+                fontWeight: '500',
+                color: themeColors.placeholderTextColor,
+                marginRight: 12,
+              }}
+            >
+              Visibility
+            </ThemedText>
+          </View>
+          <TouchableOpacity onPress={openVisibilityOptions}
             style={{
-              fontSize: 14,
-              fontWeight: '500',
-              color: themeColors.placeholderTextColor,
-              marginRight: 12,
+              backgroundColor: Colors[colorScheme ?? 'dark'].background,
+              paddingVertical: 8,
+              paddingHorizontal: 12,
+              borderRadius: 8,
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
           >
-            Visibility
-          </ThemedText>
-          <TouchableOpacity style={{ flex: 1, alignItems: 'flex-end' }} onPress={openVisibilityOptions}>
-            <ThemedText style={{ fontSize: 16, fontWeight: '400', color: '#007AFF' }}>
+            <ThemedText style={{ fontSize: 16, fontWeight: '400', color: themeColors.text }}>
               {visibility}
             </ThemedText>
           </TouchableOpacity>
         </View>
 
-        {/* Divider */}
         <View
           style={{
             height: 1,
@@ -109,30 +144,65 @@ const Options: React.FC = () => {
           }}
         />
 
-        {/* Capacity Row */}
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Feather
-            name="users"
-            size={16}
-            color={themeColors.placeholderTextColor}
-            style={{ marginRight: 8 }}
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 8 }}>
+          <CheckBox
+            value={isLimited}
+            onValueChange={toggleCheck}
+            boxType="square"
+            tintColor={themeColors.placeholderTextColor}
+            onTintColor={themeColors.text}
+            onCheckColor={themeColors.text}
+            tintColors={{ true: themeColors.text, false: themeColors.placeholderTextColor }}
+            style={{ height: 16, width: 16, marginRight: 10 }}
           />
-          <ThemedText
-            style={{
-              fontSize: 14,
-              fontWeight: '500',
-              color: themeColors.placeholderTextColor,
-              marginRight: 12,
-            }}
-          >
-            Capacity
-          </ThemedText>
-          <TouchableOpacity style={{ flex: 1, alignItems: 'flex-end' }} onPress={openCapacityOptions}>
-            <ThemedText style={{ fontSize: 16, fontWeight: '400', color: '#007AFF' }}>
-              {capacity}
-            </ThemedText>
-          </TouchableOpacity>
+          <Animated.Text style={{ fontSize: 16, color: interpolatedColor }}>
+            Limited Capacity
+          </Animated.Text>
         </View>
+
+        <Animated.View style={{ height: animatedHeight, overflow: 'hidden' }}>
+          {isLimited && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Feather
+                  name="users"
+                  size={16}
+                  color={themeColors.placeholderTextColor}
+                  style={{ marginRight: 8 }}
+                />
+                <ThemedText
+                  style={{
+                    fontSize: 16,
+                    fontWeight: '500',
+                    color: themeColors.placeholderTextColor,
+                    marginRight: 12,
+                  }}
+                >
+                  Capacity
+                </ThemedText>
+              </View>
+              <TextInput 
+                onChangeText={(num) => {
+                  const numeric = num.replace(/[^0-9]/g, '');
+                  onCapacityChange(numeric === '' ? 0 : parseInt(numeric, 10));
+                }}
+                placeholder='Number of Attendees'
+                placeholderTextColor={themeColors.placeholderTextColor}
+                keyboardType='numeric'
+                style={{
+                  backgroundColor: Colors[colorScheme ?? 'dark'].background,
+                  width: 180,
+                  paddingVertical: 8,
+                  paddingHorizontal: 12,
+                  borderRadius: 8,
+                  color: themeColors.text,
+                  fontSize: 16,
+                  textAlign: 'right'
+                }}
+              />
+            </View>
+          )}
+        </Animated.View>
       </ThemedView>
     </ThemedView>
   );

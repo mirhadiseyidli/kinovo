@@ -1,5 +1,5 @@
 import { View, Image, Platform } from 'react-native';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
@@ -13,51 +13,41 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
 import type { ApiError, Friend } from '@/types/allTypes';
+import { useGetMyFriends } from '@/hooks/useGetMyFriends';
+import { useFocusEffect } from '@react-navigation/native';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function FriendsList() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [friends, setFriends] = useState<Friend[]>([]);
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const { refreshAccessToken } = useAuthSession();
+  const { friendsList, refetchFriends , loading } = useGetMyFriends();
+  const tabBarHeight = useBottomTabBarHeight(); // Get tab bar height dynamically
+  const insets = useSafeAreaInsets();
 
-  useEffect(() => {
-    const fetchFriends = async () => {
-      try {
-        const token = await AsyncStorage.getItem('accessToken');
-        const response = await axios.get(
-          `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/managefriends/user/get/friends`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        setFriends(response.data.friends);
-      } catch (error) {
-        const err = error as ApiError;
-        if (err.response?.status === 401) {
-          try {
-            await refreshAccessToken();
-            const retryToken = await AsyncStorage.getItem('accessToken');
-            const retryResponse = await axios.get(
-              `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/managefriends/user/get/received/friend/requests`,
-              { headers: { Authorization: `Bearer ${retryToken}` } }
-            );
-            setFriends(retryResponse.data.friends);
-          } catch (retryError) {
-            console.error('Retry after token refresh failed:', retryError);
-          }
-        } else {
-          console.error('Failed to fetch friend requests:', err.message);
-        }
-      }
-    };
-
-    fetchFriends();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      refetchFriends();
+    }, [refetchFriends])
+  );
 
   return (
       <ThemedView style={{ flex: 1, alignItems: 'center' }}>
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, flexGrow: 1 }} style={{ width: '100%' }}>
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, flexGrow: 1 }} style={{ width: '100%', paddingBottom: insets.bottom + tabBarHeight }}>
           <View style={{ flexDirection: 'column', gap: 16, alignItems: 'center' }}>
-            {friends.length > 0 ? (
+            {loading ? (
+              <ThemedText 
+                style={{ 
+                  fontSize: 16, 
+                  color: themeColors.placeholderTextColor, 
+                  marginTop: 32,
+                  textAlign: 'center'
+                }}
+              >
+                Loading...
+              </ThemedText>
+            ) : friendsList.length > 0 ? (
               <>
                 <View style={{ marginTop: 16, marginBottom: 16 }}>
                   <SearchBar
@@ -66,11 +56,12 @@ export default function FriendsList() {
                     onChangeText={setSearchQuery}
                   />
                 </View>
-                {friends.map((friend) => (
+                {friendsList.map((friend) => (
                   <FriendListUserItem
                     _id={friend._id}
                     key={friend._id}
-                    name={`${friend.first_name} ${friend.last_name}`}
+                    name={friend.full_name}
+                    avatarUri={friend.profile_picture}
                     subtitle={`@${friend.username}`}
                     status="manageFriend"
                     onEdit={() => console.log(`Edit friend ${friend.username}`)}

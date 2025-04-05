@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { ThemedView } from '@/components/ThemedView';
 import EventName from '@/components/CreateEvent/EventName';
 import EventImage from '@/components/CreateEvent/EventImage';
@@ -23,28 +23,30 @@ export default React.memo(function EventDetails() {
 
   return (
     <ThemedView style={{ flex: 1, padding: 16 }}>
-      {/* Step 1: Event Details */}
-      <EventImage eventType={eventType} />
-      <EventName />
-      <Category onCategorySelect={setEventType} />
-      <Description />
+      <ScrollView>
+        {/* Step 1: Event Details */}
+        <EventImage eventType={eventType} />
+        <EventName />
+        <Category onCategorySelect={setEventType} />
+        <Description />
 
-      {/* Next Button */}
-      <ButtonWithLabel 
-        label="Next"
-        onPress={navigateToNext}
-        containerStyle={{ 
-          backgroundColor: themeColors.mountainGreen,
-          paddingVertical: 10,
-          paddingHorizontal: 16,
-          borderRadius: 8,
-          alignSelf: 'flex-end',
-        }}
-        textStyle={{
-          fontWeight: 'bold',
-          color: themeColors.text
-        }}
-      />
+        {/* Next Button */}
+        <ButtonWithLabel 
+          label="Next"
+          onPress={navigateToNext}
+          containerStyle={{ 
+            backgroundColor: themeColors.mountainGreen,
+            paddingVertical: 10,
+            paddingHorizontal: 16,
+            borderRadius: 8,
+            alignSelf: 'flex-end',
+          }}
+          textStyle={{
+            fontWeight: 'bold',
+            color: themeColors.text
+          }}
+        />
+        </ScrollView>
     </ThemedView>
   );
 });

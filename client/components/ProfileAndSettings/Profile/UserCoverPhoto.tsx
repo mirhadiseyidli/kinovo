@@ -5,12 +5,14 @@ import { Colors } from '@/constants/Colors';
 import LinearGradient from 'react-native-linear-gradient';
 import { ThemedText } from '@/components/ThemedText';
 import { Feather, Octicons } from '@expo/vector-icons';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UserCoverPhotoProps } from '@/types/allTypes';
 
 const UserCoverPhoto = ({ cover_photo }: UserCoverPhotoProps) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const screenWidth = Dimensions.get('window').width;
+  const insets = useSafeAreaInsets();
 
   return (
     <View style={{ 

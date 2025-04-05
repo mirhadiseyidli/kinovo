@@ -9,8 +9,6 @@ const {
   getUser,
   getUserFriendByEmailSearch,
   getUserFriendByNameSearch,
-  sendFriendRequest,
-  respondToAFriendRequest,
 } = require('../controllers/userController');
 const { authMiddleware, checkRole } = require('../utils/authMiddleware');
 
@@ -27,10 +25,8 @@ router.get('/me', authMiddleware, findMe);
 router.get('/', authMiddleware, getUsers);
 router.post('/user/create', authMiddleware, createUser);
 router.get('/user/get/profile', authMiddleware, getUser, getUserProfile);
-router.get('/me/friends/:email', authMiddleware, getUserFriendByEmailSearch, getUserProfile);
-router.get('/me/friends/:name', authMiddleware, getUserFriendByNameSearch, getUserProfile);
-router.post('/user/friends/requests/actions', sendFriendRequest);
-router.post('/user/friends/requests/responses', respondToAFriendRequest);
+router.get('/me/friends/search/by/email', authMiddleware, getUserFriendByEmailSearch, getUserProfile);
+router.get('/me/friends/search/by/name', authMiddleware, getUserFriendByNameSearch, getUserProfile);
 router.delete('/:id', getUser, deleteUsers);
 router.patch('/user/edit/myprofile', authMiddleware, editMyProfile);
 

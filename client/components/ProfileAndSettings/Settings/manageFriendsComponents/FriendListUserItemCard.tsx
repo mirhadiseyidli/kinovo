@@ -12,7 +12,6 @@ export default function FriendListUserItemCard({
   subtitle,
   mutualFriendsNumber,
   avatarUri,
-  status,
   onAdd,
   style
 }: FriendListUserItemCardProps) {
@@ -41,43 +40,6 @@ export default function FriendListUserItemCard({
 
   const openUserProfile = (_id: string) => {
     router.push(`/(auth)/(tabs)/(profile)/${encodeURIComponent(_id)}?modal=true`);
-  }
-
-  const renderAction = () => {
-    switch (status) {
-      case 'suggestions':
-        return requestSent ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Feather name="check" size={20} color={themeColors.mountainGreen} />
-            <Text style={{ fontWeight: 'bold', color: themeColors.text }}>Request sent!</Text>
-          </View>
-        ) : (
-          <TouchableOpacity
-            onPress={handleAddFriendPress}
-            disabled={isLoading}
-            style={{
-              flex: 1,
-              backgroundColor: themeColors.mountainGreen,
-              paddingVertical: 8,
-              paddingHorizontal: 16,
-              borderRadius: 8,
-              width: '100%',
-              alignItems: 'center',
-              opacity: isLoading ? 0.6 : 1,
-            }}
-          >
-            <View style={{ flex: 1, width: 74, height: 14, justifyContent: 'center', alignItems: 'center', zIndex: 10 }}>
-              {isLoading ? (
-                <ActivityIndicator size="small" color={themeColors.text} />
-              ) : (
-                <Text style={{ fontSize: 12, fontWeight: 'bold', color: themeColors.text }}>Add Friend</Text>
-              )}
-            </View>
-          </TouchableOpacity>
-        );
-      default:
-        return null;
-    }
   };
 
   return (
@@ -119,7 +81,36 @@ export default function FriendListUserItemCard({
           )}
         </View>
       </View>
-      {renderAction()}
+      {requestSent ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Feather name="check" size={20} color={themeColors.mountainGreen} />
+            <Text style={{ fontWeight: 'bold', color: themeColors.text }}>Request sent!</Text>
+          </View>
+        ) : (
+          <TouchableOpacity
+            onPress={handleAddFriendPress}
+            disabled={isLoading}
+            style={{
+              backgroundColor: themeColors.mountainGreen,
+              paddingVertical: 8,
+              paddingHorizontal: 16,
+              borderRadius: 8,
+              width: '100%',
+              alignItems: 'center',
+              opacity: isLoading ? 0.6 : 1,
+            }}
+          >
+            <View style={{ justifyContent: 'center', alignItems: 'center', zIndex: 10 }}>
+              {isLoading ? (
+                <View style={{ transform: [{ scale: 0.75 }] }}>
+                  <ActivityIndicator size="small" color={themeColors.text} />
+                </View>
+              ) : (
+                <Text style={{ fontSize: 12, fontWeight: 'bold', color: themeColors.text }}>Add Friend</Text>
+              )}
+            </View>
+          </TouchableOpacity>
+        )}
     </TouchableOpacity>
   );
 }

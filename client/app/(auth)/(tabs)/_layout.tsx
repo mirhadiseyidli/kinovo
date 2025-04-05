@@ -24,7 +24,6 @@ export default function TabsLayout() {
           backBehavior="history"
           detachInactiveScreens={false}
           screenOptions={{
-            lazy: true,
             tabBarButton: HapticTab,
             tabBarActiveTintColor: Colors[colorScheme ?? 'dark'].tint,
             headerShown: false,
@@ -94,7 +93,7 @@ export default function TabsLayout() {
             options={{
               title: 'Create Event',
               tabBarIcon: ({ color }) => (
-                <Ionicons name="add-circle-outline" size={28} color={color} />
+                <Feather name="plus-circle" size={28} color={color} />
               ),
             }}
             listeners={() => ({
@@ -118,7 +117,7 @@ export default function TabsLayout() {
             options={{
               lazy: true,
               title: 'Profile',
-              tabBarIcon: ({ color }) => <ProfileIcon color={color}/>,
+              tabBarIcon: ({ color }) => <Feather name="user" size={28} color={color} />,
               animation: 'shift'
             }}
           />

@@ -6,12 +6,14 @@ import { Colors } from '@/constants/Colors';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { categoryOptions, CategoryProps, CategoryType } from '@/types/allTypes';
+import { useCreateEvent } from '@/hooks/useCreateEvent';
+import { useCreateEventContext } from '@/context/CreateEventContext';
 
 const Category: React.FC<CategoryProps> = ({ onCategorySelect }) => {
   const screenWidth = Dimensions.get('window').width;
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-
+  const { settingEventCategory } = useCreateEventContext();
   const [selectedCategory, setSelectedCategory] = useState<CategoryType | undefined>(undefined);
 
   // ✅ Function to Open Native Action Sheet for Category Selection
@@ -27,6 +29,7 @@ const Category: React.FC<CategoryProps> = ({ onCategorySelect }) => {
             const selected = categoryOptions[buttonIndex] as Exclude<CategoryType, 'Cancel'>;
             setSelectedCategory(selected);
             onCategorySelect(selected); // Pass selected category up
+            settingEventCategory(selected);
           }
         }
       );
@@ -38,6 +41,7 @@ const Category: React.FC<CategoryProps> = ({ onCategorySelect }) => {
             const selected = category as Exclude<CategoryType, 'Cancel'>;
             setSelectedCategory(selected);
             onCategorySelect(selected);
+            settingEventCategory(selected);
           },
         })),
         { text: 'Cancel', style: 'cancel' },

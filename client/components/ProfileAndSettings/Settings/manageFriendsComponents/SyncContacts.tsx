@@ -9,14 +9,15 @@ import { ThemedText } from '@/components/ThemedText';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
+import { useManageFriends } from '@/hooks/useManageFriends';
 
 export default function ContactSyncScreen() {
-  const { refreshAccessToken } = useAuthSession();
   const [contactsPermission, setContactsPermission] = useState(false);
   const [contacts, setContacts] = useState<any[]>([]);
   const [synced, setSynced] = useState(false);
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
+  const { syncContacts } = useManageFriends();
 
   const checkPermission = async () => {
     const { status } = await Contacts.getPermissionsAsync();
@@ -36,60 +37,30 @@ export default function ContactSyncScreen() {
 
     if (phoneNumbers.length === 0) return;
 
-    const fetchMatchedContacts = async () => {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await axios.post(
-        `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/managefriends/user/contacts/sync`,
-        { phoneNumbers },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      
-      return response.data;
-    };
+    const response = await syncContacts(phoneNumbers);
+    const matchedNumbers: { _id: string; phoneNumber: string }[] = response.data;
+    
+    const matchedContacts = data.filter(c =>
+      c.phoneNumbers?.some(p => p.digits && matchedNumbers.map(m => m.phoneNumber).includes(p.digits))
+    );
 
-    try {
-      const matchedNumbers = await fetchMatchedContacts();
-      
-      const matchedContacts = data.filter(c =>
-        c.phoneNumbers?.some(p => matchedNumbers.includes(p.digits))
-      );
-
-      const matchedIds = new Set(matchedContacts.map(c => c.id));
-      const allMapped = data
-        .filter(c => c.phoneNumbers?.some(p => p.digits?.startsWith('+')))
-        .map((c) => ({
-          _id: c.id,
+    const matchedIds = new Set(matchedContacts.map(c => c.id));
+    const allMapped = data
+      .filter(c => c.phoneNumbers?.some(p => p.digits?.startsWith('+')))
+      .map((c) => {
+        const phoneDigits = c.phoneNumbers?.[0]?.digits;
+        const matchedNumber = phoneDigits ? matchedNumbers.find(m => m.phoneNumber === phoneDigits) : undefined;
+        return {
+          _id: matchedNumber ? matchedNumber._id : c.id,
           full_name: c.name,
           phone_number: c.phoneNumbers?.[0]?.number || '',
           profile_picture: undefined,
           status: matchedIds.has(c.id) ? 'onKinovo' : 'invite',
-        }));
+        };
+      });
 
-      setContacts(allMapped);
-      setSynced(true);
-    } catch (err: any) {
-      if (err.response?.status === 401) {
-        await refreshAccessToken();
-        const matchedNumbers = await fetchMatchedContacts();
-        const matchedContacts = data.filter(c =>
-          c.phoneNumbers?.some(p => matchedNumbers.includes(p.number?.replace(/\D/g, '')))
-        );
-        const matchedIds = new Set(matchedContacts.map(c => c.id));
-        const allMapped = data
-          .filter(c => c.phoneNumbers?.some(p => p.digits?.startsWith('+')))
-          .map((c) => ({
-            _id: c.id,
-            full_name: c.name,
-            phone_number: c.phoneNumbers?.[0]?.number || '',
-            profile_picture: undefined,
-            status: matchedIds.has(c.id) ? 'onKinovo' : 'invite',
-          }));
-        setContacts(allMapped);
-        setSynced(true);
-      } else {
-        console.error('Sync error:', err);
-      }
-    }
+    setContacts(allMapped);
+    setSynced(true);
   };
 
   const handleSyncPress = async () => {

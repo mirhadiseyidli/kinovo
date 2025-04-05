@@ -4,15 +4,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 import axios from 'axios';
 import { useAuthSession } from "@/components/Auth/AuthProvider";
-import { User } from '@/types/allTypes';
 
 export const useUserData = () => {
-  const { signOut } = useAuthSession();
-  const [user, setUser] = useState<User | null>(null);
-
-  useEffect(() => {
-    fetchUserData();
-  }, []);
+  const { refreshAccessToken } = useAuthSession();
 
   const fetchUserData = async () => {
     try {
@@ -23,39 +17,24 @@ export const useUserData = () => {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
 
-      setUser(response.data);
+      return response.data;
     } catch (error: any) {
       console.error(error);
       if (error.response?.status === 401) {
-        await refreshToken();
+        await refreshAccessToken();
+        const retryAccessToken = await AsyncStorage.getItem('accessToken');
+        if (!retryAccessToken) throw new Error('No access token available');
+
+        const retryResponse = await axios.get(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/users/me`, {
+          headers: { Authorization: `Bearer ${retryAccessToken}` },
+        });
+
+        return retryResponse.data;
       } else {
         Alert.alert('Error', 'Failed to fetch user data');
-        logout();
       }
     }
   };
 
-  const refreshToken = async () => {
-    try {
-      const refreshToken = await SecureStore.getItemAsync('refreshToken');
-      if (!refreshToken) throw new Error('No refresh token available');
-
-      const response = await axios.post(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/token/refresh-token`, {
-        headers: { Authorization: `Bearer ${refreshToken}` },
-      });
-
-      const { accessToken } = response.data;
-      await AsyncStorage.setItem('accessToken', accessToken);
-
-      await fetchUserData();
-    } catch (error) {
-      Alert.alert('Error', 'Token refresh failed');
-    }
-  };
-
-  const logout = () => {
-    signOut();
-  }
-
-  return { user, refetchUser: fetchUserData };
+  return { fetchUserData, refetchUser: fetchUserData };
 };

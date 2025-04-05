@@ -86,11 +86,10 @@ const EditUserGeneralInfo = () => {
       {/* Back Button */}
       <NavigateBackButton
         color={themeColors.text}
-        backgroundColor={themeColors.background}
       />
 
       {/* Cover Photo */}
-      <EditUserCoverPhotos user={user} />
+      <EditUserCoverPhotos user={{ coverPhoto: user.cover_photo }} />
 
       {/* Profile Picture */}
       <EditUserProfilePhotos user={user} />
@@ -103,8 +102,6 @@ const EditUserGeneralInfo = () => {
           value={firstName}
           onChangeText={setFirstName}
           placeholder="First Name"
-          placeholderTextColor={themeColors.placeholderTextColor}
-          themeColors={themeColors}
         />
         
         {/* Last Name */}
@@ -113,8 +110,6 @@ const EditUserGeneralInfo = () => {
           value={lastName}
           onChangeText={setLastName}
           placeholder="Last Name"
-          placeholderTextColor={themeColors.placeholderTextColor}
-          themeColors={themeColors}
         />
 
         {/* Date of Birth */}

@@ -11,7 +11,8 @@ const userRoutes = require('./routes/userRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const manageFriendsRoutes = require('./routes/manageFriendsRoutes');
 const searchRoutes = require('./routes/searchRoutes');
-const friendSuggestions = require('./routes/userSuggestionsRoute')
+const friendSuggestionsRoutes = require('./routes/userSuggestionsRoute');
+const eventsRoutes = require('./routes/eventsRoutes');
 
 const app = express();
 
@@ -40,7 +41,6 @@ app.get('/api/check-auth', (req, res) => {
 
   try {
     const decoded = verifyAccessToken(token);
-    console.log('server decoded', decoded)
     res.json({
       loggedIn: true,
       user: { id: decoded.id, email: decoded.email, role: decoded.role },
@@ -57,7 +57,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/assistants', aiRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/managefriends', manageFriendsRoutes);
-app.use('/api/friendsuggestions', friendSuggestions);
+app.use('/api/friendsuggestions', friendSuggestionsRoutes);
+app.use('/api/manageevents', eventsRoutes);
 
 // Start Server
 const PORT = process.env.BACKEND_PORT || 5002;

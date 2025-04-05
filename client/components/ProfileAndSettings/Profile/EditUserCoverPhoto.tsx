@@ -49,7 +49,7 @@ const EditUserCoverPhotos = ({ user }: EditUserCoverPhotosProps) => {
           position: 'absolute', 
           right: 16, 
           top: 4, 
-          backgroundColor: themeColors.background, 
+          backgroundColor: themeColors.buttonBackgroundColor, 
           padding: 12, 
           borderRadius: 8, 
           marginTop: insets.top 

@@ -21,7 +21,7 @@ const UserSettings = () => {
       <SettingComponent 
         icon="user-plus" 
         title="Manage Friends" 
-        onPress={() => router.push('/(auth)/(tabs)/(profile)/(manageFriends)/YourFriends')} 
+        onPress={() => router.push('/(auth)/(tabs)/(profile)/(manageFriends)/AddFriends')} 
       />
     </View>
   );

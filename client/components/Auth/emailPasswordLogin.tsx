@@ -8,7 +8,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Feather } from '@expo/vector-icons';
-import { AuthLoginProps } from '@/types/allTypes';
+import { AuthLoginProps, ApiError } from '@/types/allTypes';
 
 const { width } = Dimensions.get('window');
 
@@ -71,12 +71,13 @@ const EmailLogin: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
     try {
       const response = await axios.post(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/auth/login`, { email, password });
       if (response.data.success) {
-        const { accessToken, refreshToken } = response.data;
-        onLoginSuccess(accessToken, refreshToken);
+        const { accessToken, refreshToken, user } = response.data;
+        onLoginSuccess(accessToken, refreshToken, user._id);
       }
-    } catch (error: any) {
-      setErrors((prev) => ({ ...prev, password: `Login failed: ${error.response?.data?.message || error.message}` }));
-      Alert.alert('Login failed:', error.response?.data?.message || error.message);
+    } catch (error: unknown) {
+      const err = error as ApiError;
+      setErrors((prev) => ({ ...prev, password: `Login failed: ${err.response?.data?.message || err.message}` }));
+      Alert.alert('Login failed:', err.response?.data?.message || err.message);
     }
   };
 

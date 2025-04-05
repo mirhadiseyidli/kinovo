@@ -1,20 +1,27 @@
 const User = require('../database/schemas/usersSchema');
-const jwt = require('jsonwebtoken');
-
-const crypto = require('crypto');
+const FriendRequests = require('../database/schemas/friendRequestsSchema');
 
 require('dotenv').config();
 
 const getUserProfile = async (req, res) => {
   try {
-    res.status(200).json(res.user);
+    const found_request = await FriendRequests.findOne({ sender: req.user._id, receiver: res.user._id });
+    res.status(200).json({ user: res.user, friendRequest: found_request });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const getUsersFriendsList = async (req, res) => {
+  try {
+    const found_request = await FriendRequests.findOne({ sender: req.user._id, receiver: res.user._id });
+    res.status(200).json({ user: res.user, friendRequest: found_request });
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
 };
 
 const getUsers = async (req, res) => {
-  console.log(req.user)
   try {
     const users = await User.find().select('-password');
     res.status(200).json(users);
@@ -25,7 +32,6 @@ const getUsers = async (req, res) => {
 
 const deleteUsers = async (req, res) => {
   let user;
-  console.log(res.user._id)
   try {
     user = await User.deleteOne({ _id: res.user._id }).select('-password');
     console.log('deleted', user)
@@ -76,7 +82,6 @@ const findMe = async (req, res) => {
 
       const userId = req.user._id;
       const user = await User.findOne({ _id: userId }).select('-password');
-      console.log(user)
       if (!user) {
           return res.status(404).json({ message: 'User not found' });
       }
@@ -87,10 +92,8 @@ const findMe = async (req, res) => {
 };
 
 const getUser = async (req, res, next) => {
-  console.log(req)
   let found_user;
   try {
-    console.log(req.query._id)
     found_user = await User.findOne({ _id: req.query._id }).select('-password');
     if (found_user == null) {
       return res.status(404).json({ message: 'Cannot find the user' });
@@ -104,13 +107,14 @@ const getUser = async (req, res, next) => {
 };
 
 const getUserFriendByEmailSearch = async (req, res) => {
+  console.log(req.user)
   try {
     if (!req.user) {
       return res.status(401).json({ message: 'Unauthorized: User not logged in' });
     }
 
-    const { email } = req.query.query;
-    const found_user = await User.findOne({ _id: req.user.id }).populate({
+    const email = req.query.query;
+    const found_user = await User.findOne({ _id: req.user._id }).populate({
       path: 'friends',
       match: { email: { $regex: email, $options: 'i' } }, // Case-insensitive search
       select: '-password'
@@ -128,12 +132,13 @@ const getUserFriendByNameSearch = async (req, res) => {
       return res.status(401).json({ message: 'Unauthorized: User not logged in' });
     }
 
-    const { name } = req.query.query;
-    const found_user = await User.findOne({ _id: req.user.id }).populate({
+    const name = req.query.query;
+    const found_user = await User.findOne({ _id: req.user._id }).populate({
       path: 'friends',
       match: { $or: [
         { first_name: { $regex: name, $options: 'i' } }, 
-        { last_name: { $regex: name, $options: 'i' } }
+        { last_name: { $regex: name, $options: 'i' } },
+        { full_name: { $regex: name, $options: 'i' } },
       ]}, // Case-insensitive search by first or last name
       select: '-password'
     });
@@ -143,79 +148,6 @@ const getUserFriendByNameSearch = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 }
-
-const sendFriendRequest = async (req, res) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ message: 'Unauthorized: User not logged in' });
-    }
-
-    const { receiverId } = req.body;
-    const senderId = req.user.id;
-
-    if (senderId === receiverId) {
-      return res.status(400).json({ message: 'You cannot send a friend request to yourself' });
-    }
-
-    const receiver = await User.findById(receiverId);
-    if (!receiver) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    const existingRequest = receiver.friend_requests.find(
-      req => req.sender.toString() === senderId && req.receiver.toString() === receiverId
-    );
-
-    if (existingRequest) {
-      return res.status(400).json({ message: 'Friend request already sent' });
-    }
-
-    receiver.friend_requests.push({ sender: senderId, receiver: receiverId, status: 'pending' });
-    await receiver.save();
-
-    res.status(200).json({ message: 'Friend request sent successfully' });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
-
-const respondToAFriendRequest = async (req, res) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ message: 'Unauthorized: User not logged in' });
-    }
-
-    const { requestId, status } = req.body;
-    const userId = req.user.id;
-
-    if (!['accepted', 'rejected'].includes(status)) {
-      return res.status(400).json({ message: 'Invalid status' });
-    }
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    const friendRequest = user.friend_requests.find(req => req._id.toString() === requestId);
-
-    if (!friendRequest || friendRequest.receiver.toString() !== userId) {
-      return res.status(404).json({ message: 'Friend request not found or unauthorized' });
-    }
-
-    friendRequest.status = status;
-    await user.save();
-
-    if (status === 'accepted') {
-      await User.findByIdAndUpdate(userId, { $push: { friends: friendRequest.sender } });
-      await User.findByIdAndUpdate(friendRequest.sender, { $push: { friends: userId } });
-    }
-
-    res.status(200).json({ message: `Friend request ${status}` });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
 
 module.exports = { 
   getUserProfile,
@@ -227,6 +159,4 @@ module.exports = {
   getUser,
   getUserFriendByEmailSearch,
   getUserFriendByNameSearch,
-  sendFriendRequest,
-  respondToAFriendRequest
  };

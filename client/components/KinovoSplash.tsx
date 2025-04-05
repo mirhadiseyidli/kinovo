@@ -8,6 +8,8 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import LinearGradient from 'react-native-linear-gradient';
+import { Colors } from '@/constants/Colors';
+import { useColorScheme } from '@/hooks/useColorScheme';
 
 const { width } = Dimensions.get('window');
 
@@ -18,6 +20,8 @@ export default function KinovoSplash() {
   const subtitleOpacity = useSharedValue(0);
   const subtitleDelay = 1000;
   const { width, height } = Dimensions.get("window");
+  const colorScheme = useColorScheme();
+  const themeColors = Colors[colorScheme ?? 'dark'];
 
   useEffect(() => {
     logoOpacity.value = withTiming(1, { duration: 500 });
@@ -68,7 +72,7 @@ export default function KinovoSplash() {
             fontFamily: 'Helvetica Neue Bold',
             letterSpacing: -1,
             backgroundClip: 'text',
-            color: 'white',
+            color: themeColors.text,
           }}
         >
           Kinovo

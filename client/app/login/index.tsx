@@ -1,5 +1,3 @@
-// app/(auth)/auth.tsx
-
 import React from 'react';
 import { View, Image, TouchableOpacity } from 'react-native';
 import EmailLogin from '@/components/Auth/emailPasswordLogin';
@@ -13,17 +11,18 @@ import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthSession } from "@/components/Auth/AuthProvider";
+import { TokenTypes } from '@/types/allTypes';
 
-export default function Auth() {
+export default function Auth(): JSX.Element {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const insets = useSafeAreaInsets();
   const { signIn } = useAuthSession();
 
-  const handleLogin = async (accessToken: string, refreshToken: string) => {
+  const handleLogin: TokenTypes = async (accessToken, refreshToken, userId) => {
     try {
       // Trigger authentication state update
-      signIn(accessToken, refreshToken);
+      signIn(accessToken, refreshToken, userId);
     } catch (error) {
       console.error('Error storing tokens:', error);
     }

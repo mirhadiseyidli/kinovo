@@ -7,6 +7,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import CheckBox from '@react-native-community/checkbox';
 import { DatePickerChangeHandler } from '@/types/allTypes';
+import { useCreateEventContext } from '@/context/CreateEventContext';
 
 const { width } = Dimensions.get('window');
 const getFontSize = (percentage: number) => (width * percentage) / 100;
@@ -14,15 +15,29 @@ const getFontSize = (percentage: number) => (width * percentage) / 100;
 const Frequency: React.FC = () => {
   const colorScheme = useColorScheme();
   const [isRecurring, setIsRecurring] = useState(false);
-  const [unit, setUnit] = useState('Daily');
-  const [endDate, setEndDate] = useState(new Date());
+  const [unit, setUnit] = useState<string | null>('Select');
+  const [endDate, setEndDate] = useState<Date | null>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const colorAnim = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(0))[0];
   const themeColors = Colors[colorScheme ?? 'dark'];
+  const { settingEventRecurrence  } = useCreateEventContext();
 
   const toggleCheck = (newValue: boolean) => {
     setIsRecurring(newValue);
+    if (!newValue) {
+      settingEventRecurrence({
+        checked: false,
+        frequency: null,
+        end_date: null
+      });
+    } else if (unit && endDate) {
+      settingEventRecurrence({
+        checked: true,
+        frequency: unit.toLowerCase() as 'daily' | 'weekly' | 'monthly' | 'yearly',
+        end_date: endDate
+      });
+    }
     Animated.timing(slideAnim, {
       toValue: newValue ? 1 : 0,
       duration: 300, // Adjust speed for smooth expansion
@@ -53,18 +68,30 @@ const Frequency: React.FC = () => {
           cancelButtonIndex: 4,
         },
         (buttonIndex) => {
-          if (buttonIndex === 0) setUnit('Daily');
-          else if (buttonIndex === 1) setUnit('Weekly');
-          else if (buttonIndex === 2) setUnit('Monthly');
-          else if (buttonIndex === 3) setUnit('Yearly');
+          let selected = '';
+          if (buttonIndex === 0) selected = 'Daily';
+          else if (buttonIndex === 1) selected = 'Weekly';
+          else if (buttonIndex === 2) selected = 'Monthly';
+          else if (buttonIndex === 3) selected = 'Yearly';
+
+          if (selected) {
+            setUnit(selected);
+            if (endDate) {
+              settingEventRecurrence({
+                checked: true,
+                frequency: selected.toLowerCase() as 'daily' | 'weekly' | 'monthly' | 'yearly',
+                end_date: endDate
+              });
+            }
+          }
         }
       );
     } else {
       Alert.alert('Select Unit', '', [
-        { text: 'Daily', onPress: () => setUnit('Daily') },
-        { text: 'Weekly', onPress: () => setUnit('Weekly') },
-        { text: 'Monthly', onPress: () => setUnit('Monthly') },
-        { text: 'Yearly', onPress: () => setUnit('Yearly') },
+        { text: 'Daily', onPress: () => { setUnit('Daily'); if (endDate) { settingEventRecurrence({ checked: true, frequency: 'daily', end_date: endDate }); } } },
+        { text: 'Weekly', onPress: () => { setUnit('Weekly'); if (endDate) { settingEventRecurrence({ checked: true, frequency: 'weekly', end_date: endDate }); } } },
+        { text: 'Monthly', onPress: () => { setUnit('Monthly'); if (endDate) { settingEventRecurrence({ checked: true, frequency: 'monthly', end_date: endDate }); } } },
+        { text: 'Yearly', onPress: () => { setUnit('Yearly'); if (endDate) { settingEventRecurrence({ checked: true, frequency: 'yearly', end_date: endDate }); } } },
         { text: 'Cancel', style: 'cancel' },
       ]);
     }
@@ -78,6 +105,13 @@ const Frequency: React.FC = () => {
     setShowDatePicker(false);
     if (selectedDate instanceof Date) {
       setEndDate(selectedDate);
+      if (unit && selectedDate) {
+        settingEventRecurrence({
+          checked: true,
+          frequency: unit.toLowerCase() as 'daily' | 'weekly' | 'monthly' | 'yearly',
+          end_date: selectedDate
+        });
+      }
     }
   };
 
@@ -132,7 +166,7 @@ const Frequency: React.FC = () => {
                 paddingHorizontal: 12,
                 borderRadius: 8,
               }}>
-                <Text style={{ fontSize: 16, color: Colors[colorScheme ?? 'dark'].text }}>{endDate.toDateString()}</Text>
+                <Text style={{ fontSize: 16, color: Colors[colorScheme ?? 'dark'].text }}>{endDate?.toDateString()}</Text>
               </TouchableOpacity>
               
               {/* Use a modal for iOS to prevent layout shift */}
@@ -142,7 +176,7 @@ const Frequency: React.FC = () => {
                     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)', minHeight: 280 }}>
                       <View style={{ backgroundColor: themeColors.background, padding: 20, borderRadius: 10, minWidth: 280, width: '100%', }}>
                         <DateTimePicker
-                          value={endDate}
+                          value={endDate ?? new Date()}
                           mode="date"
                           minimumDate={new Date()}
                           display="inline" // Fixes empty modal issue

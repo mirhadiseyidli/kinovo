@@ -1,5 +1,5 @@
 import { View, Image, Platform } from 'react-native';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedText } from '@/components/ThemedText';
@@ -9,60 +9,46 @@ import FriendListUserItem from '@/components/ProfileAndSettings/Settings/manageF
 import { useAuthSession } from '@/components/Auth/AuthProvider';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { useFocusEffect } from '@react-navigation/native';
 import type { ApiError, FriendRequest } from '@/types/allTypes';
+import { useManageFriends } from '@/hooks/useManageFriends';
 
 export default function FriendRequests() {
-  const [searchQuery, setSearchQuery] = useState('');
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const { refreshAccessToken } = useAuthSession();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
+  const { 
+    getReceivedFriendRequests,
+    acceptFriendRequest,
+    rejectFriendRequest
+  } = useManageFriends();
 
-  useEffect(() => {
-    const fetchFriendRequests = async () => {
-      try {
-        const token = await AsyncStorage.getItem('accessToken');
-        const response = await axios.get(
-          `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/managefriends/user/get/received/friend/requests`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+  useFocusEffect(
+    useCallback(() => {
+      const fetchFriendRequests = async () => {
+          const response = await getReceivedFriendRequests();
+          setRequests(response.data.requests);
+      };
 
-        setRequests(response.data.requests);
-      } catch (error) {
-        const err = error as ApiError;
-        if (err.response?.status === 401) {
-          try {
-            await refreshAccessToken();
-            const retryToken = await AsyncStorage.getItem('accessToken');
-            const retryResponse = await axios.get(
-              `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/managefriends/user/get/received/friend/requests`,
-              { headers: { Authorization: `Bearer ${retryToken}` } }
-            );
-            setRequests(retryResponse.data.requests);
-          } catch (retryError) {
-            console.error('Retry after token refresh failed:', retryError);
-          }
-        } else {
-          console.error('Failed to fetch friend requests:', err.message);
-        }
-      }
-    };
-
-    fetchFriendRequests();
-  }, []);
+      fetchFriendRequests();
+    }, [refreshAccessToken])
+  );
 
   return (
     <ThemedView style={{ flex: 1, alignItems: 'center' }}>
-      <ScrollView contentContainerStyle={{ width: '100%', paddingHorizontal: 16, flexGrow: 1 }}>
+      <ScrollView contentContainerStyle={{ marginTop: 16, width: '100%', paddingHorizontal: 16, flexGrow: 1 }}>
         {requests.length > 0 ? (
           requests.map((req, index) => (
             <FriendListUserItem
-              _id={req._id}
+              _id={req.sender._id}
               key={req._id || index}
               name={req.sender.full_name}
               subtitle={`@${req.sender.username}`}
+              avatarUri={req.sender.profile_picture}
               status="request"
-              onEdit={() => console.log(`Accepted @${req.sender.username}`)}
+              onAdd={() => acceptFriendRequest(req.sender._id)}
+              onRemove={() => rejectFriendRequest(req.sender._id)}
             />
           ))
         ) : (

@@ -8,7 +8,6 @@ import type { ApiError } from '@/types/allTypes';
 
 const googleLogo = require('@/assets/google-logo.png');
 
-
 const GoogleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
   // Configure Google Sign-In
   GoogleSignin.configure({
@@ -38,14 +37,14 @@ const GoogleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
       console.log('Backend response:', response.data);
 
       if (response.status === 200 && response.data.success) {
-        const { accessToken, refreshToken } = response.data;
+        const { accessToken, refreshToken, user } = response.data;
 
         if (!accessToken || !refreshToken) {
           throw new Error('Invalid token response from backend');
         }
 
         // Pass both tokens to onLoginSuccess
-        onLoginSuccess(accessToken, refreshToken);
+        onLoginSuccess(accessToken, refreshToken, user._id);
       } else {
         Alert.alert('Error', 'Authentication failed.');
       }

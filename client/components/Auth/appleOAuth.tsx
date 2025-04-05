@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Button, Alert, Image, TouchableOpacity } from 'react-native';
 import { GoogleSignin, statusCodes, isSuccessResponse, isErrorWithCode } from '@react-native-google-signin/google-signin';
-import { GOOGLE_CLIENT_ID_IOS } from '@env';
 import axios from 'axios';
 import AuthButton from '@/components/Auth/AuthButton';
 import { AuthLoginProps } from '@/types/allTypes';
