@@ -1,5 +1,5 @@
 import { View, ScrollView, TouchableOpacity } from 'react-native';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import SearchBar from '@/components/SearchBar';
@@ -13,93 +13,60 @@ import ContactSyncScreen from '@/components/ProfileAndSettings/Settings/manageFr
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import FriendListUserItemCard from '@/components/ProfileAndSettings/Settings/manageFriendsComponents/FriendListUserItemCard';
 import { User } from '@/types/allTypes';
+import { useFocusEffect } from '@react-navigation/native';
+import { useManageFriends } from '@/hooks/useManageFriends';
+import { AutoSkeletonView } from 'react-native-auto-skeleton';
 
 export default function FriendSuggestionsList() {
   const [suggestions, setSuggestions] = useState<User[]>([]);
   const { refreshAccessToken } = useAuthSession();
+  const { sendFriendRequest } = useManageFriends()
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
+  const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    const fetchSuggestions = async () => {
-      try {
-        const token = await AsyncStorage.getItem('accessToken');
-        const response = await axios.get(
-          `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/friendsuggestions/user/friends/suggestions`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        setSuggestions(response.data);
-      } catch (error: any) {
-        if (error.response?.status === 401) {
-          try {
-            await refreshAccessToken();
-            const retryToken = await AsyncStorage.getItem('accessToken');
-            const retryResponse = await axios.get(
-              `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/friendsuggestions/user/friends/suggestions`,
-              { headers: { Authorization: `Bearer ${retryToken}` } }
-            );
-            setSuggestions(retryResponse.data);
-          } catch (retryError) {
-            console.error('Retry after token refresh failed:', retryError);
-          }
-        } else {
-          console.error('Failed to fetch suggestions:', error.message);
-        }
-      }
-    };
-
-    fetchSuggestions();
-  }, []);
-
-  const sendFriendRequest = async (receiver_id: string) => {
-    try {
-      const senderToken = await AsyncStorage.getItem('accessToken');
-      const response = await axios.post(
-        `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/managefriends/friendrequests/send`,
-        { receiver: receiver_id },
-        {
-          headers: {
-            Authorization: `Bearer ${senderToken}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      if (response.status === 201) {
-        console.log('Friend request sent:', response.data);
-      }
-    } catch (error: any) {
-      if (error.response?.status === 401) {
+  useFocusEffect(
+    useCallback(() => {
+      const fetchSuggestions = async () => {
+        setIsLoading(true);
         try {
-          await refreshAccessToken();
-          const retryToken = await AsyncStorage.getItem('accessToken');
-          const retryResponse = await axios.post(
-            `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/managefriends/friendrequests/send`,
-            { receiver: receiver_id },
-            {
-              headers: {
-                Authorization: `Bearer ${retryToken}`,
-                'Content-Type': 'application/json',
-              },
-            }
+          const token = await AsyncStorage.getItem('accessToken');
+          const response = await axios.get(
+            `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/friendsuggestions/user/friends/suggestions`,
+            { headers: { Authorization: `Bearer ${token}` } }
           );
-          console.log('Friend request sent after refresh:', retryResponse.data);
-        } catch (retryError) {
-          console.error('Retry friend request failed:', retryError);
+          setSuggestions(response.data);
+          setIsLoading(false);
+        } catch (error: any) {
+          if (error.response?.status === 401) {
+            try {
+              await refreshAccessToken();
+              const retryToken = await AsyncStorage.getItem('accessToken');
+              const retryResponse = await axios.get(
+                `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/friendsuggestions/user/friends/suggestions`,
+                { headers: { Authorization: `Bearer ${retryToken}` } }
+              );
+              setSuggestions(retryResponse.data);
+              setIsLoading(false);
+            } catch (retryError) {
+              console.error('Retry after token refresh failed:', retryError);
+            }
+          } else {
+            console.error('Failed to fetch suggestions:', error.message);
+          }
         }
-      } else {
-        console.error('Failed to send friend request:', error.message);
-      }
-    }
-  };
+      };
+
+      fetchSuggestions();
+    }, [refreshAccessToken])
+  );
 
   return (
     <View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
         <ThemedText style={{ fontSize: 16, fontWeight: 'bold', color: themeColors.text }}>People you may know</ThemedText>
         <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <ThemedText style={{ fontSize: 16, marginRight: 4 }}>View All</ThemedText>
+          <ThemedText style={{ fontSize: 16, marginRight: 4, color: themeColors.text }}>View All</ThemedText>
           <IconSymbol
             name="chevron.right"
             size={12}

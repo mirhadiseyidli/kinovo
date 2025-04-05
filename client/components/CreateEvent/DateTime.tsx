@@ -7,11 +7,13 @@ import { Colors } from '@/constants/Colors';
 import { ThemedView } from '../ThemedView';
 import { ThemedText } from '../ThemedText';
 import type { DateTimeState, DatePickerChangeHandler } from '@/types/allTypes';
+import { useCreateEventContext } from '@/context/CreateEventContext';
 
 const DateTime: React.FC = () => {
   const screenWidth = Dimensions.get('window').width;
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
+  const { settingEventStartTime, settingEventEndTime } = useCreateEventContext();
 
   const [startDate, setStartDate] = useState<DateTimeState['startDate']>(new Date());
   const [endDate, setEndDate] = useState<DateTimeState['endDate']>(new Date());
@@ -22,10 +24,12 @@ const DateTime: React.FC = () => {
 
   const handleStartDateChange: DatePickerChangeHandler = (event, selectedDate) => {
     if (selectedDate) setTempStartDate(selectedDate);
+    settingEventStartTime(selectedDate ?? null);
   };
   
   const handleEndDateChange: DatePickerChangeHandler = (event, selectedDate) => {
     if (selectedDate) setTempEndDate(selectedDate);
+    settingEventEndTime(selectedDate ?? null);
   };
 
   return (

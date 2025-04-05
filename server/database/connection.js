@@ -1,10 +1,14 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
+const { initWebSocket } = require('../websocket/websocket');
 
 main().catch(err => console.log(err));
 
 async function main() {
-  mongoose.connect(process.env.MONGODB_URI, {});
+  mongoose.connect(process.env.MONGODB_URI, {})
+    .then(() => {
+      initWebSocket();
+    })
 }
 
 const db = mongoose.connection;

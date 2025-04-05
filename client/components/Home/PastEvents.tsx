@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, ScrollView, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import PastEvent from '@/components/Home/PastEvent';
@@ -7,76 +7,25 @@ import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
-import { PastEventItem, GroupedEvents } from '@/types/allTypes';
+import { Event } from '@/types/allTypes';
+import { AutoSkeletonView } from 'react-native-auto-skeleton';
+import { useGetMyPastEvents } from '@/hooks/useGetMyPastEvents';
+import { useFocusEffect } from '@react-navigation/native';
 
-const pastEventData: PastEventItem[] = [
-  {
-    id: 1,
-    title: 'Tech Conference',
-    date: '2024-12-15',
-    attendees: [
-      { name: 'Emma', image: require('@/assets/profile-pic-1.webp') },
-      { name: 'Mike', image: require('@/assets/profile-pic-2.jpeg') }
-    ],
-    image: require('@/assets/soccer-field.jpg'),
-  },
-  {
-    id: 2,
-    title: 'Summer Festival',
-    date: '2024-08-20',
-    attendees: [
-      { name: 'Emma', image: require('@/assets/profile-pic-1.webp') },
-      { name: 'Mike', image: require('@/assets/profile-pic-2.jpeg') }
-    ],
-    image: require('@/assets/hiking-place.jpg'),
-  },
-  {
-    id: 3,
-    title: 'Startup Meetup',
-    date: '2024-07-05',
-    attendees: [
-      { name: 'Emma', image: require('@/assets/profile-pic-1.webp') },
-      { name: 'Mike', image: require('@/assets/profile-pic-2.jpeg') },
-      { name: 'Emma', image: require('@/assets/profile-pic-1.webp') },
-      { name: 'Mike', image: require('@/assets/profile-pic-2.jpeg') },
-      { name: 'Emma', image: require('@/assets/profile-pic-1.webp') },
-      { name: 'Mike', image: require('@/assets/profile-pic-2.jpeg') }
-    ],
-    image: require('@/assets/conference-room.webp'),
-  },
-  {
-    id: 4,
-    title: 'Art Exhibition',
-    date: '2024-06-30',
-    attendees: [
-      { name: 'Emma', image: require('@/assets/profile-pic-1.webp') },
-      { name: 'Mike', image: require('@/assets/profile-pic-2.jpeg') }
-    ],
-    image: require('@/assets/tennis-court.jpg'),
-  },
-  {
-    id: 5,
-    title: 'Tech Conference',
-    date: '2024-06-15',
-    attendees: [
-      { name: 'Emma', image: require('@/assets/profile-pic-1.webp') },
-      { name: 'Mike', image: require('@/assets/profile-pic-2.jpeg') }
-    ],
-    image: require('@/assets/soccer-field.jpg'),
-  },
-];
-
-const groupEventsByMonth = (events: PastEventItem[]): GroupedEvents => {
-  const grouped: GroupedEvents = {};
+const groupEventsByMonth = (events: Event[]) => {
+  const grouped: Record<string, Event[]> = {};
   const now = new Date();
 
-  events.forEach((event) => {
-    const eventDate = new Date(event.date);
+  events.forEach((event: Event) => {
+    if (!event.start_time) return;
+
+    const eventDate = new Date(event.start_time);
+    if (eventDate >= now) return; // only group past events
+
     const monthName =
       eventDate.getFullYear() === now.getFullYear() && eventDate.getMonth() === now.getMonth()
         ? 'This Month'
-        : eventDate.getFullYear() === now.getFullYear() &&
-          eventDate.getMonth() === now.getMonth() - 1
+        : eventDate.getFullYear() === now.getFullYear() && eventDate.getMonth() === now.getMonth() - 1
         ? 'Last Month'
         : eventDate.toLocaleString('default', { month: 'long' });
 
@@ -87,10 +36,31 @@ const groupEventsByMonth = (events: PastEventItem[]): GroupedEvents => {
   return grouped;
 };
 
-const PastEvents: React.FC = () => {
+const PastEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }> = ({ refreshing, onFinishRefresh }) => {
   const colorScheme = useColorScheme();
-  const groupedEvents = groupEventsByMonth(pastEventData);
+  const themeColors = Colors[colorScheme ?? 'dark'];
   const tabBarHeight = useBottomTabBarHeight(); // Get the tab bar height dynamically
+  const { fetchMyPastEvents } = useGetMyPastEvents();
+  const [myPastEventsList, setMyPastEventsList] = useState<Event[]>([]);
+  
+  const fetchPastEvents = async () => {
+    const myPastEvents = await fetchMyPastEvents();
+    setMyPastEventsList(myPastEvents);
+    onFinishRefresh();
+  }
+  
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchPastEvents();
+    }, [refreshing])
+  );
+
+  const groupedEvents = useMemo(() => {
+    if (!myPastEventsList || myPastEventsList.length === 0) return {};
+
+    return groupEventsByMonth(myPastEventsList);
+  }, [myPastEventsList]);
+  
 
   return (
     <ThemedView style={{ flex: 1, width: '100%' }}>
@@ -109,35 +79,65 @@ const PastEvents: React.FC = () => {
             marginBottom: 16,
           }}
         >
-          <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>
-            Event History
-          </ThemedText>
+          <AutoSkeletonView 
+            isLoading={refreshing} 
+            shimmerBackgroundColor={themeColors.background} 
+            gradientColors={[
+              themeColors.background, 
+              themeColors.inputBackgroundColor
+            ]}
+          >
+            <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>
+              Event History
+            </ThemedText>
+          </AutoSkeletonView>
           <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <ThemedText style={{ fontSize: 16, marginRight: 8 }}>Filter</ThemedText>
-            <Feather name="filter" size={14} color={Colors[colorScheme ?? 'dark'].tint} />
+            <AutoSkeletonView 
+              isLoading={refreshing} 
+              shimmerBackgroundColor={themeColors.background} 
+              gradientColors={[
+                themeColors.background, 
+                themeColors.inputBackgroundColor
+              ]}
+            >
+              <ThemedView style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <ThemedText style={{ fontSize: 16, marginRight: 8 }}>Filter</ThemedText>
+                <Feather name="filter" size={14} color={Colors[colorScheme ?? 'dark'].tint} />
+              </ThemedView>
+            </AutoSkeletonView>
           </TouchableOpacity>
         </View>
 
         {/* Events Grouped by Month */}
-        <View style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {Object.entries(groupedEvents).map(([month, events]) => (
-            <View key={month} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <ThemedText style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 8 }}>
-                {month}
-              </ThemedText>
-
-              {events.map((event) => (
-                <PastEvent
-                  key={event.id}
-                  title={event.title}
-                  date={event.date}
-                  attendees={event.attendees}
-                  image={event.image}
-                />
-              ))}
-            </View>
-          ))}
-        </View>
+        {!myPastEventsList || myPastEventsList.length === 0 ? (
+            <ThemedText>Could't load events</ThemedText>
+        ) : (
+          <View style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {Object.entries(groupedEvents).map(([month, events]) => (
+              <View key={month} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <AutoSkeletonView 
+                  isLoading={refreshing} 
+                  shimmerBackgroundColor={themeColors.background} 
+                  gradientColors={[
+                    themeColors.background, 
+                    themeColors.inputBackgroundColor
+                  ]}
+                >
+                  <ThemedText style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 8 }}>
+                    {month}
+                  </ThemedText>
+                </AutoSkeletonView>
+                {events.map((event) => (
+                  <PastEvent
+                    key={event._id}
+                    event={event}
+                    loading={refreshing}
+                  />
+                ))}
+              </View>
+            ))}
+          </View>
+        )}
       </ScrollView>
     </ThemedView>
   );

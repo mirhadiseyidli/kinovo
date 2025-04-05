@@ -20,7 +20,7 @@ export default React.memo(function AboutUser({ user }: UserProp) {
 
   return (
     <ThemedView style={{ flex: 1, padding: 16, height: 'auto' }}>
-      <View>
+      {/* <View> */}
         <ThemedText style={{ fontSize: 16, fontWeight: 'bold', color: themeColors.placeholderTextColor, marginBottom: 8 }}>Bio</ThemedText>
         {user.bio ? (
           <ThemedText style={{ fontSize: 16 }}>{user.bio}</ThemedText>
@@ -75,7 +75,7 @@ export default React.memo(function AboutUser({ user }: UserProp) {
             )}
           </View>
         </View>
-      </View>
+      {/* </View> */}
     </ThemedView>
   );
 });

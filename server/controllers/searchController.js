@@ -10,6 +10,7 @@ const searchPeople = async (req, res) => {
 
         // Query both users and drones collections in parallel
         const users = await User.find({
+            _id: { $ne: req.user._id },
             $or: [
                 { email: { $regex: term, $options: 'i' } },
                 { username: { $regex: term, $options: 'i' } },

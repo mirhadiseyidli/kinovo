@@ -106,6 +106,12 @@ const usersSchema = new mongoose.Schema({
   friends: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Users',
+    validate: {
+      validator: function(value) {
+        return !this._id.equals(value);
+      },
+      message: 'User cannot add themselves as a friend',
+    }
   }],
   location: {
     city: { type: String, default: null },
@@ -117,6 +123,10 @@ const usersSchema = new mongoose.Schema({
     }
   },
   events: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Events',
+  }],
+  past_events: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Events',
   }],
@@ -139,6 +149,19 @@ const usersSchema = new mongoose.Schema({
       }
     },
   },
+  last_checked_events: [
+    {
+      friend: { type: mongoose.Schema.Types.ObjectId, ref: 'Users' },
+      viewed_at: { type: Date, default: null }
+    }
+  ],
+  friend_event_history: [
+    {
+      friend: { type: mongoose.Schema.Types.ObjectId, ref: 'Users' },
+      event: { type: mongoose.Schema.Types.ObjectId, ref: 'Events' },
+      added_at: { type: Date, default: Date.now }
+    }
+  ]
 });
 
 module.exports = mongoose.model('Users', usersSchema);

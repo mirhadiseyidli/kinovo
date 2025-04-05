@@ -1,5 +1,5 @@
 import { useAuthSession } from "@/components/Auth/AuthProvider";
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { View, Text, Button, ScrollView, Alert } from "react-native";
 import { ThemedView } from "@/components/ThemedView";
 import UserProfilePreview from "@/components/ProfileAndSettings/Settings/UserProfilePreview";
@@ -12,7 +12,6 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Header from "@/components/Header";
 import AppInfoSettings from "@/components/ProfileAndSettings/Settings/AppInfoSettings";
-import React from "react";
 
 export default React.memo(function ProfileTab() {
   const { signOut } = useAuthSession()

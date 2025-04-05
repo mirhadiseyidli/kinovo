@@ -31,8 +31,7 @@ const getUserEvents = async (userId) => {
 
 // Modified getAISummary for WebSocket use
 const getAISummary = async (userId, ws) => {
-  console.log(userId);
-  // const events = await getUserEvents(userId);
+  const events = await getUserEvents(userId);
 
   const openai = new OpenAI({ apiKey: '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' });
   const assistantId = 'asst_MPDd9p8PwFeiV3kbehPvCS2P';

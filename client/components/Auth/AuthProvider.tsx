@@ -83,6 +83,7 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
   const refreshAccessToken = async () => {
     try {
       const refreshToken = refreshTokenRef.current;
+      console.log(refreshToken)
       if (!refreshToken) {
         signOut();
         return;
@@ -114,9 +115,10 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
     }
   };
 
-  const signIn: TokenTypes = useCallback(async (accessToken, refreshToken) => {
+  const signIn = useCallback(async (accessToken: string, refreshToken: string, userId: string) => {
     fadeTransition(async () => {
       await AsyncStorage.setItem('accessToken', accessToken);
+      await AsyncStorage.setItem('userId', userId);
       await SecureStore.setItemAsync('refreshToken', refreshToken);
       accessTokenRef.current = accessToken;
       refreshTokenRef.current = refreshToken;
@@ -127,6 +129,7 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
   const signOut = useCallback(async () => {
     fadeTransition(async () => {
       await AsyncStorage.removeItem('accessToken');
+      await AsyncStorage.removeItem('userId');
       await SecureStore.deleteItemAsync('refreshToken');
       accessTokenRef.current = null;
       refreshTokenRef.current = null;

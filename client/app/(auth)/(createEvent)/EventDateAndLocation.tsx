@@ -9,7 +9,7 @@ import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import type { CreateEventTabParamList } from '@/types/allTypes';
 
 export default React.memo(function EventDateAndLocation() {
@@ -27,43 +27,45 @@ export default React.memo(function EventDateAndLocation() {
 
   return (
     <ThemedView style={{ flex: 1, width: '100%', padding: 16 }}>
-      {/* Step 2: Date & Location */}
-      <DateTime />
-      <LocationComponent />
-      <Frequency />
-      {/* Back and Next Buttons */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-        <ButtonWithLabel 
-          label="Back"
-          onPress={navigateToBack}
-          containerStyle={{ 
-            backgroundColor: themeColors.inputBackgroundColor,
-            paddingVertical: 10,
-            paddingHorizontal: 16,
-            borderRadius: 8,
-            alignSelf: 'flex-start',
-          }}
-          textStyle={{
-            fontWeight: 'bold',
-            color: themeColors.text
-          }}
-        />
-        <ButtonWithLabel 
-          label="Next"
-          onPress={navigateToNext}
-          containerStyle={{ 
-            backgroundColor: themeColors.mountainGreen,
-            paddingVertical: 10,
-            paddingHorizontal: 16,
-            borderRadius: 8,
-            alignSelf: 'flex-end',
-          }}
-          textStyle={{
-            fontWeight: 'bold',
-            color: themeColors.text
-          }}
-        />
-      </View>
+      <ScrollView>
+        {/* Step 2: Date & Location */}
+        <DateTime />
+        <LocationComponent />
+        <Frequency />
+        {/* Back and Next Buttons */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <ButtonWithLabel 
+            label="Back"
+            onPress={navigateToBack}
+            containerStyle={{ 
+              backgroundColor: themeColors.inputBackgroundColor,
+              paddingVertical: 10,
+              paddingHorizontal: 16,
+              borderRadius: 8,
+              alignSelf: 'flex-start',
+            }}
+            textStyle={{
+              fontWeight: 'bold',
+              color: themeColors.text
+            }}
+          />
+          <ButtonWithLabel 
+            label="Next"
+            onPress={navigateToNext}
+            containerStyle={{ 
+              backgroundColor: themeColors.mountainGreen,
+              paddingVertical: 10,
+              paddingHorizontal: 16,
+              borderRadius: 8,
+              alignSelf: 'flex-end',
+            }}
+            textStyle={{
+              fontWeight: 'bold',
+              color: themeColors.text
+            }}
+          />
+        </View>
+      </ScrollView>
     </ThemedView>
   );
 });

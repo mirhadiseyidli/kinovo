@@ -17,6 +17,7 @@ import axios from 'axios';
 import { useLocation } from '@/context/LocationContext';
 import MapViewModal from '../MapViewModal';
 import { Suggestion, Coordinates, GeocodingApiResult, LocationSelectHandler, SelectedLocation, FetchAddressSuggestions } from '@/types/allTypes';
+import { useCreateEventContext } from '@/context/CreateEventContext';
 
 const LocationComponent: React.FC = () => {
   const [selectedLocation, setSelectedLocation] = useState<SelectedLocation>(null);
@@ -27,6 +28,7 @@ const LocationComponent: React.FC = () => {
   const { locationPermission } = useLocation();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
+  const { settingEventLocation } = useCreateEventContext();
 
   const fetchAddressSuggestions: FetchAddressSuggestions = async (text) => {
     if (!text.trim()) { // Ensure empty input fully clears suggestions
@@ -65,6 +67,7 @@ const LocationComponent: React.FC = () => {
           displayName: { text: item.formatted_address },
           formattedAddress: item.formatted_address,
           location: item.geometry.location,
+          postalAddress: item.postalAddress
         }));
       }
 
@@ -74,9 +77,13 @@ const LocationComponent: React.FC = () => {
     }
   };
 
-  const handleLocationSelect: LocationSelectHandler = async (location, description) => {
-    setSelectedLocation(description);
-    setInputText(description);
+  const handleLocationSelect: LocationSelectHandler = async (text, city, state, location) => {
+    console.log('text ', text)
+    console.log('city ', city)
+    console.log('state', state)
+    console.log('location ', location)
+    setSelectedLocation(text);
+    setInputText(text);
     setSuggestions([]);
 
     if (!isNaN(location.latitude) && !isNaN(location.longitude)) {
@@ -84,6 +91,16 @@ const LocationComponent: React.FC = () => {
     } else {
       console.error("Invalid coordinates received:", location);
     }
+
+    settingEventLocation({ 
+      text: text,
+      city,
+      state,
+      coordinates: { 
+        lat: location.latitude, 
+        lng: location.longitude 
+      }
+    });
 
     // Animate map to slide down
     Animated.timing(mapVisible, {
@@ -143,11 +160,8 @@ const LocationComponent: React.FC = () => {
             borderRadius: 8,
             paddingVertical: 5,
             maxHeight: 250, // Ensuring enough space for scrolling
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.2,
-            shadowRadius: 4,
-            elevation: 3,
+            borderWidth: 1,
+            borderColor: themeColors.background,
             zIndex: 1000, // Ensures it overlays other components
           }}>
             <ScrollView style={{ maxHeight: 250 }} nestedScrollEnabled={true}>
@@ -159,7 +173,12 @@ const LocationComponent: React.FC = () => {
                     borderBottomWidth: index !== suggestions.length - 1 ? 1 : 0,
                     borderBottomColor: themeColors.background,
                   }}
-                  onPress={() => handleLocationSelect(item['location'], item['displayName']['text'])}
+                  onPress={() => handleLocationSelect(
+                    item?.displayName?.text,
+                    item?.postalAddress.locality,
+                    item?.postalAddress.administrativeArea,
+                    item?.location,
+                  )}
                 >
                   <Text style={{ fontWeight: 'bold', color: themeColors.text }}>{item['displayName']['text']}</Text>
                   <Text style={{ color: themeColors.text, fontSize: 12 }}>{item['formattedAddress']}</Text>

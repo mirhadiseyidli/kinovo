@@ -1,5 +1,6 @@
 import { View, ScrollView, TouchableOpacity } from 'react-native';
 import React, { useState, useEffect } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import SearchBar from '@/components/SearchBar';
@@ -18,7 +19,6 @@ import type { ApiError, User } from '@/types/allTypes';
 export default function AddFriends() {
   const [searchQuery, setSearchQuery] = useState('');
   const [results, setResults] = useState<User[]>([]);
-  const [suggestions, setSuggestions] = useState<User[]>([]);
   const { refreshAccessToken } = useAuthSession();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
@@ -69,6 +69,12 @@ export default function AddFriends() {
 
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      return () => setSearchQuery(''); // Clear when screen loses focus
+    }, [])
+  );
 
   return (
     <ThemedView style={{ flex: 1, alignItems: 'center' }}>

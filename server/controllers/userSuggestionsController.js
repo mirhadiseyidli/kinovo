@@ -11,8 +11,6 @@ const getFriendSuggestions = async (req, res) => {
     location: 1,
     favorite_activities: 1,
   });
-  
-  console.log('Base user:', baseUser);
 
   const baseCity = baseUser?.location?.city || null;
   const baseActivities = baseUser?.favorite_activities || [];

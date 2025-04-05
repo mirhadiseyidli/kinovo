@@ -94,7 +94,13 @@ export type Suggestion = {
     latitude: number;
     longitude: number;
   };
+  postalAddress: CityAndState
 };
+
+export type CityAndState = {
+  locality: string;
+  administrativeArea: string;
+}
 
 export type Coordinates = {
   latitude: number;
@@ -103,14 +109,17 @@ export type Coordinates = {
 
 export type GeocodingApiResult = {
   formatted_address: string;
+  postalAddress: CityAndState;
   geometry: {
     location: Coordinates;
   };
 };
 
 export type LocationSelectHandler = (
+  text: string,
+  city: string,
+  state: string,
   location: Coordinates,
-  description: string
 ) => Promise<void>;
 
 export type SelectedLocation = string | null;
@@ -182,8 +191,10 @@ export interface PlaceDetails {
 export type FriendRequest = {
   _id: string;
   sender: {
+    _id: string;
     full_name: string;
     username: string;
+    profile_picture: string;
   };
 };
 
@@ -201,28 +212,38 @@ export type Friend = {
 };
 
 export interface BaseFriend {
-  id: string;
-  name: string;
-  image?: any;
+  _id?: string;
+  full_name?: string;
+  username?: string;
+  profile_picture?: any;
 }
 
 export interface FriendProps extends BaseFriend {
   eventCount?: number;
+  activityData?: FriendEventActivity[];
   size?: number;
   showName?: boolean;
 }
 
 export interface AttendeeFriend extends BaseFriend {}
 
+export type FriendEventActivity = {
+  _id: string;
+  added_at: string;
+  event: string;
+  friend: string;
+};
+
+
 // =========================
 // Auth-related Types
 // =========================
 
 export interface AuthLoginProps {
-  onLoginSuccess: (accessToken: string, refreshToken: string) => void;
+  onLoginSuccess: (accessToken: string, refreshToken: string, userId: string) => void;
 }
 
-export type TokenTypes = (accessToken: string, refreshToken: string) => void;
+export type TokenTypes = (accessToken: string, refreshToken: string, userId: string) => void;
 
 
 export interface AuthButtonProps {
@@ -232,7 +253,7 @@ export interface AuthButtonProps {
 }
 
 export interface AuthContextType {
-  signIn: (accessToken: string, refreshToken: string) => void;
+  signIn: (accessToken: string, refreshToken: string, userId: string) => void;
   signOut: () => void;
   accessToken: RefObject<string | null> | null;
   refreshToken: RefObject<string | null> | null;
@@ -582,7 +603,8 @@ export interface SignOutItemProps {
 // =========================
 
 export interface ManageFriendButtonProps {
-  receiver: string;
+  targetUser: string;
+  loadingFriendAction: boolean;
 }
 
 // =========================
@@ -630,6 +652,14 @@ export interface SavedMessageProps {
 }
 
 // =========================
+// Event Created Message Types
+// =========================
+
+export interface EventCreatedProps {
+  visible?: boolean;
+}
+
+// =========================
 // Search Bar Types
 // =========================
 
@@ -638,6 +668,14 @@ export interface SearchBarProps {
   value: string;
   onChangeText: (text: string) => void;
 }
+
+export type SearchUsersFriendsBarProps = {
+  inputValue: string;
+  setInputValue: (val: string) => void;
+  suggestions: AttendeeFriend[];
+  handleAdd: (friend: AttendeeFriend) => void;
+  placeholder: string;
+};
 
 // =========================
 // Themed Text & View Types
@@ -666,3 +704,92 @@ export interface UserProfileActionMenuButtonProps {
   right?: number;
 }
 
+// =========================
+// Friend Request Types
+// =========================
+
+export interface FriendRequestStatusProps {
+  _id: string;
+  sender: string;
+  receiver: string;
+  status: 'pending' | null;
+  created_at: string;
+}
+
+// =========================
+// User Event Types
+// ========================
+
+export interface Event {
+  _id?: string;
+  creator?: {
+    _id: string;
+    full_name: string;
+    profile_picture: string;
+  };
+  event_picture?: string | null;
+  status: string;
+  created_at?: Date;
+  title: string;
+  category: string | null;
+  description?: string | null;
+  location: {
+    text: string | null;
+    city: string | null;
+    state: string | null;
+    coordinates: {
+      lat: number | null;
+      lng: number | null;
+    };
+  };
+  start_time: Date | null;
+  end_time: Date | null;
+  capacity?: number | null;
+  recurrence?: {
+    checked: boolean;
+    frequency: string | null;
+    end_date: Date | null;
+  };
+  attendees?: {
+    _id?: string;
+    full_name?: string;
+    profile_picture?: string;
+  }[];
+  visibility: string;
+}
+
+export type EventProp = {
+  event: Event
+}
+
+export interface CreateEventContextType {
+  settingEventTitle: (name: string) => void;
+  settingEventAttendees: (users: AttendeeFriend[]) => void;
+  settingEventCapacity: (value: number | null) => void;
+  settingEventDescription: (description: string | null) => void;
+  settingEventEndTime: (date: Date | null) => void;
+  settingEventLocation: (location: { text: string | null; city: string | null; state: string | null; coordinates: { lat: number | null; lng: number | null }}) => void;
+  settingEventPicture: (picture: string | null) => void;
+  settingEventRecurrence: (data: { checked: boolean; frequency: string | null; end_date: Date | null }) => void;
+  settingEventStartTime: (date: Date | null) => void;
+  settingEventVisibility: (value: string) => void;
+  settingEventCategory: (category: string | null) => void;
+  compileEventData: () => Partial<Event>;
+}
+
+// =========================
+// Show Month List Types
+// ========================
+
+export type CalendarHeaderProps = {
+  currentDate: Date;
+  setDate: (date: Date) => void;
+  onMonthYearChange?: (month: number, year: number) => void;
+};
+
+export interface CalendarSubHeaderProps {
+  date: {
+    month: number;
+    year: number;
+  };
+}
