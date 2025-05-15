@@ -14,6 +14,7 @@ const eventImage2 = require('@/assets/tennis-court.jpg');
 
 const EventSuggestions: React.FC = () => {
   const colorScheme = useColorScheme();
+  const loading = false;
   const events = [
     {
       id: 1,
@@ -24,7 +25,7 @@ const EventSuggestions: React.FC = () => {
       time: '2:00 PM',
       location: 'Tech Hub, Silicon Valley',
       remainingDays: 'in 1 day',
-      eventImage: eventImage1,
+      event_picture: eventImage1,
     },
     {
       id: 2,
@@ -35,7 +36,7 @@ const EventSuggestions: React.FC = () => {
       time: '8:00 PM',
       location: 'Blue Note Jazz Club',
       remainingDays: 'in 3 days',
-      eventImage: eventImage2,
+      event_picture: eventImage2,
     },
     {
       id: 3,
@@ -46,7 +47,7 @@ const EventSuggestions: React.FC = () => {
       time: '5:00 PM',
       location: 'Downtown Center',
       remainingDays: 'in 4 days',
-      eventImage: eventImage1,
+      event_picture: eventImage1,
     },
     {
       id: 4,
@@ -57,7 +58,7 @@ const EventSuggestions: React.FC = () => {
       time: '6:00 PM',
       location: 'Art Hub',
       remainingDays: 'in 5 days',
-      eventImage: eventImage2,
+      event_picture: eventImage2,
     },
     {
       id: 5,
@@ -68,7 +69,7 @@ const EventSuggestions: React.FC = () => {
       time: '2:00 PM',
       location: 'Tech Hub, Silicon Valley',
       remainingDays: 'in 1 day',
-      eventImage: eventImage1,
+      event_picture: eventImage1,
     },
     {
       id: 6,
@@ -79,7 +80,7 @@ const EventSuggestions: React.FC = () => {
       time: '8:00 PM',
       location: 'Blue Note Jazz Club',
       remainingDays: 'in 3 days',
-      eventImage: eventImage2,
+      event_picture: eventImage2,
     },
     {
       id: 7,
@@ -90,7 +91,7 @@ const EventSuggestions: React.FC = () => {
       time: '5:00 PM',
       location: 'Downtown Center',
       remainingDays: 'in 4 days',
-      eventImage: eventImage1,
+      event_picture: eventImage1,
     },
     {
       id: 8,
@@ -101,7 +102,7 @@ const EventSuggestions: React.FC = () => {
       time: '6:00 PM',
       location: 'Art Hub',
       remainingDays: 'in 5 days',
-      eventImage: eventImage2,
+      event_picture: eventImage2,
     },
     {
       id: 9,
@@ -112,7 +113,7 @@ const EventSuggestions: React.FC = () => {
       time: '2:00 PM',
       location: 'Tech Hub, Silicon Valley',
       remainingDays: 'in 1 day',
-      eventImage: eventImage1,
+      event_picture: eventImage1,
     },
     {
       id: 10,
@@ -123,7 +124,7 @@ const EventSuggestions: React.FC = () => {
       time: '8:00 PM',
       location: 'Blue Note Jazz Club',
       remainingDays: 'in 3 days',
-      eventImage: eventImage2,
+      event_picture: eventImage2,
     },
     {
       id: 11,
@@ -134,7 +135,7 @@ const EventSuggestions: React.FC = () => {
       time: '5:00 PM',
       location: 'Downtown Center',
       remainingDays: 'in 4 days',
-      eventImage: eventImage1,
+      event_picture: eventImage1,
     },
     {
       id: 12,
@@ -145,7 +146,7 @@ const EventSuggestions: React.FC = () => {
       time: '6:00 PM',
       location: 'Art Hub',
       remainingDays: 'in 5 days',
-      eventImage: eventImage2,
+      event_picture: eventImage2,
     },
   ];
 
@@ -157,18 +158,12 @@ const EventSuggestions: React.FC = () => {
       </ThemedView>
 
       {/* Event List */}
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <View style={{ flex: 1 }}>
         {events.map((event, index) => (
           <View key={event.id}>
             <Event
-              friendName={event.friendName}
-              friendImage={event.friendImage}
-              eventTitle={event.eventTitle}
-              date={event.date}
-              time={event.time}
-              location={event.location}
-              remainingDays={event.remainingDays}
-              eventImage={event.eventImage}
+              event={event}
+              loading={loading}
             />
             {/* Divider Line */}
             {index < events.length - 1 && (
@@ -182,7 +177,7 @@ const EventSuggestions: React.FC = () => {
             )}
           </View>
         ))}
-      </ScrollView>
+      </View>
     </ThemedView>
   );
 };

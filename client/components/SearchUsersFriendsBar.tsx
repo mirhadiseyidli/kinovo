@@ -2,15 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, TextInput, TouchableOpacity, Text, Dimensions, ScrollView, Image, Keyboard } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { ThemedView } from '@/components/ThemedView';
-import { ThemedText } from '@/components/ThemedText';
-import Friend from '@/components/Friend';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { AttendeeFriend } from '@/types/allTypes';
-import { useAuthSession } from '@/components/Auth/AuthProvider';
-import { ApiError } from '@/types/allTypes';
 import { SearchUsersFriendsBarProps } from '@/types/allTypes';
 
 const SearchUsersFriendsBar = ({

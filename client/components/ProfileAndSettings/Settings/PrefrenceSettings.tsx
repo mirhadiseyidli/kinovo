@@ -17,7 +17,7 @@ const PreferenceSettings = () => {
         title="Notifications" 
         onPress={() => console.log('pushed')} 
       />
-      <SettingComponent 
+      {/* <SettingComponent 
         icon="moon" 
         title="Theme & Display" 
         onPress={() => console.log('pushed')} 
@@ -26,7 +26,7 @@ const PreferenceSettings = () => {
         icon="globe" 
         title="Language" 
         onPress={() => console.log('pushed')} 
-      />
+      /> */}
     </View>
   );
 };

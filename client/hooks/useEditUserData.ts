@@ -78,12 +78,10 @@ export const useEditUserProfile = ({
         }
       );
 
-      console.log('Profile updated successfully:', response.data);
     } catch (error: any) {
       console.error('Profile update failed:', error.response?.data?.message || error.message);
 
       if (error.response?.status === 401) {
-        console.log('Access token expired, refreshing token...');
         await refreshToken();
         await editMyProfile(); // Retry request after refreshing token
       }

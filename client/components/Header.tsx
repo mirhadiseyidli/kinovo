@@ -19,7 +19,7 @@ const Header: React.FC<{ refreshing: boolean }> = ({ refreshing }) => {
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 16,
-        height: 64,
+        paddingVertical: 4,
       }}
     >
       {/* Left */}
@@ -31,7 +31,7 @@ const Header: React.FC<{ refreshing: boolean }> = ({ refreshing }) => {
           themeColors.inputBackgroundColor
         ]}
       >
-        <ThemedText style={{ fontSize: 32, fontFamily: 'Helvetica Neue Bold', fontWeight: 'bold', letterSpacing: -1 }}>Kinovo</ThemedText>
+        <ThemedText style={{ fontSize: 28, fontFamily: 'Helvetica Neue Bold', fontWeight: 'bold', letterSpacing: -1 }}>Kinovo</ThemedText>
       </AutoSkeletonView>
 
       {/* Right - Notifications Button */}

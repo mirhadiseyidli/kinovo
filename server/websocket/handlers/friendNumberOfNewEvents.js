@@ -2,20 +2,84 @@ const mongoose = require('mongoose');
 const WebSocket = require('ws');
 const User = require('../../database/schemas/usersSchema');
 
+// const getUnseenFriendEvents = async (userId) => {
+//   const findViewHistory = await User.findById(userId).select('last_checked_events').lean();
+//   const userViewHistory = findViewHistory?.last_checked_events || [];
+
+//   const findFriendHistory = await User.findById(userId).select('friend_event_history').lean();
+//   const friendEventHistory = findFriendHistory?.friend_event_history || [];
+
+//   return friendEventHistory.filter(entry => {
+//     const viewedEntry = userViewHistory.find(
+//       view => String(view.friend) === String(entry.friend)
+//     );
+//     const viewedAt = viewedEntry?.viewed_at || new Date(0);
+//     return new Date(entry.added_at) > viewedAt;
+//   });
+// };
+
+// const clearAllEventStoryData = async () => {
+//   try {
+//     const result = await User.updateMany(
+//       {},
+//       {
+//         $set: {
+//           last_checked_events: [],
+//           friend_event_history: [],
+//         },
+//       }
+//     );
+//     console.log(`Cleared event story data for ${result.modifiedCount} users.`);
+//   } catch (error) {
+//     console.error('Error clearing event story data:', error);
+//   }
+// };
+
 const getUnseenFriendEvents = async (userId) => {
-  const findViewHistory = await User.findById(userId).select('last_checked_events').lean();
-  const userViewHistory = findViewHistory?.last_checked_events || [];
+  // await clearAllEventStoryData();
+  const findUser = await User.findById(userId)
+    .select('last_checked_events friend_event_history')
+    .populate('friend_event_history.friend', '-password')
+    .populate({
+      path: 'friend_event_history.events.event',
+      select: '-password',
+      populate: {
+        path: 'creator',
+        select: '-password'
+      }
+    })
+    .populate('last_checked_events.friend', '-password')
+    .populate('last_checked_events.viewed_events.event', '-password')
+    .lean();
 
-  const findFriendHistory = await User.findById(userId).select('friend_event_history').lean();
-  const friendEventHistory = findFriendHistory?.friend_event_history || [];
+  const userViewHistory = findUser?.last_checked_events || [];
+  const friendEventHistory = findUser?.friend_event_history || [];
 
-  return friendEventHistory.filter(entry => {
-    const viewedEntry = userViewHistory.find(
-      view => String(view.friend) === String(entry.friend)
+  const unseenEntries = [];
+
+  for (const friendEntry of friendEventHistory) {
+    const viewedFriendEntry = userViewHistory.find(
+      (v) => String(v.friend) === String(friendEntry.friend)
     );
-    const viewedAt = viewedEntry?.viewed_at || new Date(0);
-    return new Date(entry.added_at) > viewedAt;
-  });
+
+    const viewedEventsMap = new Map(
+      (viewedFriendEntry?.viewed_events || []).map(v => [String(v.event), new Date(v.viewed_at)])
+    );
+
+    const unseenEvents = friendEntry.events.filter(e => {
+      const viewedAt = viewedEventsMap.get(String(e.event));
+      return !viewedAt || new Date(e.added_at) > viewedAt;
+    });
+
+    if (unseenEvents.length) {
+      unseenEntries.push({
+        friend: friendEntry.friend,
+        unseen_events: unseenEvents
+      });
+    }
+  }
+
+  return unseenEntries;
 };
 
 const sendFriendNewEventsChangeStream = (userId, ws) => {

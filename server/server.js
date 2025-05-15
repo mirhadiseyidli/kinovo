@@ -11,8 +11,9 @@ const userRoutes = require('./routes/userRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const manageFriendsRoutes = require('./routes/manageFriendsRoutes');
 const searchRoutes = require('./routes/searchRoutes');
-const friendSuggestionsRoutes = require('./routes/userSuggestionsRoute');
+const friendSuggestionsRoutes = require('./routes/userSuggestionsRoutes');
 const eventsRoutes = require('./routes/eventsRoutes');
+const weatherRoutes = require('./routes/appleWeatherRoutes');
 
 const app = express();
 
@@ -33,7 +34,6 @@ app.get('/api/health', (req, res) => {
 const { verifyAccessToken } = require('./utils/token');
 
 app.get('/api/check-auth', (req, res) => {
-  // console.log(req)
   const token = req.headers.authorization?.split(' ')[1]; // Extract token from Authorization header
   if (!token) {
     return res.status(401).json({ loggedIn: false, message: 'No token provided' });
@@ -59,6 +59,7 @@ app.use('/api/search', searchRoutes);
 app.use('/api/managefriends', manageFriendsRoutes);
 app.use('/api/friendsuggestions', friendSuggestionsRoutes);
 app.use('/api/manageevents', eventsRoutes);
+app.use('/api/weather', weatherRoutes);
 
 // Start Server
 const PORT = process.env.BACKEND_PORT || 5002;

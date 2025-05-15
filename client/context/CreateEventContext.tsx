@@ -1,6 +1,12 @@
 import React, { createContext, useContext, useState } from 'react';
-import { useAuthSession } from '../components/Auth/AuthProvider';
 import { CreateEventContextType, Event, AttendeeFriend } from '@/types/allTypes';
+
+type AttendeeStatus = 'pending' | 'maybe' | 'accepted' | 'rejected';
+
+type EventAttendee = {
+  user: AttendeeFriend;
+  status?: AttendeeStatus;
+};
 
 const CreateEventContext = createContext<CreateEventContextType | null>(null);
 
@@ -33,7 +39,7 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
     frequency: null,
     end_date: null,
   });
-  const [attendees, setAttendees] = useState<AttendeeFriend[]>([]);
+  const [attendees, setAttendees] = useState<EventAttendee[]>([]);
   const [visibility, setVisibility] = useState<string>('Public');
 
   const settingEventTitle = (name: string) => setTitle(name);
@@ -52,7 +58,7 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const settingEventRecurrence = (data: { checked: boolean; frequency: string | null; end_date: Date | null }) => setRecurrence(data);
   const settingEventAttendees = (users: AttendeeFriend[]) => {
     if (capacity === null || users.length <= (capacity - 1)) {
-      setAttendees(users);
+      setAttendees(users.map(user => ({ user }))); // no status here
     }
   };
   const settingEventVisibility = (value: string) => setVisibility(value.toLowerCase());

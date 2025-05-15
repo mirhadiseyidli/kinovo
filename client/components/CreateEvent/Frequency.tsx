@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput, Platform, Alert, ActionSheetIOS, Dimensions, Animated, Modal, TouchableWithoutFeedback, Keyboard } from 'react-native';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+// import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { DateTimePicker } from '@expo/ui/swift-ui';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import CheckBox from '@react-native-community/checkbox';
 import { DatePickerChangeHandler } from '@/types/allTypes';
 import { useCreateEventContext } from '@/context/CreateEventContext';
+import AnimatedCheckBox from '../AnimatedCheckBox';
 
 const { width } = Dimensions.get('window');
 const getFontSize = (percentage: number) => (width * percentage) / 100;
@@ -101,7 +102,7 @@ const Frequency: React.FC = () => {
     setShowDatePicker(true);
   };
 
-  const handleDateChange: DatePickerChangeHandler = (event, selectedDate) => {
+  const handleDateChange: DatePickerChangeHandler = (selectedDate) => {
     setShowDatePicker(false);
     if (selectedDate instanceof Date) {
       setEndDate(selectedDate);
@@ -119,15 +120,13 @@ const Frequency: React.FC = () => {
     <ThemedView style={{ padding: 16, borderRadius: 8, backgroundColor: Colors[colorScheme ?? 'dark'].inputBackgroundColor, marginBottom: 16 }}>
       {/* Selection: Only Once / Recurring */}
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <CheckBox
+        <AnimatedCheckBox
           value={isRecurring}
           onValueChange={toggleCheck}
-          boxType="square"
-          tintColor={themeColors.placeholderTextColor} // Unchecked color
-          onTintColor={themeColors.text} // Border color when checked
-          onCheckColor={themeColors.text} // Checkmark color
-          tintColors={{ true: themeColors.text, false: themeColors.placeholderTextColor }}
-          style={{ height: 16, width: 16, marginRight: 10 }} // Adjusted size and spacing
+          onCheckColor={themeColors.text} // checkmark color
+          tintColors={{ true: themeColors.text, false: themeColors.placeholderTextColor  }} // border color states
+          style={{ height: 20, width: 20 }} // size or any custom inline style
+          topContainerStyle={{ marginRight: 10 }}
         />
         {/* Animated Text Color */}
         <Animated.Text style={{ fontSize: 16, color: interpolatedColor }}>
@@ -175,7 +174,7 @@ const Frequency: React.FC = () => {
                   <TouchableWithoutFeedback onPress={() => setShowDatePicker(false)}>
                     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)', minHeight: 280 }}>
                       <View style={{ backgroundColor: themeColors.background, padding: 20, borderRadius: 10, minWidth: 280, width: '100%', }}>
-                        <DateTimePicker
+                        {/* <DateTimePicker
                           value={endDate ?? new Date()}
                           mode="date"
                           minimumDate={new Date()}
@@ -185,6 +184,14 @@ const Frequency: React.FC = () => {
                           themeVariant={colorScheme === "light" ? "light" : "dark"}
                           onChange={handleDateChange}
                           style={{ minWidth: 280, width: '100%' }} // Ensure minimum width
+                        /> */}
+                        <DateTimePicker
+                          initialDate={(endDate ?? new Date()).toISOString()}
+                          color={themeColors.mountainGreen}
+                          displayedComponents="dateAndTime"
+                          variant="graphical"
+                          onDateSelected={handleDateChange}
+                          style={{ minHeight: 280, minWidth: 280, width: '100%' }}
                         />
                       </View>
                     </View>

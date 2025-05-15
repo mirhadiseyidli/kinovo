@@ -16,6 +16,9 @@ import SettingsPageTitle from '@/components/ProfileAndSettings/Settings/Settings
 import NavigateBackButton from '@/components/NavigateBackButton';
 import SettingsPageHeader from '@/components/ProfileAndSettings/Settings/SettingsPageHeader';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import SettingComponent from '@/components/ProfileAndSettings/Settings/SettingComponent';
+import UserNameEdit from '@/components/ProfileAndSettings/Profile/EditUserName';
+import DeleteAccountComponent from '@/components/ProfileAndSettings/Settings/DeleteAccountButton';
 
 const accountSettings = () => {
   const colorScheme = useColorScheme();
@@ -27,56 +30,86 @@ const accountSettings = () => {
   //   return <Text>Loading...</Text>;
   // }
 
+  const firstName = 'test'
+  const setFirstName = () => {
+    console.log('this')
+  }
+
   return (
     <ThemedView style={{ flex: 1, paddingTop: insets.top }}>
       <ThemedView
         style={{
-          flex: 1,
-          flexGrow: 1,
-          maxHeight: tabBarHeight - insets.bottom, // Combine tabBarHeight and top inset
           marginBottom: 6,
         }}
       >
         <SettingsPageHeader label='Account Settings'/>
       </ThemedView>
       <ScrollView
-        // ref={scrollViewRef}
         style={{ 
           flex: 1,
           paddingBottom: tabBarHeight
         }}
-        // onScroll={handleScroll}
         scrollEventThrottle={16}
       >
         <ThemedView style={{ display: 'flex', flex: 1, flexDirection: 'column', gap: 24, paddingHorizontal: 16 }}>
-          {/* <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <AISummary />
-          </ThemedView> */}
-          {/* <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <UpcomingEvents />
+          <ThemedView style={{ flex: 1, flexDirection: 'column', gap: 8 }}>
+            <ThemedText style={{ fontSize: 14, color: themeColors.placeholderTextColor, marginTop: 16 }}>Basic Information</ThemedText>
+            <ThemedView style={{ flexDirection: 'column', gap: 8, paddingLeft: 10 }}>
+              <UserNameEdit
+                label="Email Address"
+                value={firstName}
+                onChangeText={setFirstName}
+                placeholder="Email Address"
+              />
+              <UserNameEdit
+                label="Phone Number"
+                value={firstName}
+                onChangeText={setFirstName}
+                placeholder="Phone Number"
+              />
+              <UserNameEdit
+                label="Username"
+                value={firstName}
+                onChangeText={setFirstName}
+                placeholder="Username"
+              />
+            </ThemedView>
           </ThemedView>
-          <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <SeeWhatFriendsAreUpTo />
+          <ThemedView style={{ flex: 1 }}>
+            <ThemedText style={{ fontSize: 14, color: themeColors.placeholderTextColor, marginBottom: 10 }}>Security & Privacy</ThemedText>
+            <ThemedView style={{ flexDirection: 'column', gap: 8 }}>
+              <SettingComponent 
+                icon="user-plus" 
+                title="Change Password" 
+                onPress={() => router.push('/(auth)/(tabs)/(profile)/(manageFriends)/AddFriends')} 
+              />
+              <SettingComponent 
+                icon="user-plus" 
+                title="Biometrics & Passkey" 
+                onPress={() => router.push('/(auth)/(tabs)/(profile)/(manageFriends)/AddFriends')} 
+              />
+              <SettingComponent 
+                icon="user-plus" 
+                title="Location Permissions" 
+                onPress={() => router.push('/(auth)/(tabs)/(profile)/(manageFriends)/AddFriends')} 
+              />
+              <SettingComponent 
+                icon="user-plus" 
+                title="Contacts Permissions" 
+                onPress={() => router.push('/(auth)/(tabs)/(profile)/(manageFriends)/AddFriends')} 
+              />
+              <SettingComponent 
+                icon="user-plus" 
+                title="Photo Album Permissions" 
+                onPress={() => router.push('/(auth)/(tabs)/(profile)/(manageFriends)/AddFriends')} 
+              />
+            </ThemedView>
           </ThemedView>
-          <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <PastEvents />
-          </ThemedView> */}
+          <ThemedView style={{ alignItems: 'center' }}>
+            <DeleteAccountComponent onPress={()=> console.log('delete')} />
+          </ThemedView>
         </ThemedView>
       </ScrollView>
-      
-      {/* <View 
-        style={{
-          width: '100%',
-          paddingTop: insets.top,
-          position: 'relative',
-          paddingVertical: 10,
-        }}
-      > */}
-        {/* Back Button */}
-        {/* <NavigateBackButton />
-        <SettingsPageTitle label='Account Settings' /> */}
-        {/* Other content goes here */}
-      {/* </View> */}
     </ThemedView>
       );
     };

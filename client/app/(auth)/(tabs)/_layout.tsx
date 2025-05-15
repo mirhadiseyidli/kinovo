@@ -7,13 +7,14 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import Feather from '@expo/vector-icons/Feather';
 import { ProfileIcon } from '@/components/ui/ProfileIcon';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { CalendarViewProvider } from '@/context/CalendarViewContext';
 
 export default function TabsLayout() {
   const router = useRouter();
   const colorScheme = useColorScheme();
 
   return (
-    <>
+    <CalendarViewProvider>
       <View style={{ 
           flex: 1,
           backgroundColor: Colors[colorScheme ?? 'dark'].background
@@ -147,6 +148,6 @@ export default function TabsLayout() {
           />
         </Tabs>
       </View>
-    </>
+    </CalendarViewProvider>
   );
 }

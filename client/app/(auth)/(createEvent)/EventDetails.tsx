@@ -22,7 +22,7 @@ export default React.memo(function EventDetails() {
   };
 
   return (
-    <ThemedView style={{ flex: 1, padding: 16 }}>
+    <ThemedView style={{ flex: 1, paddingHorizontal: 16 }}>
       <ScrollView>
         {/* Step 1: Event Details */}
         <EventImage eventType={eventType} />

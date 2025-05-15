@@ -46,7 +46,6 @@ router.post('/google', async (req, res) => {
     }
 
     const userDataFromDB = await User.findOne({ google_id: userId }).select('-password');
-    console.log(userDataFromDB)
 
     // Generate Access and Refresh Tokens
     const accessToken = generateAccessToken({ _id: userDataFromDB._id, email: user.email });

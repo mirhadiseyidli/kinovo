@@ -36,8 +36,11 @@ export default React.memo(function EventAttendeesAndOptions() {
   };
 
   return (
-    <ThemedView style={{ flex: 1, width: '100%', padding: 16 }}>
-      <ScrollView nestedScrollEnabled={true} keyboardShouldPersistTaps={'always'}>
+    <ThemedView style={{ flex: 1, width: '100%', paddingHorizontal: 16 }}>
+      <ScrollView 
+        nestedScrollEnabled={true}
+        keyboardShouldPersistTaps={'always'}
+      >
         {/* Step 3: Attendees & Options */}
         <Options setLimit={setLimit}/>
         <Attendees limit={limit} />

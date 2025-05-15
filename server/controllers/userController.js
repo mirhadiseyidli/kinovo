@@ -107,7 +107,6 @@ const getUser = async (req, res, next) => {
 };
 
 const getUserFriendByEmailSearch = async (req, res) => {
-  console.log(req.user)
   try {
     if (!req.user) {
       return res.status(401).json({ message: 'Unauthorized: User not logged in' });

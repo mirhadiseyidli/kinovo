@@ -1,45 +1,50 @@
 import React from 'react';
-import { Dimensions, View, Modal, TouchableWithoutFeedback } from "react-native";
+import { Dimensions, View, Modal, TouchableWithoutFeedback, Platform } from "react-native";
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import { Feather } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ThemedText } from './ThemedText';
-import MapView, { Marker } from 'react-native-maps';
+import { AppleMaps } from 'expo-maps';
 import { MapViewModalProps } from '@/types/allTypes';
+import { AppleMapsMapType } from 'expo-maps/build/apple/AppleMaps.types';
 
 const MapViewModal = ({
-  locationPermission,
   coordinates,
-  selectedLocation
+  selectedLocation,
 }: MapViewModalProps) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const {width, height} = Dimensions.get('window');
-  const aspect_ratio = width / height;
-  const latitudeDelta = 0.05;
-  const longitudeDelta = latitudeDelta * aspect_ratio;
 
   return (
-    <MapView
-      loadingEnabled={true}
-      showsUserLocation={locationPermission === true}
-      userInterfaceStyle={colorScheme === 'dark' ? 'dark' : 'light'}
-      style={{ 
-        width: '100%', 
-        height: '100%',
+    <AppleMaps.View
+      style={{
+        flex: 1, 
         borderRadius: 8
       }}
-      region={{
-        latitude: coordinates.latitude,
-        longitude: coordinates.longitude,
-        latitudeDelta: latitudeDelta, // Zooms in closer
-        longitudeDelta: longitudeDelta, // Zooms in closer
+      properties={{
+        mapType: AppleMapsMapType.STANDARD,
       }}
-    >
-      <Marker coordinate={coordinates} title={selectedLocation || 'Selected Location'} pinColor={themeColors.mountainGreen}/>
-    </MapView>
+      cameraPosition={{
+        coordinates: {
+          latitude: coordinates.latitude,
+          longitude: coordinates.longitude
+        },
+        zoom: 20
+      }}
+      markers={[
+        {
+          coordinates: {
+            latitude: coordinates.latitude,
+            longitude: coordinates.longitude
+          },
+          tintColor: themeColors.mountainGreen,
+          title: selectedLocation ? selectedLocation : ''
+        }
+      ]}
+      uiSettings={{
+        myLocationButtonEnabled: false,
+        togglePitchEnabled: false,
+      }}
+    />
   );
 };
 
-export default MapViewModal;
+export default React.memo(MapViewModal);

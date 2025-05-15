@@ -9,21 +9,20 @@ import { SettingsPageHeaderProps } from '@/types/allTypes';
 
 const SettingsPageHeader = ({ label }: SettingsPageHeaderProps) => {
   return (
-    <ThemedView 
+    <View 
       style={{
-        flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
         paddingHorizontal: 16,
-        height: 64,
+        paddingVertical: 8,
       }}
     >
       {/* Back Button */}
-      <NavigateBackButton top={4}/>
+      <NavigateBackButton top={-1}/>
 
       {/* Page Title */}
       <SettingsPageTitle label={label} />
-    </ThemedView>
+    </View>
   );
 };
 

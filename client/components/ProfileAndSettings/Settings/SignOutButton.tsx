@@ -12,8 +12,8 @@ const SignOutComponent: React.FC<SignOutItemProps> = ({ onPress }) => {
 
   return (
     <TouchableOpacity onPress={onPress} style={{ flexDirection: 'row', alignItems: 'center', padding: 10 }}>
-      <Octicons name='sign-out' size={24} style={{ color: '#ef4444' }} />
-      <ThemedText style={{ marginLeft: 10, fontSize: 16, color: '#ef4444' }}>Sign Out</ThemedText>
+      <Octicons name='sign-out' size={24} style={{ color: themeColors.specialRed }} />
+      <ThemedText style={{ marginLeft: 10, fontSize: 16, color: themeColors.specialRed }}>Sign Out</ThemedText>
     </TouchableOpacity>
   );
 };

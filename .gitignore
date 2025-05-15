@@ -42,3 +42,7 @@
 # Docker
 */Dockerfile
 *docker-compose.*
+
+# Apple Weather Kit Key
+*/key
+*/key/*

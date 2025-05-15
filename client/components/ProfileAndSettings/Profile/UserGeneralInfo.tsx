@@ -25,6 +25,7 @@ import { FriendRequestStatusProps } from '@/types/allTypes';
 import PendingFriendRequestButton from '@/components/PendingFriendRequestButton';
 
 const UserGeneralInfo = forwardRef(({ _id }: UserGeneralInfoProps, ref) => {
+  console.log(_id)
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const insets = useSafeAreaInsets();
@@ -34,6 +35,7 @@ const UserGeneralInfo = forwardRef(({ _id }: UserGeneralInfoProps, ref) => {
   const { refreshAccessToken } = useAuthSession();
   const [showOptions, setShowOptions] = useState(false);
   const { fetchUserData, refetchUser } = useUserData();
+  const [user, setUser] = useState<User | null>(null);
   const [loadingFriendAction, setLoadingFriendAction] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   
@@ -75,7 +77,8 @@ const UserGeneralInfo = forwardRef(({ _id }: UserGeneralInfoProps, ref) => {
   };
 
   const fetchUser = useCallback(async () => {
-    await refetchUser();
+    const fetchedUser = await fetchUserData();
+    setUser(fetchedUser);
     try {
       const token = await AsyncStorage.getItem('accessToken');
       const response = await axios.get(

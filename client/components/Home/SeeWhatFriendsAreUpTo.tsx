@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import FriendComponent from '@/components/Friend';
 import { ThemedView } from '@/components/ThemedView';
@@ -8,86 +8,100 @@ import { Colors } from '@/constants/Colors';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useGetMyFriends } from '@/hooks/useGetMyFriends';
 import { Friend, FriendEventActivity } from '@/types/allTypes';
-import { useFocusEffect } from '@react-navigation/native';
 import { AutoSkeletonView } from 'react-native-auto-skeleton';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
+import { useDispatch } from 'react-redux';
+import { setEventsForFriend } from '@/store/eventStoriesSlice';
 
-const SeeWhatFriendsAreUpTo: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }> = ({ refreshing, onFinishRefresh }) => {
+const SeeWhatFriendsAreUpTo: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }> = React.memo(({ refreshing, onFinishRefresh }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const screenWidth = Dimensions.get('window').width;
-  const { fetchFriends } = useGetMyFriends();
+  const { fetchFriends, loading } = useGetMyFriends();
   const [myFriendsList, setMyFriendsList] = useState<Friend[]>([]);
   const [friendActivityMap, setFriendActivityMap] = useState<Record<string, { eventCount: number; activityData: FriendEventActivity[] }>>({});
+  const router = useRouter();
+  const dispatch = useDispatch();
 
-  const fetchEvents = async () => {
+  const fetchMyFriends = async () => {
     const myEvents = await fetchFriends();
     setMyFriendsList(myEvents);
     onFinishRefresh();
   }
   
-  useFocusEffect(
-    React.useCallback(() => {
-      fetchEvents();
-    }, [refreshing])
-  );
+  useEffect(() => {
+    if (refreshing) {
+      fetchMyFriends();
+    }
+  }, [refreshing]);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      let socket: WebSocket;
+  useEffect(() => {
+    let socket: WebSocket;
 
-      const initSocket = async () => {
-        const userId = await AsyncStorage.getItem('userId');
-        socket = new WebSocket('ws://localhost:6000');
+    const initSocket = async () => {
+      const url = process.env.EXPO_PUBLIC_WEBSOCKET_CONNECTION_URL;
+      if (!url) throw new Error('Missing WebSocket connection URL');
+      
+      const userId = await AsyncStorage.getItem('userId');
+      socket = new WebSocket(url);
 
-        socket.onopen = () => {
-          if (userId) {
-            socket.send(JSON.stringify({
-              type: 'FriendsEventActivity',
-              userId: userId,
-            }));
-          }
-        };
+      socket.onopen = () => {
+        if (userId) {
+          socket.send(JSON.stringify({
+            type: 'FriendsEventActivity',
+            userId: userId,
+          }));
+        }
+      };
 
-        socket.onmessage = (event) => {
-          const message = JSON.parse(event.data);
+      socket.onmessage = (event) => {
+        const message = JSON.parse(event.data);
 
-          switch (message.type) {
-            case 'newFriendEventsSummary':
-              if (message.data && Array.isArray(message.data)) {
-                const activityByFriend: Record<string, { eventCount: number; activityData: FriendEventActivity[] }> = {};
+        switch (message.type) {
+          case 'newFriendEventsSummary':
+            if (message.data && Array.isArray(message.data)) {
+              const activityByFriend: Record<string, { eventCount: number; activityData: FriendEventActivity[] }> = {};
 
-                for (const item of message.data) {
-                  const friendId = item.friend;
-                  if (!activityByFriend[friendId]) {
-                    activityByFriend[friendId] = { eventCount: 0, activityData: [] };
-                  }
-                  activityByFriend[friendId].eventCount += 1;
-                  activityByFriend[friendId].activityData.push(item);
+              for (const item of message.data) {
+                const friendId = item.friend._id;
+                const events = item.unseen_events || [];
+
+                if (!activityByFriend[friendId]) {
+                  activityByFriend[friendId] = { eventCount: 0, activityData: [] };
                 }
 
-                setFriendActivityMap(activityByFriend);
+                activityByFriend[friendId].eventCount += events.length;
+                activityByFriend[friendId].activityData.push(...events);
               }
-              break;
-          }
-        };
+
+              setFriendActivityMap(activityByFriend);
+            }
+            break;
+        }
       };
+    };
 
-      initSocket();
+    initSocket();
 
-      return () => {
-        if (socket) socket.close();
-      };
-    }, [refreshing])
-  );
+    return () => {
+      if (socket) socket.close();
+    };
+  }, [refreshing]);
 
-  const sortedFriends = myFriendsList
+  const sortedFriends = (myFriendsList ?? [])
     .filter(friend => (friendActivityMap[friend._id]?.eventCount || 0) > 0)
     .sort((a, b) => {
       const countA = friendActivityMap[a._id]?.eventCount || 0;
       const countB = friendActivityMap[b._id]?.eventCount || 0;
       return countB - countA;
     });
+
+  const viewFriendsEvents = (friend_id: string) => {
+    const events = friendActivityMap[friend_id]?.activityData || [];
+    dispatch(setEventsForFriend({ friendId: friend_id, events }));
+    router.push(`/(auth)/(friendsStory)/${friend_id}`);
+  };
 
   return (
     <ThemedView style={{ flex: 1 }}>
@@ -102,57 +116,45 @@ const SeeWhatFriendsAreUpTo: React.FC<{ refreshing: boolean; onFinishRefresh: ()
         }}
       >
         <AutoSkeletonView 
-          isLoading={refreshing} 
+          isLoading={refreshing || loading} 
           shimmerBackgroundColor={themeColors.background} 
           gradientColors={[
             themeColors.background, 
             themeColors.inputBackgroundColor
           ]}
         >
-          <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>Friends' Events</ThemedText>
+          <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>Friends' Activity</ThemedText>
         </AutoSkeletonView>
-        <TouchableOpacity style={{ alignItems: 'center' }}>
-          <AutoSkeletonView 
-            isLoading={refreshing} 
-            shimmerBackgroundColor={themeColors.background} 
-            gradientColors={[
-              themeColors.background, 
-              themeColors.inputBackgroundColor
-            ]}
-          >
-            <ThemedView style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <ThemedText style={{ fontSize: 16, marginRight: 4 }}>See All</ThemedText>
-              <IconSymbol name="chevron.right" size={12} color={Colors[colorScheme ?? 'dark'].tint} />
-            </ThemedView>
-          </AutoSkeletonView>
-        </TouchableOpacity>
       </ThemedView>
 
       {/* Friends List */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={{ width: screenWidth }}
-        contentContainerStyle={{ paddingLeft: 16, paddingRight: screenWidth * 0.04 }}
-      >
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          {sortedFriends.map((friend) => (
-            <FriendComponent 
-              key={friend._id} 
-              _id={friend._id}
-              full_name={friend.full_name}
-              username={friend.username}
-              profile_picture={friend.profile_picture}
-              showName={true}
-              refreshing={refreshing}
-              eventCount={friendActivityMap[friend._id]?.eventCount || 0}
-              activityData={friendActivityMap[friend._id]?.activityData || []}
-            />
-          ))}
-        </View>
-      </ScrollView>
+      {Array.isArray(myFriendsList) && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ width: screenWidth }}
+          contentContainerStyle={{ paddingLeft: 16, paddingRight: screenWidth * 0.04 }}
+        >
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            {sortedFriends.map((friend) => (
+              <FriendComponent 
+                key={friend._id} 
+                _id={friend._id}
+                full_name={friend.full_name}
+                username={friend.username}
+                profile_picture={friend.profile_picture}
+                showName={true}
+                refreshing={refreshing || loading}
+                eventCount={friendActivityMap[friend._id]?.eventCount || 0}
+                activityData={friendActivityMap[friend._id]?.activityData || []}
+                onPress={() => viewFriendsEvents(friend._id)}
+              />
+            ))}
+          </View>
+        </ScrollView>
+      )}
     </ThemedView>
   );
-};
+});
 
 export default SeeWhatFriendsAreUpTo;

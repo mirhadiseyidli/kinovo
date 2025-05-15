@@ -123,12 +123,16 @@ const usersSchema = new mongoose.Schema({
     }
   },
   events: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Events',
-  }],
-  past_events: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Events',
+    event: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Events',
+      required: true,
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'maybe', 'accepted', 'rejected'],
+      default: 'pending',
+    }
   }],
   favorite_activities: [{
     type: String,
@@ -152,14 +156,23 @@ const usersSchema = new mongoose.Schema({
   last_checked_events: [
     {
       friend: { type: mongoose.Schema.Types.ObjectId, ref: 'Users' },
-      viewed_at: { type: Date, default: null }
+      viewed_events: [
+        {
+          event: { type: mongoose.Schema.Types.ObjectId, ref: 'Events' },
+          viewed_at: { type: Date, default: Date.now }
+        }
+      ]
     }
   ],
   friend_event_history: [
     {
       friend: { type: mongoose.Schema.Types.ObjectId, ref: 'Users' },
-      event: { type: mongoose.Schema.Types.ObjectId, ref: 'Events' },
-      added_at: { type: Date, default: Date.now }
+      events: [
+        {
+          event: { type: mongoose.Schema.Types.ObjectId, ref: 'Events' },
+          added_at: { type: Date, default: Date.now }
+        }
+      ]
     }
   ]
 });
