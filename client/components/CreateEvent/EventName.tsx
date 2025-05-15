@@ -1,15 +1,36 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { View, TextInput, Dimensions } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { useCreateEvent } from '@/hooks/useCreateEvent';
+import { useCreateEventContext } from '@/context/CreateEventContext';
 
 const EventName: React.FC = () => {
   const placeholder = "Enter event name";
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const screenWidth = Dimensions.get('window').width;
+  const { settingEventTitle } = useCreateEventContext();
+  
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleTextChange = (text: string) => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    debounceRef.current = setTimeout(() => {
+      settingEventTitle(text);
+    }, 5000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
 
   return (
     <ThemedView style={{ marginBottom: 24 }}>
@@ -25,12 +46,13 @@ const EventName: React.FC = () => {
         }}
       >
         {/* Feather Icon */}
-        <Feather name="type" size={16} color={themeColors.placeholderTextColor} style={{ marginRight: 10 }} />
+        <Feather name="type" size={24} color={themeColors.placeholderTextColor} style={{ marginRight: 10 }} />
 
         {/* Text Input */}
         <TextInput
           placeholder={placeholder}
           placeholderTextColor={themeColors.placeholderTextColor}
+          onChangeText={handleTextChange}
           style={{
             flex: 1, // Take up the remaining space
             fontSize: 16,

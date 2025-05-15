@@ -17,13 +17,4 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
-// Role-based access control middleware
-const checkRole = (roles) => (req, res, next) => {
-  if (roles.includes(req.user.role)) {
-    return next();
-  } else {
-    return res.status(403).json({ message: 'Permission denied' });
-  }
-};
-
-module.exports = { authMiddleware, checkRole };
+module.exports = { authMiddleware };

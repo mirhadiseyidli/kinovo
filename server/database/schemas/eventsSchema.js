@@ -2,21 +2,20 @@ const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
 
 const eventsSchema = new mongoose.Schema({
-  event_id: {
-    type: String,
-    default: uuidv4, // Generate UUID for event_id
-    unique: true,
-    required: true,
-  },
-  creator_id: {
+  creator: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Users', // Refers to Users Schema
     default: null,
   },
+  event_picture: {
+    type: String,
+    required: false,
+    default: null
+  },
   status: {
     type: String,
-    enum: ['Active', 'Closed', 'Cancelled'], // Allowed values
-    default: 'Invited', // Default value
+    enum: ['upcoming', 'ongoing', 'completed', 'cancelled'],
+    default: 'upcoming',
     required: true
   },
   created_at: {
@@ -28,6 +27,10 @@ const eventsSchema = new mongoose.Schema({
     type: String, // Title of the event
     required: true, // Mandatory field
   },
+  category: {
+    type: String,
+    default: null
+  },
   description: {
     type: String, // Text description of the event
     default: null, // Optional
@@ -35,8 +38,13 @@ const eventsSchema = new mongoose.Schema({
   // TODO: Location needs to be an address that can
   // be picked from suggestions like in Google Maps
   location: {
-    type: String, // Text address for location 
-    default: null, // Optional
+    text: { type: String, default: null },
+    city: { type: String, default: null },
+    state: { type: String, default: null },
+    coordinates: {
+      lat: { type: Number, default: null },
+      lng: { type: Number, default: null }
+    }
   },
   start_time: {
     type: Date, // Start time of the event
@@ -46,9 +54,41 @@ const eventsSchema = new mongoose.Schema({
     type: Date, // End time of the event
     required: true, // Mandatory field
   },
-  max_participants: {
+  capacity: {
     type: Number, // Maximum number of participants
     default: null, // Optional field
+  },
+  recurrence: {
+    checked: {
+      type: Boolean,
+      default: false,
+    },
+    frequency: {
+      type: String,
+      enum: ['none', 'daily', 'weekly', 'monthly', 'yearly', null],
+      default: null,
+    },
+    end_date: {
+      type: Date,
+      default: null, // When the recurrence should stop
+    }
+  },
+  attendees: [{
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Users',
+      required: true,
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'maybe', 'accepted', 'rejected'],
+      default: 'pending',
+    }
+  }],
+  visibility: {
+    type: String,
+    enum: ['public', 'private', 'select'],
+    default: 'public',
   },
 });
 

@@ -1,13 +1,21 @@
 const User = require('../database/schemas/usersSchema');
-const jwt = require('jsonwebtoken');
-
-const crypto = require('crypto');
+const FriendRequests = require('../database/schemas/friendRequestsSchema');
 
 require('dotenv').config();
 
 const getUserProfile = async (req, res) => {
   try {
-    res.status(200).json(res.user);
+    const found_request = await FriendRequests.findOne({ sender: req.user._id, receiver: res.user._id });
+    res.status(200).json({ user: res.user, friendRequest: found_request });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const getUsersFriendsList = async (req, res) => {
+  try {
+    const found_request = await FriendRequests.findOne({ sender: req.user._id, receiver: res.user._id });
+    res.status(200).json({ user: res.user, friendRequest: found_request });
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
@@ -15,7 +23,7 @@ const getUserProfile = async (req, res) => {
 
 const getUsers = async (req, res) => {
   try {
-    const users = await User.find().select('-password_hash');
+    const users = await User.find().select('-password');
     res.status(200).json(users);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
@@ -25,23 +33,24 @@ const getUsers = async (req, res) => {
 const deleteUsers = async (req, res) => {
   let user;
   try {
-    user = await User.deleteOne({ _id: res.user.id }).select('-password_hash');
-    res.status(200).json('Deleted the user');
+    user = await User.deleteOne({ _id: res.user._id }).select('-password');
+    console.log('deleted', user)
+    res.status(200).json('Deleted the user', user);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
 };
 
-const editUser = async (req, res) => {
-  const { id } = req.params;
-  const updateFields = req.params;
+const editMyProfile = async (req, res) => {
+  const user_id = req.user._id;
+  const updateFields = req.body;
 
   try {
     const user = await User.findOneAndUpdate(
-      { _id: id }, 
+      { _id: user_id }, 
       { $set: updateFields }, 
       { new: true } 
-    ).select('-password_hash');
+    ).select('-password');
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -55,7 +64,7 @@ const editUser = async (req, res) => {
 
 const createUser = async (req, res) => {
   try {
-    const { userData } = req.params;
+    const userData = req.body;
 
     const user = await User.create(userData);
 
@@ -71,9 +80,8 @@ const findMe = async (req, res) => {
         return res.status(401).json({ message: 'Unauthorized: User not logged in' });
       }
 
-      const userId = req.user.id;
-      const user = await User.findOne({ uuid: userId }).select('-password_hash');
-      console.log(user)
+      const userId = req.user._id;
+      const user = await User.findOne({ _id: userId }).select('-password');
       if (!user) {
           return res.status(404).json({ message: 'User not found' });
       }
@@ -86,7 +94,7 @@ const findMe = async (req, res) => {
 const getUser = async (req, res, next) => {
   let found_user;
   try {
-    found_user = await User.findOne({ _id: req.params.id }).select('-password_hash');
+    found_user = await User.findOne({ _id: req.query._id }).select('-password');
     if (found_user == null) {
       return res.status(404).json({ message: 'Cannot find the user' });
     };
@@ -104,11 +112,11 @@ const getUserFriendByEmailSearch = async (req, res) => {
       return res.status(401).json({ message: 'Unauthorized: User not logged in' });
     }
 
-    const { email } = req.query.query;
-    const found_user = await User.findOne({ uuid: req.user.id }).populate({
+    const email = req.query.query;
+    const found_user = await User.findOne({ _id: req.user._id }).populate({
       path: 'friends',
       match: { email: { $regex: email, $options: 'i' } }, // Case-insensitive search
-      select: '-password_hash'
+      select: '-password'
     });
 
     res.status(200).json(found_user.friends);
@@ -123,14 +131,15 @@ const getUserFriendByNameSearch = async (req, res) => {
       return res.status(401).json({ message: 'Unauthorized: User not logged in' });
     }
 
-    const { name } = req.query.query;
-    const found_user = await User.findOne({ uuid: req.user.id }).populate({
+    const name = req.query.query;
+    const found_user = await User.findOne({ _id: req.user._id }).populate({
       path: 'friends',
       match: { $or: [
         { first_name: { $regex: name, $options: 'i' } }, 
-        { last_name: { $regex: name, $options: 'i' } }
+        { last_name: { $regex: name, $options: 'i' } },
+        { full_name: { $regex: name, $options: 'i' } },
       ]}, // Case-insensitive search by first or last name
-      select: '-password_hash'
+      select: '-password'
     });
 
     res.status(200).json(found_user.friends);
@@ -139,89 +148,14 @@ const getUserFriendByNameSearch = async (req, res) => {
   }
 }
 
-const sendFriendRequest = async (req, res) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ message: 'Unauthorized: User not logged in' });
-    }
-
-    const { receiverId } = req.body;
-    const senderId = req.user.id;
-
-    if (senderId === receiverId) {
-      return res.status(400).json({ message: 'You cannot send a friend request to yourself' });
-    }
-
-    const receiver = await User.findById(receiverId);
-    if (!receiver) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    const existingRequest = receiver.friend_requests.find(
-      req => req.sender.toString() === senderId && req.receiver.toString() === receiverId
-    );
-
-    if (existingRequest) {
-      return res.status(400).json({ message: 'Friend request already sent' });
-    }
-
-    receiver.friend_requests.push({ sender: senderId, receiver: receiverId, status: 'pending' });
-    await receiver.save();
-
-    res.status(200).json({ message: 'Friend request sent successfully' });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
-
-const respondToAFriendRequest = async (req, res) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ message: 'Unauthorized: User not logged in' });
-    }
-
-    const { requestId, status } = req.body;
-    const userId = req.user.id;
-
-    if (!['accepted', 'rejected'].includes(status)) {
-      return res.status(400).json({ message: 'Invalid status' });
-    }
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    const friendRequest = user.friend_requests.find(req => req._id.toString() === requestId);
-
-    if (!friendRequest || friendRequest.receiver.toString() !== userId) {
-      return res.status(404).json({ message: 'Friend request not found or unauthorized' });
-    }
-
-    friendRequest.status = status;
-    await user.save();
-
-    if (status === 'accepted') {
-      await User.findByIdAndUpdate(userId, { $push: { friends: friendRequest.sender } });
-      await User.findByIdAndUpdate(friendRequest.sender, { $push: { friends: userId } });
-    }
-
-    res.status(200).json({ message: `Friend request ${status}` });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
-
 module.exports = { 
   getUserProfile,
   getUsers,
   deleteUsers,
-  editUser,
+  editMyProfile,
   createUser,
   findMe,
   getUser,
   getUserFriendByEmailSearch,
   getUserFriendByNameSearch,
-  sendFriendRequest,
-  respondToAFriendRequest
  };

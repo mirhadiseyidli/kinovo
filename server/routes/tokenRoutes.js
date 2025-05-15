@@ -7,7 +7,6 @@ const router = express.Router();
 
 // Refresh Access Token using a valid Refresh Token
 router.post('/refresh-token', tokenMiddleware, (req, res) => {
-  // console.log(req)
   const refreshToken = req.headers.authorization?.split(' ')[1] || req.body.refreshToken;
 
   if (!refreshToken) {
@@ -23,7 +22,6 @@ router.post('/refresh-token', tokenMiddleware, (req, res) => {
     const newAccessToken = generateAccessToken({
       _id: decoded._id,
       email: decoded.email,
-      role: decoded.role,
     });
 
     res.status(200).json({ accessToken: newAccessToken });

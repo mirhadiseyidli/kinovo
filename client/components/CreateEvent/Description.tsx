@@ -1,21 +1,42 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import type { ChangeEventHandler } from '@/types/allTypes';
 import { View, TextInput, Dimensions } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { useCreateEvent } from '@/hooks/useCreateEvent';
+import { useCreateEventContext } from '@/context/CreateEventContext';
 
 const Description: React.FC = () => {
-  const [input, setInput] = useState<string>(''); // Track input value
+  const [input, setInput] = useState<ChangeEventHandler['input']>(''); // Track input value
   const placeholder = "Write about your event...";
   const screenWidth = Dimensions.get('window').width;
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
+  const { settingEventDescription } = useCreateEventContext();
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   // Handle Text Change
-  const handleTextChange = (text: string) => {
-    setInput(text.trim() === '' ? '' : text); // If trimmed input is empty, reset to empty string
+  const handleTextChange: ChangeEventHandler['handleTextChange'] = (text) => {
+    setInput(text.trim() === '' ? '' : text);
+
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    debounceRef.current = setTimeout(() => {
+      settingEventDescription(text.trim() === '' ? '' : text);
+    }, 5000);
   };
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
 
   return (
     <ThemedView style={{ marginBottom: 24, justifyContent: 'center' }}>
@@ -31,7 +52,7 @@ const Description: React.FC = () => {
         }}
       >
         {/* Feather Icon */}
-        <Feather name="edit" size={20} color={themeColors.placeholderTextColor} style={{ marginRight: 10, marginTop: 4 }} />
+        <Feather name="edit" size={24} color={themeColors.placeholderTextColor} style={{ marginRight: 10 }} />
 
         {/* Text Input */}
         <TextInput

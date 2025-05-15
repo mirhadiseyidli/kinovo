@@ -1,13 +1,10 @@
 import React, { useState } from 'react';
+import type { EventImageProps, UploadedImage } from '@/types/allTypes';
 import { View, Image, TouchableOpacity, Alert, Dimensions } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Feather } from '@expo/vector-icons';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-
-interface EventImageProps {
-  eventType?: string // Optional eventType
-}
 
 const defaultEventImages: Record<string, any> = {
   Soccer: require('@/assets/event-hike.webp'),
@@ -18,7 +15,7 @@ const defaultEventImages: Record<string, any> = {
 };
 
 const EventImage: React.FC<EventImageProps> = ({ eventType }) => {
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [uploadedImage, setUploadedImage] = useState<UploadedImage>(null);
   const screenWidth = Dimensions.get('window').width;
 
   // Handle Image Upload

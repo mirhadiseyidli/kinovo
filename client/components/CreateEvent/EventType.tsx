@@ -5,32 +5,31 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
-
-const categoryOptions = ['Soccer', 'Hiking', 'Volleyball', 'Cycling', 'Running', 'Cancel'];
-
-interface CategoryProps {
-  onCategorySelect: (category: string) => void;
-}
+import { categoryOptions, CategoryProps, CategoryType } from '@/types/allTypes';
+import { useCreateEvent } from '@/hooks/useCreateEvent';
+import { useCreateEventContext } from '@/context/CreateEventContext';
 
 const Category: React.FC<CategoryProps> = ({ onCategorySelect }) => {
   const screenWidth = Dimensions.get('window').width;
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-
-  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
+  const { settingEventCategory } = useCreateEventContext();
+  const [selectedCategory, setSelectedCategory] = useState<CategoryType | undefined>(undefined);
 
   // ✅ Function to Open Native Action Sheet for Category Selection
   const openCategoryOptions = () => {
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: categoryOptions,
+          options: [...categoryOptions],
           cancelButtonIndex: categoryOptions.length - 1,
         },
         (buttonIndex) => {
           if (buttonIndex !== categoryOptions.length - 1) {
-            setSelectedCategory(categoryOptions[buttonIndex]);
-            onCategorySelect(categoryOptions[buttonIndex]); // Pass selected category up
+            const selected = categoryOptions[buttonIndex] as Exclude<CategoryType, 'Cancel'>;
+            setSelectedCategory(selected);
+            onCategorySelect(selected); // Pass selected category up
+            settingEventCategory(selected);
           }
         }
       );
@@ -39,8 +38,10 @@ const Category: React.FC<CategoryProps> = ({ onCategorySelect }) => {
         ...categoryOptions.slice(0, -1).map((category) => ({
           text: category,
           onPress: () => {
-            setSelectedCategory(category);
-            onCategorySelect(category);
+            const selected = category as Exclude<CategoryType, 'Cancel'>;
+            setSelectedCategory(selected);
+            onCategorySelect(selected);
+            settingEventCategory(selected);
           },
         })),
         { text: 'Cancel', style: 'cancel' },
@@ -66,7 +67,7 @@ const Category: React.FC<CategoryProps> = ({ onCategorySelect }) => {
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Feather
               name="tag"
-              size={16}
+              size={24}
               color={themeColors.placeholderTextColor}
               style={{ marginRight: 8 }}
             />

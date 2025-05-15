@@ -1,34 +1,36 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, Dimensions, TouchableWithoutFeedback, Platform } from 'react-native';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+// import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { DateTimePicker } from '@expo/ui/swift-ui';
 import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { ThemedView } from '../ThemedView';
 import { ThemedText } from '../ThemedText';
+import type { DateTimeState, DatePickerChangeHandler } from '@/types/allTypes';
+import { useCreateEventContext } from '@/context/CreateEventContext';
 
 const DateTime: React.FC = () => {
   const screenWidth = Dimensions.get('window').width;
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
+  const { settingEventStartTime, settingEventEndTime } = useCreateEventContext();
 
-  const [startDate, setStartDate] = useState(new Date());
-  const [endDate, setEndDate] = useState(new Date());
-  const [showStartPicker, setShowStartPicker] = useState(false);
-  const [showEndPicker, setShowEndPicker] = useState(false);
-  const [tempStartDate, setTempStartDate] = useState(startDate);
-  const [tempEndDate, setTempEndDate] = useState(endDate);
+  const [startDate, setStartDate] = useState<DateTimeState['startDate']>(new Date());
+  const [endDate, setEndDate] = useState<DateTimeState['endDate']>(new Date());
+  const [showStartPicker, setShowStartPicker] = useState<DateTimeState['showStartPicker']>(false);
+  const [showEndPicker, setShowEndPicker] = useState<DateTimeState['showEndPicker']>(false);
+  const [tempStartDate, setTempStartDate] = useState<DateTimeState['tempStartDate']>(startDate);
+  const [tempEndDate, setTempEndDate] = useState<DateTimeState['tempEndDate']>(endDate);
 
-  const handleStartDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    if (selectedDate) {
-      setTempStartDate(selectedDate); // Store temp selection
-    }
+  const handleStartDateChange = (selectedDate: Date) => {
+    if (selectedDate) setTempStartDate(selectedDate);
+    settingEventStartTime(selectedDate ?? null);
   };
-
-  const handleEndDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    if (selectedDate) {
-      setTempEndDate(selectedDate); // Store temp selection
-    }
+  
+  const handleEndDateChange = (selectedDate: Date) => {
+    if (selectedDate) setTempEndDate(selectedDate);
+    settingEventEndTime(selectedDate ?? null);
   };
 
   return (
@@ -36,7 +38,7 @@ const DateTime: React.FC = () => {
       <ThemedView
         style={{
           alignSelf: 'center',
-          paddingVertical: 16,
+          paddingVertical: 12,
           paddingHorizontal: 20,
           width: '100%',
           borderRadius: 8,
@@ -70,7 +72,7 @@ const DateTime: React.FC = () => {
         </View>
 
         {/* Start Date & Time */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Feather name="circle" size={14} color={themeColors.placeholderTextColor} style={{ marginRight: 8 }} />
             <Text style={{ fontSize: 16, fontWeight: '500', color: themeColors.placeholderTextColor }}>
@@ -99,6 +101,14 @@ const DateTime: React.FC = () => {
                 <View style={{ backgroundColor: themeColors.background, padding: 20, borderRadius: 10, minHeight: 280 }}>
                   <View style={{ minWidth: 280, width: '100%', alignItems: 'center' }}>
                     <DateTimePicker
+                      initialDate={tempStartDate.toISOString()}
+                      color={themeColors.mountainGreen}
+                      displayedComponents="dateAndTime"
+                      variant="graphical"
+                      onDateSelected={handleStartDateChange}
+                      style={{ minHeight: 280, minWidth: 280, width: '100%' }}
+                    />
+                    {/* <DateTimePicker
                       value={tempStartDate} // Use temp value
                       textColor={themeColors.text}
                       accentColor={themeColors.mountainGreen}
@@ -108,7 +118,7 @@ const DateTime: React.FC = () => {
                       display={Platform.OS === 'ios' ? 'inline' : 'default'}
                       onChange={handleStartDateChange} // Store in temp
                       style={{ minHeight: 280, minWidth: 280, width: '100%' }} // Ensure minimum width
-                    />
+                    /> */}
                   </View>
                   {/* Confirm Button */}
                   <TouchableOpacity
@@ -137,7 +147,7 @@ const DateTime: React.FC = () => {
         <View style={{ height: 1, backgroundColor: themeColors.placeholderTextColor, opacity: 0.2, marginBottom: 8, marginLeft: 22 }} />
 
         {/* End Date & Time */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Feather name="circle" size={14} color={themeColors.placeholderTextColor} style={{ marginRight: 8 }} />
             <Text style={{ fontSize: 16, fontWeight: '500', color: themeColors.placeholderTextColor }}>
@@ -165,7 +175,15 @@ const DateTime: React.FC = () => {
               <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}>
                 <View style={{ backgroundColor: themeColors.background, padding: 20, borderRadius: 10, minHeight: 280 }}>
                   <View style={{ minWidth: 280, width: '100%', alignItems: 'center' }}>
-                    <DateTimePicker
+                  <DateTimePicker
+                      initialDate={tempStartDate.toISOString()}
+                      color={themeColors.mountainGreen}
+                      displayedComponents="dateAndTime"
+                      variant="graphical"
+                      onDateSelected={handleStartDateChange}
+                      style={{ minHeight: 280, minWidth: 280, width: '100%' }}
+                    />
+                    {/* <DateTimePicker
                       value={tempEndDate} // Use temp value
                       textColor={themeColors.text}
                       accentColor={themeColors.mountainGreen}
@@ -175,7 +193,7 @@ const DateTime: React.FC = () => {
                       display={Platform.OS === 'ios' ? 'inline' : 'default'}
                       onChange={handleEndDateChange} // Store in temp
                       style={{ minHeight: 280, minWidth: 280, width: '100%' }} // Ensure minimum width
-                    />
+                    /> */}
                   </View>
                   {/* Confirm Button */}
                   <TouchableOpacity
