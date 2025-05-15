@@ -1,76 +1,76 @@
 import React from 'react';
 import { View, Button, Alert, Image, TouchableOpacity } from 'react-native';
-import { GoogleSignin, statusCodes, isSuccessResponse, isErrorWithCode } from '@react-native-google-signin/google-signin';
+import * as Google from 'expo-auth-session/providers/google';
+import * as AuthSession from 'expo-auth-session';
 import axios from 'axios';
 import AuthButton from '@/components/Auth/AuthButton';
+import { AuthLoginProps } from '@/types/allTypes';
+import type { ApiError } from '@/types/allTypes';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { Colors } from '@/constants/Colors';
+
 const googleLogo = require('@/assets/google-logo.png');
 
-interface GoogleOAuthProps {
-  onLoginSuccess: (accessToken: string, refreshToken: string) => void; // Explicit type for the login success callback
-}
+const GoogleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
+  const colorScheme = useColorScheme();
+  const themeColors = Colors[colorScheme ?? 'dark'];
 
-const GoogleOAuth: React.FC<GoogleOAuthProps> = ({ onLoginSuccess }) => {
-  // Configure Google Sign-In
-  GoogleSignin.configure({
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS, // [iOS] Specify the iOS client ID
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS,
   });
 
-  const googleSignIn = async () => {
-    try {
-      await GoogleSignin.hasPlayServices();
-      const userInfo = await GoogleSignin.signIn();
+  React.useEffect(() => {
+    if (response?.type === 'success' && response.authentication) {
+      const idToken = response.authentication.idToken;
 
-      if (userInfo.type === 'cancelled') {
-        console.log('User cancelled the login');
-        return; // Early return, no further action required
-      }
-
-      const idToken = userInfo.data?.idToken;
       if (!idToken) {
-        throw new Error('Failed to retrieve idToken');
+        Alert.alert('Error', 'Failed to retrieve idToken');
+        return;
       }
 
-      // Send idToken to backend for authentication
-      const response = await axios.post(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/auth/google`, {
-        idToken,
-      });
+      const authenticate = async () => {
+        try {
+          const backendResponse = await axios.post(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/auth/google`, {
+            idToken,
+          });
 
-      console.log('Backend response:', response.data);
+          if (backendResponse.status === 200 && backendResponse.data.success) {
+            const { accessToken, refreshToken, user } = backendResponse.data;
 
-      if (response.status === 200 && response.data.success) {
-        const { accessToken, refreshToken } = response.data;
+            if (!accessToken || !refreshToken) {
+              throw new Error('Invalid token response from backend');
+            }
 
-        if (!accessToken || !refreshToken) {
-          throw new Error('Invalid token response from backend');
+            onLoginSuccess(accessToken, refreshToken, user._id);
+          } else {
+            Alert.alert('Error', 'Authentication failed.');
+          }
+        } catch (error) {
+          const err = error;
+          if (axios.isAxiosError(err)) {
+            if (err.response) {
+              console.error('Backend error:', err.response.data);
+              Alert.alert('Error', `Authentication failed: ${err.response.data.message || 'Unknown server error'}`);
+            } else if (err.request) {
+              console.error('Network error:', err.request);
+              Alert.alert('Error', 'Network error. Please try again.');
+            } else {
+              console.error('Error:', err.message);
+              Alert.alert('Error', err.message);
+            }
+          } else {
+            console.error('Unknown error:', err);
+            Alert.alert('Error', 'An unknown error occurred.');
+          }
         }
+      };
 
-        // Pass both tokens to onLoginSuccess
-        onLoginSuccess(accessToken, refreshToken);
-        Alert.alert('Success', 'User authenticated successfully!');
-      } else {
-        Alert.alert('Error', 'Authentication failed.');
-      }
-    } catch (error: unknown) {
-      if (axios.isAxiosError(error)) {
-        if (error.response) {
-          console.error('Backend error:', error.response.data);
-          Alert.alert('Error', `Authentication failed: ${error.response.data.message || 'Unknown server error'}`);
-        } else if (error.request) {
-          console.error('Network error:', error.request);
-          Alert.alert('Error', 'Network error. Please try again.');
-        } else {
-          console.error('Error:', error.message);
-          Alert.alert('Error', error.message);
-        }
-      } else {
-        console.error('Unknown error:', error);
-        Alert.alert('Error', 'An unknown error occurred.');
-      }
+      authenticate();
     }
-  };
+  }, [response]);
 
   return (
-    <AuthButton onPress={googleSignIn} logo={googleLogo} />
+    <AuthButton onPress={() => promptAsync()} logo='google' disabled={!request} backgroundColor={themeColors.inputBackgroundColor} />
   );
 };
 

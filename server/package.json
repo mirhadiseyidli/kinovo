@@ -15,10 +15,13 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.5.3",
     "node-cron": "^3.0.3",
+    "openai": "^4.89.0",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
+    "rrule": "^2.8.1",
     "validator": "^13.12.0",
-    "winston": "^3.17.0"
+    "winston": "^3.17.0",
+    "ws": "^8.18.1"
   },
   "scripts": {
     "start": "node server.js",

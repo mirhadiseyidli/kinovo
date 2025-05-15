@@ -1,98 +1,127 @@
-import {useAuthSession} from "@/components/Auth/AuthProvider";
-import {useState} from "react";
-import {View, Text, Button} from "react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import { useAuthSession } from "@/components/Auth/AuthProvider";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { View, Text, Button, ScrollView, Alert, RefreshControl } from "react-native";
+import { ThemedView } from "@/components/ThemedView";
+import UserProfilePreview from "@/components/ProfileAndSettings/Settings/UserProfilePreview";
+import UserSettings from "@/components/ProfileAndSettings/Settings/UserSettings";
+import PreferenceSettings from "@/components/ProfileAndSettings/Settings/PrefrenceSettings";
+import ResourcesSettings from "@/components/ProfileAndSettings/Settings/ResourcesSettings";
+import LegalAndPrivacySettings from "@/components/ProfileAndSettings/Settings/LegalAndPrivacySettings";
+import SignOutComponent from "@/components/ProfileAndSettings/Settings/SignOutButton";
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import Header from "@/components/Header";
+import AppInfoSettings from "@/components/ProfileAndSettings/Settings/AppInfoSettings";
 
-const GOOGLE_MAPS_API_KEY = 'AIzaSyAyngGus6vQzuZsFIo_4kf78nlQ3XAnKQ8';
+export default React.memo(function ProfileTab() {
+  const { signOut } = useAuthSession()
+  const [ showScrollToTop, setShowScrollToTop ] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const tabBarHeight = useBottomTabBarHeight(); // Get tab bar height dynamically
+  const insets = useSafeAreaInsets();
+  const [refreshing, setRefreshing] = useState(false); // temporary false
+  const [refreshingUpcomingEvents, setRefreshingUpcomingEvents] = useState(false);
+  const [refreshingSeeWhatFriendsAreUpTo, setRefreshingSeeWhatFriendsAreUpTo] = useState(false);
+  const [refreshingPastEvents, setRefreshingPastEvents] = useState(false);
 
-export default function Index() {
-  const {signOut, accessToken, refreshToken} = useAuthSession()
-  const [tokenInUi, setTokenInUi] = useState<null|string|undefined>(null)
-  const [endDate, setEndDate] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setRefreshingUpcomingEvents(true);
+    setRefreshingSeeWhatFriendsAreUpTo(true);
+    setRefreshingPastEvents(true);
+  }, []);
 
-  const handleDateChange = (event: any, selectedDate: Date | undefined) => {
-    setShowDatePicker(false);
-    if (selectedDate instanceof Date) {
-      setEndDate(selectedDate);
+  const onFinishRefreshUpcomingEvents = useCallback(() => {
+    setRefreshingUpcomingEvents(false);
+  }, []);
+
+  const onFinishRefreshSeeWhatFriendsAreUpTo = useCallback(() => {
+    setRefreshingSeeWhatFriendsAreUpTo(false);
+  }, []);
+
+  const onFinishRefreshPastEvents = useCallback(() => {
+    setRefreshingPastEvents(false);
+  }, []);
+
+  useEffect(() => {
+    if (
+      !refreshingUpcomingEvents &&
+      !refreshingSeeWhatFriendsAreUpTo &&
+      !refreshingPastEvents &&
+      refreshing
+    ) {
+      setRefreshing(false);
     }
-  };
+  }, [
+    refreshingUpcomingEvents,
+    refreshingSeeWhatFriendsAreUpTo,
+    refreshingPastEvents
+  ]);
 
   const logout = () => {
-     signOut();
+    Alert.alert(
+      "Sign Out",
+      "You're about to sign out",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Sign Out", onPress: () => signOut(), style: 'destructive' }
+      ],
+      { cancelable: true }
+    );
   }
 
-  const callApi = () => {
-    setTokenInUi(accessToken?.current);
-  }
-
-  const openDatePicker = () => {
-    setShowDatePicker(true);
-  };
-
-  const onChange = (event: any, selectedDate: Date | undefined) => {
-    if (selectedDate instanceof Date) {
-      setEndDate(selectedDate);
-    }
-  };
-
-  const showMode = (currentMode: any) => {
-    setShowDatePicker(true);
-  };
-
-  const showDatepicker = () => {
-    showMode('date');
-  };
-
-  const showTimepicker = () => {
-    showMode('time');
+  const handleScroll = (event: any) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    setShowScrollToTop(offsetY > 50); // Toggle button state after a small scroll
   };
 
   return (
-    <View
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center',
-        flex: 1,
-        backgroundColor: 'red'
-      }}
-    >
-      <Text>Home</Text>
-      <Button title={"Logout"} onPress={logout}/>
-      <View style={{
-        paddingTop: 20
-      }} />
-      <Text>Make an API call with the stored AUTH token</Text>
-      <Button title={"Call API"} onPress={callApi} />
-      {tokenInUi &&
-        <Text>{`Your API access token is ${tokenInUi}`}</Text>
-      }
-      <Button onPress={showDatepicker} title="Show date picker!" />
-      <Button onPress={showTimepicker} title="Show time picker!" />
-      <Text>selected: {endDate.toLocaleString()}</Text>
-      {showDatePicker && (
-        <DateTimePicker
-          testID="dateTimePicker"
-          value={endDate}
-          mode='date'
-          is24Hour={true}
-          onChange={onChange}
-        />
-      )}
-      {/* <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          backgroundColor: 'black',
-          borderRadius: 8,
-          paddingHorizontal: 16,
-          paddingVertical: 8,
-          height: 100,
-          flexGrow: 1
-        }}
-      > */}
-    </View>
+    <ThemedView style={{ flex: 1, paddingTop: insets.top, paddingBottom: tabBarHeight }}>
+      <ScrollView
+        stickyHeaderIndices={[0]}
+        stickyHeaderHiddenOnScroll={true}
+        style={{ flex: 1 }}
+        scrollEventThrottle={16}
+        scrollEnabled={true}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        <ThemedView
+          style={{
+            flex: 1,
+            marginBottom: 6
+          }}
+        >
+          <Header refreshing={refreshing}/>
+        </ThemedView>
+        <ThemedView style={{ display: 'flex', flex: 1, flexDirection: 'column' }}>
+          <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <UserProfilePreview />
+          </ThemedView>
+          <ThemedView style={{ flex: 1 }}>
+            <UserSettings />
+          </ThemedView>
+          <ThemedView style={{ flex: 1 }}>
+            <PreferenceSettings />
+          </ThemedView>
+          <ThemedView style={{ flex: 1 }}>
+            <ResourcesSettings />
+          </ThemedView>
+          <ThemedView style={{ flex: 1 }}>
+            <LegalAndPrivacySettings />
+          </ThemedView>
+          <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 32 }}>
+            <SignOutComponent 
+              onPress={logout} 
+            />
+          </ThemedView>
+          <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <AppInfoSettings />
+          </ThemedView>
+        </ThemedView>
+      </ScrollView>
+    </ThemedView>
   );
-}
+})

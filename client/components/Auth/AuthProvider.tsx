@@ -2,30 +2,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { router } from "expo-router";
 import { createContext, RefObject, ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { Animated, ActivityIndicator, View } from 'react-native';
+import { ApiError, AuthContextType, TokenTypes } from '@/types/allTypes';
 
-interface ApiError {
-  response?: {
-    data?: {
-      message?: unknown;
-    };
-  };
-  message: string;
-}
-
-const AuthContext = createContext<{
-  signIn: (accessToken: string, refreshToken: string) => void;
-  signOut: () => void;
-  accessToken: RefObject<string | null> | null;
-  refreshToken: RefObject<string | null> | null;
-  isLoading: boolean;
-}>({
+const AuthContext = createContext<AuthContextType>({
   signIn: () => null,
   signOut: () => null,
   accessToken: null,
   refreshToken: null,
-  isLoading: true
+  isLoading: true,
+  refreshAccessToken: async () => {},
+  checkAuth: async () => {},
 });
 
 // Access the context as a hook
@@ -84,10 +72,9 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
       } else {
         await refreshAccessToken();
       }
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error('Token check failed:', (error as ApiError).response?.data?.message || error.message);
-      }
+    } catch (error) {
+      const err = error as ApiError;
+      console.error('Token check failed:', err.response?.data?.message || err.message);
       await refreshAccessToken();
     }
   };
@@ -113,23 +100,22 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
       if (newAccessToken) {
         await AsyncStorage.setItem('accessToken', newAccessToken);
         accessTokenRef.current = newAccessToken;
-        console.log('Access token refreshed');
       } else {
         signOut();
       }
 
       setIsLoading(false);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error('Failed to refresh access token:', (error as ApiError).response?.data?.message || error.message);
-      }
+    } catch (error) {
+      const err = error as ApiError;
+      console.error('Failed to refresh access token:', err.response?.data?.message || err.message);
       signOut();
     }
   };
 
-  const signIn = useCallback(async (accessToken: string, refreshToken: string) => {
+  const signIn = useCallback(async (accessToken: string, refreshToken: string, userId: string) => {
     fadeTransition(async () => {
       await AsyncStorage.setItem('accessToken', accessToken);
+      await AsyncStorage.setItem('userId', userId);
       await SecureStore.setItemAsync('refreshToken', refreshToken);
       accessTokenRef.current = accessToken;
       refreshTokenRef.current = refreshToken;
@@ -140,6 +126,7 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
   const signOut = useCallback(async () => {
     fadeTransition(async () => {
       await AsyncStorage.removeItem('accessToken');
+      await AsyncStorage.removeItem('userId');
       await SecureStore.deleteItemAsync('refreshToken');
       accessTokenRef.current = null;
       refreshTokenRef.current = null;
@@ -154,18 +141,14 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
         signOut,
         accessToken: accessTokenRef,
         refreshToken: refreshTokenRef,
-        isLoading
+        isLoading,
+        refreshAccessToken,
+        checkAuth
       }}
     >
-      <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
-        {isLoading ? (
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'transparent' }}>
-            <ActivityIndicator size="large" color="#0000ff" />
-          </View>
-        ) : (
-          children
-        )}
-      </Animated.View>
+      <View style={{ flex: 1 }}>
+        {children}
+      </View>
     </AuthContext.Provider>
   );
 };

@@ -1,12 +1,11 @@
 import { StyleSheet, Image, StatusBar } from 'react-native';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
-import { IconSymbol } from '@/components/ui/IconSymbol';
+import { ThemedView } from '@/components/ThemedView'
 import DiscoverScreen from '@/components/Explore/Discover';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColorScheme } from '../../../hooks/useColorScheme';
+import React from 'react';
 
-export default function Explore() {
+export default React.memo(function Explore() {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
 
@@ -20,4 +19,4 @@ export default function Explore() {
         <DiscoverScreen />
     </ThemedView>
   );
-}
+});

@@ -1,17 +1,16 @@
 import React from 'react';
 import { View, Button, Alert, Image, TouchableOpacity } from 'react-native';
-import { GoogleSignin, statusCodes, isSuccessResponse, isErrorWithCode } from '@react-native-google-signin/google-signin';
-import { GOOGLE_CLIENT_ID_IOS } from '@env';
 import axios from 'axios';
 import AuthButton from '@/components/Auth/AuthButton';
+import { AuthLoginProps } from '@/types/allTypes';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { Colors } from '@/constants/Colors';
 
-const facebookLogo = require('@/assets/facebook-logo.png');
+// const facebookLogo = require('@/assets/facebook-logo.png');
 
-interface FacebookOAuthProps {
-  onLoginSuccess: (accessToken: string, refreshToken: string) => void; // Explicit type for the login success callback
-}
-
-const FacebookOAuth: React.FC<FacebookOAuthProps> = ({ onLoginSuccess }) => {
+const FacebookOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
+  const colorScheme = useColorScheme();
+  const themeColors = Colors[colorScheme ?? 'dark'];
   // Configure Google Sign-In
   // GoogleSignin.configure({
   //   iosClientId: GOOGLE_CLIENT_ID_IOS, // [iOS] Specify the iOS client ID
@@ -65,7 +64,7 @@ const FacebookOAuth: React.FC<FacebookOAuthProps> = ({ onLoginSuccess }) => {
   // };
 
   return (
-    <AuthButton onPress={facebookSignIn} logo={facebookLogo} />
+    <AuthButton onPress={facebookSignIn} logo='facebook' backgroundColor={themeColors.inputBackgroundColor} />
   );
 };
 

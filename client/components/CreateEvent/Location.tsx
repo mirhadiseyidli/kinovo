@@ -1,60 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
-  Dimensions,
-  Image,
   KeyboardAvoidingView,
   Platform,
   TextInput,
   TouchableOpacity,
   Text,
   Animated,
-  Linking,
-  Alert,
   ScrollView
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { MaterialIcons } from '@expo/vector-icons';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import MapView, { Marker } from 'react-native-maps';
-import * as Location from 'expo-location';
 import axios from 'axios';
+import { useLocation } from '@/context/LocationContext';
+import MapViewModal from '../MapViewModal';
+import { Suggestion, Coordinates, GeocodingApiResult, LocationSelectHandler, SelectedLocation, FetchAddressSuggestions } from '@/types/allTypes';
+import { useCreateEventContext } from '@/context/CreateEventContext';
 
 const LocationComponent: React.FC = () => {
-  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<SelectedLocation>(null);
   const [mapVisible] = useState(new Animated.Value(0)); // Controls slide animation
-  const [suggestions, setSuggestions] = useState([]);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [inputText, setInputText] = useState('');
-  const [coordinates, setCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [locationPermission, setLocationPermission] = useState(false);
-
-  useEffect(() => {
-    const requestLocationPermission = async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-    
-      if (status !== 'granted') {
-        Alert.alert(
-          "Location Permission Denied",
-          "Enable location access in settings to use this feature."
-        );
-        setLocationPermission(false);
-        return;
-      }
-      setLocationPermission(true);
-      return;
-    };
-
-    requestLocationPermission();
-  }, []);
-
+  const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const screenWidth = Dimensions.get('window').width;
+  const { settingEventLocation } = useCreateEventContext();
 
-  const fetchAddressSuggestions = async (text: string) => {
+  const fetchAddressSuggestions: FetchAddressSuggestions = async (text) => {
     if (!text.trim()) { // Ensure empty input fully clears suggestions
       setSuggestions([]);
       return;
@@ -62,7 +37,7 @@ const LocationComponent: React.FC = () => {
 
     try {
       let response = await axios.post(
-        `https://places.googleapis.com/v1/places:searchText?key=${process.env.EXPO_PUBLIC_GOOGLE_MAPS_API}`,
+        `https://places.googleapis.com/v1/places:searchText`,
         { textQuery: text },
         {
           headers: {
@@ -87,10 +62,11 @@ const LocationComponent: React.FC = () => {
           }
         );
 
-        results = response.data.results.map((item: any) => ({
+        results = response.data.results.map((item: GeocodingApiResult) => ({
           displayName: { text: item.formatted_address },
           formattedAddress: item.formatted_address,
           location: item.geometry.location,
+          postalAddress: item.postalAddress
         }));
       }
 
@@ -100,9 +76,9 @@ const LocationComponent: React.FC = () => {
     }
   };
 
-  const handleLocationSelect = async (location: { latitude: number; longitude: number }, description: string) => {
-    setSelectedLocation(description);
-    setInputText(description);
+  const handleLocationSelect: LocationSelectHandler = async (text, city, state, location) => {
+    setSelectedLocation(text);
+    setInputText(text);
     setSuggestions([]);
 
     if (!isNaN(location.latitude) && !isNaN(location.longitude)) {
@@ -110,6 +86,16 @@ const LocationComponent: React.FC = () => {
     } else {
       console.error("Invalid coordinates received:", location);
     }
+
+    settingEventLocation({ 
+      text: text,
+      city,
+      state,
+      coordinates: { 
+        lat: location.latitude, 
+        lng: location.longitude 
+      }
+    });
 
     // Animate map to slide down
     Animated.timing(mapVisible, {
@@ -129,16 +115,14 @@ const LocationComponent: React.FC = () => {
             backgroundColor: themeColors.inputBackgroundColor,
             borderRadius: 8,
             paddingHorizontal: 16,
-            paddingVertical: 8,
-            height: screenWidth / 10,
+            paddingVertical: 14,
           }}
         >
-          <Feather name="map-pin" size={18} color={themeColors.placeholderTextColor} style={{ marginRight: 10 }} />
+          <Feather name="map-pin" size={24} color={themeColors.placeholderTextColor} style={{ marginRight: 10 }} />
           <TextInput
             autoCorrect={false} // Prevents unnecessary text input errors
             keyboardType="default" // Explicitly define the keyboard type
             style={{
-              flex: 1,
               fontSize: 16,
               color: themeColors.text,
             }}
@@ -163,16 +147,17 @@ const LocationComponent: React.FC = () => {
         {/* Suggestions Dropdown */}
         {suggestions.length > 0 && (
           <ThemedView style={{
+            position: 'absolute',
+            top: '110%', // Positions right below the input field
+            left: 0,
+            width: '100%',
             backgroundColor: themeColors.inputBackgroundColor,
             borderRadius: 8,
-            marginTop: 8,
             paddingVertical: 5,
             maxHeight: 250, // Ensuring enough space for scrolling
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.2,
-            shadowRadius: 4,
-            elevation: 3
+            borderWidth: 1,
+            borderColor: themeColors.background,
+            zIndex: 1000, // Ensures it overlays other components
           }}>
             <ScrollView style={{ maxHeight: 250 }} nestedScrollEnabled={true}>
               {suggestions.map((item, index) => (
@@ -183,7 +168,12 @@ const LocationComponent: React.FC = () => {
                     borderBottomWidth: index !== suggestions.length - 1 ? 1 : 0,
                     borderBottomColor: themeColors.background,
                   }}
-                  onPress={() => handleLocationSelect(item['location'], item['displayName']['text'])}
+                  onPress={() => handleLocationSelect(
+                    item?.displayName?.text,
+                    item?.postalAddress.locality,
+                    item?.postalAddress.administrativeArea,
+                    item?.location,
+                  )}
                 >
                   <Text style={{ fontWeight: 'bold', color: themeColors.text }}>{item['displayName']['text']}</Text>
                   <Text style={{ color: themeColors.text, fontSize: 12 }}>{item['formattedAddress']}</Text>
@@ -205,69 +195,14 @@ const LocationComponent: React.FC = () => {
               outputRange: [0, 150], // Expands height smoothly
             }),
             width: '100%',
-            opacity: mapVisible
+            opacity: mapVisible,
+            borderRadius: 8,
+            overflow: 'hidden'
           }}>
-            <MapView
-              loadingEnabled={true}
-              showsUserLocation={locationPermission}
-              userInterfaceStyle={colorScheme === 'dark' ? 'dark' : 'light'}
-              style={{ 
-                width: '100%', 
-                height: '100%',
-                borderRadius: 8
-              }}
-              region={{
-                latitude: coordinates.latitude,
-                longitude: coordinates.longitude,
-                latitudeDelta: 0.01, // Zooms in closer
-                longitudeDelta: 0.01, // Zooms in closer
-              }}
-            >
-              <Marker coordinate={coordinates} title={selectedLocation || 'Selected Location'} pinColor={themeColors.mountainGreen}/>
-            </MapView>
-
-            {/* Directions Button */}
-            <TouchableOpacity
-              style={{
-                position: 'absolute',
-                bottom: 10,
-                right: 10,
-                backgroundColor: themeColors.background,
-                paddingVertical: 10,
-                paddingHorizontal: 15,
-                borderRadius: 8,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.3,
-                shadowRadius: 4,
-                elevation: 3,
-              }}
-              onPress={() => {
-                Alert.alert(
-                  "Open Apple Maps?",
-                  `Do you want to get directions to "${selectedLocation}"?`,
-                  [
-                    { text: "Cancel", style: "cancel" },
-                    {
-                      text: "Apple Maps",
-                      onPress: () => {
-                        const url = `http://maps.apple.com/?daddr=${coordinates.latitude},${coordinates.longitude}`;
-                        Linking.openURL(url);
-                      },
-                    },
-                    {
-                      text: "Google Maps",
-                      onPress: () => {
-                        const url = `http://maps.google.com/?daddr=${coordinates.latitude},${coordinates.longitude}`;
-                        Linking.openURL(url);
-                      },
-                    },
-                  ]
-                );
-              }}
-            >
-              <FontAwesome name="location-arrow" size={24} color={themeColors.text} />
-            </TouchableOpacity>
+            <MapViewModal
+              coordinates={coordinates}
+              selectedLocation={selectedLocation}
+            />
           </Animated.View>
         )}
       </KeyboardAvoidingView>

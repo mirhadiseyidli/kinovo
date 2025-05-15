@@ -2,16 +2,15 @@ const mongoose = require('mongoose');
 const validator = require('validator');
 
 const usersSchema = new mongoose.Schema({
-  uuid: {
-    type: String,
-    unique: true,
-    required: true,
-  },
   first_name: {
     type: String,
     required: true,
   },
   last_name: {
+    type: String,
+    required: true,
+  },
+  full_name: {
     type: String,
     required: true,
   },
@@ -30,6 +29,41 @@ const usersSchema = new mongoose.Schema({
       message: "Please provide a valid email address",
     },
   },
+  email_verified: {
+    type: Boolean,
+    default: false,
+    required: true,
+  },
+  phone_number: {
+    country_code: {
+      type: String,
+      default: null,
+      required: function () {
+        return !this.google_id; // Required only for non-Google users
+      }
+    },
+    area_code: {
+      type: String,
+      default: null,
+      required: function () {
+        return !this.google_id; // Required only for non-Google users
+      }
+    },
+    phone_num: {
+      type: String,
+      default: null,
+      required: function () {
+        return !this.google_id; // Required only for non-Google users
+      }
+    },
+    full_num: {
+      type: String,
+      default: null,
+      required: function () {
+        return !this.google_id; // Required only for non-Google users
+      }
+    }
+  },
   // TODO: Password hashes before going into Database?
   password: {
     type: String,
@@ -47,6 +81,19 @@ const usersSchema = new mongoose.Schema({
     type: String,
     required: false,
   },
+  cover_photo: {
+    type: String,
+    required: false,
+  },
+  bio: {
+    type: String,
+    default: null,
+    maxlength: 300
+  },
+  date_of_birth: {
+    type: Date,
+    required: false,
+  },
   created_at: {
     type: Date,
     default: Date.now(),  // Date & Time at the time of request
@@ -54,31 +101,80 @@ const usersSchema = new mongoose.Schema({
   },
   last_login_at: {
     type: Date,
-    default: null,
+    default: Date.now(),
   },
   friends: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Users',
+    validate: {
+      validator: function(value) {
+        return !this._id.equals(value);
+      },
+      message: 'User cannot add themselves as a friend',
+    }
   }],
-  friend_requests: [{
-    sender: {
+  location: {
+    city: { type: String, default: null },
+    state: { type: String, default: null },
+    text: { type: String, default: null },
+    coordinates: {
+      lat: { type: Number, default: null },
+      lng: { type: Number, default: null }
+    }
+  },
+  events: [{
+    event: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Users',
-    },
-    receiver: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Users',
+      ref: 'Events',
+      required: true,
     },
     status: {
       type: String,
-      enum: ['pending', 'accepted', 'rejected'],
+      enum: ['pending', 'maybe', 'accepted', 'rejected'],
       default: 'pending',
-    },
-    created_at: {
-      type: Date,
-      default: Date.now(),
     }
-  }]
+  }],
+  favorite_activities: [{
+    type: String,
+    default: []
+  }],
+  social_handles: {
+    _id: false,
+    instagram: {
+      username: {
+        type: String,
+        default: null
+      }
+    },
+    facebook: {
+      username: {
+        type: String,
+        default: null
+      }
+    },
+  },
+  last_checked_events: [
+    {
+      friend: { type: mongoose.Schema.Types.ObjectId, ref: 'Users' },
+      viewed_events: [
+        {
+          event: { type: mongoose.Schema.Types.ObjectId, ref: 'Events' },
+          viewed_at: { type: Date, default: Date.now }
+        }
+      ]
+    }
+  ],
+  friend_event_history: [
+    {
+      friend: { type: mongoose.Schema.Types.ObjectId, ref: 'Users' },
+      events: [
+        {
+          event: { type: mongoose.Schema.Types.ObjectId, ref: 'Events' },
+          added_at: { type: Date, default: Date.now }
+        }
+      ]
+    }
+  ]
 });
 
 module.exports = mongoose.model('Users', usersSchema);
