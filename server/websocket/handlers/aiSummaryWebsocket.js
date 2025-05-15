@@ -1,12 +1,8 @@
 // handlers/aiSummary.js
+const { getAISummary } = require('../../controllers/aiController');
+
 const handleAISummary = async (userId, ws) => {
-  try {
-    const summary = `AI summary for user ${userId}`;
-    ws.send(JSON.stringify({ type: 'ai-summary-response', summary }));
-  } catch (error) {
-    console.error('AI summary error:', error.message);
-    ws.send('[AI_SUMMARY_ERROR]');
-  }
+  await getAISummary(userId, ws); // Stream assistant response
 };
 
 module.exports = { handleAISummary };

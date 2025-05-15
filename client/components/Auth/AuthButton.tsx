@@ -1,27 +1,34 @@
-import React from 'react';
-import { TouchableOpacity, Image, ImageSourcePropType, Dimensions } from 'react-native';
+import React, { useState } from 'react';
+import { TouchableOpacity, Image, ImageSourcePropType, Dimensions, LayoutChangeEvent } from 'react-native';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { AuthButtonProps } from '@/types/allTypes';
+import { ThemedText } from '../ThemedText';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 
-const { width } = Dimensions.get('window');
-
-// Function to calculate button size dynamically based on screen width
-const getSize = (percentage: number) => (width * percentage) / 100;
-
-const AuthButton: React.FC<AuthButtonProps> = ({ onPress, logo, backgroundColor='white' }) => {
+const AuthButton: React.FC<AuthButtonProps & { disabled?: boolean }> = ({ onPress, logo, backgroundColor='white', disabled }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
+  const [buttonHeight, setButtonHeight] = useState(0);
+
+  const handleLayout = (event: LayoutChangeEvent) => {
+    const { height } = event.nativeEvent.layout;
+    setButtonHeight(height);
+  };
+
+  const logoHeight = (buttonHeight * 50) / 100;
 
   return (
     <TouchableOpacity
       onPress={onPress}
+      disabled={disabled}
+      onLayout={handleLayout}
       style={{
         flexShrink: 1,
-        height: '70%',
+        height: '100%',
         aspectRatio: 1, // Keeps it square
         backgroundColor,
-        borderRadius: 9999, // Makes it fully rounded
+        borderRadius: 16, // Makes it fully rounded
         alignItems: 'center',
         justifyContent: 'center',
         shadowColor: '#000',
@@ -32,14 +39,7 @@ const AuthButton: React.FC<AuthButtonProps> = ({ onPress, logo, backgroundColor=
       }}
       activeOpacity={0.8} // ✅ Fix: activeOpacity moved outside of style
     >
-      <Image
-        source={logo}
-        style={{
-          width: getSize(7), // 7% of screen width
-          height: getSize(7), // Keep same aspect ratio
-        }}
-        resizeMode="contain"
-      />
+      <FontAwesome name={logo} color={themeColors.text} size={logoHeight} />
     </TouchableOpacity>
   );
 };

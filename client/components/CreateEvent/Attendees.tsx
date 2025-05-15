@@ -86,7 +86,6 @@ const Attendees: React.FC<{ limit: number | null }> = ({ limit }) => {
       const err = error as ApiError;
       if (err.response?.status === 401) {
         try {
-          console.log('couldnt search or update the token')
           await refreshAccessToken();
           const newAccessToken = await AsyncStorage.getItem('accessToken');
           if (newAccessToken) {
@@ -115,7 +114,6 @@ const Attendees: React.FC<{ limit: number | null }> = ({ limit }) => {
   const handleAdd = (friend: AttendeeFriend) => {
     const alreadyAdded = attendees.some((f) => f._id === friend._id);
     if (alreadyAdded) return;
-    console.log(limit)
     if (limit !== null && attendees.length > limit - 1) return;
 
     setAttendees((prev: AttendeeFriend[]) => [...prev, friend]);

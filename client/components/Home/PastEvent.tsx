@@ -1,86 +1,117 @@
 import React from 'react';
-import { View, ImageBackground, Dimensions, TouchableOpacity } from 'react-native';
-import { BlurView } from 'expo-blur'; // Add expo-blur for the blur effect
+import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import { ThemedText } from '@/components/ThemedText';
-import Friend from '@/components/Friend';
-import { Event } from '@/types/allTypes';
-import { AutoSkeletonView } from 'react-native-auto-skeleton';
+import { useRouter } from 'expo-router';
+import { Event, User } from '@/types/allTypes';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const PastEvent: React.FC<{ event: Event; loading: boolean }> = ({ event, loading }) => {
-  const screenWidth = Dimensions.get('window').width;
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-
-  // Background color based on theme
-  const backgroundColor =
-    colorScheme === 'dark'
-      ? 'rgba(50, 50, 50, 0.7)' // Whitish gray for dark mode
-      : 'rgba(200, 200, 200, 0.7)'; // Darkish gray for light mode
+  const router = useRouter();
+  
+  const handleViewEvent = () => {
+    router.push(`/(auth)/(viewEvent)/${event?._id}`);
+  }
 
   return (
-    <TouchableOpacity>
-      <AutoSkeletonView 
-        isLoading={loading} 
-        shimmerBackgroundColor={themeColors.background} 
-        gradientColors={[
-          themeColors.background, 
-          themeColors.inputBackgroundColor
-        ]}
-      >
-        <ImageBackground
-          source={event?.event_picture ? { uri: event.event_picture } : require('@/assets/event-default.png')}
-          resizeMode="cover"
-          style={{
-            backgroundColor: themeColors.background,
-            width: '100%',
-            aspectRatio: 1.9,
-            borderRadius: 12, // Ensure rounded corners
-            overflow: 'hidden',
-            marginBottom: 8
-          }}
-        >
-          {/* Blurry Tint Overlay */}
-          <BlurView
-            intensity={50}
-            tint={colorScheme === 'dark' ? 'dark' : 'light'}
+    <TouchableOpacity
+      onPress={handleViewEvent}
+      style={{
+        padding: 16,
+        flexDirection: 'column',
+        gap: 12,
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+
+      <LinearGradient
+        colors={[themeColors.cardColorsGradientOne, themeColors.cardColorsGradientTwo]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          borderRadius: 12,
+          opacity: 0.9, // Slight transparency for a sleeker look
+        }}
+      />
+
+      {/* Title */}
+      <View style={{ flexDirection: 'column' }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <Text style={{ color: themeColors.text, fontWeight: 'bold', fontSize: 16 }}>
+            {event.title}
+          </Text>
+          {/* Past Event pill */}
+          <View
             style={{
-              backgroundColor,
-              width: '100%',
-              height: '30%',
-              position: 'absolute',
-              bottom: 0,
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              paddingVertical: 8,
-              paddingHorizontal: 16,
-              borderBottomLeftRadius: 12,
-              borderBottomRightRadius: 12,
+              paddingHorizontal: 8,
+              paddingVertical: 6,
+              borderRadius: 4,
+              backgroundColor: themeColors.background,
             }}
           >
-            {/* Event Info */}
-            <View style={{ flex: 1 }}>
-              <ThemedText style={{ fontSize: 12, fontWeight: 'bold' }}>{event.title}</ThemedText>
-              <ThemedText style={{ fontSize: 12 }}>
-                {event?.start_time ? new Date(event.start_time).toISOString().split('T')[0] : 'No date'}
-              </ThemedText>
-            </View>
+            <Text style={{ color: themeColors.text, fontWeight: '600', fontSize: 12 }}>Past Event</Text>
+          </View>
+        </View>
 
-            {/* Attendees */}
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              {event?.attendees?.slice(0, 3).map((friend, index) => (
-                <View key={index} style={{ marginLeft: index > 0 ? -12 : 0 }}>
-                  <Friend _id={friend._id} full_name={friend.full_name} profile_picture={friend.profile_picture} size={32} refreshing={loading}/>
-                </View>
+        <View>
+          <Text style={{ color: themeColors.textThird, fontWeight: '500', fontSize: 12 }}>{event.category}</Text>
+        </View>
+      </View>
+      
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+        <View style={{ flexDirection: 'column', gap: 8 }}>
+          {/* Date */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Feather name="calendar" size={16} color={themeColors.textThird} />
+            <Text style={{ color: themeColors.textThird, fontSize: 14 }}>
+              {event.start_time
+                ? new Date(event.start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                : 'Date not available'}
+            </Text>
+          </View>
+
+          {/* Location */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Feather name="map-pin" size={16} color={themeColors.textThird} />
+            <Text style={{ color: themeColors.textThird, fontSize: 14 }}>
+              {event?.location.text}
+            </Text>
+          </View>
+        </View>
+
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          {/* Avatars */}
+          {Array.isArray(event.attendees) && (
+            <View style={{ flexDirection: 'row', marginTop: 4 }}>
+              {event.attendees.slice(0, 3).map((user, i) => (
+                <Image
+                  key={user.user?._id}
+                  source={user.user?.profile_picture ? { uri: user.user?.profile_picture } : require('@/assets/profile-pic-2.jpeg')}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 999,
+                    marginLeft: i === 0 ? 0 : -12,
+                  }}
+                />
               ))}
             </View>
-          </BlurView>
-        </ImageBackground>
-      </AutoSkeletonView>
+          )}
+        </View>
+      </View>
     </TouchableOpacity>
   );
 };
 
 export default PastEvent;
+
+// onPress={handleViewEvent}

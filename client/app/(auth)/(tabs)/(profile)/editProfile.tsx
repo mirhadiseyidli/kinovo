@@ -4,33 +4,26 @@ import { ThemedView } from "@/components/ThemedView";
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import EditUserGeneralInfo from "@/components/ProfileAndSettings/Profile/EditUserGeneralInfo";
+import { LinearGradient } from "expo-linear-gradient";
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { Colors } from '@/constants/Colors';
 
 const EditProfile = () => {
-  const [ showScrollToTop, setShowScrollToTop ] = useState(false);
-  const scrollViewRef = useRef<ScrollView>(null);
   const tabBarHeight = useBottomTabBarHeight(); // Get tab bar height dynamically
   const insets = useSafeAreaInsets();
-
-  const handleScroll = (event: any) => {
-    const offsetY = event.nativeEvent.contentOffset.y;
-    setShowScrollToTop(offsetY > 50); // Toggle button state after a small scroll
-  };
+  const colorScheme = useColorScheme();
+  const themeColors = Colors[colorScheme ?? 'dark'];
 
   return (
-    <ThemedView style={{ flex: 1, paddingBottom: tabBarHeight }}>
-      <ScrollView
-        ref={scrollViewRef}
-        style={{ 
-          flex: 1,
-          paddingBottom: tabBarHeight + insets.bottom,
-        }}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-      >
-        <ThemedView style={{ flex: 1, marginBottom: 48 }}>
-          <EditUserGeneralInfo />
-        </ThemedView>
-      </ScrollView>
+    <ThemedView style={{ flex: 1, paddingTop: insets.top, paddingBottom: tabBarHeight }}>
+      <LinearGradient
+        colors={[themeColors.mountainGreen, themeColors.background, themeColors.background]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        locations={[0, 0.5, 1]}
+        style={{ position: 'absolute', width: '100%', height: '100%', top: 0 }}
+      />
+      <EditUserGeneralInfo />
     </ThemedView>
   );
 }

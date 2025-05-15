@@ -31,7 +31,10 @@ const EditUserCoverPhotos = ({ user }: EditUserCoverPhotosProps) => {
             resizeMode="cover"
           />
           <LinearGradient
-            colors={['transparent', 'red', themeColors.background]}
+            colors={['transparent', themeColors.background]}
+            start={{ x: 0.5, y: 0.6 }}
+            end={{ x: 0.5, y: 1 }}
+            locations={[0, 1]}
             style={{ position: 'absolute', width: '100%', height: '100%', bottom: 0 }}
           />
         </>
@@ -40,6 +43,9 @@ const EditUserCoverPhotos = ({ user }: EditUserCoverPhotosProps) => {
           <View style={{ width: '100%', height: '100%', backgroundColor: themeColors.mountainGreen }} />
           <LinearGradient
             colors={['transparent', themeColors.background]}
+            start={{ x: 0.5, y: 0.6 }}
+            end={{ x: 0.5, y: 1 }}
+            locations={[0, 1]}
             style={{ position: 'absolute', width: '100%', height: '100%', bottom: 0 }}
           />
         </>

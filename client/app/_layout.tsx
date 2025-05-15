@@ -6,17 +6,25 @@ import * as SplashScreen from "expo-splash-screen";
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import KinovoSplash from "@/components/KinovoSplash";
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import 'react-native-reanimated';
+import { registerRootComponent } from 'expo';
+import { Provider } from 'react-redux';
+import { store } from "@/store";
+import { ThemedView } from "@/components/ThemedView";
 
-export default function RootLayout(): JSX.Element {
+registerRootComponent(RootLayout);
+
+export default function RootLayout() {
   return (
-    <AuthProvider>
-      <InnerLayout />
-    </AuthProvider>
+    <Provider store={store}>
+      <AuthProvider>
+        <InnerLayout />
+      </AuthProvider>
+    </Provider>
   );
 }
 
-function InnerLayout(): JSX.Element {
+function InnerLayout() {
   const { isLoading } = useAuthSession();
   const [appIsReady, setAppIsReady] = useState(false);
   const [isLogoLoaded, setIsLogoLoaded] = useState(false);
@@ -73,8 +81,8 @@ function InnerLayout(): JSX.Element {
       </Animated.View>
     </View>
   ) : (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <ThemedView style={{ flex: 1 }}>
         <Slot />
-    </GestureHandlerRootView>
+    </ThemedView>
   );
 }

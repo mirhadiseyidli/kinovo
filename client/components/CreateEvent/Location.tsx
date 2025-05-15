@@ -25,7 +25,6 @@ const LocationComponent: React.FC = () => {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [inputText, setInputText] = useState('');
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
-  const { locationPermission } = useLocation();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { settingEventLocation } = useCreateEventContext();
@@ -78,10 +77,6 @@ const LocationComponent: React.FC = () => {
   };
 
   const handleLocationSelect: LocationSelectHandler = async (text, city, state, location) => {
-    console.log('text ', text)
-    console.log('city ', city)
-    console.log('state', state)
-    console.log('location ', location)
     setSelectedLocation(text);
     setInputText(text);
     setSuggestions([]);
@@ -200,10 +195,11 @@ const LocationComponent: React.FC = () => {
               outputRange: [0, 150], // Expands height smoothly
             }),
             width: '100%',
-            opacity: mapVisible
+            opacity: mapVisible,
+            borderRadius: 8,
+            overflow: 'hidden'
           }}>
             <MapViewModal
-              locationPermission={locationPermission}
               coordinates={coordinates}
               selectedLocation={selectedLocation}
             />

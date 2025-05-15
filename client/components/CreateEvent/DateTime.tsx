@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, Dimensions, TouchableWithoutFeedback, Platform } from 'react-native';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+// import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { DateTimePicker } from '@expo/ui/swift-ui';
 import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
@@ -22,12 +23,12 @@ const DateTime: React.FC = () => {
   const [tempStartDate, setTempStartDate] = useState<DateTimeState['tempStartDate']>(startDate);
   const [tempEndDate, setTempEndDate] = useState<DateTimeState['tempEndDate']>(endDate);
 
-  const handleStartDateChange: DatePickerChangeHandler = (event, selectedDate) => {
+  const handleStartDateChange = (selectedDate: Date) => {
     if (selectedDate) setTempStartDate(selectedDate);
     settingEventStartTime(selectedDate ?? null);
   };
   
-  const handleEndDateChange: DatePickerChangeHandler = (event, selectedDate) => {
+  const handleEndDateChange = (selectedDate: Date) => {
     if (selectedDate) setTempEndDate(selectedDate);
     settingEventEndTime(selectedDate ?? null);
   };
@@ -100,6 +101,14 @@ const DateTime: React.FC = () => {
                 <View style={{ backgroundColor: themeColors.background, padding: 20, borderRadius: 10, minHeight: 280 }}>
                   <View style={{ minWidth: 280, width: '100%', alignItems: 'center' }}>
                     <DateTimePicker
+                      initialDate={tempStartDate.toISOString()}
+                      color={themeColors.mountainGreen}
+                      displayedComponents="dateAndTime"
+                      variant="graphical"
+                      onDateSelected={handleStartDateChange}
+                      style={{ minHeight: 280, minWidth: 280, width: '100%' }}
+                    />
+                    {/* <DateTimePicker
                       value={tempStartDate} // Use temp value
                       textColor={themeColors.text}
                       accentColor={themeColors.mountainGreen}
@@ -109,7 +118,7 @@ const DateTime: React.FC = () => {
                       display={Platform.OS === 'ios' ? 'inline' : 'default'}
                       onChange={handleStartDateChange} // Store in temp
                       style={{ minHeight: 280, minWidth: 280, width: '100%' }} // Ensure minimum width
-                    />
+                    /> */}
                   </View>
                   {/* Confirm Button */}
                   <TouchableOpacity
@@ -166,7 +175,15 @@ const DateTime: React.FC = () => {
               <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}>
                 <View style={{ backgroundColor: themeColors.background, padding: 20, borderRadius: 10, minHeight: 280 }}>
                   <View style={{ minWidth: 280, width: '100%', alignItems: 'center' }}>
-                    <DateTimePicker
+                  <DateTimePicker
+                      initialDate={tempStartDate.toISOString()}
+                      color={themeColors.mountainGreen}
+                      displayedComponents="dateAndTime"
+                      variant="graphical"
+                      onDateSelected={handleStartDateChange}
+                      style={{ minHeight: 280, minWidth: 280, width: '100%' }}
+                    />
+                    {/* <DateTimePicker
                       value={tempEndDate} // Use temp value
                       textColor={themeColors.text}
                       accentColor={themeColors.mountainGreen}
@@ -176,7 +193,7 @@ const DateTime: React.FC = () => {
                       display={Platform.OS === 'ios' ? 'inline' : 'default'}
                       onChange={handleEndDateChange} // Store in temp
                       style={{ minHeight: 280, minWidth: 280, width: '100%' }} // Ensure minimum width
-                    />
+                    /> */}
                   </View>
                   {/* Confirm Button */}
                   <TouchableOpacity

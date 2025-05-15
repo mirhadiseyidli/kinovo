@@ -74,12 +74,20 @@ const eventsSchema = new mongoose.Schema({
     }
   },
   attendees: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Users',
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Users',
+      required: true,
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'maybe', 'accepted', 'rejected'],
+      default: 'pending',
+    }
   }],
   visibility: {
     type: String,
-    enum: ['public', 'private'],
+    enum: ['public', 'private', 'select'],
     default: 'public',
   },
 });

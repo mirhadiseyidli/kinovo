@@ -62,7 +62,6 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
     try {
       const accessToken = accessTokenRef.current;
       if (!accessToken) throw new Error('No access token');
-      console.log(accessToken)
 
       const response = await axios.get(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/check-auth`, {
         headers: { Authorization: `Bearer ${accessToken}` },
@@ -83,7 +82,6 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
   const refreshAccessToken = async () => {
     try {
       const refreshToken = refreshTokenRef.current;
-      console.log(refreshToken)
       if (!refreshToken) {
         signOut();
         return;
@@ -102,7 +100,6 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
       if (newAccessToken) {
         await AsyncStorage.setItem('accessToken', newAccessToken);
         accessTokenRef.current = newAccessToken;
-        console.log('Access token refreshed');
       } else {
         signOut();
       }

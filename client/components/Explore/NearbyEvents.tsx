@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
 import EventCardView from '@/components/Explore/EventCardView';
 import { ThemedView } from '@/components/ThemedView';
@@ -9,61 +9,35 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Feather } from '@expo/vector-icons';
 import { NearbyEvent } from '@/types/allTypes';
 import { ScrollHandlerEvent } from '@/types/allTypes';
-
-const bikingTrail = require('@/assets/biking-trail.jpg');
-const hikingPlace = require('@/assets/hiking-place.jpg');
-const soccerField = require('@/assets/soccer-field.jpg');
-const tennisCourt = require('@/assets/tennis-court.jpg');
-const conferenceRoom = require('@/assets/conference-room.webp');
+import * as Location from 'expo-location';
+import { useGetNearByEvents } from '@/hooks/useGetNearByEvents';
+import { Event } from '@/types/allTypes';
 
 const NearbyEvents: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const scrollRef = useRef<ScrollView>(null);
-
-  const events: NearbyEvent[] = [
-    {
-      id: 1,
-      title: 'Weekend Hike',
-      location: 'Green Valley',
-      date: 'March 10, 2025',
-      time: '8:00 AM',
-      imageUrl: hikingPlace,
-    },
-    {
-      id: 2,
-      title: 'Morning Cycle',
-      location: 'Sunrise Trail',
-      date: 'March 11, 2025',
-      time: '6:00 AM',
-      imageUrl: bikingTrail,
-    },
-    {
-      id: 3,
-      title: 'Kayaking Fun',
-      location: 'Blue River',
-      date: 'March 12, 2025',
-      time: '9:00 AM',
-      imageUrl: soccerField,
-    },
-    {
-      id: 4,
-      title: 'Rock Climbing',
-      location: 'Eagle Rock',
-      date: 'March 13, 2025',
-      time: '7:00 AM',
-      imageUrl: tennisCourt,
-    },
-    {
-      id: 5,
-      title: 'Camping Trip',
-      location: 'Pine Woods',
-      date: 'March 14, 2025',
-      time: '5:00 PM',
-      imageUrl: conferenceRoom,
-    },
-  ];
-
   const screenWidth = Dimensions.get('window').width;
+  const scrollRef = useRef<ScrollView>(null);
+  const colorScheme = useColorScheme();
+  const [userLocation, setUserLocation] = useState<{ city: string; state: string; lat: number | null; lng: number | null }>({
+    city: 'San Francisco',
+    state: 'CA',
+    lat: null,
+    lng: null,
+  });
+  const [nearbyEvents, setNearbyEvents] = useState<Event[]>([]);
+  const { fetchNearByEvents, loading } = useGetNearByEvents();
+
+  useEffect(() => {
+    // Fetch event details using the eventId (dummy example)
+    const getEventData = async () => {
+      if(userLocation.lat !== null && userLocation.lng !== null) {
+        const fetchedEvents = await fetchNearByEvents(userLocation.lat, userLocation.lng);
+        setNearbyEvents(fetchedEvents ?? []);
+      }
+    }
+    
+    getEventData();
+  }, [userLocation]);
 
   const handleScrollEndDrag = (event: ScrollHandlerEvent) => {
     const offsetX = event.nativeEvent.contentOffset.x;
@@ -94,44 +68,65 @@ const NearbyEvents: React.FC = () => {
     }
     setCurrentIndex(index);
   };
-
-  const colorScheme = useColorScheme();
+  
+  useEffect(() => {
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        return;
+      }
+      let location = await Location.getCurrentPositionAsync({});
+      let geocode = await Location.reverseGeocodeAsync(location.coords);
+      if (geocode.length > 0) {
+        setUserLocation({
+          city: geocode[0].city || 'Unknown',
+          state: geocode[0].region || 'Unknown',
+          lat: location.coords.latitude || null,
+          lng: location.coords.longitude || null
+        });
+      }
+    })();
+  }, [location]);
 
   return (
     <ThemedView style={{ flex: 1, width: screenWidth }}>
       {/* Header */}
       <ThemedView style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, paddingHorizontal: 16 }}>
         <Feather name="map-pin" size={16} color={Colors[colorScheme ?? 'dark'].tint} />
-        <ThemedText style={{ fontSize: 18, fontWeight: 'bold' }}>San Francisco</ThemedText>
+        <ThemedText style={{ fontSize: 18, fontWeight: 'bold' }}>{userLocation.city}, {userLocation.state}</ThemedText>
       </ThemedView>
 
       <ThemedView style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, paddingHorizontal: 16 }}>
         <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>Nearby Events</ThemedText>
-        <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <ThemedText style={{ fontSize: 16, marginRight: 4 }}>View All</ThemedText>
-          <IconSymbol name="chevron.right" size={12} color={Colors[colorScheme ?? 'dark'].tint} />
-        </TouchableOpacity>
       </ThemedView>
 
       {/* Horizontal Carousel */}
       <ThemedView style={{ width: screenWidth }}>
         <ScrollView
-          ref={scrollRef}
           horizontal
+          pagingEnabled
           showsHorizontalScrollIndicator={false}
           onScrollEndDrag={handleScrollEndDrag}
           onMomentumScrollEnd={handleMomentumScrollEnd}
           scrollEventThrottle={16}
           style={{ marginBottom: 16 }}
         >
-          {events.map((event: NearbyEvent) => (
-            <ThemedView key={event.id} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, width: screenWidth }}>
-              <EventCardView title={event.title} location={event.location} date={event.date} time={event.time} imageUrl={event.imageUrl} />
+          {nearbyEvents.map((event) => (
+            <ThemedView key={event._id} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, width: screenWidth }}>
+              <EventCardView 
+                event={event}
+                // title={event.title} 
+                // location={event.location.text} 
+                // date={event.start_time ? new Date(event.start_time) : null} 
+                // time={event.start_time ? new Date(event.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''} 
+                // imageUrl={event.event_picture} 
+                // imageUrl={require('@/assets/event-default.png')} 
+              />
             </ThemedView>
           ))}
 
           {/* See More Button as the Last Item */}
-          <ThemedView style={{ alignItems: 'center', justifyContent: 'center', width: screenWidth }}>
+          <TouchableOpacity style={{ alignItems: 'center', justifyContent: 'center', width: screenWidth }}>
             <ThemedText 
               style={{
                 fontWeight: 'bold',
@@ -145,13 +140,13 @@ const NearbyEvents: React.FC = () => {
             >
               See More Events
             </ThemedText>
-          </ThemedView>
+          </TouchableOpacity>
         </ScrollView>
       </ThemedView>
 
       {/* Pagination Dots */}
       <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 4 }}>
-        {events.map((_, index) => (
+        {nearbyEvents.map((_, index) => (
           <View
             key={index}
             onTouchStart={() => scrollToItem(index)}
@@ -166,12 +161,12 @@ const NearbyEvents: React.FC = () => {
 
         {/* Dot for See More Button */}
         <View
-          onTouchStart={() => scrollToItem(events.length)}
+          onTouchStart={() => scrollToItem(nearbyEvents.length)}
           style={{
             height: 8,
             width: 8,
             borderRadius: 4,
-            backgroundColor: currentIndex === events.length ? Colors[colorScheme ?? 'dark'].tint : Colors[colorScheme ?? 'dark'].border,
+            backgroundColor: currentIndex === nearbyEvents.length ? Colors[colorScheme ?? 'dark'].tint : Colors[colorScheme ?? 'dark'].border,
           }}
         />
       </View>

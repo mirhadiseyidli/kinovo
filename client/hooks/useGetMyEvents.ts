@@ -18,7 +18,7 @@ export const useGetMyEvents = () => {
     try {
       const token = await AsyncStorage.getItem('accessToken');
       const response = await axios.get(
-        `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/manageevents/eventslist/get/my/events`,
+        `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/manageevents/eventslist/get/my/upcoming/events`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
@@ -30,7 +30,7 @@ export const useGetMyEvents = () => {
           await refreshAccessToken();
           const retryToken = await AsyncStorage.getItem('accessToken');
           const retryResponse = await axios.get(
-            `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/manageevents/eventslist/get/my/events`,
+            `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/manageevents/eventslist/get/my/upcoming/events`,
             { headers: { Authorization: `Bearer ${retryToken}` } }
           );
           
@@ -40,7 +40,7 @@ export const useGetMyEvents = () => {
           setError('Failed to refresh access token.');
         }
       } else {
-        console.error('Failed to fetch friends:', err.message);
+        console.error('Failed to fetch events:', err.message);
         setError(err.message);
       }
     } finally {

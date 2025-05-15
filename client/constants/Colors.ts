@@ -5,6 +5,7 @@
 
 const tintColorLight = '#000000';
 const tintColorDark = '#fff';
+const mountainGreen = '#15b8a7' // or '#3ac0a8'?
 
 export const Colors = {
   light: {
@@ -19,13 +20,19 @@ export const Colors = {
     inputBackgroundColor: '#f7f7f7',
     placeholderTextColor: '#c2c7ca',
     textSecondary: '#6B7280',
-    mountainGreen: '#3ac0a8',
+    mountainGreen: mountainGreen,
     skeletonBoxColor: '#e0e0e0',
     skeletonLoadingColor: 'rgba(255, 255, 255, 0.6)',
     buttonBackgroundColor: 'rgba(255, 255, 255, 0.1)', // for light gray tint on dark background
     tabBarInactiveColor: '#c2c7ca',
     popUpMessageBackgroundColor: '#c2c7ca',
-    calendarBorderColor: '#c2c7ca'
+    calendarBorderColor: '#c2c7ca',
+    specialRed: '#ef4444',
+    blurOverlayColor: 'rgba(255,255,255,0.3)',
+    storyCardBlurOverlay: 'rgba(0,0,0,0.3)',
+    cardColorsGradientOne: 'rgba(201, 201, 201, 0.9)',
+    cardColorsGradientTwo: 'rgba(185, 185, 185, 0.9)',
+    textThird: '#525252',
   },
   dark: {
     text: '#ECEDEE',
@@ -39,12 +46,18 @@ export const Colors = {
     inputBackgroundColor: '#40404b',
     placeholderTextColor: '#7e7e8a',
     textSecondary: '#cecece',
-    mountainGreen: '#3ac0a8',
+    mountainGreen: mountainGreen,
     skeletonBoxColor: '#2a2a2e',
     skeletonLoadingColor: 'rgba(255, 255, 255, 0.15)',
     buttonBackgroundColor: 'rgba(0, 0, 0, 0.1)', // dark gray tint, better for light backgrounds
     tabBarInactiveColor: '#40404b',
     popUpMessageBackgroundColor: '#40404b',
-    calendarBorderColor: '#40404b'
+    calendarBorderColor: '#40404b',
+    specialRed: '#ef4444',
+    blurOverlayColor: 'rgba(0,0,0,0.3)',
+    storyCardBlurOverlay: 'rgba(255,255,255,0.3)',
+    cardColorsGradientOne: 'rgba(66, 65, 77, 0.9)',
+    cardColorsGradientTwo: 'rgba(46, 45, 57, 0.9)',
+    textThird: '#A1A1AA',
   },
 };

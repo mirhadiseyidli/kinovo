@@ -2,23 +2,28 @@
   "expo": {
     "name": "Kinovo",
     "slug": "eventsapp",
-    "scheme": "client",
+    "scheme": "kinovo",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/logo.png",
+    "icon": "./assets/ios-icon-tinted.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "config": {
-        "googleMapsApiKey":  "process.env.EXPO_PUBLIC_GOOGLE_MAPS_API"
+      "icon": {
+        "light": "./assets/ios-icon-light.png",
+        "dark": "./assets/ios-icon-dark.png",
+        "tinted": "./assets/ios-icon-tinted.png"
       },
-      "bundleIdentifier": "com.client.app",
+      "config": {
+        "googleMapsApiKey": "process.env.EXPO_PUBLIC_GOOGLE_MAPS_API"
+      },
+      "bundleIdentifier": "com.kinovoapp.kinovo",
       "infoPlist": {
         "UIApplicationSupportsIndirectInputEvents": false,
         "CFBundleURLTypes": [
           {
             "CFBundleURLSchemes": [
-              "com.googleusercontent.apps.614163396040-nctv2m1sivooo3skrdsiv5sa9manm5c5"
+              "process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME"
             ]
           }
         ],
@@ -26,11 +31,9 @@
         "NSCameraUsageDescription": "Allow this app to access your camera.",
         "NSLocationWhenInUseUsageDescription": "This app needs access to your location for better event suggestions.",
         "NSLocationAlwaysUsageDescription": "We use your location to improve recommendations.",
-        "NSContactsUsageDescription": "Allow this app to access your contacts to help connect with your friends."
+        "NSContactsUsageDescription": "Allow this app to access your contacts to help connect with your friends.",
+        "ITSAppUsesNonExemptEncryption": false
       }
-    },
-    "android": {
-      "package": "com.myapp.app"
     },
     "web": {
       "bundler": "metro"
@@ -40,19 +43,14 @@
         "projectId": "430a9e40-9bda-4cc6-954a-625e4926da47"
       }
     },
-    "plugins": [
-      [
-        "@react-native-google-signin/google-signin",
-        {
-          "iosUrlScheme": "com.googleusercontent.apps.614163396040-nctv2m1sivooo3skrdsiv5sa9manm5c5",
-          "iosClientId": "614163396040-nctv2m1sivooo3skrdsiv5sa9manm5c5.apps.googleusercontent.com"
-        }
-      ],
-      "expo-secure-store"
-    ],
     "owner": "mirhadiseyidli",
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-maps",
+      "expo-secure-store"
+    ]
   }
 }

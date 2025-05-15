@@ -5,10 +5,9 @@ require('dotenv').config();
 const getUserEvents = async (userId) => {
   try {
     
-    const user = await User.findOne({ user_id: userId }).select('-password_hash').populate('events');
+    const user = await User.findOne({ _id: userId }).select('-password_hash').populate('events');
 
     if (!user || !user.events || user.events.length === 0) {
-      console.log('No events found for user');
       return [];
     }
 
@@ -33,16 +32,16 @@ const getUserEvents = async (userId) => {
 const getAISummary = async (userId, ws) => {
   const events = await getUserEvents(userId);
 
-  const openai = new OpenAI({ apiKey: 'REDACTED_OPENAI_KEY' });
-  const assistantId = 'asst_MPDd9p8PwFeiV3kbehPvCS2P';
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  const assistantId = process.env.OPENAI_ASSISTANT_ID;
 
   try {
-    // const questions = `
-    //   Summarize my day based on my events. Today's events: ${events.length > 0 ? JSON.stringify(events) : 'No events today'}.
-    // `;
     const questions = `
-      Summarize my day based on my events. Today's events: 'No events today'}.
+      Summarize my day based on my events. Today's events: ${events.length > 0 ? JSON.stringify(events) : 'No events today'}.
     `;
+    // const questions = `
+    //   Summarize my day based on my events. Today's events: 'No events today'}.
+    // `;
 
     const thread = await openai.beta.threads.create();
     await openai.beta.threads.messages.create(thread.id, {
@@ -52,7 +51,6 @@ const getAISummary = async (userId, ws) => {
 
     let text = '';
 
-    console.log('asking');
     await new Promise((resolve, reject) => {
       openai.beta.threads.runs.stream(thread.id, {
         assistant_id: assistantId,
@@ -63,7 +61,6 @@ const getAISummary = async (userId, ws) => {
           ws.send(textDelta.value); 
         })
         .on('end', () => {
-          console.log(text);
           ws.send('[DONE]');
           resolve();
         })

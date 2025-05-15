@@ -17,11 +17,11 @@ const ResourcesSettings = () => {
         title="Help & Support" 
         onPress={() => console.log('pushed')} 
       />
-      <SettingComponent 
+      {/* <SettingComponent 
         icon="message-square" 
         title="FAQs" 
         onPress={() => console.log('pushed')} 
-      />
+      /> */}
       <SettingComponent 
         icon="star" 
         title="Rate App" 

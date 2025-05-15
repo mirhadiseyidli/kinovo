@@ -7,7 +7,6 @@ const router = express.Router();
 
 // Refresh Access Token using a valid Refresh Token
 router.post('/refresh-token', tokenMiddleware, (req, res) => {
-  // console.log(req)
   const refreshToken = req.headers.authorization?.split(' ')[1] || req.body.refreshToken;
 
   if (!refreshToken) {

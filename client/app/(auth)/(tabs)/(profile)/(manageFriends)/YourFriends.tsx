@@ -17,19 +17,26 @@ import { useGetMyFriends } from '@/hooks/useGetMyFriends';
 import { useFocusEffect } from '@react-navigation/native';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import SearchFriendsBar from '@/components/SearchFriendsBar';
 
 export default function FriendsList() {
   const [searchQuery, setSearchQuery] = useState('');
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const { friendsList, refetchFriends , loading } = useGetMyFriends();
+  const { fetchFriends, refetchFriends , loading } = useGetMyFriends();
   const tabBarHeight = useBottomTabBarHeight(); // Get tab bar height dynamically
   const insets = useSafeAreaInsets();
+  const [friendsList, setFriendsList] = useState<Friend[]>([]);
 
   useFocusEffect(
     React.useCallback(() => {
-      refetchFriends();
-    }, [refetchFriends])
+      const getFriendsList = async () => {
+        const fetchedFriendsList = await fetchFriends();
+        setFriendsList(fetchedFriendsList);
+      }
+      
+      getFriendsList();
+    }, [fetchFriends])
   );
 
   return (
@@ -49,8 +56,8 @@ export default function FriendsList() {
               </ThemedText>
             ) : friendsList.length > 0 ? (
               <>
-                <View style={{ marginTop: 16, marginBottom: 16 }}>
-                  <SearchBar
+                <View style={{ width: '100%', marginTop: 16, marginBottom: 16 }}>
+                  <SearchFriendsBar
                     placeholder="Search friends..."
                     value={searchQuery}
                     onChangeText={setSearchQuery}

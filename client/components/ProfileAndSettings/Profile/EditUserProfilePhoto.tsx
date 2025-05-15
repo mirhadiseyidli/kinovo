@@ -14,7 +14,7 @@ const EditUserProfilePhotos = ({ user }: EditUserProfilePhotosProps) => {
 
   return (
     //* Profile Picture
-    <View style={{ alignItems: 'center', marginTop: 150 }}>
+    <View>
       <View 
         style={{ 
           width: 140, 
@@ -22,8 +22,8 @@ const EditUserProfilePhotos = ({ user }: EditUserProfilePhotosProps) => {
           borderRadius: 70, 
           borderWidth: 2, 
           borderColor: themeColors.mountainGreen, 
-          alignItems: 'center', 
-          justifyContent: 'center', 
+          // alignItems: 'center', 
+          // justifyContent: 'center', 
           overflow: 'hidden' 
         }}
       >
@@ -40,7 +40,7 @@ const EditUserProfilePhotos = ({ user }: EditUserProfilePhotosProps) => {
         style={{ 
           position: 'absolute',
           bottom: 5, 
-          right: -3, 
+          right: -1, 
           backgroundColor: themeColors.background,
           borderWidth: 1,
           borderColor: themeColors.text,

@@ -1,8 +1,5 @@
-import { StyleSheet, Image, RefreshControl, StatusBar, View, Dimensions } from 'react-native';
-import React, { useCallback, useState, useEffect } from 'react';
-// import { Collapsible } from '@/components/Collapsible';
-// import { ExternalLink } from '@/components/ExternalLink';
-// import ParallaxScrollView from '@/components/ParallaxScrollView';
+import { StyleSheet, Text, RefreshControl, StatusBar, View, Dimensions, ScrollView, InteractionManager } from 'react-native';
+import React, { useCallback, useState, useEffect, useRef, useMemo } from 'react';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -11,98 +8,141 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import CalendarHeader from '@/components/Calendar/CalendarHeader';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import { ScrollView } from 'react-native-gesture-handler';
-import Dropdown from '@/components/DropdownCustom';
+import Dropdown from '@/components/PickerCustom';
 import MonthView from '@/components/Calendar/MonthView';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, SlideInLeft, SlideOutLeft, SlideInRight, SlideOutRight, runOnJS, LinearTransition, useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import WeekView from '@/components/Calendar/WeekView';
 import ThreeDaysView from '@/components/Calendar/ThreeDaysView';
 import DayView from '@/components/Calendar/DayView';
 import ScheduleView from '@/components/Calendar/ScheduleView';
+import { MonthToggleRef } from '@/types/allTypes';
+import { CalendarViewProvider, useCalendarViewContext } from '@/context/CalendarViewContext';
+
+export interface WeekViewRef {
+  currentDate: Date;
+  update: (date: Date) => void;
+}
+
+function RenderedCalendarView({
+  screenWidth,
+  monthViewRef,
+  weekViewRef,
+  currentDateRef,
+  handleMonthYearChange,
+  refreshing,
+  onFinishFetching,
+  animateMonthRef,
+}: {
+  screenWidth: number;
+  monthViewRef: React.RefObject<any>;
+  weekViewRef: React.RefObject<any>;
+  currentDateRef: React.RefObject<Date>;
+  handleMonthYearChange: (month: number, year: number, day: number, fromDropdown: boolean) => void;
+  refreshing: boolean;
+  onFinishFetching: () => void;
+  animateMonthRef: React.RefObject<boolean>;
+}) {
+  const MemoizedMonthView = React.memo(MonthView);
+  const { view, setView } = useCalendarViewContext();
+
+  return (
+    <Animated.View
+      key={view}
+      entering={FadeIn.duration(500)}
+    >
+      {view.toLowerCase() === 'month' ? (
+        <MemoizedMonthView
+          ref={monthViewRef}
+          currentDateRef={currentDateRef}
+          handleMonthYearChange={handleMonthYearChange}
+          refreshing={refreshing}
+          onFinishRefresh={onFinishFetching}
+          fromDropdownRef={animateMonthRef}
+        />
+      ) : view.toLowerCase() === 'week' ? (
+        <WeekView
+          ref={weekViewRef}
+          handleMonthYearChange={handleMonthYearChange}
+          fromDropdownRef={animateMonthRef}
+        />
+      ) : view.toLowerCase() === 'schedule' ? (
+        <ScheduleView
+          currentDateRef={currentDateRef}
+          // ref={weekViewRef}
+          // handleMonthYearChange={handleMonthYearChange}
+          // fromDropdownRef={animateMonthRef}
+        />
+      ) : null}
+    </Animated.View>
+  );
+}
 
 export default function Calendar() {
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight(); // Get tab bar height dynamically
+  const screenWidth = Dimensions.get('window').width
   const [refreshing, setRefreshing] = useState(false);
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const dropdownOptions = ['Month', 'Week', '3 day', 'Day', 'Schedule'];
-  const [date, setDate] = useState<Date>(new Date());
-  const [view, setView] = useState('month');
-  const [selectedView, setSelectedView] = useState('Month')
+  const currentDateRef = useRef(new Date());
+  const monthToggleRef = useRef<MonthToggleRef>({
+    currentDate: new Date(),
+    update(date: Date) {
+      this.currentDate = date;
+    },
+  });
+  const monthViewRef = useRef<MonthToggleRef>({
+    currentDate: new Date(),
+    update(date: Date) {
+      this.currentDate = date;
+    },
+  });
+  const weekViewRef = useRef<WeekViewRef>({
+    currentDate: new Date(),
+    update(date: Date) {
+      this.currentDate = date;
+    },
+  });
+  const animateMonthRef = useRef(true);
+  const MemoizedCalendarHeader = React.memo(CalendarHeader);
 
-  const handleMonthYearChange = (month: number, year: number) => {
-    const newDate = new Date(year, month);
-    setDate(newDate);
-  };
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(false);
+  const handleMonthYearChange = useCallback((month: number, year: number, day: number, fromDropdown: boolean) => {
+    animateMonthRef.current = fromDropdown;
+    monthToggleRef.current?.update(new Date(year, month, day));
+    monthViewRef.current?.update(new Date(year, month, day));
+    weekViewRef.current?.update(new Date(year, month, day));
+    currentDateRef.current = new Date(year, month, day);
   }, []);
 
-  const renderView = () => {
-    switch(view) {
-      case 'month':
-        return <MonthView month={date.getMonth()} year={date.getFullYear()} />;
-      case 'week':
-        return <WeekView month={date.getMonth()} year={date.getFullYear()}/>;
-      case '3 day':
-        return <ThreeDaysView />;
-      case 'day':
-        return <DayView />;
-      case 'schedule':
-        return <ScheduleView />;
-      default:
-        return null;
-    }
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+  }, []);
+
+  const onFinishFetching = () => {
+    setRefreshing(false);
   };
 
   return (
     <ThemedView
       style={{ flex: 1, paddingTop: insets.top, paddingBottom: tabBarHeight }}
     >
-      <StatusBar
-        barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'}
+      <MemoizedCalendarHeader
+        ref={monthToggleRef}
+        currentDateRef={currentDateRef}
+        onMonthYearChange={handleMonthYearChange}
+        refreshing={refreshing}
+        fromDropdownRef={animateMonthRef}
       />
-      <ThemedView style={{ flex: 1, height: 'auto' }}>
-        {/* Scrollable Content */}
-        <ScrollView
-          stickyHeaderIndices={[0]}
-          stickyHeaderHiddenOnScroll={false}
-          style={{ 
-            flex: 1,
-            paddingBottom: tabBarHeight
-          }}
-          scrollEventThrottle={8}
-          scrollEnabled={true}
-          nestedScrollEnabled={true}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-        >
-          <ThemedView style={{ flex: 1, marginBottom: 16 }}>
-            <CalendarHeader currentDate={date} setDate={setDate} onMonthYearChange={handleMonthYearChange} />
-          </ThemedView>
-          <ThemedView style={{ flex: 1, paddingHorizontal: 16, position: 'relative', marginBottom: 16 }}>
-            <Dropdown 
-              options={dropdownOptions} 
-              selected={selectedView}
-              onChange={(view) => {
-                setSelectedView(view);
-                setView(view.toLowerCase());
-              }}
-            />
-          </ThemedView>
-          <Animated.View
-            key={`${view}-${date.getFullYear()}-${date.getMonth()}`}
-            entering={FadeIn.delay(10).duration(1000).withInitialValues({ opacity: 0, transform: [{ scale: 0.95 }] })}
-            exiting={FadeOut.delay(10).duration(1000).withInitialValues({ opacity: 1, transform: [{ scale: 1 }] })}
-          >
-            {renderView()}
-          </Animated.View>
-        </ScrollView>
-      </ThemedView>  
+      <RenderedCalendarView
+        screenWidth={screenWidth}
+        monthViewRef={monthViewRef}
+        weekViewRef={weekViewRef}
+        currentDateRef={currentDateRef}
+        handleMonthYearChange={handleMonthYearChange}
+        refreshing={refreshing}
+        onFinishFetching={onFinishFetching}
+        animateMonthRef={animateMonthRef}
+      />
     </ThemedView>
   );
 };

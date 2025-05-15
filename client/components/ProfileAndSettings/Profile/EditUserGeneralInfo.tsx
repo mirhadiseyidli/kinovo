@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, Image, Button, SafeAreaView, TouchableOpacity, TextInput, Dimensions, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, Image, Button, SafeAreaView, TouchableOpacity, TextInput, Dimensions, ScrollView, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { useFocusEffect } from '@react-navigation/native';
@@ -16,12 +16,20 @@ import SaveUserChangesButton from './SaveUserChangesButton';
 import SavedMessage from '@/components/SavedMessage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import EditDateOfBirth from './EditDateOfBirth';
+import { User } from '@/types/allTypes';
+import SettingsPageHeader from '../Settings/SettingsPageHeader';
+import { ThemedView } from '@/components/ThemedView';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const EditUserGeneralInfo = () => {
+  const scrollViewRef = useRef<ScrollView>(null);
+  const tabBarHeight = useBottomTabBarHeight(); // Get tab bar height dynamically
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const { user, refetchUser } = useUserData();
+  const { fetchUserData, refetchUser } = useUserData();
+  const [user, setUser] = useState<User | null>(null);
   const [firstName, setFirstName] = useState(user?.first_name || '');
   const [lastName, setLastName] = useState(user?.last_name || '');
   const [bio, setBio] = useState(user?.bio || '');
@@ -49,6 +57,12 @@ const EditUserGeneralInfo = () => {
   });
 
   useEffect(() => {
+    const getUser = async () => {
+      const fetchedUser = await fetchUserData();
+      setUser(fetchedUser);
+    };
+
+    getUser();
     if (user) {
       setFirstName(user.first_name || '');
       setLastName(user.last_name || '');
@@ -76,87 +90,104 @@ const EditUserGeneralInfo = () => {
   }
 
   return (
-    <SafeAreaView style={{ alignItems: 'center' }}>
+    <View style={{ flex: 1 }}>
+      <ScrollView
+        stickyHeaderIndices={[0]}
+        stickyHeaderHiddenOnScroll={true}
+        style={{ flex: 1, width: '100%' }}
+        scrollEventThrottle={16}
+        scrollEnabled={true}
+        showsVerticalScrollIndicator={false}
+        // refreshControl={
+        //   <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        // }
+      >
+        {/* Header */}
+        <View
+          style={{
+            marginBottom: 6,
+          }}
+        >
+          <SettingsPageHeader label='Edit Profile'/>
+        </View>
 
-      {/* Saved Message */}
-      {showSavedMessage && (
-        <SavedMessage visible={showSavedMessage} />
-      )}
+        {/* Saved Message */}
+        {showSavedMessage && (
+          <SavedMessage visible={showSavedMessage} />
+        )}
 
-      {/* Back Button */}
-      <NavigateBackButton
-        color={themeColors.text}
-      />
+        {/* Profile Picture */}
+        <View style={{ alignItems: 'center', marginTop: 120 }}>
+          <EditUserProfilePhotos user={user} />
+        </View>
 
-      {/* Cover Photo */}
-      <EditUserCoverPhotos user={{ coverPhoto: user.cover_photo }} />
 
-      {/* Profile Picture */}
-      <EditUserProfilePhotos user={user} />
+        {/* User Info Inputs */}
+        <View style={{ width: '100%', marginTop: 32, paddingHorizontal: 16 }}>
+          {/* First Name */}
+          <UserNameEdit
+            label="First Name"
+            value={firstName}
+            onChangeText={setFirstName}
+            placeholder="First Name"
+          />
+          
+          {/* Last Name */}
+          <UserNameEdit
+            label="Last Name"
+            value={lastName}
+            onChangeText={setLastName}
+            placeholder="Last Name"
+          />
 
-      {/* User Info Inputs */}
-      <View style={{ width: '100%', marginTop: 32, paddingHorizontal: 16 }}>
-        {/* First Name */}
-        <UserNameEdit
-          label="First Name"
-          value={firstName}
-          onChangeText={setFirstName}
-          placeholder="First Name"
-        />
-        
-        {/* Last Name */}
-        <UserNameEdit
-          label="Last Name"
-          value={lastName}
-          onChangeText={setLastName}
-          placeholder="Last Name"
-        />
+          {/* Date of Birth */}
+          <EditDateOfBirth dateOfBirth={dateOfBirth} setDateOfBirth={setDateOfBirth} />
 
-        {/* Date of Birth */}
-        <EditDateOfBirth dateOfBirth={dateOfBirth} setDateOfBirth={setDateOfBirth} />
+          {/* Location */}
+          <EditUserLocation
+            label="Location"
+            placeholder="Location"
+            placeholderTextColor={themeColors.placeholderTextColor}
+            themeColors={themeColors}
+            locationInput={locationInput}
+            setLocationInput={setLocationInput}
+            setLocationCity={setLocationCity}
+            setLocationState={setLocationState}
+            setLocationLatitude={setLocationLatitude}
+            setLocationLongitude={setLocationLongitude}
+            setPlaceId={setPlaceId}
+          />
 
-        {/* Location */}
-        <EditUserLocation
-          label="Location"
-          placeholder="Location"
-          placeholderTextColor={themeColors.placeholderTextColor}
-          themeColors={themeColors}
-          locationInput={locationInput}
-          setLocationInput={setLocationInput}
-          setLocationCity={setLocationCity}
-          setLocationState={setLocationState}
-          setLocationLatitude={setLocationLatitude}
-          setLocationLongitude={setLocationLongitude}
-          setPlaceId={setPlaceId}
-        />
+          {/* Bio */}
+          <EditUserBio
+            label="Bio"
+            value={bio}
+            onChangeText={setBio}
+            placeholder="Share a little about yourself and your interests"
+          />
+          
+          {/* Social Media Handles */}
+          {/* Instagram */}
+          <EditSocialMediaHandle
+            label="Instagram"
+            value={instagramUsername}
+            onChangeText={setInstagramUsername}
+            iconName="instagram"
+          />
 
-        {/* Bio */}
-        <EditUserBio
-          label="Bio"
-          value={bio}
-          onChangeText={setBio}
-          placeholder="Share a little about yourself and your interests"
-        />
-        
-        {/* Social Media Handles */}
-        {/* Instagram */}
-        <EditSocialMediaHandle
-          label="Instagram"
-          value={instagramUsername}
-          onChangeText={setInstagramUsername}
-          iconName="instagram"
-        />
-
-        {/* Facebook */}
-        <EditSocialMediaHandle
-          label="Facebook"
-          value={facebookUsername}
-          onChangeText={setFacebookUsername}
-          iconName="facebook"
-        />
-      </View>
-      <SaveUserChangesButton isLoading={isLoading} onPress={editMyProfile}/>
-    </SafeAreaView>
+          {/* Facebook */}
+          <EditSocialMediaHandle
+            label="Facebook"
+            value={facebookUsername}
+            onChangeText={setFacebookUsername}
+            iconName="facebook"
+          />
+        </View>
+        <View style={{ width: '100%', alignItems: 'center', marginBottom: 20 }}>
+          <SaveUserChangesButton isLoading={isLoading} onPress={editMyProfile}/>
+        </View>
+      </ScrollView>
+    </View>
   );
 };
 

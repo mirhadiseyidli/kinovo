@@ -11,13 +11,11 @@ const handleMessage = async (message, ws, connectedUsers) => {
     switch (type) {
       case 'ManageFriends':
         connectedUsers.set(userId, ws);
-        console.log(`User ${userId} registered to socket.`);
         registerFriendWatcher(userId, ws);
         break;
 
       case 'FriendsEventActivity':
         connectedUsers.set(userId, ws);
-        console.log(`User ${userId} registered to socket.`);
         sendFriendNewEventsChangeStream(userId, ws);
         break;
 

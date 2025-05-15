@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { ScrollView, RefreshControl } from 'react-native';
 import Header from '@/components/Header';
 import UpcomingEvents from '@/components/Home/UpcomingEvents';
@@ -7,15 +7,15 @@ import SeeWhatFriendsAreUpTo from '@/components/Home/SeeWhatFriendsAreUpTo';
 import PastEvents from '@/components/Home/PastEvents';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import AISummary from './AISummary';
 
 const HomeScreen = () => {
   const tabBarHeight = useBottomTabBarHeight(); // Get tab bar height dynamically
   const insets = useSafeAreaInsets(); // Safe area insets
   const [refreshing, setRefreshing] = useState(true);
-  const [refreshingUpcomingEvents, setRefreshingUpcomingEvents] = useState(true);
-  const [refreshingSeeWhatFriendsAreUpTo, setRefreshingSeeWhatFriendsAreUpTo] = useState(true);
-  const [refreshingPastEvents, setRefreshingPastEvents] = useState(true);
+  const [refreshingUpcomingEvents, setRefreshingUpcomingEvents] = useState(false);
+  const [refreshingSeeWhatFriendsAreUpTo, setRefreshingSeeWhatFriendsAreUpTo] = useState(false);
+  const [refreshingPastEvents, setRefreshingPastEvents] = useState(false);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -24,34 +24,32 @@ const HomeScreen = () => {
     setRefreshingPastEvents(true);
   }, []);
 
-  const onFinishRefreshUpcomingEvents = () => {
+  const onFinishRefreshUpcomingEvents = useCallback(() => {
     setRefreshingUpcomingEvents(false);
-  };
+  }, []);
 
-  const onFinishRefreshSeeWhatFriendsAreUpTo = () => {
+  const onFinishRefreshSeeWhatFriendsAreUpTo = useCallback(() => {
     setRefreshingSeeWhatFriendsAreUpTo(false);
-  };
+  }, []);
 
-  const onFinishRefreshPastEvents = () => {
+  const onFinishRefreshPastEvents = useCallback(() => {
     setRefreshingPastEvents(false);
-  };
+  }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (
-        !refreshingUpcomingEvents &&
-        !refreshingSeeWhatFriendsAreUpTo &&
-        !refreshingPastEvents &&
-        refreshing
-      ) {
-        setRefreshing(false);
-      }
-    }, [
-      refreshingUpcomingEvents,
-      refreshingSeeWhatFriendsAreUpTo,
-      refreshingPastEvents
-    ])
-  );
+  useEffect(() => {
+    if (
+      !refreshingUpcomingEvents &&
+      !refreshingSeeWhatFriendsAreUpTo &&
+      !refreshingPastEvents &&
+      refreshing
+    ) {
+      setRefreshing(false);
+    }
+  }, [
+    refreshingUpcomingEvents,
+    refreshingSeeWhatFriendsAreUpTo,
+    refreshingPastEvents
+  ]);
 
   return (
     <ThemedView style={{ flex: 1 }}>
@@ -59,11 +57,8 @@ const HomeScreen = () => {
       <ScrollView
         stickyHeaderIndices={[0]}
         stickyHeaderHiddenOnScroll={true}
-        style={{ 
-          flex: 1,
-          paddingBottom: tabBarHeight,
-        }}
-        scrollEventThrottle={8}
+        style={{ flex: 1 }}
+        scrollEventThrottle={16}
         scrollEnabled={true}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -78,7 +73,7 @@ const HomeScreen = () => {
         >
           <Header refreshing={refreshing}/>
         </ThemedView>
-        <ThemedView style={{ display: 'flex', flex: 1, flexDirection: 'column', gap: 24, paddingHorizontal: 16 }}>
+        <ThemedView style={{ display: 'flex', flex: 1, flexDirection: 'column', gap: 24, paddingHorizontal: 16, paddingBottom: tabBarHeight }}>
           {/* <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <AISummary />
           </ThemedView> */}

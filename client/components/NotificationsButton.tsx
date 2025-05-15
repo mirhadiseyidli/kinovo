@@ -21,27 +21,27 @@ const NotificationsButton: React.FC<{ refreshing: boolean; count: number }> = ({
           themeColors.inputBackgroundColor
         ]}
       >
-        <ThemedView
+        <View
           style={{
-            width: 36,
-            height: 36,
+            width: 30,
+            height: 30,
             justifyContent: 'center',
             alignItems: 'center',
           }}
         >
-          <Feather name="bell" size={28} color={themeColors.tint} />
-        </ThemedView>
+          <Feather name="bell" size={24} color={themeColors.tint} />
+        </View>
 
         {/* Badge */}
         {count > 0 && (
           <View
             style={{
               position: 'absolute',
-              top: 0,
-              right: 0,
+              top: 1,
+              right: 4,
               backgroundColor: 'red',
-              width: 16,
-              height: 16,
+              width: 14,
+              height: 14,
               borderRadius: 8,
               justifyContent: 'center',
               alignItems: 'center',

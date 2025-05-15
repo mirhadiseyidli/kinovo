@@ -5,8 +5,8 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
-import CheckBox from '@react-native-community/checkbox';
 import { useCreateEventContext } from '@/context/CreateEventContext';
+import AnimatedCheckBox from '../AnimatedCheckBox';
 
 const Options: React.FC<{ setLimit: (value: number | null) => void }> = ({ setLimit }) => {
   const screenWidth = Dimensions.get('window').width;
@@ -145,15 +145,13 @@ const Options: React.FC<{ setLimit: (value: number | null) => void }> = ({ setLi
         />
 
         <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 8 }}>
-          <CheckBox
+          <AnimatedCheckBox
             value={isLimited}
             onValueChange={toggleCheck}
-            boxType="square"
-            tintColor={themeColors.placeholderTextColor}
-            onTintColor={themeColors.text}
-            onCheckColor={themeColors.text}
-            tintColors={{ true: themeColors.text, false: themeColors.placeholderTextColor }}
-            style={{ height: 16, width: 16, marginRight: 10 }}
+            onCheckColor={themeColors.text} // checkmark color
+            tintColors={{ true: themeColors.text, false: themeColors.placeholderTextColor  }} // border color states
+            style={{ height: 20, width: 20 }} // size or any custom inline style
+            topContainerStyle={{ marginRight: 10 }}
           />
           <Animated.Text style={{ fontSize: 16, color: interpolatedColor }}>
             Limited Capacity

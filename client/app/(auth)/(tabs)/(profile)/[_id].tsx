@@ -1,7 +1,6 @@
 import { useAuthSession } from "@/components/Auth/AuthProvider";
 import { useState, useRef, useCallback, useContext } from "react";
 import { View, Text, RefreshControl, ScrollView } from "react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { ThemedView } from "@/components/ThemedView";
 import UserProfilePreview from "@/components/ProfileAndSettings/Settings/UserProfilePreview";
 import UserSettings from "@/components/ProfileAndSettings/Settings/UserSettings";

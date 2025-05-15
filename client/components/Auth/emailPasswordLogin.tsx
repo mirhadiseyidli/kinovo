@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Text, Alert, TouchableOpacity, Dimensions, Animated } from 'react-native';
-import CheckBox from '@react-native-community/checkbox';
+import CheckBox from 'expo-checkbox';
 import axios from 'axios';
 import Input from '@/components/Input';
 import { ThemedView } from '@/components/ThemedView';
@@ -9,6 +9,7 @@ import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Feather } from '@expo/vector-icons';
 import { AuthLoginProps, ApiError } from '@/types/allTypes';
+import AnimatedCheckBox from '../AnimatedCheckBox';
 
 const { width } = Dimensions.get('window');
 
@@ -25,20 +26,6 @@ const EmailLogin: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
   const [isChecked, setIsChecked] = useState(false);
   const [touched, setTouched] = useState({ email: false, password: false });
   const colorAnim = useState(new Animated.Value(0))[0];
-  
-  const toggleCheck = (newValue: boolean) => {
-    setIsChecked(newValue);
-    Animated.timing(colorAnim, {
-      toValue: newValue ? 1 : 0,
-      duration: 300, // Adjust duration for smooth transition
-      useNativeDriver: false,
-    }).start();
-  };
-
-  const interpolatedColor = colorAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [themeColors.textSecondary, themeColors.mountainGreen], // Adjust colors as needed
-  });
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -82,7 +69,7 @@ const EmailLogin: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
   };
 
   return (
-    <ThemedView style={{ flex: 1, width: '100%', paddingHorizontal: 20, justifyContent: 'space-around' }}>
+    <ThemedView style={{ flex: 1, width: '100%', paddingHorizontal: 16, justifyContent: 'space-around' }}>
       {/* Form Section */}
       <ThemedView style={{ flex: 1, width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
         <ThemedText style={{ fontSize: getFontSize(6), marginBottom: 8, textAlign: 'center' }}>Welcome Back!</ThemedText>
@@ -103,10 +90,10 @@ const EmailLogin: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
             backgroundColor: themeColors.inputBackgroundColor,
             borderRadius: 8,
             paddingHorizontal: 16,
-            paddingVertical: 8,
+            paddingVertical: 16,
             height: screenWidth / 10,
             marginBottom: 8,
-            fontSize: 14,
+            fontSize: 16,
             color: themeColors.text,
             borderWidth: (touched.email && errors.email) ? 1 : 0,
             borderColor: (touched.email && errors.email) ? 'red' : '#D1D5DB',
@@ -148,23 +135,23 @@ const EmailLogin: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
         }}
       >
         <ThemedView style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <ThemedView style={{ aspectRatio: 1, height: '80%', marginRight: '5%' }}>
-            <CheckBox
+          <ThemedView>
+            <AnimatedCheckBox
               value={isChecked}
-              onValueChange={toggleCheck}
-              boxType="square"
-              onTintColor={themeColors.mountainGreen} // Ensure border color is green when checked
-              onCheckColor={themeColors.mountainGreen} // Ensure checkmark is green when checked
-              tintColors={{ true: themeColors.mountainGreen, false: themeColors.text }}
-              style={{ height: '95%', width: '95%', flexShrink: 1 }}
+              onValueChange={setIsChecked}
+              onCheckColor={themeColors.mountainGreen} // checkmark color
+              tintColors={{ true: themeColors.mountainGreen, false: themeColors.text }} // border color states
+              style={{ height: 18, width: 18 }} // size or any custom inline style
+              label='Remember Me'
+              topContainerStyle={{ gap: 4 }}
             />
           </ThemedView>
           {/* Animated Text Color */}
-          <Animated.Text style={{ fontSize: getFontSize(3.5), color: interpolatedColor }}>
+          {/* <Animated.Text style={{ fontSize: getFontSize(3.5), color: interpolatedColor }}>
             Remember Me
-          </Animated.Text>
+          </Animated.Text> */}
         </ThemedView>
-        <ThemedText style={{ fontSize: getFontSize(3.5), color: `${Colors[colorScheme ?? 'dark'].textSecondary}` }}>Forgot Password?</ThemedText>
+        <ThemedText>Forgot Password?</ThemedText>
       </ThemedView>
 
       {/* Login Button */}

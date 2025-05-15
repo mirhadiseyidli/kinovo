@@ -7,7 +7,7 @@ import { Colors } from '@/constants/Colors';
 import type { FriendProps } from '@/types/allTypes';
 import { AutoSkeletonView } from 'react-native-auto-skeleton';
 
-const Friend: React.FC<FriendProps & { refreshing: boolean }> = ({ full_name, profile_picture, eventCount = 0, size, showName, refreshing, activityData }) => {
+const Friend: React.FC<FriendProps & { refreshing: boolean, onPress?: () => void }> = ({ full_name, profile_picture, eventCount = 0, size, showName, refreshing, activityData, onPress }) => {
   const screenWidth = Dimensions.get('window').width;
   const defaultSize = screenWidth * 0.18; // Default: 18% of screen width
   const imageSize = size || defaultSize; // Use provided size or default
@@ -21,7 +21,10 @@ const Friend: React.FC<FriendProps & { refreshing: boolean }> = ({ full_name, pr
   };
 
   return (
-    <TouchableOpacity style={{ alignItems: 'center' }}>
+    <TouchableOpacity 
+      style={{ alignItems: 'center' }}
+      onPress={onPress}
+    >
       <AutoSkeletonView 
         isLoading={refreshing} 
         shimmerBackgroundColor={themeColors.background} 

@@ -23,6 +23,11 @@ const UserSettings = () => {
         title="Manage Friends" 
         onPress={() => router.push('/(auth)/(tabs)/(profile)/(manageFriends)/AddFriends')} 
       />
+      <SettingComponent 
+        icon="activity" 
+        title="Manage Favorite Activites" 
+        onPress={() => router.push('/(auth)/(tabs)/(profile)/')} // make a route
+      />
     </View>
   );
 };

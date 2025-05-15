@@ -10,9 +10,10 @@ import {
 } from 'react-native';
 import { AxiosError } from 'axios';
 import type { RefObject } from 'react';
-import { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { Feather } from '@expo/vector-icons';
+// import { DateTimePickerEvent } from '@expo/ui/DatePicker';
+import { Feather, FontAwesome } from '@expo/vector-icons';
 import { IconSymbolName } from '@/components/ui/IconSymbol';
+import { AnimatedStyle, SharedValue } from 'react-native-reanimated';
 
 // =========================
 // User-related Types
@@ -39,7 +40,10 @@ export interface User {
   created_at: Date;
   last_login_at?: Date;
   friends?: any[];
-  events?: any[];
+  events?: {
+    event: Event; // Make sure 'Events' is imported
+    status: 'pending' | 'maybe' | 'accepted' | 'rejected';
+  }[];
   location?: {
     city: string | null;
     state: string | null;
@@ -127,7 +131,6 @@ export type SelectedLocation = string | null;
 export type FetchAddressSuggestions = (text: string) => Promise<void>;
 
 export interface MapViewModalProps {
-  locationPermission: boolean | null;
   coordinates: {
     latitude: number;
     longitude: number;
@@ -230,8 +233,8 @@ export interface AttendeeFriend extends BaseFriend {}
 export type FriendEventActivity = {
   _id: string;
   added_at: string;
-  event: string;
-  friend: string;
+  event: Event;
+  friend: User;
 };
 
 
@@ -248,7 +251,7 @@ export type TokenTypes = (accessToken: string, refreshToken: string, userId: str
 
 export interface AuthButtonProps {
   onPress: () => void; // Function to handle button press
-  logo: ImageSourcePropType; // Path to the logo image
+  logo: keyof typeof FontAwesome.glyphMap; // Path to the logo image
   backgroundColor?: string; // Optional background color
 }
 
@@ -276,7 +279,7 @@ export interface DateTimeState {
 }
 
 export type DatePickerChangeHandler = (
-  event: DateTimePickerEvent,
+  // event: DateTimePickerEvent,
   selectedDate?: Date
 ) => void;
 
@@ -328,11 +331,7 @@ export interface ExploreCategoryProps {
 // =========================
 
 export interface SuggestedEventProps {
-  title: string;
-  location: string;
-  date: string;
-  time: string;
-  imageUrl: any;
+  event: Event;
 }
 
 // =========================
@@ -599,6 +598,14 @@ export interface SignOutItemProps {
 }
 
 // =========================
+// Delete Account Types
+// =========================
+
+export interface DeleteAccountProps {
+  onPress: () => void;
+}
+
+// =========================
 // Manage Friend Button Types
 // =========================
 
@@ -664,6 +671,17 @@ export interface EventCreatedProps {
 // =========================
 
 export interface SearchBarProps {
+  inputValue: string;
+  setInputValue: (val: string) => void;
+  suggestions: {
+    users: User[];
+    events: Event[];
+  };
+  handleAdd: (friend: AttendeeFriend) => void;
+  placeholder: string;
+}
+
+export interface SearchFriendsProps {
   placeholder: string;
   value: string;
   onChangeText: (text: string) => void;
@@ -722,11 +740,7 @@ export interface FriendRequestStatusProps {
 
 export interface Event {
   _id?: string;
-  creator?: {
-    _id: string;
-    full_name: string;
-    profile_picture: string;
-  };
+  creator?: User;
   event_picture?: string | null;
   status: string;
   created_at?: Date;
@@ -751,15 +765,51 @@ export interface Event {
     end_date: Date | null;
   };
   attendees?: {
-    _id?: string;
-    full_name?: string;
-    profile_picture?: string;
+    user: User; // Make sure 'Events' is imported
+    status: 'pending' | 'maybe' | 'accepted' | 'rejected';
   }[];
   visibility: string;
 }
 
 export type EventProp = {
   event: Event
+}
+
+export type ReportEventButtonProps = {
+  onPress: () => void;
+  themeColors: any;
+};
+
+
+export interface EventTitleAndCategoryProps {
+  title: string;
+  category: string | null;
+}
+
+export interface EventTimeAndDateProps {
+  startLabel: string;
+  endLabel: string;
+}
+
+export interface EventRecurrenceProps {
+  frequency: string | null;
+  endDate: Date | null;
+}
+
+export interface EventLocationInfoProps {
+  location: {
+    text: string | null;
+    city: string | null;
+    state: string | null;
+    coordinates: {
+      lat: number | null;
+      lng: number | null;
+    };
+  };
+}
+
+export interface EventVisibilityInfoProps {
+  visibility: string;
 }
 
 export interface CreateEventContextType {
@@ -781,10 +831,39 @@ export interface CreateEventContextType {
 // Show Month List Types
 // ========================
 
-export type CalendarHeaderProps = {
+export type MonthToggleRef = {
+  update: (date: Date) => void;
   currentDate: Date;
-  setDate: (date: Date) => void;
-  onMonthYearChange?: (month: number, year: number) => void;
+};
+
+export interface MonthListToggleProps {
+  title: string;
+  year: number;
+  monthListOpen: boolean;
+  setMonthListOpen: (visible: boolean) => void;
+}
+
+export type CalendarHeaderProps = {
+  currentDateRef: React.RefObject<Date>;
+  onMonthYearChange?: (month: number, year: number, day: number, fromDropdown: boolean) => void;
+  // showMonthList: boolean;
+  // setShowMonthList: (visible: boolean) => void;
+  refreshing: boolean;
+  // view: string;
+  // handleViewChange: (view: string) => void;
+  // height: SharedValue<number>;
+  fromDropdownRef: React.RefObject<boolean>;
+};
+
+export type CalendarHeaderOtherProps = {
+  currentDate: Date;
+  onMonthYearChange?: (month: number, year: number, day: number, fromDropdown: boolean) => void;
+  // showMonthList: boolean;
+  // setShowMonthList: (visible: boolean) => void;
+  refreshing: boolean;
+  view: string;
+  handleViewChange: (view: string) => void;
+  // height: SharedValue<number>;
 };
 
 export interface CalendarSubHeaderProps {
@@ -793,3 +872,83 @@ export interface CalendarSubHeaderProps {
     year: number;
   };
 }
+
+export interface MonthViewProps {
+  currentDateRef: React.RefObject<Date>;
+  // month: number;
+  // year: number;
+  handleMonthYearChange: (month: number, year: number, day: number, fromDropdown: boolean) => void;
+  refreshing: boolean;
+  onFinishRefresh: () => void;
+  fromDropdownRef: React.RefObject<boolean>;
+}
+
+export interface MonthItem { 
+  key: string; 
+  year: number; 
+  month: number; 
+  title: string 
+};
+
+export interface DisplayItemYear {
+  key: string;
+  type: 'year';
+  year: number;
+}
+
+export interface DisplayItemMonth extends MonthItem {
+  type: 'month';
+}
+
+export type DisplayItem = DisplayItemYear | DisplayItemMonth;
+
+// =========================
+// Event Data Month View Types
+// ========================
+
+export interface EventsDataMonthView {
+  allEvents: Event[];
+}
+
+export interface MonthCalendarProps {
+  monthDate: Date;
+  refreshing: boolean;
+  loading: boolean;
+  eventsData?: Event[];
+  handleMonthYearChange: (month: number, year: number, day: number, fromDropdown: boolean) => void;
+}
+
+// =========================
+// Day Cell Types
+// ========================
+
+export interface DayCellProps {
+  date: Date;
+  month: number;
+  today: Date;
+  cellWidth: number;
+  cellHeight: number;
+  eventsData?: Event[];
+  handleMonthYearChange: (month: number, year: number, day: number, fromDropdown: boolean) => void;
+}
+
+// =========================
+// Event View Attendees Types
+// ========================
+
+export type EventViewAttendeesProps = {
+  attendees?: {
+    _id?: string;
+    full_name?: string;
+    profile_picture?: string;
+  }[];
+  eventCapacity: number | null;
+};
+
+// =========================
+// Calendar Header Ref Types
+// ========================
+
+export type CalendarHeaderMonthViewRefProps = {
+  update: (date: Date) => void;
+};

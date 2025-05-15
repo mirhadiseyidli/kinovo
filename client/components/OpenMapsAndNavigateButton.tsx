@@ -27,6 +27,7 @@ const OpenMapsAndNavigateButton = ({ selectedLocation, latitude, longitude }: Op
         shadowOpacity: 0.3,
         shadowRadius: 4,
         elevation: 3,
+        zIndex: 10
       }}
       onPress={() => {
         Alert.alert(
@@ -57,4 +58,4 @@ const OpenMapsAndNavigateButton = ({ selectedLocation, latitude, longitude }: Op
   );
 };
 
-export default OpenMapsAndNavigateButton;
+export default React.memo(OpenMapsAndNavigateButton);
