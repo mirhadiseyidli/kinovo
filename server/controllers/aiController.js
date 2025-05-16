@@ -115,15 +115,13 @@ const toolDefinitions = [
 
 const getFormattedDailyInsight = async (userId) => {
   const events = await getUserEvents(userId);
-  console.log(events)
-  const formattedEvents = events.map(event => ({
-    title: event.title,
-    start_time: event.start_time,
-    location: event.location || '',
-  }));
+  const formattedEvents = events.map(e =>
+    `• "${e.title}" at ${e.time}, located at ${e.location}`
+  ).join('\n');
+  
   const message = events.length > 0
-    ? `Here are today's events: ${JSON.stringify(formattedEvents)}.`
-    : "The user has no events today.";
+    ? `You have ${events.length} event${events.length > 1 ? 's' : ''} today.\n${formattedEvents}`
+    : "You have no events today.";
   return message;
 };
 
@@ -181,17 +179,18 @@ const getUserEvents = async (userId) => {
       })
       .map((e) => {
         const { title, start_time, location } = e.event;
-        console.log(location?.text)
 
         return {
           title,
-          time: new Date(start_time).toLocaleString(), // you can format this as needed
+          time: new Date(start_time).toLocaleTimeString([], {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+          }),
           location: location?.text || 'No location specified',
           status: e.status,
         };
       });
-
-    console.log(todaysEvents)
 
     return todaysEvents;
   } catch (error) {

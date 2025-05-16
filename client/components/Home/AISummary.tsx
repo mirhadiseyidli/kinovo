@@ -120,7 +120,7 @@ const useGPTWebSocket = () => {
     if (!fullSummary) return;
 
     // Extract first sentence and remaining text
-    const match = fullSummary.match(/^(.*?[.!?])\s+/);
+    const match = fullSummary.match(/^(.*?[.!?:])\s+/);
     const firstSentence = match ? match[1] : fullSummary;
     const remainingText = match ? fullSummary.slice(match[0].length) : '';
 
