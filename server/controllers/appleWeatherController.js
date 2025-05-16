@@ -10,7 +10,6 @@ const TEAM_ID = process.env.APPLE_TEAM_ID;
 const KEY_ID = process.env.APPLE_WEATHER_KEY_ID;
 const SERVICE_ID = process.env.APPLE_BUNDLE_ID;
 const privateKey = process.env.APPLE_WEATHER_PRIVATE_KEY.replace(/\\n/g, '\n');
-console.log(privateKey)
 
 const generateWeatherKitToken = () => {
   const now = Math.floor(Date.now() / 1000);
@@ -35,8 +34,6 @@ const getWeather = async (req, res) => {
   }
 
   const token = generateWeatherKitToken();
-  console.log(token)
-  console.log(lat, lon)
 
   try {
     const weatherRes = await axios.get(

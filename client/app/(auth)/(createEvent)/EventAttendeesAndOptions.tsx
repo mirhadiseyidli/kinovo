@@ -40,6 +40,7 @@ export default React.memo(function EventAttendeesAndOptions() {
       <ScrollView 
         nestedScrollEnabled={true}
         keyboardShouldPersistTaps={'always'}
+        contentContainerStyle={{ gap: 16 }}
       >
         {/* Step 3: Attendees & Options */}
         <Options setLimit={setLimit}/>

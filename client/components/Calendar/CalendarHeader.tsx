@@ -133,7 +133,6 @@ const CalendarHeaderMonthView = forwardRef<CalendarHeaderMonthViewRefProps, Cale
     const targetHeight = monthListOpen
       ? (view === 'Month' ? 42 : (46 + wrapperHeight))
       : 0;
-    console.log(targetHeight)
     height.value = withTiming(targetHeight, { duration: 300 });
   }, [wrapperHeight]);
 

@@ -13,7 +13,8 @@ import type { RefObject } from 'react';
 // import { DateTimePickerEvent } from '@expo/ui/DatePicker';
 import { Feather, FontAwesome } from '@expo/vector-icons';
 import { IconSymbolName } from '@/components/ui/IconSymbol';
-import { AnimatedStyle, SharedValue } from 'react-native-reanimated';
+import { AnimatedStyle, DerivedValue, SharedValue } from 'react-native-reanimated';
+import { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
 // =========================
 // User-related Types
@@ -246,6 +247,10 @@ export interface AuthLoginProps {
   onLoginSuccess: (accessToken: string, refreshToken: string, userId: string) => void;
 }
 
+export interface EmailLoginProps {
+  onLoginSuccess: (accessToken: string, refreshToken: string, userId: string) => void;
+}
+
 export type TokenTypes = (accessToken: string, refreshToken: string, userId: string) => void;
 
 
@@ -279,7 +284,7 @@ export interface DateTimeState {
 }
 
 export type DatePickerChangeHandler = (
-  // event: DateTimePickerEvent,
+  event: DateTimePickerEvent,
   selectedDate?: Date
 ) => void;
 

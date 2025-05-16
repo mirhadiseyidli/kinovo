@@ -19,7 +19,6 @@ const Dropdown: React.FC<DropdownProps> = ({
   const width = Dimensions.get('window').width;
   const dropdownOptions = ['Month', 'Week', 'Schedule']; // '3 Day', 'Day',
   const { view, setView } = useCalendarViewContext();
-  console.log(view)
 
   const handleViewChange = useCallback((view: string) => {
     InteractionManager.runAfterInteractions(() => {

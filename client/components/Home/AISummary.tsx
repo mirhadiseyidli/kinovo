@@ -12,154 +12,157 @@ import { ThemedText } from '@/components/ThemedText';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import LinearGradient from 'react-native-linear-gradient';
 import { User } from '@/types/allTypes';
+import { useRouter } from 'expo-router';
 
 const useGPTWebSocket = () => {
-  // const [summary, setSummary] = useState('');
-  // const [fullSummary, setFullSummary] = useState('');
-  // const [isLoading, setIsLoading] = useState(false);
-  // const [user, setUser] = useState<User | null>(null);
-  // const { signOut } = useAuthSession();
-  // const [highlightedSentence, setHighlightedSentence] = useState('');
+  const [summary, setSummary] = useState('');
+  const [fullSummary, setFullSummary] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const { signOut } = useAuthSession();
+  const [highlightedSentence, setHighlightedSentence] = useState('');
   
-//   const fetchUserData = async (): Promise<User | null> => {
-//     try {
-//       const accessToken = await AsyncStorage.getItem('accessToken');
-//       if (!accessToken) throw new Error('No access token available');
+  const fetchUserData = async (): Promise<User | null> => {
+    try {
+      const accessToken = await AsyncStorage.getItem('accessToken');
+      if (!accessToken) throw new Error('No access token available');
 
-//       const response = await axios.get(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/users/me`, {
-//         headers: { Authorization: `Bearer ${accessToken}` },
-//       });
+      const response = await axios.get(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/users/me`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
 
-//       setUser(response.data);
-//       return response.data;
-//     } catch (error: any) {
-//       console.error(error);
-//       if (error.response?.status === 401) {
-//         await refreshToken();
-//       } else {
-//         Alert.alert('Error', 'Failed to fetch user data');
-//         logout();
-//       }
-//       return null;
-//     }
-//   };
+      setUser(response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error(error);
+      if (error.response?.status === 401) {
+        await refreshToken();
+      } else {
+        Alert.alert('Error', 'Failed to fetch user data');
+        logout();
+      }
+      return null;
+    }
+  };
 
-//   const refreshToken = async () => {
-//     try {
-//       const refreshToken = await SecureStore.getItemAsync('refreshToken');
-//       if (!refreshToken) throw new Error('No refresh token available');
+  const refreshToken = async () => {
+    try {
+      const refreshToken = await SecureStore.getItemAsync('refreshToken');
+      if (!refreshToken) throw new Error('No refresh token available');
 
-//       const response = await axios.post(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/token/refresh-token`, {
-//         headers: { Authorization: `Bearer ${refreshToken}` },
-//       });
+      const response = await axios.post(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/token/refresh-token`, {
+        headers: { Authorization: `Bearer ${refreshToken}` },
+      });
 
-//       const { accessToken } = response.data;
-//       await AsyncStorage.setItem('accessToken', accessToken);
+      const { accessToken } = response.data;
+      await AsyncStorage.setItem('accessToken', accessToken);
 
-//       await fetchUserData();
-//     } catch (error) {
-//       Alert.alert('Error', 'Token refresh failed');
-//     }
-//   };
+      await fetchUserData();
+    } catch (error) {
+      Alert.alert('Error', 'Token refresh failed');
+    }
+  };
 
-//   const logout = () => {
-//     signOut();
-//   }
+  const logout = () => {
+    signOut();
+  }
 
-//   useEffect(() => {
-//     const initWebSocket = async () => {
-//       const url = process.env.EXPO_PUBLIC_WEBSOCKET_CONNECTION_URL;
-//       if (!url) throw new Error('Missing WebSocket connection URL');
-//       console.log('url', url)
+  useEffect(() => {
+    const initWebSocket = async () => {
+      const url = process.env.EXPO_PUBLIC_WEBSOCKET_CONNECTION_URL;
+      if (!url) throw new Error('Missing WebSocket connection URL');
       
-//       setFullSummary('');
-//       setSummary('');
-//       setHighlightedSentence('');
+      setFullSummary('');
+      setSummary('');
+      setHighlightedSentence('');
 
-//       const currentUser = await fetchUserData();
-//       if (!currentUser?._id) return;
+      const currentUser = await fetchUserData();
+      if (!currentUser?._id) return;
 
-//       const socket = new WebSocket(url);
+      const socket = new WebSocket(url);
 
-//       socket.onopen = () => {
-//         setIsLoading(true);
-//         if (currentUser._id) {
-//           socket.send(JSON.stringify({
-//             type: 'ai-summary',
-//             userId: currentUser._id,
-//           }));
-//         }
-//       };
+      socket.onopen = () => {
+        setIsLoading(true);
+        if (currentUser._id) {
+          socket.send(JSON.stringify({
+            type: 'get_daily_insight',
+            userId: currentUser._id,
+          }));
+        }
+      };
 
-//       socket.onmessage = (event) => {
-//         if (event.data === '[DONE]') {
-//           setIsLoading(false);
-//           socket.close();
-//           return;
-//         }
+      socket.onmessage = (event) => {
+        if (event.data === '[DONE]') {
+          setIsLoading(false);
+          socket.close();
+          return;
+        }
+        const data = JSON.parse(event.data);
+        if (data.type === 'get_daily_insight') {
+          setFullSummary((prev) => prev + data.content);
+        }
+      };
 
-//         setFullSummary((prev) => prev + event.data);
-//       };
+      socket.onerror = (err) => {
+        console.error('WebSocket error:', err);
+        setIsLoading(false);
+      };
 
-//       socket.onerror = (err) => {
-//         console.error('WebSocket error:', err);
-//         setIsLoading(false);
-//       };
+      return () => {
+        socket.close();
+      };
+    };
 
-//       return () => {
-//         socket.close();
-//       };
-//     };
+    initWebSocket();
+  }, []);
 
-//     initWebSocket();
-//   }, []);
+  useEffect(() => {
+    if (!fullSummary) return;
 
-//   useEffect(() => {
-//     if (!fullSummary) return;
+    // Extract first sentence and remaining text
+    const match = fullSummary.match(/^(.*?[.!?])\s+/);
+    const firstSentence = match ? match[1] : fullSummary;
+    const remainingText = match ? fullSummary.slice(match[0].length) : '';
 
-//     // Extract first sentence and remaining text
-//     const match = fullSummary.match(/^(.*?[.!?])\s+/);
-//     const firstSentence = match ? match[1] : fullSummary;
-//     const remainingText = match ? fullSummary.slice(match[0].length) : '';
+    let hIndex = 0;
+    setHighlightedSentence('');
+    setSummary('');
 
-//     let hIndex = 0;
-//     setHighlightedSentence('');
-//     setSummary('');
+    const hInterval = setInterval(() => {
+      setHighlightedSentence(firstSentence.slice(0, hIndex + 1));
+      hIndex++;
 
-//     const hInterval = setInterval(() => {
-//       setHighlightedSentence(firstSentence.slice(0, hIndex + 1));
-//       hIndex++;
+      if (hIndex >= firstSentence.length) {
+        clearInterval(hInterval);
 
-//       if (hIndex >= firstSentence.length) {
-//         clearInterval(hInterval);
+        let index = 0;
+        const interval = setInterval(() => {
+          setSummary(remainingText.slice(0, index + 1));
+          index++;
 
-//         let index = 0;
-//         const interval = setInterval(() => {
-//           setSummary(remainingText.slice(0, index + 1));
-//           index++;
+          if (index >= remainingText.length) {
+            clearInterval(interval);
+          }
+        }, 50);
+      }
+    }, 50);
 
-//           if (index >= remainingText.length) {
-//             clearInterval(interval);
-//           }
-//         }, 50);
-//       }
-//     }, 50);
+    return () => {
+      clearInterval(hInterval);
+    };
+  }, [fullSummary]);
 
-//     return () => {
-//       clearInterval(hInterval);
-//     };
-//   }, [fullSummary]);
-
-//   return { summary, highlightedSentence, isLoading };
+  return { summary, highlightedSentence, isLoading };
 };
 
 const AISummary = () => {
   const { signOut } = useAuthSession();
-  // const { summary, highlightedSentence, isLoading } = useGPTWebSocket();
+  const { summary, highlightedSentence, isLoading } = useGPTWebSocket();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [loadingText, setLoadingText] = useState('');
   const loadingAnim = useRef(new Animated.Value(0)).current;
+  const router = useRouter();
 
   useEffect(() => {
     Animated.loop(
@@ -172,26 +175,26 @@ const AISummary = () => {
     ).start();
   }, []);
 
-  // useEffect(() => {
-  //   if (!isLoading) {
-  //     setLoadingText('');
-  //     return;
-  //   }
+  useEffect(() => {
+    if (!isLoading) {
+      setLoadingText('');
+      return;
+    }
 
-  //   const fullText = 'Checking your daily schedule...';
-  //   let index = 0;
+    const fullText = 'Checking your daily schedule...';
+    let index = 0;
 
-  //   const interval = setInterval(() => {
-  //     setLoadingText(fullText.slice(0, index + 1));
-  //     index++;
+    const interval = setInterval(() => {
+      setLoadingText(fullText.slice(0, index + 1));
+      index++;
 
-  //     if (index >= fullText.length) {
-  //       clearInterval(interval);
-  //     }
-  //   }, 50); // Typing speed
+      if (index >= fullText.length) {
+        clearInterval(interval);
+      }
+    }, 50); // Typing speed
 
-  //   return () => clearInterval(interval);
-  // }, [isLoading]);
+    return () => clearInterval(interval);
+  }, [isLoading]);
 
   return (
     <ThemedView
@@ -203,7 +206,10 @@ const AISummary = () => {
       {/* Header */}
       <ThemedView style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>Your daily insights</ThemedText>
-        <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <TouchableOpacity 
+          onPress={() => router.push('/(auth)/(aiAssistant)/AiAssistant')}
+          style={{ flexDirection: 'row', alignItems: 'center' }}
+        >
           {colorScheme === 'dark' ? (
             <Image 
               source={require('@/assets/aiAssistantWhite.gif')}
@@ -231,7 +237,8 @@ const AISummary = () => {
           alignItems: 'flex-start',
           justifyContent: 'flex-start',
           minHeight: 120,
-          backgroundColor: themeColors.background
+          backgroundColor: themeColors.background,
+          flexWrap: 'wrap'
         }}
       >
         <LinearGradient
@@ -248,7 +255,7 @@ const AISummary = () => {
             opacity: 0.9, // Slight transparency for a sleeker look
           }}
         />
-        {/* {isLoading ? ( */}
+        {isLoading ? (
           <>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               {colorScheme === 'dark' ? (
@@ -300,7 +307,7 @@ const AISummary = () => {
               </Animated.View>
             </Animated.View>
           </>
-        {/* ) : (
+        ) : (
           <>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               {colorScheme === 'dark' ? (
@@ -313,15 +320,15 @@ const AISummary = () => {
                   style={{ width: 24, height: 24, marginRight: 10 }}
                 /> )
               }
-              <Text style={{ fontSize: 16, color: themeColors.text, fontWeight: 'bold', marginBottom: 8 }}>
+              <Text style={{ flexShrink: 1, flexWrap: 'wrap', fontSize: 16, color: themeColors.text, fontWeight: 'bold', marginBottom: 8 }}>
                 {highlightedSentence}
               </Text>
             </View>
-            <Text style={{ fontSize: 16, color: themeColors.text }}>
+            <Text style={{ flexShrink: 1, flexWrap: 'wrap', fontSize: 16, color: themeColors.text }}>
               {summary}
             </Text>
           </>
-        )} */}
+        )}
       </View>
     </ThemedView>
   );

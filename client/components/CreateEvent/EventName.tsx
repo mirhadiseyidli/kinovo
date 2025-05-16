@@ -12,8 +12,9 @@ const EventName: React.FC = () => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { settingEventTitle } = useCreateEventContext();
+  const { width } = Dimensions.get('window');
   
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceRef = useRef<number | null>(null);
 
   const handleTextChange = (text: string) => {
     if (debounceRef.current) {
@@ -33,34 +34,31 @@ const EventName: React.FC = () => {
   }, []);
 
   return (
-    <ThemedView style={{ marginBottom: 24 }}>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          backgroundColor: themeColors.inputBackgroundColor,
-          borderRadius: 8,
-          paddingHorizontal: 16,
-          paddingVertical: 8,
-          height: 52,
-        }}
-      >
-        {/* Feather Icon */}
-        <Feather name="type" size={24} color={themeColors.placeholderTextColor} style={{ marginRight: 10 }} />
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: themeColors.inputBackgroundColor,
+        borderRadius: 8,
+        paddingHorizontal: 16,
+        height: 44,
+      }}
+    >
+      {/* Feather Icon */}
+      <Feather name="type" size={20} color={themeColors.placeholderTextColor} style={{ marginRight: 10 }} />
 
-        {/* Text Input */}
-        <TextInput
-          placeholder={placeholder}
-          placeholderTextColor={themeColors.placeholderTextColor}
-          onChangeText={handleTextChange}
-          style={{
-            flex: 1, // Take up the remaining space
-            fontSize: 16,
-            color: themeColors.text
-          }}
-        />
-      </View>
-    </ThemedView>
+      {/* Text Input */}
+      <TextInput
+        placeholder={placeholder}
+        placeholderTextColor={themeColors.placeholderTextColor}
+        onChangeText={handleTextChange}
+        style={{
+          flex: 1, // Take up the remaining space
+          fontSize: 16,
+          color: themeColors.text
+        }}
+      />
+    </View>
   );
 };
 

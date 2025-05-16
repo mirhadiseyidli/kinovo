@@ -53,68 +53,12 @@ const EventImage: React.FC<EventImageProps> = ({ eventType }) => {
     : defaultEventImages[eventType || 'Default']; // Fallback to 'default' if eventType is undefined
 
   return (
-    <ThemedView
-      style={{
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 24,
-      }}
-    >
-      <View
-        style={{
-          width: screenWidth / 2,
-          height: screenWidth / 2,
-          borderRadius: 16,
-          overflow: 'hidden',
-          position: 'relative',
-        }}
-      >
-        <Image
-          source={imageSource}
-          style={{
-            width: '100%',
-            height: '100%',
-          }}
-          resizeMode="cover"
-        />
-
-        {/* Upload Button */}
-        <TouchableOpacity
-          style={{
-            position: 'absolute',
-            bottom: 10,
-            right: 10,
-            backgroundColor: '#4FB9AF',
-            borderRadius: 20,
-            padding: 8,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-          onPress={handleImageUpload}
-        >
-          <Feather name="image" size={20} color="#fff" />
-        </TouchableOpacity>
-
-        {/* Remove Image Button (only visible if an image is uploaded) */}
-        {uploadedImage && (
-          <TouchableOpacity
-            style={{
-              position: 'absolute',
-              top: 10,
-              right: 10,
-              backgroundColor: '#ff4d4d',
-              borderRadius: 20,
-              padding: 8,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-            onPress={handleRemoveImage}
-          >
-            <Feather name="x" size={20} color="#fff" />
-          </TouchableOpacity>
-        )}
-      </View>
-    </ThemedView>
+    <View style={{ width: '60%', aspectRatio: 1, borderRadius: 16, overflow: 'hidden' }}>
+      <Image
+        source={imageSource}
+        style={{ width: '100%', height: '100%', resizeMode: 'cover' }}
+      />
+    </View>
   );
 };
 

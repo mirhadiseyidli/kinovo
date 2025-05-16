@@ -15,7 +15,7 @@ const Description: React.FC = () => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { settingEventDescription } = useCreateEventContext();
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceRef = useRef<number | null>(null);
 
   // Handle Text Change
   const handleTextChange: ChangeEventHandler['handleTextChange'] = (text) => {
@@ -39,37 +39,37 @@ const Description: React.FC = () => {
   }, []);
 
   return (
-    <ThemedView style={{ marginBottom: 24, justifyContent: 'center' }}>
-      <View
-        style={{
-          flexDirection: 'row',
-          backgroundColor: themeColors.inputBackgroundColor,
-          borderRadius: 8,
-          paddingHorizontal: 16,
-          paddingVertical: 8,
-          height: screenWidth / 3, // One-third of screen height
-          alignItems: 'flex-start'
-        }}
-      >
-        {/* Feather Icon */}
-        <Feather name="edit" size={24} color={themeColors.placeholderTextColor} style={{ marginRight: 10 }} />
+    <View
+      style={{
+        flexDirection: 'row',
+        backgroundColor: themeColors.inputBackgroundColor,
+        borderRadius: 8,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        height: 120, // One-third of screen height
+        alignItems: 'flex-start'
+      }}
+    >
+      {/* Feather Icon */}
+      <Feather name="edit" size={24} color={themeColors.placeholderTextColor} style={{ marginRight: 10 }} />
 
-        {/* Text Input */}
-        <TextInput
-          value={input} // Controlled component
-          onChangeText={handleTextChange} // Handle text input
-          placeholder={placeholder}
-          placeholderTextColor={themeColors.placeholderTextColor}
-          multiline
-          numberOfLines={4} // Used for iOS hint but height is set dynamically
-          style={{
-            flex: 1, // Take remaining space
-            fontSize: 16,
-            color: themeColors.text
-          }}
-        />
-      </View>
-    </ThemedView>
+      {/* Text Input */}
+      <TextInput
+        value={input} // Controlled component
+        onChangeText={handleTextChange} // Handle text input
+        placeholder={placeholder}
+        placeholderTextColor={themeColors.placeholderTextColor}
+        multiline
+        numberOfLines={4} // Used for iOS hint but height is set dynamically
+        style={{
+          flex: 1, // Take remaining space
+          width: '100%',
+          height: '100%',
+          fontSize: 16,
+          color: themeColors.text
+        }}
+      />
+    </View>
   );
 };
 

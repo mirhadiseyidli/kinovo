@@ -60,8 +60,8 @@ const WeekView = forwardRef(({ handleMonthYearChange, fromDropdownRef }: WeekVie
 
   return (
     <ScrollView 
-      style={{ width: screenWidth, paddingBottom: tabBarHeight }}
-      contentContainerStyle={{ flexDirection: 'column' }}
+      style={{ width: screenWidth }}
+      contentContainerStyle={{ flexDirection: 'column', paddingBottom: tabBarHeight }}
       showsVerticalScrollIndicator={false}
       bounces={true}
       stickyHeaderHiddenOnScroll={false}

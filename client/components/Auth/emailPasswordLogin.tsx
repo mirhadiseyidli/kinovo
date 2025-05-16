@@ -8,7 +8,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Feather } from '@expo/vector-icons';
-import { AuthLoginProps, ApiError } from '@/types/allTypes';
+import { AuthLoginProps, ApiError, EmailLoginProps } from '@/types/allTypes';
 import AnimatedCheckBox from '../AnimatedCheckBox';
 
 const { width } = Dimensions.get('window');
@@ -16,7 +16,7 @@ const { width } = Dimensions.get('window');
 // Function to calculate font size relative to screen width
 const getFontSize = (percentage: number) => (width * percentage) / 100;
 
-const EmailLogin: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
+const EmailLogin: React.FC<EmailLoginProps> = ({ onLoginSuccess }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const screenWidth = Dimensions.get('window').width;
@@ -90,8 +90,7 @@ const EmailLogin: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
             backgroundColor: themeColors.inputBackgroundColor,
             borderRadius: 8,
             paddingHorizontal: 16,
-            paddingVertical: 16,
-            height: screenWidth / 10,
+            height: 44,
             marginBottom: 8,
             fontSize: 16,
             color: themeColors.text,
@@ -110,8 +109,7 @@ const EmailLogin: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
             backgroundColor: themeColors.inputBackgroundColor,
             borderRadius: 8,
             paddingHorizontal: 16,
-            paddingVertical: 8,
-            height: screenWidth / 10,
+            height: 44,
             marginBottom: 8,
             fontSize: 14,
             color: themeColors.text,
@@ -146,10 +144,6 @@ const EmailLogin: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
               topContainerStyle={{ gap: 4 }}
             />
           </ThemedView>
-          {/* Animated Text Color */}
-          {/* <Animated.Text style={{ fontSize: getFontSize(3.5), color: interpolatedColor }}>
-            Remember Me
-          </Animated.Text> */}
         </ThemedView>
         <ThemedText>Forgot Password?</ThemedText>
       </ThemedView>

@@ -2,7 +2,7 @@
   "dependencies": {
     "@slack/interactive-messages": "^2.0.2",
     "@slack/web-api": "^7.3.4",
-    "bcrypt": "^5.1.1",
+    "bcrypt": "^6.0.0",
     "brcypt": "^1.0.1",
     "connect-mongo": "^5.1.0",
     "cookie-parser": "^1.4.6",

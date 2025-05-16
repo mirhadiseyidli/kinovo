@@ -10,11 +10,11 @@ import { useCreateEvent } from '@/hooks/useCreateEvent';
 import { useCreateEventContext } from '@/context/CreateEventContext';
 
 const Category: React.FC<CategoryProps> = ({ onCategorySelect }) => {
-  const screenWidth = Dimensions.get('window').width;
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { settingEventCategory } = useCreateEventContext();
   const [selectedCategory, setSelectedCategory] = useState<CategoryType | undefined>(undefined);
+  const { width } = Dimensions.get('window');
 
   // ✅ Function to Open Native Action Sheet for Category Selection
   const openCategoryOptions = () => {
@@ -50,52 +50,49 @@ const Category: React.FC<CategoryProps> = ({ onCategorySelect }) => {
   };
 
   return (
-    <ThemedView style={{ marginBottom: 24 }}>
-      <ThemedView
-        style={{
-          paddingVertical: 8,
-          paddingHorizontal: 16,
-          width: '100%',
-          borderRadius: 8,
-          backgroundColor: themeColors.inputBackgroundColor,
-          elevation: 5,
-          height: 52,
-        }}
-      >
-        {/* Category Selection */}
-        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Feather
-              name="tag"
-              size={24}
-              color={themeColors.placeholderTextColor}
-              style={{ marginRight: 8 }}
-            />
-            <ThemedText
-              style={{
-                fontSize: 16,
-                color: themeColors.placeholderTextColor,
-              }}
-            >
-              Select Category
-            </ThemedText>
-          </View>
-          <TouchableOpacity onPress={openCategoryOptions}
+    <ThemedView
+      style={{
+        // paddingVertical: 8,
+        paddingHorizontal: 16,
+        width: '100%',
+        borderRadius: 8,
+        backgroundColor: themeColors.inputBackgroundColor,
+        height: 44,
+      }}
+    >
+      {/* Category Selection */}
+      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Feather
+            name="tag"
+            size={20}
+            color={themeColors.placeholderTextColor}
+            style={{ marginRight: 8 }}
+          />
+          <ThemedText
             style={{
-              backgroundColor: Colors[colorScheme ?? 'dark'].background,
-              paddingVertical: 8,
-              paddingHorizontal: 12,
-              borderRadius: 8,
-              alignItems: 'center',
-              justifyContent: 'center'
+              fontSize: 16,
+              color: themeColors.placeholderTextColor,
             }}
           >
-            <ThemedText style={{ fontSize: 16, fontWeight: '400', color: themeColors.text }}>
-              {selectedCategory ?? 'Select'}
-            </ThemedText>
-          </TouchableOpacity>
+            Select Category
+          </ThemedText>
         </View>
-      </ThemedView>
+        <TouchableOpacity onPress={openCategoryOptions}
+          style={{
+            backgroundColor: Colors[colorScheme ?? 'dark'].background,
+            paddingVertical: 10,
+            paddingHorizontal: 16,
+            borderRadius: 8,
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <ThemedText style={{ fontSize: 12, fontWeight: 'bold', color: themeColors.text }}>
+            {selectedCategory ?? 'Select'}
+          </ThemedText>
+        </TouchableOpacity>
+      </View>
     </ThemedView>
   );
 };

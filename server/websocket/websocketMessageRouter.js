@@ -19,7 +19,7 @@ const handleMessage = async (message, ws, connectedUsers) => {
         sendFriendNewEventsChangeStream(userId, ws);
         break;
 
-      case 'ai-summary':
+      case 'get_daily_insight':
         await handleAISummary(userId, ws);
         break;
 

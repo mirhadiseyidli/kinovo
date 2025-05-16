@@ -26,8 +26,9 @@ const SearchUsersFriendsBar = ({
           alignItems: 'center',
           backgroundColor: themeColors.inputBackgroundColor,
           borderRadius: 8,
+          height: 44,
           paddingHorizontal: 16,
-          paddingVertical: 16,
+          paddingVertical: 12,
           position: 'relative',
           // flex: 1,
           overflow: 'visible',
@@ -45,9 +46,6 @@ const SearchUsersFriendsBar = ({
           }}
           value={inputValue}
           onChangeText={setInputValue}
-          // onFocus={() => setIsFocused(true)}
-          // onBlur={() => setIsFocused(false)}
-          // ref={inputRef}
         />
       </View>
 

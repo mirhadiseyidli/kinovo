@@ -174,7 +174,11 @@ const usersSchema = new mongoose.Schema({
         }
       ]
     }
-  ]
+  ],
+  ai_assistant_id: {
+    type: String,
+    required: false,
+  }
 });
 
 module.exports = mongoose.model('Users', usersSchema);
