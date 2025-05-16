@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, Dimensions, TouchableWithoutFeedback, Platform } from 'react-native';
-// import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { DateTimePicker } from '@expo/ui/swift-ui';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+// import { DateTimePicker } from '@expo/ui/swift-ui';
 import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
@@ -10,7 +10,7 @@ import { ThemedText } from '../ThemedText';
 import type { DateTimeState, DatePickerChangeHandler } from '@/types/allTypes';
 import { useCreateEventContext } from '@/context/CreateEventContext';
 
-const DateTime: React.FC = () => {
+const DateTime = () => {
   const screenWidth = Dimensions.get('window').width;
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
@@ -23,53 +23,28 @@ const DateTime: React.FC = () => {
   const [tempStartDate, setTempStartDate] = useState<DateTimeState['tempStartDate']>(startDate);
   const [tempEndDate, setTempEndDate] = useState<DateTimeState['tempEndDate']>(endDate);
 
-  const handleStartDateChange = (selectedDate: Date) => {
+  const handleStartDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
     if (selectedDate) setTempStartDate(selectedDate);
     settingEventStartTime(selectedDate ?? null);
   };
   
-  const handleEndDateChange = (selectedDate: Date) => {
+  const handleEndDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
     if (selectedDate) setTempEndDate(selectedDate);
     settingEventEndTime(selectedDate ?? null);
   };
 
   return (
-    <ThemedView style={{ marginBottom: 24 }}>
       <ThemedView
         style={{
           alignSelf: 'center',
-          paddingVertical: 12,
+          paddingVertical: 8,
           paddingHorizontal: 20,
           width: '100%',
           borderRadius: 8,
           backgroundColor: themeColors.inputBackgroundColor,
-          elevation: 5,
+          marginTop: 8
         }}
       >
-        {/* Dotted Line */}
-        <View
-          style={{
-            position: 'absolute',
-            top: 43,
-            bottom: 12,
-            left: 25,
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            height: '40%',
-          }}
-        >
-          {Array.from({ length: 6 }).map((_, index) => (
-            <View
-              key={index}
-              style={{
-                width: 1,
-                height: 4,
-                backgroundColor: themeColors.placeholderTextColor,
-                marginBottom: 2,
-              }}
-            />
-          ))}
-        </View>
 
         {/* Start Date & Time */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
@@ -82,12 +57,12 @@ const DateTime: React.FC = () => {
           <TouchableOpacity onPress={() => setShowStartPicker(true)}
             style={{
               backgroundColor: Colors[colorScheme ?? 'dark'].background,
-              paddingVertical: 8,
-              paddingHorizontal: 12,
+              paddingVertical: 10,
+              paddingHorizontal: 16,
               borderRadius: 8,
             }}
           >
-            <ThemedText style={{ fontSize: 16, fontWeight: '400', textAlign: 'right', color: themeColors.text }}>
+            <ThemedText style={{ fontSize: 12, fontWeight: 'bold', textAlign: 'right', color: themeColors.text }}>
               {`${startDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} at ${startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}`}
             </ThemedText>
           </TouchableOpacity>
@@ -100,15 +75,15 @@ const DateTime: React.FC = () => {
               <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}>
                 <View style={{ backgroundColor: themeColors.background, padding: 20, borderRadius: 10, minHeight: 280 }}>
                   <View style={{ minWidth: 280, width: '100%', alignItems: 'center' }}>
-                    <DateTimePicker
+                    {/* <DateTimePicker
                       initialDate={tempStartDate.toISOString()}
                       color={themeColors.mountainGreen}
                       displayedComponents="dateAndTime"
                       variant="graphical"
                       onDateSelected={handleStartDateChange}
                       style={{ minHeight: 280, minWidth: 280, width: '100%' }}
-                    />
-                    {/* <DateTimePicker
+                    /> */}
+                    <DateTimePicker
                       value={tempStartDate} // Use temp value
                       textColor={themeColors.text}
                       accentColor={themeColors.mountainGreen}
@@ -118,7 +93,7 @@ const DateTime: React.FC = () => {
                       display={Platform.OS === 'ios' ? 'inline' : 'default'}
                       onChange={handleStartDateChange} // Store in temp
                       style={{ minHeight: 280, minWidth: 280, width: '100%' }} // Ensure minimum width
-                    /> */}
+                    />
                   </View>
                   {/* Confirm Button */}
                   <TouchableOpacity
@@ -157,12 +132,12 @@ const DateTime: React.FC = () => {
           <TouchableOpacity onPress={() => setShowEndPicker(true)} 
             style={{
               backgroundColor: Colors[colorScheme ?? 'dark'].background,
-              paddingVertical: 8,
-              paddingHorizontal: 12,
+              paddingVertical: 10,
+              paddingHorizontal: 16,
               borderRadius: 8,
             }}
           >
-            <ThemedText style={{ fontSize: 16, fontWeight: '400', textAlign: 'right', color: themeColors.text }}>
+            <ThemedText style={{ fontSize: 12, fontWeight: 'bold', textAlign: 'right', color: themeColors.text }}>
               {`${endDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} at ${endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}`}
             </ThemedText>
           </TouchableOpacity>
@@ -175,15 +150,15 @@ const DateTime: React.FC = () => {
               <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}>
                 <View style={{ backgroundColor: themeColors.background, padding: 20, borderRadius: 10, minHeight: 280 }}>
                   <View style={{ minWidth: 280, width: '100%', alignItems: 'center' }}>
-                  <DateTimePicker
+                  {/* <DateTimePicker
                       initialDate={tempStartDate.toISOString()}
                       color={themeColors.mountainGreen}
                       displayedComponents="dateAndTime"
                       variant="graphical"
                       onDateSelected={handleStartDateChange}
                       style={{ minHeight: 280, minWidth: 280, width: '100%' }}
-                    />
-                    {/* <DateTimePicker
+                    /> */}
+                    <DateTimePicker
                       value={tempEndDate} // Use temp value
                       textColor={themeColors.text}
                       accentColor={themeColors.mountainGreen}
@@ -193,7 +168,7 @@ const DateTime: React.FC = () => {
                       display={Platform.OS === 'ios' ? 'inline' : 'default'}
                       onChange={handleEndDateChange} // Store in temp
                       style={{ minHeight: 280, minWidth: 280, width: '100%' }} // Ensure minimum width
-                    /> */}
+                    />
                   </View>
                   {/* Confirm Button */}
                   <TouchableOpacity
@@ -218,7 +193,6 @@ const DateTime: React.FC = () => {
           </Modal>
         )}
       </ThemedView>
-    </ThemedView>
   );
 };
 

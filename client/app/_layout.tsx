@@ -11,15 +11,18 @@ import { registerRootComponent } from 'expo';
 import { Provider } from 'react-redux';
 import { store } from "@/store";
 import { ThemedView } from "@/components/ThemedView";
+import { KeyboardProvider } from "react-native-keyboard-controller";
 
 registerRootComponent(RootLayout);
 
 export default function RootLayout() {
   return (
     <Provider store={store}>
-      <AuthProvider>
-        <InnerLayout />
-      </AuthProvider>
+      <KeyboardProvider>
+        <AuthProvider>
+          <InnerLayout />
+        </AuthProvider>
+      </KeyboardProvider>
     </Provider>
   );
 }

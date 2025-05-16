@@ -440,37 +440,37 @@ const getEventById = async (req, res) => {
 }
 
 
-const cleanUpUserEvents = async () => {
-  const VALID_STATUSES = ['pending', 'maybe', 'accepted', 'rejected'];
-  const users = await User.find({}).select('_id events');
+// const cleanUpUserEvents = async () => {
+//   const VALID_STATUSES = ['pending', 'maybe', 'accepted', 'rejected'];
+//   const users = await User.find({}).select('_id events');
 
-  for (const user of users) {
-    const cleanedEvents = (user.events || []).filter(e => {
-      return (
-        e.event &&
-        typeof e.event === 'object' && // not just _id with buffer
-        VALID_STATUSES.includes(e.status)
-      );
-    });
+//   for (const user of users) {
+//     const cleanedEvents = (user.events || []).filter(e => {
+//       return (
+//         e.event &&
+//         typeof e.event === 'object' && // not just _id with buffer
+//         VALID_STATUSES.includes(e.status)
+//       );
+//     });
 
-    await User.findByIdAndUpdate(user._id, {
-      $set: { events: cleanedEvents }
-    });
-  }
+//     await User.findByIdAndUpdate(user._id, {
+//       $set: { events: cleanedEvents }
+//     });
+//   }
 
-  console.log('✅ Cleaned up malformed event references.');
-};
+//   console.log('✅ Cleaned up malformed event references.');
+// };
 
-const deleteAllEvents = async () => {
-  try {
-    // Delete all events in the collection
-    const deletionResult = await Events.deleteMany({});
-    await User.updateMany({}, { $set: { events: [] } });
-    console.log(`✅ Successfully deleted ${deletionResult.deletedCount} events.`);
-  } catch (error) {
-    console.error('Error deleting all events:', error);
-  }
-};
+// const deleteAllEvents = async () => {
+//   try {
+//     // Delete all events in the collection
+//     const deletionResult = await Events.deleteMany({});
+//     await User.updateMany({}, { $set: { events: [] } });
+//     console.log(`✅ Successfully deleted ${deletionResult.deletedCount} events.`);
+//   } catch (error) {
+//     console.error('Error deleting all events:', error);
+//   }
+// };
 
 const getNearbyEvents = async (req, res) => {
   try {

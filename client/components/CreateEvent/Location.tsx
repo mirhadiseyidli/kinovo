@@ -106,7 +106,7 @@ const LocationComponent: React.FC = () => {
   };
 
   return (
-    <ThemedView style={{ marginBottom: 24 }}>
+    <ThemedView>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View 
           style={{
@@ -118,7 +118,7 @@ const LocationComponent: React.FC = () => {
             paddingVertical: 14,
           }}
         >
-          <Feather name="map-pin" size={24} color={themeColors.placeholderTextColor} style={{ marginRight: 10 }} />
+          <Feather name="map-pin" size={18} color={themeColors.placeholderTextColor} style={{ marginRight: 10 }} />
           <TextInput
             autoCorrect={false} // Prevents unnecessary text input errors
             keyboardType="default" // Explicitly define the keyboard type

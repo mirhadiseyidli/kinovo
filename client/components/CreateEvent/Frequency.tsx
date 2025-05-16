@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput, Platform, Alert, ActionSheetIOS, Dimensions, Animated, Modal, TouchableWithoutFeedback, Keyboard } from 'react-native';
-// import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { DateTimePicker } from '@expo/ui/swift-ui';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+// import { DateTimePicker } from '@expo/ui/swift-ui';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -102,7 +102,7 @@ const Frequency: React.FC = () => {
     setShowDatePicker(true);
   };
 
-  const handleDateChange: DatePickerChangeHandler = (selectedDate) => {
+  const handleDateChange: DatePickerChangeHandler = (event, selectedDate) => {
     setShowDatePicker(false);
     if (selectedDate instanceof Date) {
       setEndDate(selectedDate);
@@ -117,15 +117,15 @@ const Frequency: React.FC = () => {
   };
 
   return (
-    <ThemedView style={{ padding: 16, borderRadius: 8, backgroundColor: Colors[colorScheme ?? 'dark'].inputBackgroundColor, marginBottom: 16 }}>
+    <ThemedView style={{ paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8, backgroundColor: Colors[colorScheme ?? 'dark'].inputBackgroundColor, marginBottom: 16 }}>
       {/* Selection: Only Once / Recurring */}
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8 }}>
         <AnimatedCheckBox
           value={isRecurring}
           onValueChange={toggleCheck}
           onCheckColor={themeColors.text} // checkmark color
           tintColors={{ true: themeColors.text, false: themeColors.placeholderTextColor  }} // border color states
-          style={{ height: 20, width: 20 }} // size or any custom inline style
+          style={{ height: 18, width: 18 }} // size or any custom inline style
           topContainerStyle={{ marginRight: 10 }}
         />
         {/* Animated Text Color */}
@@ -143,14 +143,14 @@ const Frequency: React.FC = () => {
               <TouchableOpacity
                 style={{
                   backgroundColor: Colors[colorScheme ?? 'dark'].background, // Dark background
-                  paddingVertical: 8,
+                  paddingVertical: 10,
                   paddingHorizontal: 16,
                   borderRadius: 8,
                   alignItems: 'center',
                 }}
                 onPress={openUnitOptions}
               >
-                <ThemedText style={{ fontSize: 16, color: Colors[colorScheme ?? 'dark'].text }}>
+                <ThemedText style={{ fontSize: 12, fontWeight: 'bold', color: Colors[colorScheme ?? 'dark'].text }}>
                   {unit}
                 </ThemedText>
               </TouchableOpacity>
@@ -161,11 +161,11 @@ const Frequency: React.FC = () => {
               <Text style={{ fontSize: 16, color: Colors[colorScheme ?? 'dark'].text, marginRight: 8 }}>End on</Text>
               <TouchableOpacity onPress={openDatePicker} style={{
                 backgroundColor: Colors[colorScheme ?? 'dark'].background,
-                paddingVertical: 8,
-                paddingHorizontal: 12,
+                paddingVertical: 10,
+                paddingHorizontal: 16,
                 borderRadius: 8,
               }}>
-                <Text style={{ fontSize: 16, color: Colors[colorScheme ?? 'dark'].text }}>{endDate?.toDateString()}</Text>
+                <Text style={{ fontSize: 12, fontWeight: 'bold', color: Colors[colorScheme ?? 'dark'].text }}>{endDate?.toDateString()}</Text>
               </TouchableOpacity>
               
               {/* Use a modal for iOS to prevent layout shift */}
@@ -174,7 +174,7 @@ const Frequency: React.FC = () => {
                   <TouchableWithoutFeedback onPress={() => setShowDatePicker(false)}>
                     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)', minHeight: 280 }}>
                       <View style={{ backgroundColor: themeColors.background, padding: 20, borderRadius: 10, minWidth: 280, width: '100%', }}>
-                        {/* <DateTimePicker
+                        <DateTimePicker
                           value={endDate ?? new Date()}
                           mode="date"
                           minimumDate={new Date()}
@@ -184,15 +184,15 @@ const Frequency: React.FC = () => {
                           themeVariant={colorScheme === "light" ? "light" : "dark"}
                           onChange={handleDateChange}
                           style={{ minWidth: 280, width: '100%' }} // Ensure minimum width
-                        /> */}
-                        <DateTimePicker
+                        />
+                        {/* <DateTimePicker
                           initialDate={(endDate ?? new Date()).toISOString()}
                           color={themeColors.mountainGreen}
                           displayedComponents="dateAndTime"
                           variant="graphical"
                           onDateSelected={handleDateChange}
                           style={{ minHeight: 280, minWidth: 280, width: '100%' }}
-                        />
+                        /> */}
                       </View>
                     </View>
                   </TouchableWithoutFeedback>

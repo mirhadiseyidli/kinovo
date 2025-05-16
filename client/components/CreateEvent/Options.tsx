@@ -88,19 +88,18 @@ const Options: React.FC<{ setLimit: (value: number | null) => void }> = ({ setLi
   };
 
   return (
-    <ThemedView style={{ marginBottom: 24 }}>
       <ThemedView
         style={{
           alignSelf: 'center',
-          paddingVertical: 16,
+          paddingVertical: 8,
           paddingHorizontal: 20,
           width: '100%',
           borderRadius: 8,
+          marginTop: 8,
           backgroundColor: themeColors.inputBackgroundColor,
-          elevation: 5,
         }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Feather
               name="eye"
@@ -122,14 +121,14 @@ const Options: React.FC<{ setLimit: (value: number | null) => void }> = ({ setLi
           <TouchableOpacity onPress={openVisibilityOptions}
             style={{
               backgroundColor: Colors[colorScheme ?? 'dark'].background,
-              paddingVertical: 8,
-              paddingHorizontal: 12,
+              paddingVertical: 10,
+              paddingHorizontal: 16,
               borderRadius: 8,
               alignItems: 'center',
               justifyContent: 'center'
             }}
           >
-            <ThemedText style={{ fontSize: 16, fontWeight: '400', color: themeColors.text }}>
+            <ThemedText style={{ fontSize: 12, fontWeight: 'bold', color: themeColors.text }}>
               {visibility}
             </ThemedText>
           </TouchableOpacity>
@@ -140,7 +139,7 @@ const Options: React.FC<{ setLimit: (value: number | null) => void }> = ({ setLi
             height: 1,
             backgroundColor: themeColors.placeholderTextColor,
             opacity: 0.2,
-            marginBottom: 16,
+            marginBottom: 8,
           }}
         />
 
@@ -150,7 +149,7 @@ const Options: React.FC<{ setLimit: (value: number | null) => void }> = ({ setLi
             onValueChange={toggleCheck}
             onCheckColor={themeColors.text} // checkmark color
             tintColors={{ true: themeColors.text, false: themeColors.placeholderTextColor  }} // border color states
-            style={{ height: 20, width: 20 }} // size or any custom inline style
+            style={{ height: 18, width: 18 }} // size or any custom inline style
             topContainerStyle={{ marginRight: 10 }}
           />
           <Animated.Text style={{ fontSize: 16, color: interpolatedColor }}>
@@ -189,12 +188,13 @@ const Options: React.FC<{ setLimit: (value: number | null) => void }> = ({ setLi
                 keyboardType='numeric'
                 style={{
                   backgroundColor: Colors[colorScheme ?? 'dark'].background,
-                  width: 180,
-                  paddingVertical: 8,
-                  paddingHorizontal: 12,
+                  width: 'auto',
+                  paddingVertical: 10,
+                  paddingHorizontal: 16,
                   borderRadius: 8,
                   color: themeColors.text,
-                  fontSize: 16,
+                  fontSize: 12,
+                  fontWeight: 'bold',
                   textAlign: 'right'
                 }}
               />
@@ -202,7 +202,6 @@ const Options: React.FC<{ setLimit: (value: number | null) => void }> = ({ setLi
           )}
         </Animated.View>
       </ThemedView>
-    </ThemedView>
   );
 };
 

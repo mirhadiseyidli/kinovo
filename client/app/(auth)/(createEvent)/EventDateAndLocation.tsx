@@ -27,7 +27,9 @@ export default React.memo(function EventDateAndLocation() {
 
   return (
     <ThemedView style={{ flex: 1, width: '100%', paddingHorizontal: 16 }}>
-      <ScrollView>
+      <ScrollView
+        contentContainerStyle={{ gap: 16 }}
+      >
         {/* Step 2: Date & Location */}
         <DateTime />
         <LocationComponent />

@@ -74,9 +74,9 @@ const HomeScreen = () => {
           <Header refreshing={refreshing}/>
         </ThemedView>
         <ThemedView style={{ display: 'flex', flex: 1, flexDirection: 'column', gap: 24, paddingHorizontal: 16, paddingBottom: tabBarHeight }}>
-          {/* <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <AISummary />
-          </ThemedView> */}
+          </ThemedView>
           <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <UpcomingEvents refreshing={refreshing} onFinishRefresh={onFinishRefreshUpcomingEvents} />
           </ThemedView>

@@ -10,6 +10,7 @@ import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import type { CreateEventTabParamList } from '@/types/allTypes';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 export default React.memo(function EventDetails() {
   const navigation = useNavigation<NavigationProp<CreateEventTabParamList>>();
@@ -22,31 +23,44 @@ export default React.memo(function EventDetails() {
   };
 
   return (
-    <ThemedView style={{ flex: 1, paddingHorizontal: 16 }}>
-      <ScrollView>
+    <ThemedView style={{ flex: 1 }}>
+      <KeyboardAwareScrollView
+        contentContainerStyle={{ gap: 16 }}
+        bottomOffset={40}
+      >
         {/* Step 1: Event Details */}
-        <EventImage eventType={eventType} />
-        <EventName />
-        <Category onCategorySelect={setEventType} />
-        <Description />
+        <ThemedView style={{ alignItems: 'center', marginVertical: 8 }}>
+          <EventImage eventType={eventType} />
+        </ThemedView>
+        <ThemedView style={{ paddingHorizontal: 16 }}>
+          <EventName />
+        </ThemedView>
+        <ThemedView style={{ paddingHorizontal: 16 }}>
+          <Category onCategorySelect={setEventType} />
+        </ThemedView>
+        <ThemedView style={{ paddingHorizontal: 16 }}>
+          <Description />
+        </ThemedView>
 
         {/* Next Button */}
-        <ButtonWithLabel 
-          label="Next"
-          onPress={navigateToNext}
-          containerStyle={{ 
-            backgroundColor: themeColors.mountainGreen,
-            paddingVertical: 10,
-            paddingHorizontal: 16,
-            borderRadius: 8,
-            alignSelf: 'flex-end',
-          }}
-          textStyle={{
-            fontWeight: 'bold',
-            color: themeColors.text
-          }}
-        />
-        </ScrollView>
+        <ThemedView style={{ paddingHorizontal: 16, marginTop: 16 }}>
+          <ButtonWithLabel 
+            label="Next"
+            onPress={navigateToNext}
+            containerStyle={{ 
+              backgroundColor: themeColors.mountainGreen,
+              paddingVertical: 10,
+              paddingHorizontal: 16,
+              borderRadius: 8,
+              alignSelf: 'flex-end',
+            }}
+            textStyle={{
+              fontWeight: 'bold',
+              color: themeColors.text
+            }}
+          />
+        </ThemedView>
+      </KeyboardAwareScrollView>
     </ThemedView>
   );
 });

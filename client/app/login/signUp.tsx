@@ -103,28 +103,28 @@ const EmailSignUp: React.FC = () => {
           value={firstName}
           onChangeText={setFirstName}
           placeholder="Enter your First Name"
-          error={errors.firstName}
+          // error={errors.firstName}
           autoCapitalize="words"
         />
         <Input
           value={lastName}
           onChangeText={setLastName}
           placeholder="Enter your Last Name"
-          error={errors.lastName}
+          // error={errors.lastName}
           autoCapitalize="words"
         />
         <Input
           value={dob}
           onChangeText={handleDobChange}
           placeholder="Enter your Date of Birth (YYYY-MM-DD)"
-          error={errors.dob}
+          // error={errors.dob}
           keyboardType="numeric"
         />
         <Input
           value={email}
           onChangeText={handleEmailChange}
           placeholder="Enter your email"
-          error={errors.email}
+          // error={errors.email}
           keyboardType="email-address"
           autoCapitalize="none"
         />
@@ -132,7 +132,7 @@ const EmailSignUp: React.FC = () => {
           value={password}
           onChangeText={handlePasswordChange}
           placeholder="Enter your password"
-          error={errors.password}
+          // error={errors.password}
           secureTextEntry
         />
       </ThemedView>
