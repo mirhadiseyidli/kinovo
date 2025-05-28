@@ -19,13 +19,30 @@ const EventCardView: React.FC<SuggestedEventProps> = ({
     colorScheme === 'dark' ? 'rgba(50, 50, 50, 0.6)' : 'rgba(200, 200, 200, 0.6)';
 
   const handleViewEvent = () => {
-    router.push(`/(auth)/(viewEvent)/${event._id}`);
+    if (event?._id) {
+      router.push(`/(auth)/(viewEvent)/${event._id}`);
+    }
+  }
+
+  const formatDateTime = (date: Date | null) => {
+    if (!date) return '';
+    const dateObj = new Date(date);
+    const dateStr = dateObj.toLocaleDateString('en-US', { 
+      month: 'long', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
+    const timeStr = dateObj.toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+    return `${dateStr} • ${timeStr}`;
   }
 
   return (
     <TouchableOpacity onPress={handleViewEvent}>
       <ImageBackground
-        source={event?.event_picture ? { uri: event?.event_picture } : require('@/assets/event-default.png')}
+        source={event?.event_picture ? { uri: event.event_picture } : require('@/assets/event-default.png')}
         resizeMode="cover"
         style={{
           width: screenWidth * 0.92,
@@ -52,21 +69,27 @@ const EventCardView: React.FC<SuggestedEventProps> = ({
           }}
         >
           {/* Event Details */}
-          <ThemedText style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 4 }}>{event?.title}</ThemedText>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-            <Feather name="map-pin" size={12} color={Colors[colorScheme ?? 'dark'].tint} />
-            <ThemedText style={{ fontSize: 12, marginLeft: 6 }}>{event?.location.text}</ThemedText>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Feather name="clock" size={12} color={Colors[colorScheme ?? 'dark'].tint} />
-            <ThemedText style={{ fontSize: 12, marginLeft: 6 }}>
-              {event?.start_time
-                ? `${new Date(event.start_time).toLocaleDateString('en-US', 
-                    { month: 'long', day: 'numeric', year: 'numeric' })} • ${new Date(event.start_time).toLocaleTimeString([], 
-                    { hour: '2-digit', minute: '2-digit' })}`
-                : ''}
-            </ThemedText>
-          </View>
+          <ThemedText style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 4 }}>
+            {event?.title || 'Untitled Event'}
+          </ThemedText>
+          
+          {event?.location?.text && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+              <Feather name="map-pin" size={12} color={Colors[colorScheme ?? 'dark'].tint} />
+              <ThemedText style={{ fontSize: 12, marginLeft: 6 }}>
+                {event.location.text}
+              </ThemedText>
+            </View>
+          )}
+          
+          {event?.start_time && (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Feather name="clock" size={12} color={Colors[colorScheme ?? 'dark'].tint} />
+              <ThemedText style={{ fontSize: 12, marginLeft: 6 }}>
+                {formatDateTime(event.start_time)}
+              </ThemedText>
+            </View>
+          )}
         </BlurView>
       </ImageBackground>
     </TouchableOpacity>

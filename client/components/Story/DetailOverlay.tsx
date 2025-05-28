@@ -28,7 +28,16 @@ const DetailOverlay: React.FC<DetailOverlayProps> = ({
         const eventId = content[current]?.event?._id;
         if (eventId) {
           pause();
-          router.push(`/(auth)/(viewEvent)/${eventId}?fromStory=true`);
+          setTimeout(() => {
+            router.push({
+              pathname: "/(auth)/(viewEvent)/[event_id]" as const,
+              params: {
+                event_id: eventId,
+                fromStory: "true",
+                timestamp: Date.now()
+              }
+            });
+          }, 50);
         };
       }}
     >

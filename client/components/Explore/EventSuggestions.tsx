@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import Event from '@/components/Event';
 import { ThemedText } from '@/components/ThemedText';
@@ -7,12 +7,17 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 
+interface EventSuggestionsProps {
+  refreshing: boolean;
+  onFinishRefresh: () => void;
+}
+
 const friendImage1 = require('@/assets/profile-pic-1.webp');
 const eventImage1 = require('@/assets/soccer-field.jpg');
 const friendImage2 = require('@/assets/profile-pic-2.jpeg');
 const eventImage2 = require('@/assets/tennis-court.jpg');
 
-const EventSuggestions: React.FC = () => {
+const EventSuggestions: React.FC<EventSuggestionsProps> = ({ refreshing, onFinishRefresh }) => {
   const colorScheme = useColorScheme();
   const loading = false;
   const events = [
@@ -149,6 +154,13 @@ const EventSuggestions: React.FC = () => {
       event_picture: eventImage2,
     },
   ];
+
+  useEffect(() => {
+    if (refreshing) {
+      // TODO: Add actual data fetching here
+      onFinishRefresh();
+    }
+  }, [refreshing]);
 
   return (
     <ThemedView style={{ flex: 1, width: '100%' }}>

@@ -13,7 +13,12 @@ import * as Location from 'expo-location';
 import { useGetNearByEvents } from '@/hooks/useGetNearByEvents';
 import { Event } from '@/types/allTypes';
 
-const NearbyEvents: React.FC = () => {
+interface NearbyEventsProps {
+  refreshing: boolean;
+  onFinishRefresh: () => void;
+}
+
+const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const screenWidth = Dimensions.get('window').width;
   const scrollRef = useRef<ScrollView>(null);
@@ -27,17 +32,47 @@ const NearbyEvents: React.FC = () => {
   const [nearbyEvents, setNearbyEvents] = useState<Event[]>([]);
   const { fetchNearByEvents, loading } = useGetNearByEvents();
 
-  useEffect(() => {
-    // Fetch event details using the eventId (dummy example)
-    const getEventData = async () => {
-      if(userLocation.lat !== null && userLocation.lng !== null) {
-        const fetchedEvents = await fetchNearByEvents(userLocation.lat, userLocation.lng);
-        setNearbyEvents(fetchedEvents ?? []);
-      }
+  const fetchEvents = async () => {
+    if(userLocation.lat !== null && userLocation.lng !== null) {
+      const fetchedEvents = await fetchNearByEvents(userLocation.lat, userLocation.lng);
+      setNearbyEvents(fetchedEvents ?? []);
+      onFinishRefresh();
     }
-    
-    getEventData();
-  }, [userLocation]);
+  }
+
+  // Initial location fetch
+  useEffect(() => {
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        return;
+      }
+      let location = await Location.getCurrentPositionAsync({});
+      let geocode = await Location.reverseGeocodeAsync(location.coords);
+      if (geocode.length > 0) {
+        setUserLocation({
+          city: geocode[0].city || 'Unknown',
+          state: geocode[0].region || 'Unknown',
+          lat: location.coords.latitude || null,
+          lng: location.coords.longitude || null
+        });
+      }
+    })();
+  }, []);
+
+  // Handle refresh
+  useEffect(() => {
+    if (refreshing && userLocation.lat !== null && userLocation.lng !== null) {
+      fetchEvents();
+    }
+  }, [refreshing, userLocation]);
+
+  // Initial data fetch when location is available
+  useEffect(() => {
+    if (userLocation.lat !== null && userLocation.lng !== null) {
+      fetchEvents();
+    }
+  }, [userLocation.lat, userLocation.lng]);
 
   const handleScrollEndDrag = (event: ScrollHandlerEvent) => {
     const offsetX = event.nativeEvent.contentOffset.x;
@@ -68,25 +103,6 @@ const NearbyEvents: React.FC = () => {
     }
     setCurrentIndex(index);
   };
-  
-  useEffect(() => {
-    (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        return;
-      }
-      let location = await Location.getCurrentPositionAsync({});
-      let geocode = await Location.reverseGeocodeAsync(location.coords);
-      if (geocode.length > 0) {
-        setUserLocation({
-          city: geocode[0].city || 'Unknown',
-          state: geocode[0].region || 'Unknown',
-          lat: location.coords.latitude || null,
-          lng: location.coords.longitude || null
-        });
-      }
-    })();
-  }, [location]);
 
   return (
     <ThemedView style={{ flex: 1, width: screenWidth }}>
@@ -100,76 +116,85 @@ const NearbyEvents: React.FC = () => {
         <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>Nearby Events</ThemedText>
       </ThemedView>
 
-      {/* Horizontal Carousel */}
-      <ThemedView style={{ width: screenWidth }}>
-        <ScrollView
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onScrollEndDrag={handleScrollEndDrag}
-          onMomentumScrollEnd={handleMomentumScrollEnd}
-          scrollEventThrottle={16}
-          style={{ marginBottom: 16 }}
-        >
-          {nearbyEvents.map((event) => (
-            <ThemedView key={event._id} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, width: screenWidth }}>
-              <EventCardView 
-                event={event}
-                // title={event.title} 
-                // location={event.location.text} 
-                // date={event.start_time ? new Date(event.start_time) : null} 
-                // time={event.start_time ? new Date(event.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''} 
-                // imageUrl={event.event_picture} 
-                // imageUrl={require('@/assets/event-default.png')} 
-              />
-            </ThemedView>
-          ))}
-
-          {/* See More Button as the Last Item */}
-          <TouchableOpacity style={{ alignItems: 'center', justifyContent: 'center', width: screenWidth }}>
-            <ThemedText 
-              style={{
-                fontWeight: 'bold',
-                padding: 16,
-                borderRadius: 8,
-                textAlign: 'center',
-                width: '80%',
-                backgroundColor: Colors[colorScheme ?? 'dark'].mountainGreen,
-                color: Colors[colorScheme ?? 'dark'].text,
-              }}
+      {/* Show placeholder when no events */}
+      {nearbyEvents.length === 0 ? (
+        <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 32 }}>
+          <ThemedText style={{ fontSize: 16, textAlign: 'center', color: Colors[colorScheme ?? 'dark'].textSecondary }}>
+            No nearby events found in your area
+          </ThemedText>
+        </ThemedView>
+      ) : (
+        <>
+          {/* Horizontal Carousel */}
+          <ThemedView style={{ width: screenWidth }}>
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onScrollEndDrag={handleScrollEndDrag}
+              onMomentumScrollEnd={handleMomentumScrollEnd}
+              scrollEventThrottle={16}
+              style={{ marginBottom: 16 }}
             >
-              See More Events
-            </ThemedText>
-          </TouchableOpacity>
-        </ScrollView>
-      </ThemedView>
+              {nearbyEvents.map((event) => (
+                <ThemedView key={event._id} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, width: screenWidth }}>
+                  <EventCardView 
+                    event={event}
+                  />
+                </ThemedView>
+              ))}
 
-      {/* Pagination Dots */}
-      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 4 }}>
-        {nearbyEvents.map((_, index) => (
-          <View
-            key={index}
-            onTouchStart={() => scrollToItem(index)}
-            style={{
-              height: 8,
-              width: 8,
-              borderRadius: 4,
-              backgroundColor: currentIndex === index ? Colors[colorScheme ?? 'dark'].tint : Colors[colorScheme ?? 'dark'].border,
-            }}
-          />
-        ))}
+              {/* See More Button as the Last Item */}
+              {nearbyEvents.length > 5 && (
+                <TouchableOpacity style={{ alignItems: 'center', justifyContent: 'center', width: screenWidth }}>
+                  <ThemedText 
+                    style={{
+                      fontWeight: 'bold',
+                      padding: 16,
+                      borderRadius: 8,
+                      textAlign: 'center',
+                      width: '80%',
+                      backgroundColor: Colors[colorScheme ?? 'dark'].mountainGreen,
+                      color: Colors[colorScheme ?? 'dark'].text,
+                    }}
+                  >
+                    See More Events
+                  </ThemedText>
+                </TouchableOpacity>
+              )}
+            </ScrollView>
+          </ThemedView>
 
-        {/* Dot for See More Button */}
-        <View
-          onTouchStart={() => scrollToItem(nearbyEvents.length)}
-          style={{
-            height: 8,
-            width: 8,
-            borderRadius: 4,
-            backgroundColor: currentIndex === nearbyEvents.length ? Colors[colorScheme ?? 'dark'].tint : Colors[colorScheme ?? 'dark'].border,
-          }}
-        />
-      </View>
+          {/* Pagination Dots */}
+          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 4 }}>
+            {nearbyEvents.map((_, index) => (
+              <View
+                key={index}
+                onTouchStart={() => scrollToItem(index)}
+                style={{
+                  height: 8,
+                  width: 8,
+                  borderRadius: 4,
+                  backgroundColor: currentIndex === index ? Colors[colorScheme ?? 'dark'].tint : Colors[colorScheme ?? 'dark'].border,
+                }}
+              />
+            ))}
+
+            {/* Dot for See More Button */}
+            {nearbyEvents.length > 5 && (
+              <View
+                onTouchStart={() => scrollToItem(nearbyEvents.length)}
+                style={{
+                  height: 8,
+                  width: 8,
+                  borderRadius: 4,
+                  backgroundColor: currentIndex === nearbyEvents.length ? Colors[colorScheme ?? 'dark'].tint : Colors[colorScheme ?? 'dark'].border,
+                }}
+              />
+            )}
+          </View>
+        </>
+      )}
     </ThemedView>
   );
 };

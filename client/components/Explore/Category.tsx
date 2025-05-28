@@ -7,11 +7,12 @@ import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { ExploreCategoryProps } from '@/types/allTypes';
 
-const Category: React.FC<ExploreCategoryProps> = ({ iconName, label, iconColor }) => {
+const Category: React.FC<ExploreCategoryProps> = ({ iconName, label, iconColor, onPress }) => {
   const colorScheme = useColorScheme();
 
   return (
     <TouchableOpacity
+      onPress={onPress}
       style={{
         flex: 1,
         width: '100%',

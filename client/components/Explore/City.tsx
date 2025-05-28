@@ -7,7 +7,7 @@ import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { CityProps } from '@/types/allTypes';
 
-const City: React.FC<CityProps> = ({ name, image }) => {
+const City: React.FC<CityProps> = ({ name, image, onPress }) => {
   const colorScheme = useColorScheme();
 
   const backgroundColor =
@@ -31,6 +31,7 @@ const City: React.FC<CityProps> = ({ name, image }) => {
         alignSelf: 'center', // Center horizontally
         marginVertical: 8,
       }}
+      onPress={onPress}
     >
       <ThemedView
         style={{

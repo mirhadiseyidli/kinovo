@@ -16,6 +16,21 @@ const EventHostActionButtons: React.FC<Props> = ({ onInvite, onEdit, onCancel })
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
 
+  const showCancelConfirmation = (onCancel?: () => void) => {
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        title: 'Are you sure you want to cancel the event?',
+        options: ['No', 'Yes, Cancel'],
+        cancelButtonIndex: 0,
+        destructiveButtonIndex: 1,
+        userInterfaceStyle: colorScheme === 'dark' ? 'dark' : 'light',
+      },
+      (index) => {
+        if (index === 1) onCancel?.();
+      }
+    );
+  };
+
   return (
     <ContextMenu 
       activationMethod='singlePress'
@@ -28,34 +43,19 @@ const EventHostActionButtons: React.FC<Props> = ({ onInvite, onEdit, onCancel })
         <Button 
           systemImage={"person.badge.plus"} 
           onPress={onInvite}
-        >
-          Add Attendees
-        </Button>
+          children='Add Attendees'
+        />
         <Button 
           systemImage={"square.and.pencil"} 
           onPress={onEdit}
-        >
-          Edit Event
-        </Button>
+          children='Edit Event'
+        />
         <Button
           systemImage={"xmark.octagon" }
           color={themeColors.specialRed}
-          onPress={() =>
-            ActionSheetIOS.showActionSheetWithOptions(
-              {
-                title: 'Are you sure you want to cancel the event?',
-                options: ['No', 'Yes, Cancel'],
-                cancelButtonIndex: 0,
-                destructiveButtonIndex: 1,
-                userInterfaceStyle: colorScheme === 'dark' ? 'dark' : 'light',
-              },
-              (index) => {
-                if (index === 1) onCancel?.();
-              }
-            )
-          }>
-            Cancel Event
-        </Button>
+          children='Cancel Event'
+          role='destructive'
+          onPress={showCancelConfirmation}/>
       </ContextMenu.Items>
 
       <ContextMenu.Trigger>
@@ -67,9 +67,8 @@ const EventHostActionButtons: React.FC<Props> = ({ onInvite, onEdit, onCancel })
             borderRadius: 8,
           }}
           color={themeColors.text}
-        >
-          ⋮
-        </Button>
+          children='⋮'
+        />
       </ContextMenu.Trigger>
     </ContextMenu>
   );
