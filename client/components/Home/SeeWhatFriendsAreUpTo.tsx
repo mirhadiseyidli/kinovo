@@ -10,7 +10,6 @@ import { useGetMyFriends } from '@/hooks/useGetMyFriends';
 import { Friend, FriendEventActivity } from '@/types/allTypes';
 import { AutoSkeletonView } from 'react-native-auto-skeleton';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
 import { useDispatch } from 'react-redux';
 import { setEventsForFriend } from '@/store/eventStoriesSlice';
 
@@ -21,7 +20,6 @@ const SeeWhatFriendsAreUpTo: React.FC<{ refreshing: boolean; onFinishRefresh: ()
   const { fetchFriends, loading } = useGetMyFriends();
   const [myFriendsList, setMyFriendsList] = useState<Friend[]>([]);
   const [friendActivityMap, setFriendActivityMap] = useState<Record<string, { eventCount: number; activityData: FriendEventActivity[] }>>({});
-  const router = useRouter();
   const dispatch = useDispatch();
 
   const fetchMyFriends = async () => {
@@ -97,10 +95,11 @@ const SeeWhatFriendsAreUpTo: React.FC<{ refreshing: boolean; onFinishRefresh: ()
       return countB - countA;
     });
 
-  const viewFriendsEvents = (friend_id: string) => {
+  const handleFriendPress = (friend_id: string) => {
+    // Set events for friend in Redux store for the StoryViewer to use
     const events = friendActivityMap[friend_id]?.activityData || [];
+    console.log('Setting events for friend:', friend_id, 'events count:', events.length, 'events:', events);
     dispatch(setEventsForFriend({ friendId: friend_id, events }));
-    router.push(`/(auth)/(friendsStory)/${friend_id}`);
   };
 
   return (
@@ -147,7 +146,7 @@ const SeeWhatFriendsAreUpTo: React.FC<{ refreshing: boolean; onFinishRefresh: ()
                 refreshing={refreshing || loading}
                 eventCount={friendActivityMap[friend._id]?.eventCount || 0}
                 activityData={friendActivityMap[friend._id]?.activityData || []}
-                onPress={() => viewFriendsEvents(friend._id)}
+                onPress={() => handleFriendPress(friend._id)}
               />
             ))}
           </View>

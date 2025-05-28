@@ -78,7 +78,19 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = ({ event, loadin
   };
 
   const handleViewEvent = () => {
-    router.push(`/(auth)/(viewEvent)/${event._id}`);
+    const eventId = event._id;
+    if (!eventId) return;
+
+    // Add a small delay to prevent rapid transitions
+    setTimeout(() => {
+      router.push({
+        pathname: "/(auth)/(viewEvent)/[event_id]" as const,
+        params: {
+          event_id: eventId,
+          timestamp: Date.now() // Add timestamp to force new navigation
+        }
+      });
+    }, 50);
   }
 
   return (

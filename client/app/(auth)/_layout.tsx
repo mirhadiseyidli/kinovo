@@ -79,7 +79,7 @@ export default function RootLayout(): ReactNode {
             name="(viewEvent)/[event_id]"
             options={{ 
               title: 'Event Details',
-              presentation: 'modal', 
+              presentation: 'modal',
               gestureEnabled: true,
               gestureDirection: 'vertical',
               headerShown: true,
@@ -90,31 +90,22 @@ export default function RootLayout(): ReactNode {
               headerTitleStyle: {
                 fontWeight: 'bold'
               },
-              headerRight: () => shareEvent()
-            }}
-          />
-          <Stack.Screen 
-            name="(friendsStory)/[story_id]"
-            options={{
-              presentation: 'card', // ✅ supports swipe
-              gestureEnabled: true,
-              gestureDirection: 'vertical',
-              headerShown: false,
-              animation: 'slide_from_bottom',
+              headerRight: () => shareEvent(),
+              animationDuration: 200,  // Speed up the animation
+              animationTypeForReplace: 'pop',  // Better animation for rapid replacements
+              freezeOnBlur: true,  // Prevent state updates when screen is blurred
             }}
             listeners={{
               blur: () => {
                 'worklet';
-                cancelAnimation(translateX);
-                cancelAnimation(translateY);
+                // Cleanup on blur
                 translateX.value = 0;
                 translateY.value = 0;
                 gestureActive.value = false;
               },
               beforeRemove: () => {
                 'worklet';
-                cancelAnimation(translateX);
-                cancelAnimation(translateY);
+                // Cleanup before removal
                 translateX.value = 0;
                 translateY.value = 0;
                 gestureActive.value = false;

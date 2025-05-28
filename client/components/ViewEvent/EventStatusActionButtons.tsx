@@ -69,7 +69,7 @@ const EventStatusActionButtons: React.FC<Props> = ({ currentUserStatus, onInvite
       </TouchableOpacity>
       
       {isCreator &&
-        <EventHostActionButtons />
+        <EventHostActionButtons onEdit={onEdit}/>
       }
     </View>
   );

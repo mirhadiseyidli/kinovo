@@ -121,10 +121,6 @@ const EventCard: React.FC<EventCardProps> = ({
 
                 <View style={{ width: '100%', aspectRatio: 16 / 9, overflow: 'hidden', marginBottom: 56 }}>
                   <Image
-                    onLoadEnd={() => {
-                      progress.setValue(0);
-                      play();
-                    }}
                     source={
                       typeof content[current].content === 'string'
                         ? { uri: content[current].content }

@@ -329,6 +329,7 @@ export interface ExploreCategoryProps {
   iconName: any;
   label: string;
   iconColor: string;
+  onPress?: () => void;
 }
 
 // =========================
@@ -373,6 +374,7 @@ export interface ActivityProps {
 export interface CityProps {
   name: string;
   image: any; // Use ImageSourcePropType if using local images
+  onPress?: () => void;
 }
 
 // =========================

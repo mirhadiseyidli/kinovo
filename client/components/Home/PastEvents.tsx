@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import PastEvent from '@/components/Home/PastEvent';
 import { ThemedText } from '@/components/ThemedText';
@@ -12,37 +12,112 @@ import { AutoSkeletonView } from 'react-native-auto-skeleton';
 import { useGetMyPastEvents } from '@/hooks/useGetMyPastEvents';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import EventFilters, { FilterType, DateFilter } from './EventFilters';
 
-const groupEventsByMonth = (events: Event[]) => {
-  const grouped: Record<string, Event[]> = {};
+const THIS_MONTH = 'This Month';
+const LAST_MONTH = 'Last Month';
+
+interface GroupedEvents {
+  [key: string]: {
+    [key: string]: Event[];
+  };
+}
+
+const groupEventsByYearAndMonth = (events: Event[]) => {
+  if (!events || events.length === 0) return {};
+
   const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
 
-  events.forEach((event: Event) => {
+  const grouped: GroupedEvents = {};
+
+  // Sort events from newest to oldest
+  const sortedEvents = [...events].sort((a, b) => {
+    const dateA = new Date(a.start_time || 0);
+    const dateB = new Date(b.start_time || 0);
+    return dateB.getTime() - dateA.getTime();
+  });
+
+  sortedEvents.forEach(event => {
     if (!event.start_time) return;
-
+    
     const eventDate = new Date(event.start_time);
-    if (eventDate >= now) return; // only group past events
+    const eventYear = eventDate.getFullYear();
+    const eventMonth = eventDate.getMonth();
+    
+    // Initialize year if not exists
+    if (!grouped[eventYear]) {
+      grouped[eventYear] = {};
+    }
 
-    const monthName =
-      eventDate.getFullYear() === now.getFullYear() && eventDate.getMonth() === now.getMonth()
-        ? 'This Month'
-        : eventDate.getFullYear() === now.getFullYear() && eventDate.getMonth() === now.getMonth() - 1
-        ? 'Last Month'
-        : eventDate.toLocaleString('default', { month: 'long' });
+    // Determine month label
+    let monthLabel: string;
+    if (eventYear === currentYear && eventMonth === currentMonth) {
+      monthLabel = THIS_MONTH;
+    } else if (eventYear === currentYear && eventMonth === currentMonth - 1) {
+      monthLabel = LAST_MONTH;
+    } else {
+      monthLabel = eventDate.toLocaleString('default', { month: 'long' });
+    }
 
-    if (!grouped[monthName]) grouped[monthName] = [];
-    grouped[monthName].push(event);
+    // Initialize month if not exists
+    if (!grouped[eventYear][monthLabel]) {
+      grouped[eventYear][monthLabel] = [];
+    }
+
+    grouped[eventYear][monthLabel].push(event);
   });
 
   return grouped;
 };
 
+const filterEventsByDate = (events: Event[], filter: DateFilter) => {
+  if (!events || events.length === 0) return [];
+  
+  // For 'all' type, return the original sorted array
+  if (filter.type === 'all' || !filter.date) {
+    return events.sort((a, b) => {
+      const dateA = new Date(a.start_time || 0);
+      const dateB = new Date(b.start_time || 0);
+      return dateB.getTime() - dateA.getTime();
+    });
+  }
+
+  const filterDate = new Date(filter.date);
+  
+  return events.filter(event => {
+    if (!event.start_time) return false;
+    const eventDate = new Date(event.start_time);
+    
+    switch (filter.type) {
+      case 'year':
+        return eventDate.getFullYear() === filterDate.getFullYear();
+      case 'month':
+        return eventDate.getFullYear() === filterDate.getFullYear() &&
+               eventDate.getMonth() === filterDate.getMonth();
+      case 'day':
+        return eventDate.getFullYear() === filterDate.getFullYear() &&
+               eventDate.getMonth() === filterDate.getMonth() &&
+               eventDate.getDate() === filterDate.getDate();
+      default:
+        return true;
+    }
+  }).sort((a, b) => {
+    const dateA = new Date(a.start_time || 0);
+    const dateB = new Date(b.start_time || 0);
+    return dateB.getTime() - dateA.getTime();
+  });
+};
+
 const PastEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }> = React.memo(({ refreshing, onFinishRefresh }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const tabBarHeight = useBottomTabBarHeight(); // Get the tab bar height dynamically
+  const tabBarHeight = useBottomTabBarHeight();
   const { fetchMyPastEvents, loading } = useGetMyPastEvents();
   const [myPastEventsList, setMyPastEventsList] = useState<Event[]>([]);
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<DateFilter>({ type: 'all', date: null });
   const insets = useSafeAreaInsets();
   
   const fetchPastEvents = async () => {
@@ -59,12 +134,26 @@ const PastEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }>
     }, [refreshing])
   );
 
-  const groupedEvents = useMemo(() => {
-    if (!myPastEventsList || myPastEventsList.length === 0) return {};
+  const filteredEvents = useMemo(() => {
+    return filterEventsByDate(myPastEventsList, activeFilter);
+  }, [myPastEventsList, activeFilter]);
 
-    return groupEventsByMonth(myPastEventsList);
-  }, [myPastEventsList]);
-  
+  const getFilterLabel = () => {
+    if (activeFilter.type === 'all') return 'All Events';
+    if (!activeFilter.date) return 'Filter Events';
+    
+    const date = new Date(activeFilter.date);
+    switch (activeFilter.type) {
+      case 'year':
+        return date.getFullYear().toString();
+      case 'month':
+        return date.toLocaleString('default', { month: 'long', year: 'numeric' });
+      case 'day':
+        return date.toLocaleDateString('default', { month: 'long', day: 'numeric' });
+      default:
+        return 'Filter Events';
+    }
+  };
 
   return (
     <ThemedView style={{ flex: 1, width: '100%' }}>
@@ -89,7 +178,10 @@ const PastEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }>
             Event History
           </ThemedText>
         </AutoSkeletonView>
-        <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <TouchableOpacity 
+          style={{ flexDirection: 'row', alignItems: 'center' }}
+          onPress={() => setFilterModalVisible(true)}
+        >
           <AutoSkeletonView 
             isLoading={refreshing || loading} 
             shimmerBackgroundColor={themeColors.background} 
@@ -98,47 +190,81 @@ const PastEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }>
               themeColors.inputBackgroundColor
             ]}
           >
-            <TouchableOpacity 
-              style={{ flexDirection: 'row', alignItems: 'center' }}
-              onPress={() => console.log('test')}
-            >
-              <ThemedText style={{ fontSize: 16, marginRight: 8 }}>Filter</ThemedText>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <ThemedText style={{ fontSize: 16, marginRight: 8 }}>
+                {getFilterLabel()}
+              </ThemedText>
               <Feather name="filter" size={14} color={Colors[colorScheme ?? 'dark'].tint} />
-            </TouchableOpacity>
+            </View>
           </AutoSkeletonView>
         </TouchableOpacity>
       </View>
 
-      {/* Events Grouped by Month */}
+      {/* Events List */}
       {!myPastEventsList || myPastEventsList.length === 0 ? (
-          <ThemedText>You haven't attended any events yet</ThemedText>
+        <ThemedText>You haven't attended any events yet</ThemedText>
+      ) : filteredEvents.length === 0 ? (
+        <ThemedText>No events found for the selected filter</ThemedText>
       ) : (
         <View style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {Object.entries(groupedEvents).map(([month, events]) => (
-            <View key={month} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <AutoSkeletonView 
-                isLoading={refreshing || loading} 
-                shimmerBackgroundColor={themeColors.background} 
-                gradientColors={[
-                  themeColors.background, 
-                  themeColors.inputBackgroundColor
-                ]}
-              >
-                <ThemedText style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 8 }}>
-                  {month}
-                </ThemedText>
-              </AutoSkeletonView>
-              {events.map((event, index) => (
-                <PastEvent
-                  key={event._id}
-                  event={event}
-                  loading={refreshing || loading}
-                />
-              ))}
-            </View>
-          ))}
+          {activeFilter.type === 'all' ? (
+            Object.entries(groupEventsByYearAndMonth(filteredEvents))
+              .sort(([yearA], [yearB]) => Number(yearB) - Number(yearA))
+              .map(([year, months]) => (
+                <View key={year} style={{ marginBottom: 16 }}>
+                  {/* Year Header */}
+                  <ThemedText style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8 }}>
+                    {year}
+                  </ThemedText>
+                  
+                  {/* Months */}
+                  {Object.entries(months)
+                    .sort(([monthA], [monthB]) => {
+                      if (monthA === THIS_MONTH) return -1;
+                      if (monthB === THIS_MONTH) return 1;
+                      if (monthA === LAST_MONTH) return -1;
+                      if (monthB === LAST_MONTH) return 1;
+                      return 0;
+                    })
+                    .map(([month, monthEvents], monthIndex, monthsArray) => (
+                      <View key={`${year}-${month}`} style={{ marginBottom: monthIndex === monthsArray.length - 1 ? 0 : 16 }}>
+                        {/* Month Header */}
+                        <ThemedText style={{ fontSize: 14, fontWeight: '600', marginBottom: 12, color: themeColors.tint }}>
+                          {month}
+                        </ThemedText>
+                        
+                        {/* Month Events */}
+                        <View style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingBottom: 8 }}>
+                          {monthEvents.map((event, eventIndex) => (
+                            <PastEvent
+                              key={event._id}
+                              event={event}
+                              loading={refreshing || loading}
+                            />
+                          ))}
+                        </View>
+                      </View>
+                    ))}
+                </View>
+              ))
+          ) : (
+            filteredEvents.map((event) => (
+              <PastEvent
+                key={event._id}
+                event={event}
+                loading={refreshing || loading}
+              />
+            ))
+          )}
         </View>
       )}
+
+      <EventFilters
+        visible={filterModalVisible}
+        onClose={() => setFilterModalVisible(false)}
+        activeFilter={activeFilter}
+        onFilterChange={setActiveFilter}
+      />
     </ThemedView>
   );
 });
