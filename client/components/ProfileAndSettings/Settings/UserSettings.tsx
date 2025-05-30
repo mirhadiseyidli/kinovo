@@ -16,12 +16,12 @@ const UserSettings = () => {
       <SettingComponent 
         icon="user" 
         title="Account Settings" 
-        onPress={() => router.push('/(auth)/(tabs)/(profile)/accountSettings')} 
+        onPress={() => router.push('/(auth)/(profileSections)/accountSettings')} 
       />
       <SettingComponent 
         icon="user-plus" 
         title="Manage Friends" 
-        onPress={() => router.push('/(auth)/(tabs)/(profile)/(manageFriends)/AddFriends')} 
+        onPress={() => router.push('/(auth)/(manageFriends)/AddFriends')} 
       />
       <SettingComponent 
         icon="activity" 

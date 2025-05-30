@@ -6,6 +6,7 @@ import { LocationProvider } from '@/context/LocationContext'; // ✅ Import Loca
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { EventCreatedMessageProvider } from "@/context/EventCreatedMessageContext";
+import { EventProvider } from '@/context/EventContext';
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams } from "expo-router";
 import { cancelAnimation } from 'react-native-reanimated';
@@ -39,81 +40,98 @@ export default function RootLayout(): ReactNode {
   }
 
   return (
-    <LocationProvider>
-      <EventCreatedMessageProvider>
-        <Stack
-          screenOptions={{
-            headerShown: false
-          }}
-        >
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen 
-            name="(createEvent)"
-            options={{ 
-              title: 'Create Event',
-              presentation: 'modal', 
-              headerShown: true,
-              headerStyle: { 
-                backgroundColor: themeColors.background
-              },
-              headerTintColor: themeColors.text,
-              headerTitleStyle: {
-                fontWeight: 'bold'
-              }
+    <EventProvider>
+      <LocationProvider>
+        <EventCreatedMessageProvider>
+          <Stack
+            screenOptions={{
+              headerShown: false
             }}
-          />
-          <Stack.Screen 
-            name="(aboutUser)"
-            options={{ 
-              headerShown: true,
-              headerStyle: { 
-                backgroundColor: themeColors.background
-              },
-              headerTintColor: themeColors.text,
-              headerTitleStyle: {
-                fontWeight: 'bold'
-              }
-            }}
-          />
-          <Stack.Screen 
-            name="(viewEvent)/[event_id]"
-            options={{ 
-              title: 'Event Details',
-              presentation: 'modal',
-              gestureEnabled: true,
-              gestureDirection: 'vertical',
-              headerShown: true,
-              headerStyle: { 
-                backgroundColor: themeColors.background
-              },
-              headerTintColor: themeColors.text,
-              headerTitleStyle: {
-                fontWeight: 'bold'
-              },
-              headerRight: () => shareEvent(),
-              animationDuration: 200,  // Speed up the animation
-              animationTypeForReplace: 'pop',  // Better animation for rapid replacements
-              freezeOnBlur: true,  // Prevent state updates when screen is blurred
-            }}
-            listeners={{
-              blur: () => {
-                'worklet';
-                // Cleanup on blur
-                translateX.value = 0;
-                translateY.value = 0;
-                gestureActive.value = false;
-              },
-              beforeRemove: () => {
-                'worklet';
-                // Cleanup before removal
-                translateX.value = 0;
-                translateY.value = 0;
-                gestureActive.value = false;
-              },
-            }}
-          />
-        </Stack>
-      </EventCreatedMessageProvider>
-    </LocationProvider>
+          >
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen 
+              name="(createEvent)"
+              options={{ 
+                title: 'Create Event',
+                presentation: 'modal', 
+                headerShown: true,
+                headerStyle: { 
+                  backgroundColor: themeColors.background
+                },
+                headerTintColor: themeColors.text,
+                headerTitleStyle: {
+                  fontWeight: 'bold'
+                }
+              }}
+            />
+            <Stack.Screen 
+              name="(aboutUser)"
+              options={{ 
+                headerShown: true,
+                headerStyle: { 
+                  backgroundColor: themeColors.background
+                },
+                headerTintColor: themeColors.text,
+                headerTitleStyle: {
+                  fontWeight: 'bold'
+                }
+              }}
+            />
+            <Stack.Screen 
+              name="(notifications)"
+              options={{ 
+                title: 'Notifications',
+                headerShown: true,
+                headerBackButtonDisplayMode: 'minimal',
+                headerStyle: { 
+                  backgroundColor: themeColors.background
+                },
+                headerTintColor: themeColors.text,
+                headerTitleStyle: {
+                  fontWeight: 'bold'
+                }
+              }}
+            />
+            <Stack.Screen 
+              name="(viewEvent)/[event_id]"
+              options={{ 
+                title: 'Event Details',
+                presentation: 'modal',
+                gestureEnabled: true,
+                gestureDirection: 'vertical',
+                headerShown: true,
+                headerStyle: { 
+                  backgroundColor: themeColors.background
+                },
+                headerTintColor: themeColors.text,
+                headerTitleStyle: {
+                  fontWeight: 'bold'
+                },
+                headerRight: () => shareEvent(),
+                animationDuration: 200,  // Speed up the animation
+                animationTypeForReplace: 'pop',  // Better animation for rapid replacements
+                freezeOnBlur: true,  // Prevent state updates when screen is blurred
+              }}
+              listeners={{
+                blur: () => {
+                  'worklet';
+                  // Cleanup on blur
+                  translateX.value = 0;
+                  translateY.value = 0;
+                  gestureActive.value = false;
+                },
+                beforeRemove: () => {
+                  'worklet';
+                  // Cleanup before removal
+                  translateX.value = 0;
+                  translateY.value = 0;
+                  gestureActive.value = false;
+                },
+              }}
+            />
+          </Stack>
+        </EventCreatedMessageProvider>
+      </LocationProvider>
+    </EventProvider>
   );
 }

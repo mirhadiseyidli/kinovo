@@ -1,15 +1,12 @@
 '/eventslist/event/get/event/by/id'
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import * as SecureStore from 'expo-secure-store';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
-import axios, { CancelToken } from 'axios';
-import { useAuthSession } from "@/components/Auth/AuthProvider";
+import axios from 'axios';
 import { ApiError, Event } from '@/types/allTypes';
+import api from '@/utils/api';
 
 export const useGetEventById = (_id: string) => {
-  const { refreshAccessToken } = useAuthSession();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [event, setEvent] = useState<Event | null>(null);
@@ -49,21 +46,14 @@ export const useGetEventById = (_id: string) => {
     }
 
     try {
-      const token = await AsyncStorage.getItem('accessToken');
-      if (!token) throw new Error('No access token available');
-
       // Check if this request is still the active one
       if (activeRequestId.current !== requestId || !isMounted.current) {
         return null;
       }
 
-      const response = await axios.get(
-        `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/manageevents/eventslist/event/get/event/by/id?_id=${_id}`,
-        { 
-          headers: { Authorization: `Bearer ${token}` },
-          signal: abortControllerRef.current.signal
-        }
-      );
+      const response = await api.get(`/api/manageevents/eventslist/event/get/event/by/id?_id=${_id}`, {
+        signal: abortControllerRef.current.signal
+      });
 
       // Check again if this request is still the active one
       if (activeRequestId.current !== requestId || !isMounted.current) {
@@ -86,57 +76,13 @@ export const useGetEventById = (_id: string) => {
       }
 
       const err = error as ApiError;
-      if (err.response?.status === 401) {
-        try {
-          await refreshAccessToken();
-          const retryToken = await AsyncStorage.getItem('accessToken');
-          if (!retryToken) throw new Error('No access token available after refresh');
-
-          // Check again if this request is still valid
-          if (activeRequestId.current !== requestId || !isMounted.current) {
-            return null;
-          }
-
-          const retryResponse = await axios.get(
-            `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/manageevents/eventslist/event/get/event/by/id?_id=${_id}`,
-            { 
-              headers: { Authorization: `Bearer ${retryToken}` },
-              signal: abortControllerRef.current.signal
-            }
-          );
-
-          // Final check if this request is still valid
-          if (activeRequestId.current !== requestId || !isMounted.current) {
-            return null;
-          }
-
-          const retryEvent = retryResponse.data.found_event;
-          if (!retryEvent) throw new Error('Event not found after token refresh');
-
-          if (isMounted.current) {
-            setEvent(retryEvent);
-            setLoading(false);
-          }
-          return retryEvent;
-
-        } catch (retryError: any) {
-          if (axios.isCancel(retryError) || !isMounted.current || activeRequestId.current !== requestId) {
-            return null;
-          }
-          if (isMounted.current) {
-            setError('Failed to refresh access token');
-            setLoading(false);
-          }
-        }
-      } else {
-        if (isMounted.current) {
-          setError(err.message || 'Failed to fetch event');
-          setLoading(false);
-        }
+      if (isMounted.current) {
+        setError(err.message || 'Failed to fetch event');
+        setLoading(false);
       }
       return null;
     }
-  }, [_id, refreshAccessToken]);
+  }, [_id]);
 
   // Auto-fetch when ID changes
   useEffect(() => {

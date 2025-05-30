@@ -13,14 +13,14 @@ import { ThemedText } from '@/components/ThemedText';
 import type { User, UserProp, EventProp } from '@/types/allTypes';
 import { useGetUserToViewFriends } from '@/hooks/useGetUserToViewFriends';
 import { useFocusEffect } from '@react-navigation/native';
-import SearchBar from '@/components/SearchBar';
+import SearchFriendsBar from '@/components/SearchFriendsBar';
 import { useGetUserToViewEvents } from '@/hooks/useGetUserToViewEvents';
 import FriendListUserItem from '@/components/ProfileAndSettings/Settings/manageFriendsComponents/FriendListUserItem';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import EventView from '@/components/Event';
 
-export default React.memo(function UserFriends({ user }: UserProp, EventProp) {
+export default React.memo(function UserEvents({ user }: UserProp) {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [searchQuery, setSearchQuery] = useState('');
@@ -52,8 +52,8 @@ export default React.memo(function UserFriends({ user }: UserProp, EventProp) {
               </ThemedText>
             ) : eventsList.length > 0 ? (
               <>
-                <View style={{ marginTop: 16, marginBottom: 16 }}>
-                  <SearchBar
+                <View style={{ marginTop: 16, marginBottom: 16, width: '100%' }}>
+                  <SearchFriendsBar
                     placeholder="Search events..."
                     value={searchQuery}
                     onChangeText={setSearchQuery}
@@ -63,6 +63,7 @@ export default React.memo(function UserFriends({ user }: UserProp, EventProp) {
                   <EventView
                     key={event._id}
                     event={event}
+                    loading={false}
                   />
                 ))}
               </>
@@ -75,7 +76,7 @@ export default React.memo(function UserFriends({ user }: UserProp, EventProp) {
                   textAlign: 'center'
                 }}
               >
-                {`Looks like it\’s just you for now!\nAdd some friends to get started!`}
+                {`Looks like it\'s just you for now!\nAdd some friends to get started!`}
               </ThemedText>
             )}
           </View>

@@ -19,44 +19,6 @@ export default React.memo(function ProfileTab() {
   const scrollViewRef = useRef<ScrollView>(null);
   const tabBarHeight = useBottomTabBarHeight(); // Get tab bar height dynamically
   const insets = useSafeAreaInsets();
-  const [refreshing, setRefreshing] = useState(false); // temporary false
-  const [refreshingUpcomingEvents, setRefreshingUpcomingEvents] = useState(false);
-  const [refreshingSeeWhatFriendsAreUpTo, setRefreshingSeeWhatFriendsAreUpTo] = useState(false);
-  const [refreshingPastEvents, setRefreshingPastEvents] = useState(false);
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    setRefreshingUpcomingEvents(true);
-    setRefreshingSeeWhatFriendsAreUpTo(true);
-    setRefreshingPastEvents(true);
-  }, []);
-
-  const onFinishRefreshUpcomingEvents = useCallback(() => {
-    setRefreshingUpcomingEvents(false);
-  }, []);
-
-  const onFinishRefreshSeeWhatFriendsAreUpTo = useCallback(() => {
-    setRefreshingSeeWhatFriendsAreUpTo(false);
-  }, []);
-
-  const onFinishRefreshPastEvents = useCallback(() => {
-    setRefreshingPastEvents(false);
-  }, []);
-
-  useEffect(() => {
-    if (
-      !refreshingUpcomingEvents &&
-      !refreshingSeeWhatFriendsAreUpTo &&
-      !refreshingPastEvents &&
-      refreshing
-    ) {
-      setRefreshing(false);
-    }
-  }, [
-    refreshingUpcomingEvents,
-    refreshingSeeWhatFriendsAreUpTo,
-    refreshingPastEvents
-  ]);
 
   const logout = () => {
     Alert.alert(
@@ -84,9 +46,6 @@ export default React.memo(function ProfileTab() {
         scrollEventThrottle={16}
         scrollEnabled={true}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
       >
         <ThemedView
           style={{
@@ -94,7 +53,7 @@ export default React.memo(function ProfileTab() {
             marginBottom: 6
           }}
         >
-          <Header refreshing={refreshing}/>
+          <Header />
         </ThemedView>
         <ThemedView style={{ display: 'flex', flex: 1, flexDirection: 'column' }}>
           <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>

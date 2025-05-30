@@ -5,7 +5,6 @@ import { ThemedText } from '@/components/ThemedText';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import type { FriendProps } from '@/types/allTypes';
-import { AutoSkeletonView } from 'react-native-auto-skeleton';
 import StoryViewer from '@/components/Story/StoryViewer';
 
 const Friend: React.FC<FriendProps & { refreshing: boolean, onPress?: () => void }> = ({ _id, full_name, profile_picture, eventCount = 0, size, showName, refreshing, activityData, onPress }) => {
@@ -78,79 +77,70 @@ const Friend: React.FC<FriendProps & { refreshing: boolean, onPress?: () => void
         style={{ alignItems: 'center' }}
         onPress={handlePress}
       >
-        <AutoSkeletonView 
-          isLoading={refreshing} 
-          shimmerBackgroundColor={themeColors.background} 
-          gradientColors={[
-            themeColors.background, 
-            themeColors.inputBackgroundColor
-          ]}
+        {/* Friend Image with Event Count Badge */}
+        <View
+          ref={imageRef}
+          style={{
+            position: 'relative',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: imageSize,
+            height: imageSize,
+            backgroundColor: 'transparent',
+            borderRadius: imageSize / 2,
+            borderWidth: eventCount > 0 ? 2 : 0,
+            borderColor: eventCount > 0 ? themeColors.mountainGreen : 'transparent'
+          }}
         >
-          {/* Friend Image with Event Count Badge */}
-          <View
-            ref={imageRef}
+          <Image
+            source={
+              profile_picture
+                ? { uri: profile_picture }
+                : require('../assets/profile-pic-2.jpeg')
+            }
             style={{
-              position: 'relative',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: imageSize,
-              height: imageSize,
-              backgroundColor: 'transparent',
+              width: '100%',
+              height: '100%',
               borderRadius: imageSize / 2,
-              borderWidth: eventCount > 0 ? 2 : 0,
-              borderColor: eventCount > 0 ? themeColors.mountainGreen : 'transparent'
             }}
-          >
-            <Image
-              source={
-                profile_picture
-                  ? { uri: profile_picture }
-                  : require('../assets/profile-pic-2.jpeg')
-              }
-              style={{
-                width: '100%',
-                height: '100%',
-                borderRadius: imageSize / 2,
-              }}
-              resizeMode="cover"
-            />
+            resizeMode="cover"
+          />
 
-            {/* Event Count Badge */}
-            {eventCount > 0 && (
-              <View
-                style={{
-                  width: badgeSize,
-                  height: badgeSize,
-                  borderRadius: badgeSize / 2,
-                  position: 'absolute',
-                  bottom: -badgeSize * 0.15,
-                  right: -badgeSize * 0.15,
-                  backgroundColor: themeColors.mountainGreen,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Text style={{ fontSize: 10, fontWeight: 'bold', color: 'white' }}>
-                  {eventCount}
-                </Text>
-              </View>
-            )}
-          </View>
-
-          {/* Friend Name with Truncation */}
-          {showName && (
-            <ThemedText
+          {/* Event Count Badge */}
+          {eventCount > 0 && (
+            <View
               style={{
-                fontSize: 10,
-                textAlign: 'center',
-                maxWidth: imageSize * 1.2, // Restrict width for truncation
-                marginTop: 4,
+                width: badgeSize,
+                height: badgeSize,
+                borderRadius: badgeSize / 2,
+                position: 'absolute',
+                bottom: -badgeSize * 0.15,
+                right: -badgeSize * 0.15,
+                backgroundColor: themeColors.mountainGreen,
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
-              {truncateName(full_name, 9)}
-            </ThemedText>
+              <Text style={{ fontSize: 10, fontWeight: 'bold', color: 'white' }}>
+                {eventCount}
+              </Text>
+            </View>
           )}
-        </AutoSkeletonView>
+        </View>
+
+        {/* Friend Name with Truncation */}
+        {showName && (
+          <ThemedText
+            style={{
+              fontSize: 10,
+              textAlign: 'center',
+              maxWidth: imageSize * 1.2, // Restrict width for truncation
+              marginTop: 4,
+            }}
+          >
+            {truncateName(full_name, 9)}
+          </ThemedText>
+        )}
       </TouchableOpacity>
 
       {/* Story Viewer Modal */}

@@ -12,18 +12,24 @@ import { Provider } from 'react-redux';
 import { store } from "@/store";
 import { ThemedView } from "@/components/ThemedView";
 import { KeyboardProvider } from "react-native-keyboard-controller";
+import { NotificationProvider } from "@/context/NotificationContext";
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 registerRootComponent(RootLayout);
 
 export default function RootLayout() {
   return (
-    <Provider store={store}>
-      <KeyboardProvider>
-        <AuthProvider>
-          <InnerLayout />
-        </AuthProvider>
-      </KeyboardProvider>
-    </Provider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <Provider store={store}>
+        <KeyboardProvider>
+          <AuthProvider>
+            <NotificationProvider>
+              <InnerLayout />
+            </NotificationProvider>
+          </AuthProvider>
+        </KeyboardProvider>
+      </Provider>
+    </GestureHandlerRootView>
   );
 }
 

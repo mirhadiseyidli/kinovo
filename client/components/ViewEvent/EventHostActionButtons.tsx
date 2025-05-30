@@ -16,7 +16,7 @@ const EventHostActionButtons: React.FC<Props> = ({ onInvite, onEdit, onCancel })
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
 
-  const showCancelConfirmation = (onCancel?: () => void) => {
+  const showCancelConfirmation = () => {
     ActionSheetIOS.showActionSheetWithOptions(
       {
         title: 'Are you sure you want to cancel the event?',

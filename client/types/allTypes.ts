@@ -317,12 +317,16 @@ export type UploadedImage = string | null;
 // Create Event Category Types
 // =========================
 
-export const categoryOptions = ['Soccer', 'Hiking', 'Volleyball', 'Cycling', 'Running', 'Cancel'] as const;
+export type CategoryType = string;
 
-export type CategoryType = (typeof categoryOptions)[number];
+export interface Category {
+  _id: string;
+  name: string;
+  icon?: string;
+}
 
 export interface CategoryProps {
-  onCategorySelect: (category: Exclude<CategoryType, 'Cancel'>) => void;
+  onCategorySelect: (category: string) => void;
 }
 
 export interface ExploreCategoryProps {
@@ -776,6 +780,11 @@ export interface Event {
     status: 'pending' | 'maybe' | 'accepted' | 'rejected';
   }[];
   visibility: string;
+  // User's status for this event (from the user's events array)
+  userStatus?: 'pending' | 'maybe' | 'accepted' | 'rejected';
+  // Properties for recurring event occurrences (added by backend)
+  originalEventId?: string;        // Reference to original recurring event
+  isRecurringOccurrence?: boolean; // Flag to identify recurring occurrences
 }
 
 export type EventProp = {
@@ -921,7 +930,6 @@ export interface MonthCalendarProps {
   monthDate: Date;
   refreshing: boolean;
   loading: boolean;
-  eventsData?: Event[];
   handleMonthYearChange: (month: number, year: number, day: number, fromDropdown: boolean) => void;
 }
 
@@ -935,7 +943,6 @@ export interface DayCellProps {
   today: Date;
   cellWidth: number;
   cellHeight: number;
-  eventsData?: Event[];
   handleMonthYearChange: (month: number, year: number, day: number, fromDropdown: boolean) => void;
 }
 
@@ -959,3 +966,71 @@ export type EventViewAttendeesProps = {
 export type CalendarHeaderMonthViewRefProps = {
   update: (date: Date) => void;
 };
+
+// =========================
+// Notification Types
+// ========================
+
+export interface NotificationData {
+  _id: string;
+  recipient: string;
+  sender?: {
+    _id: string;
+    full_name: string;
+    username: string;
+    profile_picture?: string;
+  };
+  event?: {
+    _id: string;
+    title: string;
+    category?: string;
+  };
+  friend_request?: {
+    _id: string;
+    sender: {
+      _id: string;
+      full_name: string;
+      username: string;
+      profile_picture?: string;
+    };
+  };
+  type: 'friend_request' | 'friend_request_accepted' | 'friend_request_rejected' | 'event_created' | 'event_attendance_confirmed' | 'new_event_nearby' | 'event_reminder' | 'event_updated' | 'event_liked' | 'new_comment' | 'someone_joined';
+  title: string;
+  subtitle?: string;
+  message_body?: string;
+  data?: {
+    mutualFriendsCount?: number;
+    [key: string]: any;
+  };
+  status: 'pending' | 'accepted' | 'rejected' | 'seen' | 'unseen';
+  is_seen: boolean;
+  created_at: string;
+  updated_at: string;
+  time?: string; // For display purposes
+  count?: number; // For display purposes
+  location?: string; // For display purposes
+}
+
+export interface FriendRequestNotification {
+  _id: string;
+  sender: {
+    _id: string;
+    full_name: string;
+    username: string;
+    profile_picture?: string;
+  };
+  mutualFriendsCount: number;
+  created_at: string;
+  status?: 'pending' | 'accepted' | 'rejected';
+}
+
+export interface NotificationCardProps {
+  notification: NotificationData;
+  onPress?: () => void;
+}
+
+export interface FriendRequestCardProps {
+  request: FriendRequestNotification;
+  onAccept: (senderId: string) => void;
+  onDecline: (senderId: string) => void;
+}

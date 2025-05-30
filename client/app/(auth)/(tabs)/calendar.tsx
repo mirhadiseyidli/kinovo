@@ -46,10 +46,7 @@ function RenderedCalendarView({
   const { view, setView } = useCalendarViewContext();
 
   return (
-    <Animated.View
-      key={view}
-      entering={FadeIn.duration(500)}
-    >
+    <View style={{ flex: 1 }}>
       {view.toLowerCase() === 'month' ? (
         <MemoizedMonthView
           ref={monthViewRef}
@@ -67,13 +64,11 @@ function RenderedCalendarView({
         />
       ) : view.toLowerCase() === 'schedule' ? (
         <ScheduleView
+          key={`schedule-${currentDateRef.current?.getTime()}`}
           currentDateRef={currentDateRef}
-          // ref={weekViewRef}
-          // handleMonthYearChange={handleMonthYearChange}
-          // fromDropdownRef={animateMonthRef}
         />
       ) : null}
-    </Animated.View>
+    </View>
   );
 }
 
@@ -82,6 +77,7 @@ export default function Calendar() {
   const tabBarHeight = useBottomTabBarHeight(); // Get tab bar height dynamically
   const screenWidth = Dimensions.get('window').width
   const [refreshing, setRefreshing] = useState(false);
+  const [isLayoutReady, setIsLayoutReady] = useState(false);
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const currentDateRef = useRef(new Date());
@@ -106,6 +102,14 @@ export default function Calendar() {
   const animateMonthRef = useRef(true);
   const MemoizedCalendarHeader = React.memo(CalendarHeader);
 
+  // Stabilize layout on mount
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLayoutReady(true);
+    }, 50);
+    return () => clearTimeout(timer);
+  }, []);
+
   const handleMonthYearChange = useCallback((month: number, year: number, day: number, fromDropdown: boolean) => {
     animateMonthRef.current = fromDropdown;
     monthToggleRef.current?.update(new Date(year, month, day));
@@ -124,25 +128,34 @@ export default function Calendar() {
 
   return (
     <ThemedView
-      style={{ flex: 1, paddingTop: insets.top, paddingBottom: tabBarHeight }}
+      style={{ 
+        flex: 1, 
+        paddingTop: insets.top, 
+        paddingBottom: tabBarHeight,
+        minHeight: 600 // Ensure minimum height to prevent jumping
+      }}
     >
-      <MemoizedCalendarHeader
-        ref={monthToggleRef}
-        currentDateRef={currentDateRef}
-        onMonthYearChange={handleMonthYearChange}
-        refreshing={refreshing}
-        fromDropdownRef={animateMonthRef}
-      />
-      <RenderedCalendarView
-        screenWidth={screenWidth}
-        monthViewRef={monthViewRef}
-        weekViewRef={weekViewRef}
-        currentDateRef={currentDateRef}
-        handleMonthYearChange={handleMonthYearChange}
-        refreshing={refreshing}
-        onFinishFetching={onFinishFetching}
-        animateMonthRef={animateMonthRef}
-      />
+      {isLayoutReady && (
+        <>
+          <MemoizedCalendarHeader
+            ref={monthToggleRef}
+            currentDateRef={currentDateRef}
+            onMonthYearChange={handleMonthYearChange}
+            refreshing={refreshing}
+            fromDropdownRef={animateMonthRef}
+          />
+          <RenderedCalendarView
+            screenWidth={screenWidth}
+            monthViewRef={monthViewRef}
+            weekViewRef={weekViewRef}
+            currentDateRef={currentDateRef}
+            handleMonthYearChange={handleMonthYearChange}
+            refreshing={refreshing}
+            onFinishFetching={onFinishFetching}
+            animateMonthRef={animateMonthRef}
+          />
+        </>
+      )}
     </ThemedView>
   );
 };

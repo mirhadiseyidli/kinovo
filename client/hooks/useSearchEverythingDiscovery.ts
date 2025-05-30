@@ -1,57 +1,51 @@
 import { useState, useEffect } from 'react';
 import { ApiError } from '@/types/allTypes';
-import axios from 'axios';
-import { useAuthSession } from "@/components/Auth/AuthProvider";
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import api from '@/utils/api';
 
 const useSearchEverythingDiscovery = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const { refreshAccessToken } = useAuthSession();
 
     const fetchDiscoverySearchResults = async (query: string) => {
         setLoading(true);
         setError(null);
         
         try {
-            const token = await AsyncStorage.getItem('accessToken');
-            const usersResponse = await axios.get(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/search/users?query=${query}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            console.log('Starting search with query:', query); // Debug log
+            
+            // Use 'query' parameter for both endpoints as expected by the server
+            const [usersResponse, eventsResponse] = await Promise.all([
+                api.get(`/api/search/users?query=${encodeURIComponent(query)}`),
+                api.get(`/api/search/events?query=${encodeURIComponent(query)}`)
+            ]);
 
-            const eventsResponse = await axios.get(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/search/discover/search/everything?query=${query}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            console.log('Users response:', usersResponse.data); // Debug log
+            console.log('Events response:', eventsResponse.data); // Debug log
+            console.log('Events response status:', eventsResponse.status); // Debug log
 
-            const results = { users: usersResponse.data, events: eventsResponse.data};
+            // Server returns users array directly, events array directly
+            const results = { 
+                users: usersResponse.data || [], 
+                events: eventsResponse.data || []
+            };
+            
+            console.log('Final search results:', results); // Debug log
+            console.log('Events count:', results.events.length); // Debug log
             return results;
         } catch (error) {
-          const err = error as ApiError;
-          if (err.response?.status === 401) {
-            try {
-              await refreshAccessToken();
-              const retryToken = await AsyncStorage.getItem('accessToken');
-
-              const usersResponse = await axios.get(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/search/users?query=${query}`, {
-                  headers: { Authorization: `Bearer ${retryToken}` }
-              });
-
-              const eventsResponse = await axios.get(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/search/discover/search/everything?query=${query}`, {
-                  headers: { Authorization: `Bearer ${retryToken}` }
-              });
-
-              const results = { users: usersResponse.data, events: eventsResponse.data};
-              return results;
-            } catch (retryError) {
-              console.error('Retry after token refresh failed:', retryError);
-              setError('Failed to refresh access token.');
-            }
-          } else {
+            const err = error as ApiError;
+            console.error('Search error details:', {
+                message: err.message,
+                response: err.response?.data,
+                status: err.response?.status,
+                url: err.config?.url
+            }); // Better error logging
+            
             console.error('Failed to fetch data:', err.message);
             setError(err.message);
-          }
+            return { users: [], events: [] };
         } finally {
-          setLoading(false);
+            setLoading(false);
         }
     };
 

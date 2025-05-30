@@ -40,7 +40,7 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
     end_date: null,
   });
   const [attendees, setAttendees] = useState<EventAttendee[]>([]);
-  const [visibility, setVisibility] = useState<string>('Public');
+  const [visibility, setVisibility] = useState<string>('private');
 
   const settingEventTitle = (name: string) => setTitle(name);
   const settingEventPicture = (picture: string | null) => setPicture(picture);
@@ -61,7 +61,12 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setAttendees(users.map(user => ({ user }))); // no status here
     }
   };
-  const settingEventVisibility = (value: string) => setVisibility(value.toLowerCase());
+  const settingEventVisibility = (value: string) => {
+    const lowerValue = value.toLowerCase();
+    if (['public', 'private', 'selected'].includes(lowerValue)) {
+      setVisibility(lowerValue);
+    }
+  };
 
   const compileEventData = (): Partial<Event> => {
     const compiledEvent = {

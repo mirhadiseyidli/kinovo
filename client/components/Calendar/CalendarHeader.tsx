@@ -17,6 +17,7 @@ import MonthChipView from './CalendarHeader/MonthChipView';
 import MonthSmallView from './CalendarHeader/MonthSmallView';
 import { generateMonthGrid } from './CalendarHeader/utils';
 import { useCalendarViewContext } from '@/context/CalendarViewContext';
+import { useNotifications } from '@/hooks/useNotifications';
 
 const CalendarHeaderMonthView = forwardRef<CalendarHeaderMonthViewRefProps, CalendarHeaderProps>(({ currentDateRef, onMonthYearChange, refreshing, fromDropdownRef }, ref) => {
   const colorScheme = useColorScheme();
@@ -43,14 +44,15 @@ const CalendarHeaderMonthView = forwardRef<CalendarHeaderMonthViewRefProps, Cale
   const listRef = useRef<FlatList<MonthItem>>(null);
   const { view, setView } = useCalendarViewContext();
   const fromChipRef = useRef(false);
+  const { totalNotificationCount } = useNotifications();
 
-  useImperativeHandle(ref, () => ({ // expose both toggle and “select this date” to your parent via ref
+  useImperativeHandle(ref, () => ({ // expose both toggle and "select this date" to your parent via ref
     update: (date: Date) => {
       const key = `${date.getFullYear()}-${date.getMonth()}`;
       // 1) see if it's in our current window
       let idx = data.findIndex(i => i.key === key);
       
-      // 2) if not, rebuild the 36‑month window around this date’s year
+      // 2) if not, rebuild the 36‑month window around this date's year
       if (idx < 0) {
         const newWindow = buildWindow(date.getFullYear());
         setData(newWindow);
@@ -66,7 +68,7 @@ const CalendarHeaderMonthView = forwardRef<CalendarHeaderMonthViewRefProps, Cale
       const newHeight = rows * CELL_HEIGHT + HEADER_HEIGHT;
       setWrapperHeight(newHeight);
 
-      // 4) once your list’s data has updated, scroll so the item is centered
+      // 4) once your list's data has updated, scroll so the item is centered
       //    using scrollToIndex with viewPosition is more robust than manual offset
       requestAnimationFrame(() => {
         if (idx >= 0) {
@@ -108,7 +110,7 @@ const CalendarHeaderMonthView = forwardRef<CalendarHeaderMonthViewRefProps, Cale
   };
 
   const [wrapperHeight, setWrapperHeight] = useState(() => {
-    const days = generateMonthGrid(new Date());
+    const days = generateMonthGrid(currentDateRef.current);
     const rows = days.length / 7;
     return rows * CELL_HEIGHT + HEADER_HEIGHT;
   });
@@ -133,16 +135,19 @@ const CalendarHeaderMonthView = forwardRef<CalendarHeaderMonthViewRefProps, Cale
     const targetHeight = monthListOpen
       ? (view === 'Month' ? 42 : (46 + wrapperHeight))
       : 0;
-    height.value = withTiming(targetHeight, { duration: 300 });
-  }, [wrapperHeight]);
+    height.value = withTiming(targetHeight, { duration: 200 });
+  }, [wrapperHeight, view, monthListOpen]);
 
   useEffect(() => {
-    const targetHeight = monthListOpen
-      ? (view === 'Month' ? 42 : (46 + wrapperHeight))
-      : 0;
-    height.value = withTiming(targetHeight, { duration: 300 });
-    opacity.value = withTiming(monthListOpen ? 1 : 0, { duration: 300 });
+    opacity.value = withTiming(monthListOpen ? 1 : 0, { duration: 200 });
   }, [monthListOpen]);
+
+  // Prevent initial layout jumps by stabilizing on mount
+  useEffect(() => {
+    // Set initial stable state without animation on mount
+    height.value = 0;
+    opacity.value = 0;
+  }, []);
 
   const animatedStyle = useAnimatedStyle(() => ({
     height: height.value,
@@ -155,7 +160,10 @@ const CalendarHeaderMonthView = forwardRef<CalendarHeaderMonthViewRefProps, Cale
 
   const monthSmallViewStyle = useAnimatedStyle(() => {
     return {
-      height: withSpring(showSmallView.value * wrapperHeight),
+      height: withSpring(showSmallView.value * wrapperHeight, {
+        damping: 20,
+        stiffness: 300,
+      }),
       opacity: showSmallView.value,
       overflow: 'hidden',
     };
@@ -166,6 +174,7 @@ const CalendarHeaderMonthView = forwardRef<CalendarHeaderMonthViewRefProps, Cale
       style={{
         alignItems: 'center',
         width: '100%',
+        // minHeight: 120, // Fixed minimum height to prevent jumping
       }}
     >
       <ThemedView style={{ flexDirection: 'row', width: '100%', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 8 }}>
@@ -184,11 +193,11 @@ const CalendarHeaderMonthView = forwardRef<CalendarHeaderMonthViewRefProps, Cale
             fromChipRef={fromChipRef}
           />
           <ThemedView style={{ alignItems: 'center' }}>
-            <NotificationsButton refreshing={refreshing} count={3} />
+            <NotificationsButton refreshing={refreshing} count={totalNotificationCount} />
           </ThemedView>
         </View>
       </ThemedView>
-      <Animated.View style={[animatedStyle, { flexDirection: 'column' } ]}>
+      <Animated.View style={[animatedStyle, { flexDirection: 'column', width: '100%' } ]}>
         <Animated.View style={monthSmallViewStyle}>
           <MonthSmallView 
             currentDateRef={currentDateRef}
@@ -208,7 +217,15 @@ const CalendarHeaderMonthView = forwardRef<CalendarHeaderMonthViewRefProps, Cale
           handleMomentumScrollEnd={handleMomentumScrollEnd}
         />
       </Animated.View>
-      <ThemedView style={{ paddingHorizontal: 16, marginBottom: 8, width: '100%', alignItems: 'center' }}>
+      <ThemedView style={{ 
+        paddingHorizontal: 16, 
+        marginBottom: 8, 
+        width: '100%', 
+        alignItems: 'center',
+        height: 34, // Fixed height for picker container
+        justifyContent: 'center',
+        overflow: 'hidden',
+      }}>
         <Picker setMonthListOpen={setMonthListOpen} />
       </ThemedView>
       <ReanimatedShimmerLine

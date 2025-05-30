@@ -11,20 +11,37 @@ import { Button } from '@expo/ui/swift-ui';
 
 type Props = {
   currentUserStatus: 'pending' | 'maybe' | 'accepted' | 'rejected' | null;
+  onAccept: () => void;
+  onMaybe: () => void;
+  onDecline: () => void;
   onInvite: () => void;
   onEdit: () => void;
   onCancel: () => void;
   isCreator: boolean;
+  loading?: boolean;
+  isInvited?: boolean;
 };
 
-const EventStatusActionButtons: React.FC<Props> = ({ currentUserStatus, onInvite, onEdit, onCancel, isCreator }) => {
+const EventStatusActionButtons: React.FC<Props> = ({ 
+  currentUserStatus, 
+  onAccept, 
+  onMaybe, 
+  onDecline, 
+  onInvite, 
+  onEdit, 
+  onCancel, 
+  isCreator,
+  loading = false,
+  isInvited = true
+}) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
 
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 }}>
       <TouchableOpacity
-        onPress={onInvite}
+        onPress={onAccept}
+        disabled={loading}
         style={{
           flexDirection: 'row',
           alignItems: 'center',
@@ -32,14 +49,18 @@ const EventStatusActionButtons: React.FC<Props> = ({ currentUserStatus, onInvite
           borderRadius: 8,
           paddingHorizontal: 16,
           paddingVertical: 10,
+          opacity: loading ? 0.6 : 1,
         }}
       >
         <Feather name="check" size={12} color={themeColors.text} style={{ marginRight: 4 }} />
-        <ThemedText style={{ fontSize: 12, fontWeight: '600' }}>Accept</ThemedText>
+        <ThemedText style={{ fontSize: 12, fontWeight: '600' }}>
+          {isInvited ? 'Accept' : 'Join'}
+        </ThemedText>
       </TouchableOpacity>
 
       <TouchableOpacity
-        onPress={onEdit}
+        onPress={onMaybe}
+        disabled={loading}
         style={{
           flexDirection: 'row',
           alignItems: 'center',
@@ -47,6 +68,7 @@ const EventStatusActionButtons: React.FC<Props> = ({ currentUserStatus, onInvite
           borderRadius: 8,
           paddingHorizontal: 16,
           paddingVertical: 10,
+          opacity: loading ? 0.6 : 1,
         }}
       >
         <MaterialIcons name="question-mark" size={12} color={themeColors.text} style={{ marginRight: 4 }} />
@@ -54,7 +76,8 @@ const EventStatusActionButtons: React.FC<Props> = ({ currentUserStatus, onInvite
       </TouchableOpacity>
 
       <TouchableOpacity
-        onPress={onInvite}
+        onPress={onDecline}
+        disabled={loading}
         style={{
           flexDirection: 'row',
           alignItems: 'center',
@@ -62,14 +85,17 @@ const EventStatusActionButtons: React.FC<Props> = ({ currentUserStatus, onInvite
           borderRadius: 8,
           paddingHorizontal: 16,
           paddingVertical: 10,
+          opacity: loading ? 0.6 : 1,
         }}
       >
         <Feather name="x" size={12} color={themeColors.text} style={{ marginRight: 4 }} />
-        <ThemedText style={{ fontSize: 12, fontWeight: '600' }}>Decline</ThemedText>
+        <ThemedText style={{ fontSize: 12, fontWeight: '600' }}>
+          {isInvited ? 'Decline' : 'Not Interested'}
+        </ThemedText>
       </TouchableOpacity>
       
       {isCreator &&
-        <EventHostActionButtons onEdit={onEdit}/>
+        <EventHostActionButtons onEdit={onEdit} onInvite={onInvite} onCancel={onCancel}/>
       }
     </View>
   );

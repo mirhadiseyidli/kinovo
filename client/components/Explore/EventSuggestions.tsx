@@ -1,166 +1,95 @@
 import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, TouchableOpacity } from 'react-native';
 import Event from '@/components/Event';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { useGetRecommendedEvents } from '@/hooks/useGetRecommendedEvents';
+import { Event as EventType } from '@/types/allTypes';
+import { useState } from 'react';
 
 interface EventSuggestionsProps {
   refreshing: boolean;
   onFinishRefresh: () => void;
 }
 
-const friendImage1 = require('@/assets/profile-pic-1.webp');
-const eventImage1 = require('@/assets/soccer-field.jpg');
-const friendImage2 = require('@/assets/profile-pic-2.jpeg');
-const eventImage2 = require('@/assets/tennis-court.jpg');
-
 const EventSuggestions: React.FC<EventSuggestionsProps> = ({ refreshing, onFinishRefresh }) => {
   const colorScheme = useColorScheme();
-  const loading = false;
-  const events = [
-    {
-      id: 1,
-      friendName: 'John Smith',
-      friendImage: friendImage1,
-      eventTitle: 'Web3 Workshop',
-      date: 'Tomorrow',
-      time: '2:00 PM',
-      location: 'Tech Hub, Silicon Valley',
-      remainingDays: 'in 1 day',
-      event_picture: eventImage1,
-    },
-    {
-      id: 2,
-      friendName: 'Sarah Wilson',
-      friendImage: friendImage2,
-      eventTitle: 'Jazz Night',
-      date: 'Sat',
-      time: '8:00 PM',
-      location: 'Blue Note Jazz Club',
-      remainingDays: 'in 3 days',
-      event_picture: eventImage2,
-    },
-    {
-      id: 3,
-      friendName: 'Michael Brown',
-      friendImage: friendImage1,
-      eventTitle: 'Tech Meetup',
-      date: 'Sun',
-      time: '5:00 PM',
-      location: 'Downtown Center',
-      remainingDays: 'in 4 days',
-      event_picture: eventImage1,
-    },
-    {
-      id: 4,
-      friendName: 'Emily Davis',
-      friendImage: friendImage2,
-      eventTitle: 'Art Exhibition',
-      date: 'Mon',
-      time: '6:00 PM',
-      location: 'Art Hub',
-      remainingDays: 'in 5 days',
-      event_picture: eventImage2,
-    },
-    {
-      id: 5,
-      friendName: 'John Smith',
-      friendImage: friendImage1,
-      eventTitle: 'Web3 Workshop',
-      date: 'Tomorrow',
-      time: '2:00 PM',
-      location: 'Tech Hub, Silicon Valley',
-      remainingDays: 'in 1 day',
-      event_picture: eventImage1,
-    },
-    {
-      id: 6,
-      friendName: 'Sarah Wilson',
-      friendImage: friendImage2,
-      eventTitle: 'Jazz Night',
-      date: 'Sat',
-      time: '8:00 PM',
-      location: 'Blue Note Jazz Club',
-      remainingDays: 'in 3 days',
-      event_picture: eventImage2,
-    },
-    {
-      id: 7,
-      friendName: 'Michael Brown',
-      friendImage: friendImage1,
-      eventTitle: 'Tech Meetup',
-      date: 'Sun',
-      time: '5:00 PM',
-      location: 'Downtown Center',
-      remainingDays: 'in 4 days',
-      event_picture: eventImage1,
-    },
-    {
-      id: 8,
-      friendName: 'Emily Davis',
-      friendImage: friendImage2,
-      eventTitle: 'Art Exhibition',
-      date: 'Mon',
-      time: '6:00 PM',
-      location: 'Art Hub',
-      remainingDays: 'in 5 days',
-      event_picture: eventImage2,
-    },
-    {
-      id: 9,
-      friendName: 'John Smith',
-      friendImage: friendImage1,
-      eventTitle: 'Web3 Workshop',
-      date: 'Tomorrow',
-      time: '2:00 PM',
-      location: 'Tech Hub, Silicon Valley',
-      remainingDays: 'in 1 day',
-      event_picture: eventImage1,
-    },
-    {
-      id: 10,
-      friendName: 'Sarah Wilson',
-      friendImage: friendImage2,
-      eventTitle: 'Jazz Night',
-      date: 'Sat',
-      time: '8:00 PM',
-      location: 'Blue Note Jazz Club',
-      remainingDays: 'in 3 days',
-      event_picture: eventImage2,
-    },
-    {
-      id: 11,
-      friendName: 'Michael Brown',
-      friendImage: friendImage1,
-      eventTitle: 'Tech Meetup',
-      date: 'Sun',
-      time: '5:00 PM',
-      location: 'Downtown Center',
-      remainingDays: 'in 4 days',
-      event_picture: eventImage1,
-    },
-    {
-      id: 12,
-      friendName: 'Emily Davis',
-      friendImage: friendImage2,
-      eventTitle: 'Art Exhibition',
-      date: 'Mon',
-      time: '6:00 PM',
-      location: 'Art Hub',
-      remainingDays: 'in 5 days',
-      event_picture: eventImage2,
-    },
-  ];
+  const themeColors = Colors[colorScheme ?? 'dark'];
+  const { fetchRecommendedEvents, loading } = useGetRecommendedEvents();
+  const [recommendedEvents, setRecommendedEvents] = useState<EventType[]>([]);
+
+  const fetchEvents = async () => {
+    try {
+      const events = await fetchRecommendedEvents();
+      if (events && Array.isArray(events)) {
+        setRecommendedEvents(events);
+      }
+    } catch (error) {
+      console.error('Error fetching recommended events:', error);
+    }
+    onFinishRefresh();
+  };
 
   useEffect(() => {
     if (refreshing) {
-      // TODO: Add actual data fetching here
-      onFinishRefresh();
+      fetchEvents();
     }
   }, [refreshing]);
+
+  if (recommendedEvents.length === 0) {
+    return (
+      <ThemedView style={{ width: '100%' }}>
+        <ThemedText style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 16 }}>
+          Events You Might Like
+        </ThemedText>
+        <TouchableOpacity
+          style={{
+            backgroundColor: themeColors.background,
+            borderRadius: 12,
+            padding: 16,
+            borderWidth: 2,
+            borderStyle: 'dashed',
+            borderColor: themeColors.border,
+            width: '100%',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: 120,
+          }}
+          onPress={fetchEvents}
+        >
+          <View style={{ marginBottom: 12 }}>
+            <IconSymbol
+              name="star.fill"
+              size={32}
+              color={themeColors.placeholderTextColor}
+            />
+          </View>
+          <ThemedText
+            style={{
+              fontSize: 16,
+              textAlign: 'center',
+              color: themeColors.textSecondary,
+            }}
+          >
+            No recommended events yet
+          </ThemedText>
+          <ThemedText
+            style={{
+              fontSize: 14,
+              textAlign: 'center',
+              marginTop: 8,
+              color: themeColors.textThird,
+            }}
+          >
+            Add more interests to get personalized suggestions
+          </ThemedText>
+        </TouchableOpacity>
+      </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={{ flex: 1, width: '100%' }}>
@@ -171,14 +100,14 @@ const EventSuggestions: React.FC<EventSuggestionsProps> = ({ refreshing, onFinis
 
       {/* Event List */}
       <View style={{ flex: 1 }}>
-        {events.map((event, index) => (
-          <View key={event.id}>
+        {recommendedEvents.map((event, index) => (
+          <View key={event._id}>
             <Event
               event={event}
               loading={loading}
             />
             {/* Divider Line */}
-            {index < events.length - 1 && (
+            {index < recommendedEvents.length - 1 && (
               <View
                 style={{
                   height: 0.3,

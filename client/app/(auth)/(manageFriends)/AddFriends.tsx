@@ -3,11 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import SearchBar from '@/components/SearchBar';
+import AddFriendsSearchBar from '@/components/AddFriendsSearchBar';
 import FriendListUserItem from '@/components/ProfileAndSettings/Settings/manageFriendsComponents/FriendListUserItem';
-import axios from 'axios';
-import { useAuthSession } from "@/components/Auth/AuthProvider";
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import ContactSyncScreen from '@/components/ProfileAndSettings/Settings/manageFriendsComponents/SyncContacts';
@@ -15,11 +12,11 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import FriendListUserItemCard from '@/components/ProfileAndSettings/Settings/manageFriendsComponents/FriendListUserItemCard';
 import FriendSuggestionsList from '@/components/ProfileAndSettings/Settings/manageFriendsComponents/FriendSuggestionsList';
 import type { ApiError, User } from '@/types/allTypes';
+import api from '@/utils/api';
 
 export default function AddFriends() {
   const [searchQuery, setSearchQuery] = useState('');
   const [results, setResults] = useState<User[]>([]);
-  const { refreshAccessToken } = useAuthSession();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
 
@@ -33,31 +30,8 @@ export default function AddFriends() {
         }
 
         try {
-          const accessToken = await AsyncStorage.getItem('accessToken');
-          if (!accessToken) throw new Error('No access token available');
-
-          const fetchResults = async () => {
-            const token = await AsyncStorage.getItem('accessToken');
-            const response = await axios.get(
-              `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/search/users?term=${encodeURIComponent(searchQuery)}`,
-              { headers: { Authorization: `Bearer ${token}` } }
-            );
-            return response.data.users;
-          };
-
-          try {
-            const users = await fetchResults();
-            setResults(users);
-          } catch (error) {
-            const err = error as ApiError;
-            if (err.response?.status === 401) {
-              await refreshAccessToken();
-              const users = await fetchResults(); // retry after refresh
-              setResults(users);
-            } else {
-              throw err;
-            }
-          }
+          const response = await api.get(`/api/search/users?query=${encodeURIComponent(searchQuery)}`);
+          setResults(response.data); // Server returns users array directly
         } catch (error) {
           const err = error as ApiError;
           console.error('Search error:', err.response?.data?.message || err.message);
@@ -78,26 +52,17 @@ export default function AddFriends() {
 
   return (
     <ThemedView style={{ flex: 1, alignItems: 'center' }}>
-      <View style={{ marginTop: 16, marginBottom: 16, paddingHorizontal: 16 }}>
-        <SearchBar
-          placeholder="Search..."
+      <View style={{ marginTop: 16, marginBottom: 16, paddingHorizontal: 16, width: '100%' }}>
+        <AddFriendsSearchBar
+          placeholder="Search for friends..."
           value={searchQuery}
           onChangeText={setSearchQuery}
+          searchResults={results}
         />
       </View>
-      <ScrollView>
+      <ScrollView style={{ width: '100%' }}>
         <View style={{ paddingHorizontal: 16, gap: 16 }}>
-          {results.length > 0 ? results.map((user) => (
-            <FriendListUserItem
-              _id={user._id}
-              key={user._id}
-              name={`${user.first_name} ${user.last_name}`}
-              subtitle={user.email}
-              avatarUri={user.profile_picture}
-              status="manageFriend"
-              onEdit={() => console.log(`Selected ${user.username}`)}
-            />
-          )) : (
+          {searchQuery.trim().length === 0 && (
             <View style={{ flexDirection: 'column', gap: 16 }}>
               <View>
                 <FriendSuggestionsList />

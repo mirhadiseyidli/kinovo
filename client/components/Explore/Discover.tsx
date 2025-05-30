@@ -1,10 +1,10 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { RefreshControl, ScrollView } from 'react-native';
+import { RefreshControl, ScrollView, TouchableOpacity } from 'react-native';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Header from '@/components/Header';
 import { ThemedView } from '@/components/ThemedView';
-import SearchBar from '@/components/SearchBar';
+import DiscoverSearchBar from '@/components/DiscoverSearchBar';
 import EventSuggestions from '@/components/Explore/EventSuggestions';
 import Categories from '@/components/Explore/Categories';
 import Cities from '@/components/Explore/Cities';
@@ -24,11 +24,14 @@ const DiscoverScreen = () => {
   const [refreshingEventSuggestions, setRefreshingEventSuggestions] = useState(false);
   const { fetchDiscoverySearchResults, loading } = useSearchEverythingDiscovery();
   const [suggestions, setSuggestions] = useState<{ users: User[]; events: Event[] }>({ users: [], events: [] });
+  const [isSearchActive, setIsSearchActive] = useState(false);
 
   const searchResults = async () => {
     const results = await fetchDiscoverySearchResults(searchQuery);
     if (results) {
       setSuggestions(results);
+    } else {
+      setSuggestions({ users: [], events: [] });
     }
   }
 
@@ -36,6 +39,10 @@ const DiscoverScreen = () => {
     const handler = setTimeout(() => {
       if (searchQuery.trim().length > 0) {
         searchResults();
+        setIsSearchActive(true);
+      } else {
+        setSuggestions({ users: [], events: [] });
+        setIsSearchActive(false);
       }
     }, 300);
   
@@ -43,6 +50,9 @@ const DiscoverScreen = () => {
       clearTimeout(handler);
     };
   }, [searchQuery]);
+
+  // Check if suggestions should be shown
+  const showSuggestions = isSearchActive && (suggestions.users.length > 0 || suggestions.events.length > 0);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -85,6 +95,12 @@ const DiscoverScreen = () => {
     refreshingEventSuggestions
   ]);
 
+  const handleBackdropPress = () => {
+    setSearchQuery('');
+    setIsSearchActive(false);
+    setSuggestions({ users: [], events: [] });
+  };
+
   return (
     <ThemedView style={{ flex: 1 }}>
       <ScrollView
@@ -92,7 +108,7 @@ const DiscoverScreen = () => {
         stickyHeaderHiddenOnScroll={true}
         style={{ flex: 1 }}
         scrollEventThrottle={16}
-        scrollEnabled={true}
+        scrollEnabled={!showSuggestions} // Disable scrolling when search is active
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -107,17 +123,23 @@ const DiscoverScreen = () => {
           <Header refreshing={refreshing}/>
         </ThemedView>
 
-        <ThemedView style={{ display: 'flex', flex: 1, flexDirection: 'column', gap: 24, paddingHorizontal: 16, paddingBottom: tabBarHeight }}>
-          <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <SearchBar
+        <ThemedView style={{ display: 'flex', flex: 1, flexDirection: 'column', gap: 24, paddingBottom: tabBarHeight }}>
+          {/* Search Bar Container */}
+          <ThemedView style={{ 
+            flex: 1, 
+            justifyContent: 'center', 
+            alignItems: 'center',
+            paddingHorizontal: 16
+          }}>
+            <DiscoverSearchBar
               inputValue={searchQuery}
               setInputValue={setSearchQuery}
               suggestions={suggestions}
-              handleAdd={() => console.log('buh')}
               placeholder="Search for events or friends..."
             />
           </ThemedView>
-          <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+
+          <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }}>
             <NearbyEvents 
               refreshing={refreshingNearbyEvents} 
               onFinishRefresh={onFinishRefreshNearbyEvents} 
@@ -135,7 +157,7 @@ const DiscoverScreen = () => {
               onFinishRefresh={onFinishRefreshCities}
             />
           </ThemedView>
-          <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }}>
             <EventSuggestions 
               refreshing={refreshingEventSuggestions}
               onFinishRefresh={onFinishRefreshEventSuggestions}

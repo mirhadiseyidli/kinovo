@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, Image, TouchableOpacity, ActivityIndicator, ActionSheetIOS } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
@@ -8,6 +8,8 @@ import { FriendListUserItemProps } from '@/types/allTypes';
 import { ThemedText } from '@/components/ThemedText';
 import { useManageFriends } from '@/hooks/useManageFriends';
 import { useFocusEffect } from '@react-navigation/native';
+import { ContextMenu } from '@expo/ui/swift-ui';
+import { Button } from '@expo/ui/swift-ui';
 
 export default function FriendListUserItem({
   _id,
@@ -28,11 +30,12 @@ export default function FriendListUserItem({
   const [isWaiting, setIsWaiting] = useState(false);
   const { 
       acceptFriendRequest,
-      rejectFriendRequest
+      rejectFriendRequest,
+      removeFriendFromFriendList
     } = useManageFriends();
 
   const openUserProfile = (_id: string) => {
-    router.replace(`/(auth)/(tabs)/(profile)/${encodeURIComponent(_id)}`);
+    router.push(`/(auth)/(tabs)/(profile)/${encodeURIComponent(_id)}`);
   }
 
   const truncateName = (name: string, maxLength: number) => {
@@ -67,6 +70,27 @@ export default function FriendListUserItem({
     }, [isWaiting])
   );
 
+  const showRemoveFriendConfirmation = () => {
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        title: 'Are you sure you want to remove this friend?',
+        options: ['Cancel', 'Remove Friend', 'Block User'],
+        cancelButtonIndex: 0,
+        destructiveButtonIndex: [1, 2],
+        userInterfaceStyle: colorScheme === 'dark' ? 'dark' : 'light',
+      },
+      async (buttonIndex) => {
+        if (buttonIndex === 1) {
+          await removeFriendFromFriendList(_id);
+          onRemove?.();
+        } else if (buttonIndex === 2) {
+          // TODO: Implement block user functionality
+          console.log('Block user');
+        }
+      }
+    );
+  };
+
   const renderAction = () => {
     switch (status) {
       case 'onKinovo':
@@ -99,79 +123,108 @@ export default function FriendListUserItem({
         );
       case 'manageFriend':
         return (
-          <TouchableOpacity
-            onPress={onEdit}
+          <ContextMenu 
+            activationMethod='singlePress'
+            style={{ 
+              height: 34,
+              width: 40,
+            }}
           >
-            <Feather name="more-horizontal" size={20} color={themeColors.text} />
-          </TouchableOpacity>
+            <ContextMenu.Items>
+              <Button 
+                systemImage={"person.badge.minus"} 
+                onPress={showRemoveFriendConfirmation}
+                children='Remove Friend'
+                role='destructive'
+              />
+              <Button 
+                systemImage={"exclamationmark.triangle"} 
+                onPress={() => console.log('Block user')}
+                children='Block User'
+                role='destructive'
+              />
+            </ContextMenu.Items>
+
+            <ContextMenu.Trigger>
+              <View style={{
+                paddingHorizontal: 8,
+                paddingVertical: 10,
+                borderRadius: 8,
+                width: 40,
+                alignItems: 'center',
+              }}>
+                <Feather name="more-horizontal" size={24} color={themeColors.text} />
+              </View>
+            </ContextMenu.Trigger>
+          </ContextMenu>
         );
-        case 'request': {
-          if (decision === 'accepted') {
-            return (
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Ionicons name="checkmark-circle" size={20} color={themeColors.mountainGreen} />
-                <Text style={{ marginLeft: 6, color: themeColors.mountainGreen }}>Accepted</Text>
-              </View>
-            );
-          }
-        
-          if (decision === 'rejected') {
-            return (
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Ionicons name="close-circle" size={20} color="red" />
-                <Text style={{ marginLeft: 6, color: 'red' }}>Rejected</Text>
-              </View>
-            );
-          }
-        
+      case 'request': {
+        if (decision === 'accepted') {
           return (
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <TouchableOpacity
-              onPress={handleAccept}
-              disabled={loading !== null}
-              style={{
-                backgroundColor: themeColors.mountainGreen,
-                borderRadius: 8,
-                padding: 8,
-                marginRight: 8,
-                flexDirection: 'row',
-                alignItems: 'center',
-                opacity: loading ? 0.5 : 1
-              }}
-            >
-              {loading === 'accept' ? (
-                <ActivityIndicator size="small" color={themeColors.text} />
-              ) : (
-                <View style={{ flexDirection: 'row' }}>
-                  <Ionicons name="checkmark" size={14} color={themeColors.text} />
-                  <ThemedText style={{ fontSize: 12, fontWeight: 'bold' }}>Accept</ThemedText>
-                </View>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={handleReject}
-              disabled={loading !== null}
-              style={{
-                backgroundColor: themeColors.inputBackgroundColor,
-                borderRadius: 8,
-                padding: 8,
-                flexDirection: 'row',
-                alignItems: 'center',
-                opacity: loading ? 0.5 : 1
-              }}
-            >
-              {loading === 'reject' ? (
-                <ActivityIndicator size="small" color={themeColors.text} />
-              ) : (
-                <View style={{ flexDirection: 'row' }}>
-                  <Ionicons name="close" size={14} color={themeColors.text} />
-                  <ThemedText style={{ fontSize: 12, fontWeight: 'bold' }}>Reject</ThemedText>
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
+              <Ionicons name="checkmark-circle" size={20} color={themeColors.mountainGreen} />
+              <Text style={{ marginLeft: 6, color: themeColors.mountainGreen }}>Accepted</Text>
+            </View>
           );
         }
+      
+        if (decision === 'rejected') {
+          return (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="close-circle" size={20} color="red" />
+              <Text style={{ marginLeft: 6, color: 'red' }}>Rejected</Text>
+            </View>
+          );
+        }
+      
+        return (
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity
+            onPress={handleAccept}
+            disabled={loading !== null}
+            style={{
+              backgroundColor: themeColors.mountainGreen,
+              borderRadius: 8,
+              padding: 8,
+              marginRight: 8,
+              flexDirection: 'row',
+              alignItems: 'center',
+              opacity: loading ? 0.5 : 1
+            }}
+          >
+            {loading === 'accept' ? (
+              <ActivityIndicator size="small" color={themeColors.text} />
+            ) : (
+              <View style={{ flexDirection: 'row' }}>
+                <Ionicons name="checkmark" size={14} color={themeColors.text} />
+                <ThemedText style={{ fontSize: 12, fontWeight: 'bold' }}>Accept</ThemedText>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleReject}
+            disabled={loading !== null}
+            style={{
+              backgroundColor: themeColors.inputBackgroundColor,
+              borderRadius: 8,
+              padding: 8,
+              flexDirection: 'row',
+              alignItems: 'center',
+              opacity: loading ? 0.5 : 1
+            }}
+          >
+            {loading === 'reject' ? (
+              <ActivityIndicator size="small" color={themeColors.text} />
+            ) : (
+              <View style={{ flexDirection: 'row' }}>
+                <Ionicons name="close" size={14} color={themeColors.text} />
+                <ThemedText style={{ fontSize: 12, fontWeight: 'bold' }}>Reject</ThemedText>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
+        );
+      }
       default:
         return null;
     }
@@ -244,7 +297,16 @@ export default function FriendListUserItem({
             {subtitle && <Text style={{ color: themeColors.placeholderTextColor, marginTop: 2 }}>{truncateName(subtitle, 18)}</Text>}
           </View>
         </View>
-        {renderAction()}
+        <TouchableOpacity 
+          onPress={(e) => {
+            e.stopPropagation();
+          }} 
+          style={{ 
+            zIndex: 1
+          }}
+        >
+          {renderAction()}
+        </TouchableOpacity>
       </TouchableOpacity>
   );
 }

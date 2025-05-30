@@ -8,12 +8,17 @@
     "icon": "./assets/ios-icon-tinted.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "android": {
+      "googleServicesFile": "./google-services.json",
+      "package": "com.kinovoapp.kinovo"
+    },
     "ios": {
       "icon": {
         "light": "./assets/ios-icon-light.png",
         "dark": "./assets/ios-icon-dark.png",
         "tinted": "./assets/ios-icon-tinted.png"
       },
+      "googleServicesFile": "./GoogleService-Info.plist",
       "config": {
         "googleMapsApiKey": "process.env.EXPO_PUBLIC_GOOGLE_MAPS_API"
       },
@@ -50,7 +55,17 @@
     "plugins": [
       "expo-router",
       "expo-maps",
-      "expo-secure-store"
+      "expo-secure-store",
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ]
     ]
   }
 }

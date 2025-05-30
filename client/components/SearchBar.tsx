@@ -6,7 +6,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { SearchBarProps } from '@/types/allTypes';
 
-const SearchUsersFriendsBar = ({
+const SearchBar = ({
   inputValue,
   setInputValue,
   suggestions,
@@ -27,14 +27,14 @@ const SearchUsersFriendsBar = ({
           backgroundColor: themeColors.inputBackgroundColor,
           borderRadius: 8,
           paddingHorizontal: 16,
-          paddingVertical: 16,
+          height: 44, // Match login input height
           position: 'relative',
           width: '100%',
           overflow: 'visible',
           zIndex: 1
         }}
       >
-        <Feather name="user-plus" size={16} color={themeColors.placeholderTextColor} style={{ marginRight: 10 }} />
+        <Feather name="search" size={18} color={themeColors.placeholderTextColor} style={{ marginRight: 12 }} />
         <TextInput
           placeholder={placeholder}
           placeholderTextColor={themeColors.placeholderTextColor}
@@ -52,12 +52,12 @@ const SearchUsersFriendsBar = ({
         <ThemedView style={{
           backgroundColor: themeColors.inputBackgroundColor,
           borderWidth: 1,
-          borderColor: themeColors.background,
+          borderColor: themeColors.border,
           borderRadius: 8,
           maxHeight: 250,
           width: '100%',
           position: 'absolute',
-          top: 60,
+          top: 52, // Adjusted for new height
           left: 0,
           zIndex: 10
         }}>
@@ -76,7 +76,7 @@ const SearchUsersFriendsBar = ({
                       paddingVertical: 8,
                       paddingHorizontal: 16,
                       borderBottomWidth: index !== users.length - 1 ? 1 : 0,
-                      borderBottomColor: themeColors.background,
+                      borderBottomColor: themeColors.border,
                       flexDirection: 'row',
                       alignItems: 'center'
                     }}
@@ -109,7 +109,7 @@ const SearchUsersFriendsBar = ({
                       paddingVertical: 8,
                       paddingHorizontal: 16,
                       borderBottomWidth: index !== events.length - 1 ? 1 : 0,
-                      borderBottomColor: themeColors.background,
+                      borderBottomColor: themeColors.border,
                       flexDirection: 'row',
                       alignItems: 'center'
                     }}
@@ -130,4 +130,4 @@ const SearchUsersFriendsBar = ({
   );
 };
 
-export default SearchUsersFriendsBar;
+export default SearchBar;

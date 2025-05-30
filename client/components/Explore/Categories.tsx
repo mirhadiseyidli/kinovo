@@ -6,33 +6,106 @@ import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useRouter } from 'expo-router';
+import { useCategories } from '@/hooks/useCategories';
+import { Feather } from '@expo/vector-icons';
+
+type FeatherIconName = React.ComponentProps<typeof Feather>['name'];
 
 interface CategoriesProps {
   refreshing: boolean;
   onFinishRefresh: () => void;
 }
 
-const categories = [
-  { id: 1, iconName: 'activity', label: 'Sports', iconColor: '#4FB9AF' },
-  { id: 2, iconName: 'music', label: 'Music', iconColor: '#6B63FF' },
-  { id: 3, iconName: 'activity', label: 'Outdoor', iconColor: '#6BCB77' },
-  { id: 4, iconName: 'image', label: 'Art', iconColor: '#FF6B6B' },
+// Color palette for categories
+const categoryColors = [
+  '#4FB9AF', // Teal
+  '#6B63FF', // Purple
+  '#6BCB77', // Green
+  '#FF6B6B', // Red
+  '#FFB347', // Orange
+  '#9B59B6', // Deep Purple
+  '#3498DB', // Blue
+  '#E74C3C', // Dark Red
+  '#2ECC71', // Emerald
+  '#F1C40F'  // Yellow
 ];
+
+const CATEGORY_SPACING = 12;
 
 const Categories: React.FC<CategoriesProps> = ({ refreshing, onFinishRefresh }) => {
   const screenWidth = Dimensions.get('window').width;
   const colorScheme = useColorScheme();
   const router = useRouter();
+  const { categories, fetchCategories, loading } = useCategories();
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
 
   useEffect(() => {
     if (refreshing) {
-      // TODO: Add actual data fetching here
-      onFinishRefresh();
+      fetchCategories().finally(() => {
+        onFinishRefresh();
+      });
     }
   }, [refreshing]);
 
   const handleCategoryPress = (category: string) => {
     router.push(`/(auth)/(category)/${category}`);
+  };
+
+  const getIconForCategory = (categoryName: string): FeatherIconName => {
+    const iconMap: { [key: string]: FeatherIconName } = {
+      'Alpine Ski': 'activity',
+      'Backcountry Ski': 'activity',
+      'Badminton': 'activity',
+      'Canoeing': 'activity',
+      'Crossfit': 'activity',
+      'E-Bike Ride': 'activity',
+      'Elliptical': 'activity',
+      'E-Mountain Bike Ride': 'activity',
+      'Golf': 'target',
+      'Gravel Ride': 'activity',
+      'Handcycle': 'activity',
+      'High Intensity Interval Training': 'activity',
+      'Hike': 'map',
+      'Ice Skate': 'activity',
+      'Inline Skate': 'activity',
+      'Kayaking': 'activity',
+      'Kitesurf': 'wind',
+      'Mountain Bike Ride': 'activity',
+      'Nordic Ski': 'activity',
+      'Pickleball': 'activity',
+      'Pilates': 'activity',
+      'Racquetball': 'activity',
+      'Ride': 'activity',
+      'Rock Climbing': 'trending-up',
+      'Roller Ski': 'activity',
+      'Rowing': 'activity',
+      'Run': 'activity',
+      'Sail': 'anchor',
+      'Skateboard': 'activity',
+      'Snowboard': 'activity',
+      'Snowshoe': 'activity',
+      'Soccer': 'activity',
+      'Squash': 'activity',
+      'Stair Stepper': 'activity',
+      'Stand Up Paddling': 'activity',
+      'Surfing': 'activity',
+      'Swim': 'droplet',
+      'Table Tennis': 'activity',
+      'Tennis': 'activity',
+      'Trail Run': 'map',
+      'Velomobile': 'activity',
+      'Walk': 'activity',
+      'Weight Training': 'activity',
+      'Wheelchair': 'activity',
+      'Windsurf': 'wind',
+      'Workout': 'activity',
+      'Yoga': 'activity'
+    };
+
+    return iconMap[categoryName] || 'activity';
   };
 
   return (
@@ -51,28 +124,32 @@ const Categories: React.FC<CategoriesProps> = ({ refreshing, onFinishRefresh }) 
       </ThemedView>
 
       {/* Scrollable Categories */}
-      <ThemedView style={{ width: screenWidth, paddingHorizontal: 16 }}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
-          <ThemedView style={{ flexDirection: 'row', gap: 16 }}>
-            {categories.map((category) => (
-              <ThemedView
-                key={category.id}
-                style={{
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: 16,
-                  borderColor: Colors[colorScheme ?? 'dark'].border,
-                }}
-              >
-                <Category
-                  iconName={category.iconName}
-                  label={category.label}
-                  iconColor={category.iconColor}
-                  onPress={() => handleCategoryPress(category.label)}
-                />
-              </ThemedView>
-            ))}
-          </ThemedView>
+      <ThemedView style={{ width: screenWidth }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ width: screenWidth }}
+          contentContainerStyle={{ 
+            paddingHorizontal: 16,
+            flexDirection: 'row',
+            alignItems: 'center',
+          }}
+        >
+          {categories.map((category, index) => (
+            <View
+              key={category._id}
+              style={{
+                marginRight: index === categories.length - 1 ? 0 : CATEGORY_SPACING,
+              }}
+            >
+              <Category
+                iconName={getIconForCategory(category.name)}
+                label={category.name}
+                iconColor={categoryColors[index % categoryColors.length]}
+                onPress={() => handleCategoryPress(category.name)}
+              />
+            </View>
+          ))}
         </ScrollView>
       </ThemedView>
     </ThemedView>

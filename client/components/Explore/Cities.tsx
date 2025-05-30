@@ -50,17 +50,16 @@ const Cities: React.FC<CitiesProps> = ({ refreshing, onFinishRefresh }) => {
         }}
       >
         <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>Cities</ThemedText>
-        <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <ThemedText style={{ fontSize: 16, marginRight: 4 }}>
-            View All
-          </ThemedText>
-          <IconSymbol name="chevron.right" size={12} color={Colors[colorScheme ?? 'dark'].tint} />
-        </TouchableOpacity>
       </ThemedView>
 
       {/* Scrollable Cities */}
-      <ThemedView style={{ width: screenWidth, paddingHorizontal: 16 }}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
+      <ThemedView style={{ width: screenWidth }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ width: screenWidth }}
+          contentContainerStyle={{ paddingLeft: 16, paddingRight: screenWidth * 0.04 }}
+        >
           <ThemedView style={{ flexDirection: 'row', gap: 16 }}>
             {cities.map((city) => (
               <ThemedView

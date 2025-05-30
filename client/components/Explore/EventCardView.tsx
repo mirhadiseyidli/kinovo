@@ -7,6 +7,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { BlurView } from 'expo-blur';
 import { SuggestedEventProps } from '@/types/allTypes';
 import { useRouter } from 'expo-router';
+import { getCategoryImage } from '@/constants/CategoryImages';
 
 const EventCardView: React.FC<SuggestedEventProps> = ({
   event
@@ -19,9 +20,26 @@ const EventCardView: React.FC<SuggestedEventProps> = ({
     colorScheme === 'dark' ? 'rgba(50, 50, 50, 0.6)' : 'rgba(200, 200, 200, 0.6)';
 
   const handleViewEvent = () => {
-    if (event?._id) {
-      router.push(`/(auth)/(viewEvent)/${event._id}`);
+    if (!event) return;
+
+    // For recurring event occurrences, use the originalEventId, otherwise use the regular _id
+    const eventId = event.originalEventId || event._id;
+    if (!eventId) return;
+
+    // Prepare navigation parameters
+    const params: any = { event_id: eventId };
+
+    // For recurring event occurrences, pass the occurrence date information
+    if (event.isRecurringOccurrence && event.start_time && event.end_time) {
+      params.occurrence_start = new Date(event.start_time).toISOString();
+      params.occurrence_end = new Date(event.end_time).toISOString();
+      params.is_occurrence = 'true';
     }
+
+    router.push({
+      pathname: "/(auth)/(viewEvent)/[event_id]" as const,
+      params: params
+    });
   }
 
   const formatDateTime = (date: Date | null) => {
@@ -42,7 +60,7 @@ const EventCardView: React.FC<SuggestedEventProps> = ({
   return (
     <TouchableOpacity onPress={handleViewEvent}>
       <ImageBackground
-        source={event?.event_picture ? { uri: event.event_picture } : require('@/assets/event-default.png')}
+        source={event?.event_picture ? { uri: event.event_picture } : getCategoryImage(event?.category)}
         resizeMode="cover"
         style={{
           width: screenWidth * 0.92,
@@ -53,6 +71,27 @@ const EventCardView: React.FC<SuggestedEventProps> = ({
           marginVertical: 8,
         }}
       >
+        {/* Category chip */}
+        <View style={{
+          position: 'absolute',
+          top: 12,
+          right: 12,
+          backgroundColor: Colors[colorScheme ?? 'dark'].mountainGreen,
+          paddingHorizontal: 8,
+          paddingVertical: 4,
+          borderRadius: 4,
+          zIndex: 1,
+        }}>
+          <ThemedText style={{ 
+            fontSize: 12, 
+            fontWeight: '600', 
+            textTransform: 'capitalize',
+            color: '#FFFFFF' // White text for better contrast on mountain green
+          }}>
+            {event?.category?.toLowerCase() || 'Other'}
+          </ThemedText>
+        </View>
+
         {/* Blurry Overlay */}
         <BlurView
           intensity={50}

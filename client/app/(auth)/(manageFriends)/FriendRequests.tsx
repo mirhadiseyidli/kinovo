@@ -1,12 +1,9 @@
 import { View, Image, Platform } from 'react-native';
 import React, { useState, useCallback } from 'react';
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { ScrollView } from 'react-native';
 import FriendListUserItem from '@/components/ProfileAndSettings/Settings/manageFriendsComponents/FriendListUserItem';
-import { useAuthSession } from '@/components/Auth/AuthProvider';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { useFocusEffect } from '@react-navigation/native';
@@ -15,7 +12,6 @@ import { useManageFriends } from '@/hooks/useManageFriends';
 
 export default function FriendRequests() {
   const [requests, setRequests] = useState<FriendRequest[]>([]);
-  const { refreshAccessToken } = useAuthSession();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { 
@@ -32,7 +28,7 @@ export default function FriendRequests() {
       };
 
       fetchFriendRequests();
-    }, [refreshAccessToken])
+    }, [])
   );
 
   return (

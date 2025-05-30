@@ -21,6 +21,7 @@ const HourList: React.FC<HourListProps> = ({ hours, scrollRef }) => {
         data={hours}
         keyExtractor={(hour) => hour.toString()}
         scrollEnabled={false}
+        contentContainerStyle={{ flexGrow: 0 }}
         renderItem={({ item, index }) => {
           if (index === hours.length - 1) return null;
           return (
