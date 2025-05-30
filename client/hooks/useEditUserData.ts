@@ -1,9 +1,7 @@
 import { useState } from 'react';
-import * as SecureStore from 'expo-secure-store';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
-import axios from 'axios';
 import { EditUserProfileParams } from '@/types/allTypes';
+import api from '@/utils/api';
 
 export const useEditUserProfile = ({
   firstName,
@@ -21,31 +19,10 @@ export const useEditUserProfile = ({
   const [isLoading, setIsLoading] = useState(false);
   const [showSavedMessage, setShowSavedMessage] = useState(false);
 
-  const refreshToken = async () => {
-    try {
-      const refreshToken = await SecureStore.getItemAsync('refreshToken');
-      if (!refreshToken) throw new Error('No refresh token available');
-
-      const response = await axios.post(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/token/refresh-token`, {
-        headers: { Authorization: `Bearer ${refreshToken}` },
-      });
-
-      const { accessToken } = response.data;
-      await AsyncStorage.setItem('accessToken', accessToken);
-
-      await editMyProfile();
-    } catch (error) {
-      Alert.alert('Error', 'Token refresh failed');
-    }
-  };
-
   const editMyProfile = async () => {
     setIsLoading(true);
     const startTime = Date.now();
     try {
-      const accessToken = await AsyncStorage.getItem('accessToken');
-      if (!accessToken) throw new Error('No access token available');
-
       const updatedProfile = {
         first_name: firstName,
         last_name: lastName,
@@ -70,21 +47,11 @@ export const useEditUserProfile = ({
         date_of_birth: dateOfBirth
       };
 
-      const response = await axios.patch(
-        `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/users/user/edit/myprofile`,
-        updatedProfile,
-        {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        }
-      );
+      await api.patch('/api/users/user/edit/myprofile', updatedProfile);
 
     } catch (error: any) {
       console.error('Profile update failed:', error.response?.data?.message || error.message);
-
-      if (error.response?.status === 401) {
-        await refreshToken();
-        await editMyProfile(); // Retry request after refreshing token
-      }
+      Alert.alert('Error', 'Failed to update profile');
     } finally {
       const elapsed = Date.now() - startTime;
       if (elapsed < 1000) {

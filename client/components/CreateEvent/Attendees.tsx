@@ -1,19 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { View, TextInput, TouchableOpacity, Text, Dimensions, ScrollView, Image } from 'react-native';
+import { View, TextInput, TouchableOpacity, Text, Dimensions, ScrollView, Image, Modal, Keyboard } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import Friend from '@/components/Friend';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { AttendeeFriend } from '@/types/allTypes';
-import { useAuthSession } from '@/components/Auth/AuthProvider';
 import { ApiError } from '@/types/allTypes';
 import SearchUsersFriendsBar from '../SearchUsersFriendsBar';
 import { useCreateEventContext } from '@/context/CreateEventContext';
 import { useUserData } from '@/hooks/useUserData';
+import api from '@/utils/api';
 
 const Attendees: React.FC<{ limit: number | null }> = ({ limit }) => {
   const [attendees, setAttendees] = useState<AttendeeFriend[]>([]);
@@ -23,7 +21,6 @@ const Attendees: React.FC<{ limit: number | null }> = ({ limit }) => {
   const [user, setUser] = useState<AttendeeFriend | null>(null);
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const { refreshAccessToken } = useAuthSession();
   const { settingEventAttendees } = useCreateEventContext();
   const { fetchUserData } = useUserData();
   const maxVisibleFriends = 4; // Estimate based on circle + margin (50px + 6px)
@@ -48,18 +45,9 @@ const Attendees: React.FC<{ limit: number | null }> = ({ limit }) => {
     settingEventAttendees(attendees);
   }, [attendees]);
 
-  const fetchFriendResults = async (query: string, accessToken: string): Promise<AttendeeFriend[]> => {
-    const emailSearch = axios.get(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/users/me/friends/search/by/email?query=${query}`, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`
-      },
-    });
-
-    const nameSearch = axios.get(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/users/me/friends/search/by/name?query=${query}`, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`
-      },
-    });
+  const fetchFriendResults = async (query: string): Promise<AttendeeFriend[]> => {
+    const emailSearch = api.get(`/api/users/me/friends/search/by/email?query=${query}`);
+    const nameSearch = api.get(`/api/users/me/friends/search/by/name?query=${query}`);
 
     const [emailResults, nameResults] = await Promise.all([emailSearch, nameSearch]);
     const combinedResults = [...emailResults.data, ...nameResults.data];
@@ -77,27 +65,11 @@ const Attendees: React.FC<{ limit: number | null }> = ({ limit }) => {
     }
 
     try {
-      const accessToken = await AsyncStorage.getItem('accessToken');
-      if (!accessToken) throw new Error('No access token');
-
-      const results = await fetchFriendResults(query, accessToken);
+      const results = await fetchFriendResults(query);
       setSuggestions(results.filter((friend) => !attendees.some((a) => a._id === friend._id)));
     } catch (error: unknown) {
       const err = error as ApiError;
-      if (err.response?.status === 401) {
-        try {
-          await refreshAccessToken();
-          const newAccessToken = await AsyncStorage.getItem('accessToken');
-          if (newAccessToken) {
-            const results = await fetchFriendResults(query, newAccessToken);
-            setSuggestions(results.filter((friend) => !attendees.some((a) => a._id === friend._id)));
-          }
-        } catch (refreshErr) {
-          console.error('Retry after refresh failed:', refreshErr);
-        }
-      } else {
-        console.error(err);
-      }
+      console.error('Failed to fetch friends:', err);
     }
   };
 
@@ -119,6 +91,7 @@ const Attendees: React.FC<{ limit: number | null }> = ({ limit }) => {
     setAttendees((prev: AttendeeFriend[]) => [...prev, friend]);
     setInputValue('');
     setSuggestions([]);
+    Keyboard.dismiss();
   };
 
   const handleRemove = (id: string) => {
@@ -197,44 +170,74 @@ const Attendees: React.FC<{ limit: number | null }> = ({ limit }) => {
         )}
       </View>
 
-      {showAllAttendees && (
-        <View style={{ marginTop: 16 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <ThemedText style={{ fontSize: 14, fontWeight: 'bold' }}>
-              All Attendees
-            </ThemedText>
-            <TouchableOpacity onPress={() => setShowAllAttendees(false)}>
-              <Text style={{ color: themeColors.tint }}>Close</Text>
-            </TouchableOpacity>
-          </View>
-          <ScrollView style={{ maxHeight: 300 }}>
-            {attendees.map((friend) => (
-              <View key={friend._id} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, justifyContent: 'space-between' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Friend 
-                    _id={friend._id} 
-                    full_name={friend._id === user._id ? 'Organizer' : friend.full_name}
-                    username={friend.username}
-                    profile_picture={friend.profile_picture ? { uri: friend.profile_picture } : require('@/assets/profile-pic-2.jpeg')} 
-                    size={40}
-                    showName={false}
-                    refreshing={refreshing}
-                  />
-                  <View>
-                    <ThemedText style={{ marginLeft: 8, fontSize: 16 }}>{truncateName(friend.full_name, 24)}</ThemedText>
-                    <ThemedText style={{ marginLeft: 8, fontSize: 14, color: themeColors.placeholderTextColor }}>{truncateName(friend.username, 24)}</ThemedText>
+      {/* All Attendees Modal */}
+      <Modal
+        visible={showAllAttendees}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowAllAttendees(false)}
+      >
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 16
+          }}
+          activeOpacity={1}
+          onPress={() => setShowAllAttendees(false)}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            style={{
+              backgroundColor: themeColors.background,
+              borderRadius: 16,
+              width: '100%',
+              maxHeight: '80%',
+              padding: 16
+            }}
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <ThemedText style={{ fontSize: 18, fontWeight: 'bold' }}>
+                All Attendees
+              </ThemedText>
+              <TouchableOpacity onPress={() => setShowAllAttendees(false)}>
+                <Feather name="x" size={24} color={themeColors.text} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {attendees.map((friend) => (
+                <View key={friend._id} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, justifyContent: 'space-between' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                    <Friend 
+                      _id={friend._id}
+                      full_name={friend._id === user._id ? 'Organizer' : friend.full_name}
+                      username={friend.username}
+                      profile_picture={friend.profile_picture}
+                      size={40}
+                      showName={true}
+                      refreshing={refreshing}
+                    />
                   </View>
+                  {friend._id !== user._id && (
+                    <TouchableOpacity
+                      style={{
+                        padding: 8,
+                        borderRadius: 8,
+                        backgroundColor: themeColors.inputBackgroundColor
+                      }}
+                      onPress={() => handleRemove(friend._id!)}
+                    >
+                      <Feather name="trash-2" size={16} color="red" />
+                    </TouchableOpacity>
+                  )}
                 </View>
-                {friend._id !== user._id && (
-                  <TouchableOpacity onPress={() => handleRemove(friend._id!)}>
-                    <Feather name="x" size={24} color="red" />
-                  </TouchableOpacity>
-                )}
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-      )}
+              ))}
+            </ScrollView>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </ThemedView>
   );
 };

@@ -65,7 +65,7 @@ const UserProfilePreview: React.FC = () => {
 
 
   const handleEditProfile = () => {
-    router.replace('/(auth)/(tabs)/(profile)/editProfile');
+    router.push('/(auth)/(profileSections)/editProfile');
   };
 
   if (!user) {

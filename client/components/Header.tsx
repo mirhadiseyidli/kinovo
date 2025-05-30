@@ -3,13 +3,14 @@ import { View, Text } from 'react-native';
 import NotificationsButton from '@/components/NotificationsButton';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
-import { AutoSkeletonView } from 'react-native-auto-skeleton';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { useNotifications } from '@/hooks/useNotifications';
 
-const Header: React.FC<{ refreshing: boolean }> = ({ refreshing }) => {
+const Header: React.FC<{ refreshing?: boolean }> = ({ refreshing }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
+  const { totalNotificationCount } = useNotifications();
 
   return (
     <ThemedView 
@@ -22,21 +23,11 @@ const Header: React.FC<{ refreshing: boolean }> = ({ refreshing }) => {
         paddingVertical: 4,
       }}
     >
-      {/* Left */}
-      <AutoSkeletonView 
-        isLoading={refreshing} 
-        shimmerBackgroundColor={themeColors.background} 
-        gradientColors={[
-          themeColors.background, 
-          themeColors.inputBackgroundColor
-        ]}
-      >
-        <ThemedText style={{ fontSize: 28, fontFamily: 'Helvetica Neue Bold', fontWeight: 'bold', letterSpacing: -1 }}>Kinovo</ThemedText>
-      </AutoSkeletonView>
+      <ThemedText style={{ fontSize: 28, fontFamily: 'Helvetica Neue Bold', fontWeight: 'bold', letterSpacing: -1 }}>Kinovo</ThemedText>
 
       {/* Right - Notifications Button */}
       <ThemedView style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-        <NotificationsButton refreshing={refreshing} count={3} />
+        <NotificationsButton refreshing={refreshing} count={totalNotificationCount} />
       </ThemedView>
     </ThemedView>
   );

@@ -40,7 +40,7 @@ const CurrentMonthSelector = forwardRef<CalendarHeaderMonthViewRefProps, Current
   };
 
   return (
-    <TouchableOpacity onPress={handlePress} style={{ marginLeft: 16 }}>
+    <TouchableOpacity onPress={handlePress}>
       <View style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}>
         <Feather
           name="calendar"

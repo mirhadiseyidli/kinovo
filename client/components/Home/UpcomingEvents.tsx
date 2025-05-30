@@ -26,11 +26,18 @@ const UpcomingEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => voi
   const navigateToCalendar = () => {
     router.push('/(auth)/(tabs)/calendar')
   }
+
+  const navigateToCreateEvent = () => {
+    router.push('/(auth)/(createEvent)/EventDetails')
+  }
   
   const fetchEvents = async () => {
     const upcomingEvents = await fetchMyEvents();
-    const events = upcomingEvents.slice(0, 3);
-    setMyEventsList(events);
+    if (upcomingEvents && Array.isArray(upcomingEvents)) {
+      setMyEventsList(upcomingEvents);
+    } else {
+      setMyEventsList([]);
+    }
     onFinishRefresh();
   }
   
@@ -44,65 +51,91 @@ const UpcomingEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => voi
 
   return (
     <ThemedView style={{ flex: 1, width: '100%' }}>
-      <AutoSkeletonView 
-        isLoading={refreshing || loading} 
-        shimmerBackgroundColor={themeColors.background} 
-        gradientColors={[
-          themeColors.background, 
-          themeColors.inputBackgroundColor
-        ]}
-      >
-        {/* Header */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>Upcoming Events</ThemedText>
-          <TouchableOpacity 
-            style={{ alignItems: 'center', backgroundColor: 'transparent' }}
-            onPress={navigateToCalendar}
+      {/* Header */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>Upcoming Events</ThemedText>
+        <TouchableOpacity 
+          style={{ alignItems: 'center', backgroundColor: 'transparent' }}
+          onPress={navigateToCalendar}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <ThemedText style={{ fontSize: 16, marginRight: 4 }}>View Calendar</ThemedText>
+            <IconSymbol
+              name="chevron.right"
+              size={12}
+              color={Colors[colorScheme ?? 'dark'].tint}
+            />
+          </View>
+        </TouchableOpacity>
+      </View>
+
+      {/* Event List */}
+      <View style={{ flex: 1 }}>
+        {myEventsList.length > 0 ? (
+          <View>
+            {myEventsList.map((event, index) => (
+              <View key={`${event._id}-${index}`}>
+                <EventComponent event={event} loading={refreshing || loading}/>
+                {/* Divider Line */}
+                {index < myEventsList.length - 1 && (
+                  <View
+                    style={{
+                      height: 0.3,
+                      backgroundColor: Colors[colorScheme ?? 'dark'].border,
+                      marginVertical: 16,
+                    }}
+                  />
+                )}
+              </View>
+            ))}
+          </View>
+        ) : (
+          <TouchableOpacity
+            onPress={navigateToCreateEvent}
+            style={{
+              backgroundColor: themeColors.background,
+              borderRadius: 12,
+              padding: 16,
+              borderWidth: 2,
+              borderStyle: 'dashed',
+              borderColor: themeColors.border,
+              width: '100%',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 120,
+            }}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <ThemedText style={{ fontSize: 16, marginRight: 4 }}>View Calendar</ThemedText>
+            <View style={{ marginBottom: 12 }}>
               <IconSymbol
-                name="chevron.right"
-                size={12}
-                color={Colors[colorScheme ?? 'dark'].tint}
+                name="calendar"
+                size={32}
+                color={themeColors.placeholderTextColor}
               />
             </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* Event List */}
-        <View style={{ flex: 1 }}>
-          {myEventsList.length > 0 ? (
-            <View>
-              {myEventsList.map((event, index) => (
-                <View key={`${event._id}-${index}`}>
-                  <EventComponent event={event} loading={refreshing || loading}/>
-                  {/* Divider Line */}
-                  {index < myEventsList.length - 1 && (
-                    <View
-                      style={{
-                        height: 0.3,
-                        backgroundColor: Colors[colorScheme ?? 'dark'].border,
-                        marginVertical: 16,
-                      }}
-                    />
-                  )}
-                </View>
-              ))}
-            </View>
-          ) : (
             <ThemedText 
               style={{ 
                 fontSize: 16, 
                 color: themeColors.placeholderTextColor,
-                textAlign: 'center'
+                textAlign: 'center',
+                marginBottom: 4,
+                fontWeight: '600'
               }}
             >
-              {`No upcoming events yet.\nStart something fun — create your first event! 🎉`}
+              No upcoming events yet
             </ThemedText>
-          )}
-        </View>
-      </AutoSkeletonView>
+            <ThemedText 
+              style={{ 
+                fontSize: 14, 
+                color: themeColors.placeholderTextColor,
+                textAlign: 'center',
+                opacity: 0.8
+              }}
+            >
+              Tap here to create your first event! 🎉
+            </ThemedText>
+          </TouchableOpacity>
+        )}
+      </View>
     </ThemedView>
   );
 });

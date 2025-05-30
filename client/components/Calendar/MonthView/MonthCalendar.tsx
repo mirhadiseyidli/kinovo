@@ -11,7 +11,7 @@ import DayCell from './DayCell';
 
 const MemoizedDayCell = React.memo(DayCell);
 
-const MonthCalendar: React.FC<MonthCalendarProps> = ({ monthDate, refreshing, loading, eventsData, handleMonthYearChange }) => {
+const MonthCalendar: React.FC<MonthCalendarProps> = ({ monthDate, refreshing, loading, handleMonthYearChange }) => {
   const month = monthDate.getMonth();
   const year = monthDate.getFullYear();
   const calendarDays = getMonthDays(year, month);
@@ -30,19 +30,6 @@ const MonthCalendar: React.FC<MonthCalendarProps> = ({ monthDate, refreshing, lo
     return result;
   }, [calendarDays]);
 
-  const eventsByDate = useMemo(() => {
-    return (eventsData || []).reduce((acc: Record<string, Event[]>, ev) => {
-      // Skip events without a start_time
-      if (!ev.start_time) return acc;
-      // start_time is a Date when not null
-      const dateObj = typeof ev.start_time === 'string' ? new Date(ev.start_time) : ev.start_time;
-      const key = dateObj.toISOString().split('T')[0];
-      if (!acc[key]) acc[key] = [];
-      acc[key].push(ev);
-      return acc;
-    }, {});
-  }, [eventsData]);
-
   return (
     <ThemedView style={{ width: '100%' }}>
       <ThemedView style={{ flexDirection: 'column', width: '100%' }}>
@@ -50,7 +37,6 @@ const MonthCalendar: React.FC<MonthCalendarProps> = ({ monthDate, refreshing, lo
           <View key={rowIndex} style={{ flexDirection: 'row' }}>
             {week.map((date, idx) => {
               const dateKey = date.toISOString().split('T')[0];
-              const todaysEvents = eventsByDate[dateKey] || [];
               return (
                 <MemoizedDayCell
                   key={`${dateKey}-${idx}`}
@@ -59,7 +45,6 @@ const MonthCalendar: React.FC<MonthCalendarProps> = ({ monthDate, refreshing, lo
                   today={today}
                   cellWidth={cellWidth}
                   cellHeight={cellHeight}
-                  eventsData={todaysEvents}
                   handleMonthYearChange={handleMonthYearChange}
                 />
               );

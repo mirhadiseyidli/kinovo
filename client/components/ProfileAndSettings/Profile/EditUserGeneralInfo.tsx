@@ -19,12 +19,10 @@ import EditDateOfBirth from './EditDateOfBirth';
 import { User } from '@/types/allTypes';
 import SettingsPageHeader from '../Settings/SettingsPageHeader';
 import { ThemedView } from '@/components/ThemedView';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const EditUserGeneralInfo = () => {
   const scrollViewRef = useRef<ScrollView>(null);
-  const tabBarHeight = useBottomTabBarHeight(); // Get tab bar height dynamically
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];

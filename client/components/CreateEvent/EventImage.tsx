@@ -5,14 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Feather } from '@expo/vector-icons';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-
-const defaultEventImages: Record<string, any> = {
-  Soccer: require('@/assets/event-hike.webp'),
-  Hiking: require('@/assets/event-hike.webp'),
-  Art: require('@/assets/event-soccer.jpg'),
-  Outdoor: require('@/assets/event-soccer.jpg'),
-  Default: require('@/assets/event-default.png'), // Default placeholder
-};
+import { getCategoryImage } from '@/constants/CategoryImages';
 
 const EventImage: React.FC<EventImageProps> = ({ eventType }) => {
   const [uploadedImage, setUploadedImage] = useState<UploadedImage>(null);
@@ -50,7 +43,7 @@ const EventImage: React.FC<EventImageProps> = ({ eventType }) => {
   // Determine the image source (uploaded image OR default event category)
   const imageSource = uploadedImage
     ? { uri: uploadedImage }
-    : defaultEventImages[eventType || 'Default']; // Fallback to 'default' if eventType is undefined
+    : getCategoryImage(eventType);
 
   return (
     <View style={{ width: '60%', aspectRatio: 1, borderRadius: 16, overflow: 'hidden' }}>

@@ -15,7 +15,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { CreateEventProvider } from '@/context/CreateEventContext';
 
 const ViewEvent = () => {
-  const { event_id, fromStory } = useLocalSearchParams();
+  const { event_id, fromStory, occurrence_start, occurrence_end, is_occurrence } = useLocalSearchParams();
   const id = Array.isArray(event_id) ? event_id[0] : event_id;
   const { event, loading, error } = useGetEventById(id);
   const navigation = useNavigation();
@@ -24,6 +24,27 @@ const ViewEvent = () => {
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
   const isFocused = useIsFocused();
+
+  // Create modified event for recurring occurrences
+  const displayEvent = React.useMemo(() => {
+    if (!event) return null;
+    
+    // If this is a recurring occurrence, modify the event data to show the occurrence date
+    if (is_occurrence === 'true' && occurrence_start && occurrence_end) {
+      const startDate = Array.isArray(occurrence_start) ? occurrence_start[0] : occurrence_start;
+      const endDate = Array.isArray(occurrence_end) ? occurrence_end[0] : occurrence_end;
+      
+      return {
+        ...event,
+        start_time: new Date(startDate),
+        end_time: new Date(endDate),
+        isRecurringOccurrence: true,
+        originalEventId: event._id
+      };
+    }
+    
+    return event;
+  }, [event, is_occurrence, occurrence_start, occurrence_end]);
 
   useFocusEffect(
     useCallback(() => {
@@ -58,7 +79,7 @@ const ViewEvent = () => {
   }
 
   // Show error state
-  if (error || !event) {
+  if (error || !displayEvent) {
     return (
       <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <Text style={{ color: themeColors.text }}>
@@ -82,11 +103,14 @@ const ViewEvent = () => {
         >
           <View style={{ width: '100%', paddingTop: 32 }}>
             <View style={{ alignItems: 'center', borderRadius: 16, overflow: 'hidden' }}>
-              <EventImage event_picture={event.event_picture ?? null} />
+              <EventImage 
+                event_picture={displayEvent.event_picture ?? null} 
+                category={displayEvent.category}
+              />
             </View>
           </View>
           <View style={{ paddingVertical: 16, paddingHorizontal: 16 }}>
-            <EventDetailsSection event={event} />
+            <EventDetailsSection event={displayEvent} />
           </View>
         </ScrollView>
       </ThemedView>

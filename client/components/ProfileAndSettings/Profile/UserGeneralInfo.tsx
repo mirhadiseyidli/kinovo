@@ -2,14 +2,11 @@ import React, { useEffect, useState, useCallback, forwardRef, useImperativeHandl
 import { View, Text, Image, Button, SafeAreaView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import axios from 'axios';
-import { useAuthSession } from '@/components/Auth/AuthProvider';
 import UserInfoTabs from '@/app/(auth)/(aboutUser)/_layout';
 import NavigateBackButton from '@/components/NavigateBackButton';
 import UserProfileActionMenuButton from '@/components/UserProfileActionMenuButton';
@@ -23,16 +20,16 @@ import { User, UserGeneralInfoProps } from '@/types/allTypes';
 import { useUserData } from '@/hooks/useUserData';
 import { FriendRequestStatusProps } from '@/types/allTypes';
 import PendingFriendRequestButton from '@/components/PendingFriendRequestButton';
+import api from '@/utils/api';
+import { ThemedView } from '@/components/ThemedView';
 
 const UserGeneralInfo = forwardRef(({ _id }: UserGeneralInfoProps, ref) => {
-  console.log(_id)
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const insets = useSafeAreaInsets();
   const [userToView, setUserToView] = useState<User | null>(null);
   const [friendRequestStatus, setFriendRequestStatus] = useState<Partial<FriendRequestStatusProps> | null>(null);
   const [friendshipStatus, setFriendshipStatus] = useState<'pending' | 'friend' | null>(null);
-  const { refreshAccessToken } = useAuthSession();
   const [showOptions, setShowOptions] = useState(false);
   const { fetchUserData, refetchUser } = useUserData();
   const [user, setUser] = useState<User | null>(null);
@@ -80,32 +77,11 @@ const UserGeneralInfo = forwardRef(({ _id }: UserGeneralInfoProps, ref) => {
     const fetchedUser = await fetchUserData();
     setUser(fetchedUser);
     try {
-      const token = await AsyncStorage.getItem('accessToken');
-      const response = await axios.get(
-        `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/users/user/get/profile?_id=${_id}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
+      const response = await api.get(`/api/users/user/get/profile?_id=${_id}`);
       setUserToView(response.data.user);
       setFriendRequestStatus(response.data.friendRequest);
     } catch (error: any) {
-      if (error.response?.status === 401) {
-        try {
-          await refreshAccessToken();
-          const retryToken = await AsyncStorage.getItem('accessToken');
-          const retryResponse = await axios.get(
-            `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/users/user/get/profile?_id=${_id}`,
-            { headers: { Authorization: `Bearer ${retryToken}` } }
-          );
-
-          setUserToView(retryResponse.data.user);
-          setFriendRequestStatus(retryResponse.data.friendRequest);
-        } catch (retryError) {
-          console.error('Retry after token refresh failed:', retryError);
-        }
-      } else {
-        console.error('Failed to fetch friend requests:', error.message);
-      }
+      console.error('Failed to fetch user profile:', error.message);
     }
   }, [_id]);
 
@@ -183,7 +159,7 @@ const UserGeneralInfo = forwardRef(({ _id }: UserGeneralInfoProps, ref) => {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, alignItems: 'center' }}>
+    <ThemedView style={{ flex: 1, alignItems: 'center', paddingBottom: insets.bottom, paddingTop: insets.top }}>
 
       {/* Navigate Back Button */}
       <NavigateBackButton />
@@ -228,7 +204,7 @@ const UserGeneralInfo = forwardRef(({ _id }: UserGeneralInfoProps, ref) => {
       <View style={{ flexGrow: 1, marginTop: 16 }}>
         {userToView && <UserInfoTabs user={userToView} />}
       </View>
-    </SafeAreaView>
+    </ThemedView>
   );
 });
 

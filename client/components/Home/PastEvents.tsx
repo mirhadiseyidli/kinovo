@@ -13,6 +13,7 @@ import { useGetMyPastEvents } from '@/hooks/useGetMyPastEvents';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import EventFilters, { FilterType, DateFilter } from './EventFilters';
+import { IconSymbol } from '@/components/ui/IconSymbol';
 
 const THIS_MONTH = 'This Month';
 const LAST_MONTH = 'Last Month';
@@ -96,10 +97,6 @@ const filterEventsByDate = (events: Event[], filter: DateFilter) => {
       case 'month':
         return eventDate.getFullYear() === filterDate.getFullYear() &&
                eventDate.getMonth() === filterDate.getMonth();
-      case 'day':
-        return eventDate.getFullYear() === filterDate.getFullYear() &&
-               eventDate.getMonth() === filterDate.getMonth() &&
-               eventDate.getDate() === filterDate.getDate();
       default:
         return true;
     }
@@ -148,8 +145,6 @@ const PastEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }>
         return date.getFullYear().toString();
       case 'month':
         return date.toLocaleString('default', { month: 'long', year: 'numeric' });
-      case 'day':
-        return date.toLocaleDateString('default', { month: 'long', day: 'numeric' });
       default:
         return 'Filter Events';
     }
@@ -166,43 +161,67 @@ const PastEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }>
           marginBottom: 16,
         }}
       >
-        <AutoSkeletonView 
-          isLoading={refreshing || loading} 
-          shimmerBackgroundColor={themeColors.background} 
-          gradientColors={[
-            themeColors.background, 
-            themeColors.inputBackgroundColor
-          ]}
-        >
-          <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>
-            Event History
-          </ThemedText>
-        </AutoSkeletonView>
+        <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>
+          Event History
+        </ThemedText>
         <TouchableOpacity 
           style={{ flexDirection: 'row', alignItems: 'center' }}
           onPress={() => setFilterModalVisible(true)}
         >
-          <AutoSkeletonView 
-            isLoading={refreshing || loading} 
-            shimmerBackgroundColor={themeColors.background} 
-            gradientColors={[
-              themeColors.background, 
-              themeColors.inputBackgroundColor
-            ]}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <ThemedText style={{ fontSize: 16, marginRight: 8 }}>
-                {getFilterLabel()}
-              </ThemedText>
-              <Feather name="filter" size={14} color={Colors[colorScheme ?? 'dark'].tint} />
-            </View>
-          </AutoSkeletonView>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <ThemedText style={{ fontSize: 16, marginRight: 8 }}>
+              {getFilterLabel()}
+            </ThemedText>
+            <Feather name="filter" size={14} color={Colors[colorScheme ?? 'dark'].tint} />
+          </View>
         </TouchableOpacity>
       </View>
 
       {/* Events List */}
       {!myPastEventsList || myPastEventsList.length === 0 ? (
-        <ThemedText>You haven't attended any events yet</ThemedText>
+        <View style={{ paddingTop: 16 }}>
+          <View style={{
+            backgroundColor: themeColors.background,
+            borderRadius: 12,
+            padding: 16,
+            borderWidth: 2,
+            borderStyle: 'dashed',
+            borderColor: themeColors.border,
+            width: '100%',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: 120,
+          }}>
+            <View style={{ marginBottom: 12 }}>
+              <IconSymbol
+                name="clock.fill"
+                size={32}
+                color={themeColors.placeholderTextColor}
+              />
+            </View>
+            <ThemedText 
+              style={{ 
+                fontSize: 16, 
+                color: themeColors.placeholderTextColor,
+                textAlign: 'center',
+                marginBottom: 4,
+                fontWeight: '600'
+              }}
+            >
+              Your event history is empty
+            </ThemedText>
+            <ThemedText 
+              style={{ 
+                fontSize: 14, 
+                color: themeColors.placeholderTextColor,
+                textAlign: 'center',
+                opacity: 0.8
+              }}
+            >
+              Past events will appear here once you attend them 🎈
+            </ThemedText>
+          </View>
+        </View>
       ) : filteredEvents.length === 0 ? (
         <ThemedText>No events found for the selected filter</ThemedText>
       ) : (

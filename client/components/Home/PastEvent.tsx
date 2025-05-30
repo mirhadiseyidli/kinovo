@@ -16,6 +16,12 @@ const PastEvent: React.FC<{ event: Event; loading: boolean }> = ({ event, loadin
     router.push(`/(auth)/(viewEvent)/${event?._id}`);
   }
 
+  // Helper function to truncate text
+  const truncateText = (text: string, maxLength: number) => {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+  };
+
   return (
     <TouchableOpacity
       onPress={handleViewEvent}
@@ -29,9 +35,9 @@ const PastEvent: React.FC<{ event: Event; loading: boolean }> = ({ event, loadin
     >
 
       <LinearGradient
-        colors={[themeColors.cardColorsGradientOne, themeColors.cardColorsGradientTwo]}
+        colors={['#1A1A1A', '#2D2D2D']}
         start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        end={{ x: 1, y: 0 }}
         style={{
           position: 'absolute',
           top: 0,
@@ -49,7 +55,7 @@ const PastEvent: React.FC<{ event: Event; loading: boolean }> = ({ event, loadin
           <Text style={{ color: themeColors.text, fontWeight: 'bold', fontSize: 16 }}>
             {event.title}
           </Text>
-          {/* Past Event pill */}
+          {/* Category pill */}
           <View
             style={{
               paddingHorizontal: 8,
@@ -58,12 +64,10 @@ const PastEvent: React.FC<{ event: Event; loading: boolean }> = ({ event, loadin
               backgroundColor: themeColors.background,
             }}
           >
-            <Text style={{ color: themeColors.text, fontWeight: '600', fontSize: 12 }}>Past Event</Text>
+            <Text style={{ color: themeColors.text, fontWeight: '600', fontSize: 12, textTransform: 'capitalize' }}>
+              {event.category?.toLowerCase() || 'Other'}
+            </Text>
           </View>
-        </View>
-
-        <View>
-          <Text style={{ color: themeColors.textThird, fontWeight: '500', fontSize: 12 }}>{event.category}</Text>
         </View>
       </View>
       
@@ -83,7 +87,7 @@ const PastEvent: React.FC<{ event: Event; loading: boolean }> = ({ event, loadin
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Feather name="map-pin" size={16} color={themeColors.textThird} />
             <Text style={{ color: themeColors.textThird, fontSize: 14 }}>
-              {event?.location.text}
+              {truncateText(event?.location.text || '', 25)}
             </Text>
           </View>
         </View>

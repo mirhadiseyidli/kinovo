@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, TouchableOpacity, Dimensions, ActionSheetIOS, Alert, Platform, Animated, TextInput } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -12,12 +12,16 @@ const Options: React.FC<{ setLimit: (value: number | null) => void }> = ({ setLi
   const screenWidth = Dimensions.get('window').width;
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const [visibility, setVisibility] = useState('Public');
+  const [visibility, setVisibility] = useState('private');
   const [capacity, setCapacity] = useState<number | null>(null);
   const [isLimited, setIsLimited] = useState(false);
   const colorAnim = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(0))[0];
   const { settingEventVisibility, settingEventCapacity } = useCreateEventContext();
+
+  useEffect(() => {
+    settingEventVisibility(visibility);
+  }, []);
 
   const toggleCheck = (newValue: boolean) => {
     setIsLimited(newValue);
@@ -57,26 +61,35 @@ const Options: React.FC<{ setLimit: (value: number | null) => void }> = ({ setLi
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ['Public', 'Private', 'Cancel'],
-          cancelButtonIndex: 2,
+          options: ['Public', 'Private', 'Selected', 'Cancel'],
+          cancelButtonIndex: 3,
+          title: 'Event Visibility',
+          message: 'Selected: Only invited people can see the event',
         },
         (buttonIndex) => {
-          if (buttonIndex === 0) visibilitySelection('Public');
-          else if (buttonIndex === 1) visibilitySelection('Private');
+          if (buttonIndex === 0) visibilitySelection('public');
+          else if (buttonIndex === 1) visibilitySelection('private');
+          else if (buttonIndex === 2) visibilitySelection('selected');
         }
       );
     } else {
-      Alert.alert('Select Visibility', '', [
-        { text: 'Public', onPress: () => visibilitySelection('Public') },
-        { text: 'Private', onPress: () => visibilitySelection('Private') },
-        { text: 'Cancel', style: 'cancel' },
-      ]);
+      Alert.alert(
+        'Select Visibility', 
+        'Selected: Only invited people can see the event',
+        [
+          { text: 'Public', onPress: () => visibilitySelection('public') },
+          { text: 'Private', onPress: () => visibilitySelection('private') },
+          { text: 'Selected', onPress: () => visibilitySelection('selected') },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
     }
   };
 
   const visibilitySelection = (val: string) => {
-    setVisibility(val);
-    settingEventVisibility(val);
+    const lowerVal = val.toLowerCase();
+    setVisibility(lowerVal);
+    settingEventVisibility(lowerVal);
   };
 
   const onCapacityChange = (num: number) => {
@@ -129,7 +142,7 @@ const Options: React.FC<{ setLimit: (value: number | null) => void }> = ({ setLi
             }}
           >
             <ThemedText style={{ fontSize: 12, fontWeight: 'bold', color: themeColors.text }}>
-              {visibility}
+              {visibility.charAt(0).toUpperCase() + visibility.slice(1)}
             </ThemedText>
           </TouchableOpacity>
         </View>

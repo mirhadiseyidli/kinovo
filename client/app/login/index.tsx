@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Image, TouchableOpacity } from 'react-native';
+import { View, Image, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Dimensions } from 'react-native';
 import EmailLogin from '@/components/Auth/emailPasswordLogin';
 import GoogleOAuth from '@/components/Auth/googleOAuth';
 import AppleOAuth from '@/components/Auth/appleOAuth';
@@ -12,6 +12,8 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthSession } from "@/components/Auth/AuthProvider";
 import { TokenTypes } from '@/types/allTypes';
+
+const { width } = Dimensions.get('window');
 
 export default function Auth() {
   const router = useRouter();
@@ -30,65 +32,99 @@ export default function Auth() {
   };
 
   return (
-    <ThemedView style={{ flex: 1, paddingHorizontal: '2%', paddingTop: insets.top, paddingBottom: insets.bottom }}>
-      {/* Logo Background Section */}
-      <ThemedView style={{ flex: 5 }}>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end'}}>
-          <Image
-            source={require('../../assets/logo_2.png')}
-            style={{
-              height: '70%',
-              aspectRatio: 1,
-              resizeMode: 'contain',
-              bottom: 0,
-            }}
-          />
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={{ flex: 1, paddingTop: insets.top, backgroundColor: themeColors.background }}
+    >
+      <ScrollView 
+        bounces={false}
+        keyboardShouldPersistTaps="handled"
+        style={{ flex: 1 }}
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'space-between' }}
+        showsVerticalScrollIndicator={false}
+        scrollEnabled={false}
+      >
+        <View style={{ flex: 1 }}>
+          {/* Logo and Company Name Section */}
+          <ThemedView style={{ 
+            flexDirection: 'column', 
+            alignItems: 'center', 
+            justifyContent: 'flex-start', 
+            paddingTop: Platform.OS === 'ios' ? 60 : 40,
+            flex: 1
+          }}>
+            <Image
+              source={require('../../assets/logo_2.png')}
+              style={{
+                width: width * 0.45,
+                height: width * 0.45,
+                resizeMode: 'contain',
+                bottom: 0,
+              }}
+            />
+            <ThemedText style={{ fontSize: 40, fontFamily: 'Helvetica Neue Bold', fontWeight: 'bold', letterSpacing: -1, alignSelf: 'center' }}>Kinovo</ThemedText>
+          </ThemedView>
+
+          {/* Login Section - Aligned to bottom */}
+          <ThemedView style={{ 
+            flex: 1, 
+            justifyContent: 'flex-end',
+            paddingBottom: Platform.OS === 'ios' ? 40 : 20
+          }}>
+            <ThemedView style={{ alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <EmailLogin onLoginSuccess={handleLogin} />
+            </ThemedView>
+
+            {/* Separator */}
+            <ThemedView style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <ThemedView
+                style={{
+                  flex: 1,
+                  height: 1,
+                  backgroundColor: themeColors.textSecondary,
+                }}
+              />
+              <ThemedText
+                style={{
+                  marginHorizontal: 16,
+                  color: themeColors.textSecondary,
+                  textAlign: 'center',
+                }}
+              >
+                or continue with
+              </ThemedText>
+              <ThemedView style={{ flex: 1, height: 1, backgroundColor: themeColors.text }} />
+            </ThemedView>
+
+            {/* OAuth Buttons */}
+            <ThemedView style={{ flexDirection: 'row', width: '100%', alignItems: 'center', justifyContent: 'space-evenly', paddingHorizontal: 16 }}>
+              <AppleOAuth onLoginSuccess={handleLogin} />
+              <FacebookOAuth onLoginSuccess={handleLogin} />
+              <GoogleOAuth onLoginSuccess={handleLogin} />
+            </ThemedView>
+          </ThemedView>
         </View>
-        <ThemedText style={{ fontSize: 40, fontFamily: 'Helvetica Neue Bold', fontWeight: 'bold', letterSpacing: -1, alignSelf: 'center' }}>Kinovo</ThemedText>
-      </ThemedView>
 
-      {/* Login Section */}
-      <ThemedView style={{ flex: 5, alignItems: 'center', justifyContent: 'center', marginBottom: '5%' }}>
-        <EmailLogin onLoginSuccess={handleLogin} />
-      </ThemedView>
-
-      {/* Separator */}
-      <ThemedView style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-        <ThemedView
-          style={{
-            flex: 1,
-            height: 1,
-            backgroundColor: themeColors.textSecondary,
-          }}
-        />
-        <ThemedText
-          style={{
-            marginHorizontal: 16,
-            color: themeColors.textSecondary,
-            textAlign: 'center',
-          }}
-        >
-          or continue with
-        </ThemedText>
-        <ThemedView style={{ flex: 1, height: 1, backgroundColor: themeColors.text }} />
-      </ThemedView>
-
-      {/* OAuth Buttons */}
-      <ThemedView style={{ flex: 1, flexDirection: 'row', width: '100%', alignItems: 'center', justifyContent: 'space-evenly', paddingHorizontal: 16 }}>
-        <AppleOAuth onLoginSuccess={handleLogin} />
-        <FacebookOAuth onLoginSuccess={handleLogin} />
-        <GoogleOAuth onLoginSuccess={handleLogin} />
-      </ThemedView>
-
-      {/* Sign Up Link */}
-      <ThemedView style={{ flex: 0.5, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 8 }}>
-        <ThemedText style={{ flexShrink: 1 }}>Don't have an account?</ThemedText>
-        <TouchableOpacity onPress={() => router.push('/login/signUp')}>
-          <ThemedText style={{ flexShrink: 1, color: themeColors.mountainGreen, fontWeight: '600', textDecorationLine: 'underline', marginLeft: 4 }}>
-            Sign Up
-          </ThemedText>
-        </TouchableOpacity>
-      </ThemedView>
-    </ThemedView>
+        {/* Sign Up Link */}
+        <ThemedView style={{ 
+          flexDirection: 'row', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          paddingVertical: 16,
+          position: 'relative',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          marginBottom: 16
+        }}>
+          <ThemedText>Don't have an account?</ThemedText>
+          <TouchableOpacity onPress={() => router.push('/login/signUp')}>
+            <ThemedText style={{ color: themeColors.mountainGreen, fontWeight: '600', textDecorationLine: 'underline', marginLeft: 4 }}>
+              Sign Up
+            </ThemedText>
+          </TouchableOpacity>
+        </ThemedView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

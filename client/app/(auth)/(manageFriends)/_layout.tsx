@@ -4,27 +4,27 @@ import { ThemedView } from '@/components/ThemedView';
 import SettingsPageHeader from '@/components/ProfileAndSettings/Settings/SettingsPageHeader';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+// import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
-import FriendsList from '@/app/(auth)/(tabs)/(profile)/(manageFriends)/YourFriends';
-import FriendRequests from '@/app/(auth)/(tabs)/(profile)/(manageFriends)/FriendRequests';
-import AddFriends from '@/app/(auth)/(tabs)/(profile)/(manageFriends)/AddFriends';
+import FriendsList from '@/app/(auth)/(manageFriends)/YourFriends';
+import FriendRequests from '@/app/(auth)/(manageFriends)/FriendRequests';
+import AddFriends from '@/app/(auth)/(manageFriends)/AddFriends';
 
 const Tab = createMaterialTopTabNavigator();
 
 export default function ManageFriendsTabs() {
   const colorScheme = useColorScheme();
-  const tabBarHeight = useBottomTabBarHeight(); // Get tab bar height dynamically
+  // const tabBarHeight = useBottomTabBarHeight(); // Get tab bar height dynamically
   const insets = useSafeAreaInsets();
 
   return (
-    <ThemedView style={{ flex: 1, paddingTop: insets.top, paddingBottom: tabBarHeight }}>
+    <ThemedView style={{ flex: 1, paddingTop: insets.top }}>
       {/* Header remains at the top */}
       <ThemedView
         style={{
           flex: 1,
           flexGrow: 1,
-          maxHeight: tabBarHeight - insets.bottom, // Combine tabBarHeight and top inset
+          maxHeight: insets.bottom, // Combine tabBarHeight and top inset
           marginBottom: 6,
         }}
       >

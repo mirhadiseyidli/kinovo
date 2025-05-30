@@ -1,21 +1,22 @@
-import { useState, useRef, useEffect } from "react";
-import { View, Text, Button, ScrollView } from "react-native";
-import { ThemedView } from "@/components/ThemedView";
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
-import EditUserGeneralInfo from "@/components/ProfileAndSettings/Profile/EditUserGeneralInfo";
-import { LinearGradient } from "expo-linear-gradient";
+import { View, ScrollView, Image, TouchableOpacity, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'expo-router';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { ThemedText } from '@/components/ThemedText';
+import { ThemedView } from '@/components/ThemedView';
+import { useAuthSession } from '@/components/Auth/AuthProvider';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from "expo-linear-gradient";
+import EditUserGeneralInfo from "@/components/ProfileAndSettings/Profile/EditUserGeneralInfo";
 
 const EditProfile = () => {
-  const tabBarHeight = useBottomTabBarHeight(); // Get tab bar height dynamically
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
 
   return (
-    <ThemedView style={{ flex: 1, paddingTop: insets.top, paddingBottom: tabBarHeight }}>
+    <ThemedView style={{ flex: 1, paddingTop: insets.top }}>
       <LinearGradient
         colors={[themeColors.mountainGreen, themeColors.background, themeColors.background]}
         start={{ x: 0.5, y: 0 }}

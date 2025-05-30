@@ -1,6 +1,6 @@
 import { Stack, Tabs, useRouter, Link } from 'expo-router';
-import React, { useRef, useState } from 'react';
-import { Platform, View, Easing } from 'react-native';
+import React, { useRef, useState, useCallback } from 'react';
+import { Platform, View, Easing, InteractionManager } from 'react-native';
 import { HapticTab } from '@/components/HapticTab';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -9,9 +9,48 @@ import { ProfileIcon } from '@/components/ui/ProfileIcon';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { CalendarViewProvider } from '@/context/CalendarViewContext';
 
-export default function TabsLayout() {
+const TabsLayout = React.memo(() => {
   const router = useRouter();
   const colorScheme = useColorScheme();
+
+  // Memoize tab bar icon components for better performance
+  const TabBarIcons = React.useMemo(() => ({
+    home: ({ color }: { color: string }) => <Feather name="home" size={28} color={color} />,
+    search: ({ color }: { color: string }) => <Feather name="search" size={28} color={color} />,
+    plus: ({ color }: { color: string }) => <Feather name="plus-circle" size={28} color={color} />,
+    calendar: ({ color }: { color: string }) => <Feather name="calendar" size={28} color={color} />,
+    user: ({ color }: { color: string }) => <Feather name="user" size={28} color={color} />,
+  }), []);
+
+  // Memoize navigation handler for better performance
+  const handleCreateEventPress = useCallback((e: any) => {
+    e.preventDefault();
+    // Use InteractionManager for smoother navigation
+    InteractionManager.runAfterInteractions(() => {
+      router.push('/(auth)/(createEvent)/EventDetails');
+    });
+  }, [router]);
+
+  // Memoize tab bar style for performance
+  const tabBarStyle = React.useMemo(() => Platform.select({
+    ios: {
+      position: 'absolute' as const,
+      backgroundColor: Colors[colorScheme ?? 'dark'].background,
+      borderTopWidth: 1,
+      borderTopColor: Colors[colorScheme ?? 'dark'].border,
+      shadowOpacity: 0.1,
+      elevation: 3,
+      paddingTop: 4,
+      itemsAlign: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    default: {
+      backgroundColor: Colors[colorScheme ?? 'dark'].background,
+      borderTopWidth: 1,
+      borderTopColor: Colors[colorScheme ?? 'dark'].border,
+      paddingTop: 10,
+    },
+  }), [colorScheme]);
 
   return (
     <CalendarViewProvider>
@@ -30,45 +69,9 @@ export default function TabsLayout() {
             headerShown: false,
             tabBarShowLabel: false,
             tabBarHideOnKeyboard: true,
-            tabBarStyle: Platform.select({
-              ios: {
-                position: 'absolute', // Keeps the position absolute on iOS
-                backgroundColor: Colors[colorScheme ?? 'dark'].background, // Dark or light theme
-                borderTopWidth: 1, // Border width
-                borderTopColor: Colors[colorScheme ?? 'dark'].border, // Gray-100 hex code
-                shadowOpacity: 0.1, // Slight shadow for depth
-                elevation: 3, // Android shadow
-                paddingTop: 4, // Add padding at the top
-                itemsAlign: 'center',
-                justifyContent: 'center',
-                // animation: 'spring',
-              },
-              default: {
-                backgroundColor: Colors[colorScheme ?? 'dark'].background, // Background for other platforms
-                borderTopWidth: 1, // Border width
-                borderTopColor: Colors[colorScheme ?? 'dark'].border, // Gray-100 hex code
-                paddingTop: 10, // Add padding at the top
-              },
-            }),
-            tabBarVisibilityAnimationConfig: {
-              hide: {
-                animation: 'spring'
-              },
-              show: {
-                animation: 'spring'
-              }
-            },
-            transitionSpec: {
-              animation: 'spring',
-              config: {
-                stiffness: 500,
-                damping: 300,  // Increased damping to reduce oscillations
-                mass: 3,
-                overshootClamping: true,  // Prevents overshoot and shaking
-                restDisplacementThreshold: 0.01,
-                restSpeedThreshold: 0.01,
-              },
-            }
+            tabBarStyle: tabBarStyle,
+            // Optimized animations for smooth transitions
+            animation: 'shift',
           }}
         >
           <Tabs.Screen
@@ -76,8 +79,7 @@ export default function TabsLayout() {
             options={{
               lazy: true,
               title: 'Home',
-              tabBarIcon: ({ color }) => <Feather name="home" size={28} color={color} />,
-              animation: 'shift'
+              tabBarIcon: TabBarIcons.home,
             }}
           />
           <Tabs.Screen
@@ -85,23 +87,17 @@ export default function TabsLayout() {
             options={{
               lazy: true,
               title: 'Explore',
-              tabBarIcon: ({ color }) => <Feather name="search" size={28} color={color} />,
-              animation: 'shift'
+              tabBarIcon: TabBarIcons.search,
             }}
           />
           <Tabs.Screen
             name="create"
             options={{
               title: 'Create Event',
-              tabBarIcon: ({ color }) => (
-                <Feather name="plus-circle" size={28} color={color} />
-              ),
+              tabBarIcon: TabBarIcons.plus,
             }}
             listeners={() => ({
-              tabPress: (e) => {
-                e.preventDefault(); // Prevent default tab navigation
-                router.push('/(auth)/(createEvent)/EventDetails');
-              },
+              tabPress: handleCreateEventPress,
             })}
           />
           <Tabs.Screen
@@ -109,8 +105,7 @@ export default function TabsLayout() {
             options={{
               lazy: true,
               title: 'Calendar',
-              tabBarIcon: ({ color }) => <Feather name="calendar" size={28} color={color} />,
-              animation: 'shift'
+              tabBarIcon: TabBarIcons.calendar,
             }}
           />
           <Tabs.Screen
@@ -118,8 +113,7 @@ export default function TabsLayout() {
             options={{
               lazy: true,
               title: 'Profile',
-              tabBarIcon: ({ color }) => <Feather name="user" size={28} color={color} />,
-              animation: 'shift'
+              tabBarIcon: TabBarIcons.user,
             }}
           />
           <Tabs.Screen
@@ -128,26 +122,10 @@ export default function TabsLayout() {
               href: null,
             }}
           />
-          <Tabs.Screen
-            name="(profile)/editProfile"
-            options={{
-              href: null,
-            }}
-          />
-          <Tabs.Screen
-            name="(profile)/accountSettings"
-            options={{
-              href: null,
-            }}
-          />
-          <Tabs.Screen
-            name="(profile)/(manageFriends)"
-            options={{
-              href: null,
-            }}
-          />
         </Tabs>
       </View>
     </CalendarViewProvider>
   );
-}
+});
+
+export default TabsLayout;

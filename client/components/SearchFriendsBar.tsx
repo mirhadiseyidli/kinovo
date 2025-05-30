@@ -15,7 +15,7 @@ const SearchFriendsBar: React.FC<SearchFriendsProps> = ({ placeholder, value, on
       style={{
         flexDirection: 'row',
         alignItems: 'center',
-        borderRadius: 16,
+        borderRadius: 8,
         padding: 12,
         justifyContent: 'center',
         width: '100%',
@@ -32,12 +32,13 @@ const SearchFriendsBar: React.FC<SearchFriendsProps> = ({ placeholder, value, on
       {/* Search Input */}
       <TextInput
         placeholder={placeholder}
-        placeholderTextColor={themeColors.placeholderTextColor} // Light gray placeholder text
+        placeholderTextColor={themeColors.placeholderTextColor}
         value={value}
         onChangeText={onChangeText}
         style={{
           flex: 1,
-          color: themeColors.tint, // Equivalent to text-gray-700
+          color: themeColors.text,
+          fontSize: 16,
         }}
       />
     </ThemedView>

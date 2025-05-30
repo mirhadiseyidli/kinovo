@@ -18,6 +18,7 @@ const Frequency: React.FC = () => {
   const [isRecurring, setIsRecurring] = useState(false);
   const [unit, setUnit] = useState<string | null>('Select');
   const [endDate, setEndDate] = useState<Date | null>(new Date());
+  const [tempEndDate, setTempEndDate] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const colorAnim = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(0))[0];
@@ -99,20 +100,13 @@ const Frequency: React.FC = () => {
   };
 
   const openDatePicker = () => {
+    setTempEndDate(endDate ?? new Date());
     setShowDatePicker(true);
   };
 
-  const handleDateChange: DatePickerChangeHandler = (event, selectedDate) => {
-    setShowDatePicker(false);
-    if (selectedDate instanceof Date) {
-      setEndDate(selectedDate);
-      if (unit && selectedDate) {
-        settingEventRecurrence({
-          checked: true,
-          frequency: unit.toLowerCase() as 'daily' | 'weekly' | 'monthly' | 'yearly',
-          end_date: selectedDate
-        });
-      }
+  const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (selectedDate) {
+      setTempEndDate(selectedDate);
     }
   };
 
@@ -167,38 +161,56 @@ const Frequency: React.FC = () => {
               }}>
                 <Text style={{ fontSize: 12, fontWeight: 'bold', color: Colors[colorScheme ?? 'dark'].text }}>{endDate?.toDateString()}</Text>
               </TouchableOpacity>
+            </View>
               
-              {/* Use a modal for iOS to prevent layout shift */}
-              {showDatePicker && (
-                <Modal transparent={true} animationType="fade" visible={showDatePicker} >
-                  <TouchableWithoutFeedback onPress={() => setShowDatePicker(false)}>
-                    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)', minHeight: 280 }}>
-                      <View style={{ backgroundColor: themeColors.background, padding: 20, borderRadius: 10, minWidth: 280, width: '100%', }}>
+            {/* Date Picker Modal */}
+            {showDatePicker && (
+              <Modal transparent={true} animationType="fade" visible={showDatePicker}>
+                <TouchableWithoutFeedback onPress={() => setShowDatePicker(false)}>
+                  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}>
+                    <View style={{ backgroundColor: themeColors.background, padding: 20, borderRadius: 10, minHeight: 280 }}>
+                      <View style={{ minWidth: 280, width: '100%', alignItems: 'center' }}>
                         <DateTimePicker
-                          value={endDate ?? new Date()}
+                          value={tempEndDate}
                           mode="date"
                           minimumDate={new Date()}
-                          display="inline" // Fixes empty modal issue
+                          display={Platform.OS === 'ios' ? 'inline' : 'default'}
                           textColor={themeColors.text}
                           accentColor={themeColors.mountainGreen}
                           themeVariant={colorScheme === "light" ? "light" : "dark"}
                           onChange={handleDateChange}
-                          style={{ minWidth: 280, width: '100%' }} // Ensure minimum width
-                        />
-                        {/* <DateTimePicker
-                          initialDate={(endDate ?? new Date()).toISOString()}
-                          color={themeColors.mountainGreen}
-                          displayedComponents="dateAndTime"
-                          variant="graphical"
-                          onDateSelected={handleDateChange}
                           style={{ minHeight: 280, minWidth: 280, width: '100%' }}
-                        /> */}
+                        />
                       </View>
+                      {/* Confirm Button */}
+                      <TouchableOpacity
+                        onPress={() => {
+                          setEndDate(tempEndDate);
+                          if (unit && tempEndDate) {
+                            settingEventRecurrence({
+                              checked: true,
+                              frequency: unit.toLowerCase() as 'daily' | 'weekly' | 'monthly' | 'yearly',
+                              end_date: tempEndDate
+                            });
+                          }
+                          setShowDatePicker(false);
+                        }}
+                        style={{
+                          marginTop: 16,
+                          marginBottom: 16,
+                          backgroundColor: themeColors.mountainGreen,
+                          paddingVertical: 10,
+                          borderRadius: 8,
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Text style={{ color: 'white', fontWeight: 'bold' }}>Confirm</Text>
+                      </TouchableOpacity>
                     </View>
-                  </TouchableWithoutFeedback>
-                </Modal>
-              )}
-            </View>
+                  </View>
+                </TouchableWithoutFeedback>
+              </Modal>
+            )}
           </View>
         )}
       </Animated.View>

@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { View, Modal, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useMemo, useEffect } from 'react';
+import { View, Modal, TouchableOpacity, ScrollView, Animated, Dimensions } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
@@ -7,7 +7,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Feather } from '@expo/vector-icons';
 import { Picker } from 'react-native-wheel-pick';
 
-export type FilterType = 'year' | 'month' | 'day' | 'all';
+export type FilterType = 'year' | 'month' | 'all';
 
 export interface DateFilter {
   type: FilterType;
@@ -37,6 +37,9 @@ const EventFilters: React.FC<EventFiltersProps> = ({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [tempDate, setTempDate] = useState<Date>(activeFilter.date || new Date());
   const [selectedFilterType, setSelectedFilterType] = useState<FilterType>(activeFilter.type);
+  
+  // Animation for the slide-up effect
+  const slideAnim = React.useRef(new Animated.Value(300)).current;
 
   // Generate years from 2000 to current year + 5
   const years = useMemo(() => {
@@ -44,22 +47,23 @@ const EventFilters: React.FC<EventFiltersProps> = ({
     return Array.from({ length: currentYear - 2000 + 6 }, (_, i) => (2000 + i).toString());
   }, []);
 
-  // Generate days based on month and year
-  const getDaysInMonth = (year: number, month: number) => {
-    return new Date(year, month + 1, 0).getDate();
-  };
-
-  const days = useMemo(() => {
-    const daysInMonth = getDaysInMonth(tempDate.getFullYear(), tempDate.getMonth());
-    return Array.from({ length: daysInMonth }, (_, i) => (i + 1).toString().padStart(2, '0'));
-  }, [tempDate.getFullYear(), tempDate.getMonth()]);
-
-  const filters: { type: FilterType; label: string; icon: keyof typeof Feather.glyphMap }[] = [
-    { type: 'all', label: 'All Events', icon: 'calendar' },
-    { type: 'year', label: 'Filter by Year', icon: 'calendar' },
-    { type: 'month', label: 'Filter by Month', icon: 'calendar' },
-    { type: 'day', label: 'Filter by Day', icon: 'calendar' },
-  ];
+  // Handle modal animation
+  useEffect(() => {
+    if (visible) {
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 100,
+        friction: 8,
+      }).start();
+    } else {
+      Animated.timing(slideAnim, {
+        toValue: 300,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [visible, slideAnim]);
 
   const handleFilterSelect = (type: FilterType) => {
     setSelectedFilterType(type);
@@ -71,128 +75,80 @@ const EventFilters: React.FC<EventFiltersProps> = ({
     }
   };
 
-  const handleYearChange = (yearStr: string) => {
-    const newDate = new Date(tempDate);
-    newDate.setFullYear(parseInt(yearStr));
-    setTempDate(newDate);
-  };
-
-  const handleMonthChange = (monthName: string) => {
-    const newDate = new Date(tempDate);
-    newDate.setMonth(MONTHS.indexOf(monthName));
-    setTempDate(newDate);
-  };
-
-  const handleDayChange = (dayStr: string) => {
-    const newDate = new Date(tempDate);
-    newDate.setDate(parseInt(dayStr));
-    setTempDate(newDate);
+  const handleCancel = () => {
+    setShowDatePicker(false);
+    setSelectedFilterType(activeFilter.type);
+    setTempDate(activeFilter.date || new Date());
   };
 
   const handleConfirm = () => {
-    let finalDate = new Date(tempDate);
-    
-    // Adjust the date based on filter type
-    if (selectedFilterType === 'year') {
-      finalDate = new Date(tempDate.getFullYear(), 0, 1);
-    } else if (selectedFilterType === 'month') {
-      finalDate = new Date(tempDate.getFullYear(), tempDate.getMonth(), 1);
-    }
-    
-    onFilterChange({ type: selectedFilterType, date: finalDate });
+    onFilterChange({
+      type: selectedFilterType,
+      date: tempDate,
+    });
     setShowDatePicker(false);
     onClose();
   };
 
-  const handleCancel = () => {
-    setShowDatePicker(false);
-    if (!activeFilter.date) {
-      setSelectedFilterType('all');
-    }
-  };
-
-  const formatSelectedDate = (date: Date, type: FilterType) => {
-    if (type === 'year') {
-      return date.getFullYear().toString();
-    } else if (type === 'month') {
-      return date.toLocaleString('default', { month: 'long', year: 'numeric' });
-    } else {
-      return date.toLocaleDateString('default', { month: 'long', day: 'numeric', year: 'numeric' });
-    }
-  };
-
   const renderDatePicker = () => {
-    const pickerStyle = {
-      backgroundColor: themeColors.background,
-      width: selectedFilterType === 'day' ? '32%' : '48%',
-      height: 215,
-    };
-
     if (selectedFilterType === 'year') {
       return (
-        <View style={{ alignItems: 'center' }}>
-          <Picker
-            style={pickerStyle}
-            selectedValue={tempDate.getFullYear().toString()}
-            pickerData={years}
-            onValueChange={handleYearChange}
-            textColor={themeColors.text}
-          />
-        </View>
-      );
-    }
-
-    if (selectedFilterType === 'month') {
-      return (
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-          <Picker
-            style={pickerStyle}
-            selectedValue={MONTHS[tempDate.getMonth()]}
-            pickerData={MONTHS}
-            onValueChange={handleMonthChange}
-            textColor={themeColors.text}
-          />
-          <Picker
-            style={pickerStyle}
-            selectedValue={tempDate.getFullYear().toString()}
-            pickerData={years}
-            onValueChange={handleYearChange}
-            textColor={themeColors.text}
-          />
-        </View>
-      );
-    }
-
-    return (
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
         <Picker
-          style={pickerStyle}
-          selectedValue={tempDate.getDate().toString().padStart(2, '0')}
-          pickerData={days}
-          onValueChange={handleDayChange}
-          textColor={themeColors.text}
-        />
-        <Picker
-          style={pickerStyle}
-          selectedValue={MONTHS[tempDate.getMonth()]}
-          pickerData={MONTHS}
-          onValueChange={handleMonthChange}
-          textColor={themeColors.text}
-        />
-        <Picker
-          style={pickerStyle}
+          style={{ backgroundColor: themeColors.background }}
           selectedValue={tempDate.getFullYear().toString()}
           pickerData={years}
-          onValueChange={handleYearChange}
+          onValueChange={(value: string) => {
+            const newDate = new Date(tempDate);
+            newDate.setFullYear(parseInt(value));
+            setTempDate(newDate);
+          }}
           textColor={themeColors.text}
         />
-      </View>
-    );
+      );
+    } else if (selectedFilterType === 'month') {
+      return (
+        <View style={{ flexDirection: 'row' }}>
+          <View style={{ flex: 1 }}>
+            <Picker
+              style={{ backgroundColor: themeColors.background }}
+              selectedValue={MONTHS[tempDate.getMonth()]}
+              pickerData={MONTHS}
+              onValueChange={(value: string) => {
+                const newDate = new Date(tempDate);
+                newDate.setMonth(MONTHS.indexOf(value));
+                setTempDate(newDate);
+              }}
+              textColor={themeColors.text}
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Picker
+              style={{ backgroundColor: themeColors.background }}
+              selectedValue={tempDate.getFullYear().toString()}
+              pickerData={years}
+              onValueChange={(value: string) => {
+                const newDate = new Date(tempDate);
+                newDate.setFullYear(parseInt(value));
+                setTempDate(newDate);
+              }}
+              textColor={themeColors.text}
+            />
+          </View>
+        </View>
+      );
+    }
+    return null;
   };
+
+  const filters: { type: FilterType; label: string; icon: keyof typeof Feather.glyphMap }[] = [
+    { type: 'all', label: 'All Events', icon: 'calendar' },
+    { type: 'year', label: 'Filter by Year', icon: 'calendar' },
+    { type: 'month', label: 'Filter by Month', icon: 'calendar' },
+  ];
 
   return (
     <Modal
-      animationType="slide"
+      animationType="fade"
       transparent={true}
       visible={visible}
       onRequestClose={onClose}
@@ -210,99 +166,113 @@ const EventFilters: React.FC<EventFiltersProps> = ({
           activeOpacity={1} 
           onPress={(e) => e.stopPropagation()}
         >
-          <ThemedView
+          <Animated.View
             style={{
-              borderTopLeftRadius: 20,
-              borderTopRightRadius: 20,
-              padding: 20,
-              minHeight: 300,
+              transform: [{ translateY: slideAnim }],
             }}
           >
-            <View
+            <ThemedView
               style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: 20,
+                borderTopLeftRadius: 20,
+                borderTopRightRadius: 20,
+                padding: 20,
+                minHeight: 300,
               }}
             >
-              <ThemedText style={{ fontSize: 18, fontWeight: 'bold' }}>
-                {showDatePicker ? 'Select Date' : 'Filter Events'}
-              </ThemedText>
-              <TouchableOpacity onPress={showDatePicker ? handleCancel : onClose}>
-                <Feather name="x" size={24} color={themeColors.text} />
-              </TouchableOpacity>
-            </View>
-
-            {!showDatePicker ? (
-              <ScrollView>
-                {filters.map((filter) => (
-                  <TouchableOpacity
-                    key={filter.type}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      padding: 16,
-                      backgroundColor:
-                        activeFilter.type === filter.type
-                          ? themeColors.cardColorsGradientOne
-                          : 'transparent',
-                      borderRadius: 12,
-                      marginBottom: 8,
-                    }}
-                    onPress={() => handleFilterSelect(filter.type)}
-                  >
-                    <Feather
-                      name={filter.icon}
-                      size={20}
-                      color={themeColors.text}
-                      style={{ marginRight: 12 }}
-                    />
-                    <View style={{ flex: 1 }}>
-                      <ThemedText style={{ fontSize: 16 }}>{filter.label}</ThemedText>
-                      {activeFilter.type === filter.type && activeFilter.date && filter.type !== 'all' && (
-                        <ThemedText style={{ fontSize: 14, color: themeColors.textSecondary, marginTop: 4 }}>
-                          {formatSelectedDate(activeFilter.date, filter.type)}
-                        </ThemedText>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            ) : (
-              <View>
-                {renderDatePicker()}
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 }}>
-                  <TouchableOpacity
-                    onPress={handleCancel}
-                    style={{
-                      padding: 12,
-                      backgroundColor: themeColors.cardColorsGradientOne,
-                      borderRadius: 8,
-                      flex: 1,
-                      marginRight: 8,
-                      alignItems: 'center',
-                    }}
-                  >
-                    <ThemedText style={{ fontSize: 16, fontWeight: '600' }}>Cancel</ThemedText>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={handleConfirm}
-                    style={{
-                      padding: 12,
-                      backgroundColor: themeColors.mountainGreen,
-                      borderRadius: 8,
-                      flex: 1,
-                      marginLeft: 8,
-                      alignItems: 'center',
-                    }}
-                  >
-                    <ThemedText style={{ fontSize: 16, fontWeight: '600' }}>Confirm</ThemedText>
-                  </TouchableOpacity>
-                </View>
+              {/* Drag handle indicator */}
+              <View style={{
+                alignSelf: 'center',
+                width: 50,
+                height: 5,
+                backgroundColor: themeColors.placeholderTextColor,
+                borderRadius: 3,
+                marginTop: -5,
+                marginBottom: 15,
+                opacity: 0.7,
+              }} />
+              
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 20,
+                  paddingVertical: 10,
+                  marginHorizontal: -20,
+                  paddingHorizontal: 20,
+                }}
+              >
+                <ThemedText style={{ fontSize: 18, fontWeight: 'bold' }}>
+                  {showDatePicker ? 'Select Date' : 'Filter Events'}
+                </ThemedText>
+                <TouchableOpacity onPress={showDatePicker ? handleCancel : onClose}>
+                  <Feather name="x" size={24} color={themeColors.text} />
+                </TouchableOpacity>
               </View>
-            )}
-          </ThemedView>
+
+              {!showDatePicker ? (
+                <ScrollView>
+                  {filters.map((filter) => (
+                    <TouchableOpacity
+                      key={filter.type}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        padding: 16,
+                        backgroundColor:
+                          filter.type === activeFilter.type
+                            ? themeColors.cardColorsGradientOne
+                            : 'transparent',
+                        borderRadius: 8,
+                        marginBottom: 8,
+                      }}
+                      onPress={() => handleFilterSelect(filter.type)}
+                    >
+                      <Feather
+                        name={filter.icon}
+                        size={20}
+                        color={themeColors.text}
+                        style={{ marginRight: 12 }}
+                      />
+                      <ThemedText style={{ fontSize: 16 }}>{filter.label}</ThemedText>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              ) : (
+                <View>
+                  {renderDatePicker()}
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 }}>
+                    <TouchableOpacity
+                      onPress={handleCancel}
+                      style={{
+                        padding: 12,
+                        backgroundColor: themeColors.cardColorsGradientOne,
+                        borderRadius: 8,
+                        flex: 1,
+                        marginRight: 8,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <ThemedText style={{ fontSize: 16, fontWeight: '600' }}>Cancel</ThemedText>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={handleConfirm}
+                      style={{
+                        padding: 12,
+                        backgroundColor: themeColors.mountainGreen,
+                        borderRadius: 8,
+                        flex: 1,
+                        marginLeft: 8,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <ThemedText style={{ fontSize: 16, fontWeight: '600' }}>Confirm</ThemedText>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+            </ThemedView>
+          </Animated.View>
         </TouchableOpacity>
       </TouchableOpacity>
     </Modal>

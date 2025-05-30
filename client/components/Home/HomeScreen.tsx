@@ -3,24 +3,23 @@ import { ScrollView, RefreshControl } from 'react-native';
 import Header from '@/components/Header';
 import UpcomingEvents from '@/components/Home/UpcomingEvents';
 import { ThemedView } from '@/components/ThemedView';
-import SeeWhatFriendsAreUpTo from '@/components/Home/SeeWhatFriendsAreUpTo';
 import PastEvents from '@/components/Home/PastEvents';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import AISummary from './AISummary';
+import AttentionRequired from './AttentionRequired';
 
 const HomeScreen = () => {
-  const tabBarHeight = useBottomTabBarHeight(); // Get tab bar height dynamically
-  const insets = useSafeAreaInsets(); // Safe area insets
+  const tabBarHeight = useBottomTabBarHeight();
+  const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(true);
   const [refreshingUpcomingEvents, setRefreshingUpcomingEvents] = useState(false);
-  const [refreshingSeeWhatFriendsAreUpTo, setRefreshingSeeWhatFriendsAreUpTo] = useState(false);
+  const [refreshingAttentionRequired, setRefreshingAttentionRequired] = useState(false);
   const [refreshingPastEvents, setRefreshingPastEvents] = useState(false);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     setRefreshingUpcomingEvents(true);
-    setRefreshingSeeWhatFriendsAreUpTo(true);
+    setRefreshingAttentionRequired(true);
     setRefreshingPastEvents(true);
   }, []);
 
@@ -28,8 +27,8 @@ const HomeScreen = () => {
     setRefreshingUpcomingEvents(false);
   }, []);
 
-  const onFinishRefreshSeeWhatFriendsAreUpTo = useCallback(() => {
-    setRefreshingSeeWhatFriendsAreUpTo(false);
+  const onFinishRefreshAttentionRequired = useCallback(() => {
+    setRefreshingAttentionRequired(false);
   }, []);
 
   const onFinishRefreshPastEvents = useCallback(() => {
@@ -39,7 +38,7 @@ const HomeScreen = () => {
   useEffect(() => {
     if (
       !refreshingUpcomingEvents &&
-      !refreshingSeeWhatFriendsAreUpTo &&
+      !refreshingAttentionRequired &&
       !refreshingPastEvents &&
       refreshing
     ) {
@@ -47,13 +46,12 @@ const HomeScreen = () => {
     }
   }, [
     refreshingUpcomingEvents,
-    refreshingSeeWhatFriendsAreUpTo,
+    refreshingAttentionRequired,
     refreshingPastEvents
   ]);
 
   return (
     <ThemedView style={{ flex: 1 }}>
-      {/* Scrollable Content */}
       <ScrollView
         stickyHeaderIndices={[0]}
         stickyHeaderHiddenOnScroll={true}
@@ -73,17 +71,14 @@ const HomeScreen = () => {
         >
           <Header refreshing={refreshing}/>
         </ThemedView>
-        <ThemedView style={{ display: 'flex', flex: 1, flexDirection: 'column', gap: 24, paddingHorizontal: 16, paddingBottom: tabBarHeight }}>
-          {/* <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <AISummary />
-          </ThemedView> */}
-          <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <ThemedView style={{ display: 'flex', flex: 1, flexDirection: 'column', gap: 24, paddingBottom: tabBarHeight }}>
+          <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }}>
             <UpcomingEvents refreshing={refreshing} onFinishRefresh={onFinishRefreshUpcomingEvents} />
           </ThemedView>
-          <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <SeeWhatFriendsAreUpTo refreshing={refreshing} onFinishRefresh={onFinishRefreshSeeWhatFriendsAreUpTo}/>
+          <ThemedView style={{ width: '100%' }}>
+            <AttentionRequired refreshing={refreshing} onFinishRefresh={onFinishRefreshAttentionRequired} />
           </ThemedView>
-          <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }}>
             <PastEvents refreshing={refreshing} onFinishRefresh={onFinishRefreshPastEvents}/>
           </ThemedView>
         </ThemedView>

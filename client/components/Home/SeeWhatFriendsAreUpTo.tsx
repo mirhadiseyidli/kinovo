@@ -8,7 +8,6 @@ import { Colors } from '@/constants/Colors';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useGetMyFriends } from '@/hooks/useGetMyFriends';
 import { Friend, FriendEventActivity } from '@/types/allTypes';
-import { AutoSkeletonView } from 'react-native-auto-skeleton';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDispatch } from 'react-redux';
 import { setEventsForFriend } from '@/store/eventStoriesSlice';
@@ -59,21 +58,26 @@ const SeeWhatFriendsAreUpTo: React.FC<{ refreshing: boolean; onFinishRefresh: ()
         switch (message.type) {
           case 'newFriendEventsSummary':
             if (message.data && Array.isArray(message.data)) {
+              // Create a completely new object to ensure React detects the change
               const activityByFriend: Record<string, { eventCount: number; activityData: FriendEventActivity[] }> = {};
 
               for (const item of message.data) {
                 const friendId = item.friend._id;
                 const events = item.unseen_events || [];
 
-                if (!activityByFriend[friendId]) {
-                  activityByFriend[friendId] = { eventCount: 0, activityData: [] };
+                // Only add friends with unseen events
+                if (events.length > 0) {
+                  activityByFriend[friendId] = { 
+                    eventCount: events.length, 
+                    activityData: events 
+                  };
                 }
-
-                activityByFriend[friendId].eventCount += events.length;
-                activityByFriend[friendId].activityData.push(...events);
               }
-
-              setFriendActivityMap(activityByFriend);
+              
+              // Use functional update to ensure state change is detected
+              setFriendActivityMap(prevMap => {
+                return activityByFriend;
+              });
             }
             break;
         }
@@ -98,59 +102,75 @@ const SeeWhatFriendsAreUpTo: React.FC<{ refreshing: boolean; onFinishRefresh: ()
   const handleFriendPress = (friend_id: string) => {
     // Set events for friend in Redux store for the StoryViewer to use
     const events = friendActivityMap[friend_id]?.activityData || [];
-    console.log('Setting events for friend:', friend_id, 'events count:', events.length, 'events:', events);
     dispatch(setEventsForFriend({ friendId: friend_id, events }));
   };
 
   return (
-    <ThemedView style={{ flex: 1 }}>
+    <ThemedView style={{ flex: 1, width: '100%' }}>
       {/* Header */}
       <ThemedView
         style={{
           flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
+          // justifyContent: 'space-between',
+          alignItems: 'flex-start',
           marginBottom: 16,
           paddingHorizontal: 16,
         }}
       >
-        <AutoSkeletonView 
-          isLoading={refreshing || loading} 
-          shimmerBackgroundColor={themeColors.background} 
-          gradientColors={[
-            themeColors.background, 
-            themeColors.inputBackgroundColor
-          ]}
-        >
-          <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>Friends' Activity</ThemedText>
-        </AutoSkeletonView>
+        <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>Friends' Activity</ThemedText>
       </ThemedView>
 
       {/* Friends List */}
       {Array.isArray(myFriendsList) && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ width: screenWidth }}
-          contentContainerStyle={{ paddingLeft: 16, paddingRight: screenWidth * 0.04 }}
-        >
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            {sortedFriends.map((friend) => (
-              <FriendComponent 
-                key={friend._id} 
-                _id={friend._id}
-                full_name={friend.full_name}
-                username={friend.username}
-                profile_picture={friend.profile_picture}
-                showName={true}
-                refreshing={refreshing || loading}
-                eventCount={friendActivityMap[friend._id]?.eventCount || 0}
-                activityData={friendActivityMap[friend._id]?.activityData || []}
-                onPress={() => handleFriendPress(friend._id)}
-              />
-            ))}
-          </View>
-        </ScrollView>
+        <>
+          {sortedFriends.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ width: screenWidth }}
+              contentContainerStyle={{ paddingLeft: 16, paddingRight: screenWidth * 0.04 }}
+            >
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                {sortedFriends.map((friend) => (
+                  <FriendComponent 
+                    key={`${friend._id}-${friendActivityMap[friend._id]?.eventCount || 0}`}
+                    _id={friend._id}
+                    full_name={friend.full_name}
+                    username={friend.username}
+                    profile_picture={friend.profile_picture}
+                    showName={true}
+                    refreshing={refreshing || loading}
+                    eventCount={friendActivityMap[friend._id]?.eventCount || 0}
+                    activityData={friendActivityMap[friend._id]?.activityData || []}
+                    onPress={() => handleFriendPress(friend._id)}
+                  />
+                ))}
+              </View>
+            </ScrollView>
+          ) : (
+            <ThemedView style={{
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <View style={{ opacity: 0.6, marginBottom: 4 }}>
+                <IconSymbol 
+                  name="person.2.wave.2" 
+                  size={48} 
+                  color={themeColors.icon}
+                />
+              </View>
+              <ThemedText style={{
+                fontSize: 16,
+                fontWeight: '600',
+                color: themeColors.text,
+                opacity: 0.6,
+                textAlign: 'center'
+              }}>
+                No recent friends' activity
+              </ThemedText>
+            </ThemedView>
+          )}
+        </>
       )}
     </ThemedView>
   );

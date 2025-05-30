@@ -88,11 +88,8 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
       }
 
       const response = await axios.post(
-        `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/token/refresh-token`,
-        {}, // No request body, so send an empty object
-        {
-          headers: { Authorization: `Bearer ${refreshToken}` }
-        }
+        `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/auth/refresh`,
+        { refreshToken }
       );
 
       const newAccessToken = response.data.accessToken;

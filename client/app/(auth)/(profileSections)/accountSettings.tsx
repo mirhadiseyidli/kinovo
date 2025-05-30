@@ -24,7 +24,7 @@ const accountSettings = () => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const insets = useSafeAreaInsets();
-  const tabBarHeight = useBottomTabBarHeight(); // Get tab bar height dynamically
+  // const tabBarHeight = useBottomTabBarHeight(); // Get tab bar height dynamically
 
   // if (!user) {
   //   return <Text>Loading...</Text>;
@@ -47,7 +47,7 @@ const accountSettings = () => {
       <ScrollView
         style={{ 
           flex: 1,
-          paddingBottom: tabBarHeight
+          // paddingBottom: tabBarHeight
         }}
         scrollEventThrottle={16}
       >
@@ -81,27 +81,27 @@ const accountSettings = () => {
               <SettingComponent 
                 icon="user-plus" 
                 title="Change Password" 
-                onPress={() => router.push('/(auth)/(tabs)/(profile)/(manageFriends)/AddFriends')} 
+                onPress={() => router.push('/(auth)/(manageFriends)/AddFriends')} 
               />
               <SettingComponent 
                 icon="user-plus" 
                 title="Biometrics & Passkey" 
-                onPress={() => router.push('/(auth)/(tabs)/(profile)/(manageFriends)/AddFriends')} 
+                onPress={() => router.push('/(auth)/(manageFriends)/AddFriends')} 
               />
               <SettingComponent 
                 icon="user-plus" 
                 title="Location Permissions" 
-                onPress={() => router.push('/(auth)/(tabs)/(profile)/(manageFriends)/AddFriends')} 
+                onPress={() => router.push('/(auth)/(manageFriends)/AddFriends')} 
               />
               <SettingComponent 
                 icon="user-plus" 
                 title="Contacts Permissions" 
-                onPress={() => router.push('/(auth)/(tabs)/(profile)/(manageFriends)/AddFriends')} 
+                onPress={() => router.push('/(auth)/(manageFriends)/AddFriends')} 
               />
               <SettingComponent 
                 icon="user-plus" 
                 title="Photo Album Permissions" 
-                onPress={() => router.push('/(auth)/(tabs)/(profile)/(manageFriends)/AddFriends')} 
+                onPress={() => router.push('/(auth)/(manageFriends)/AddFriends')} 
               />
             </ThemedView>
           </ThemedView>

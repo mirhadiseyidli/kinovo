@@ -1,84 +1,33 @@
-import { useAuthSession } from '@/components/Auth/AuthProvider';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
+import { useCallback } from 'react';
+import api from '@/utils/api';
 
 export const useManageFriends = () => {
-  const { refreshAccessToken } = useAuthSession();
+  const sendFriendRequest = useCallback((receiver: string) =>
+    api.post('/api/managefriends/friendrequests/send', { receiver }), []);
 
-  const postWithRetry = async (url: string, data?: any) => {
-    try {
-      const token = await AsyncStorage.getItem('accessToken');
-      return await axios.post(url, data, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-    } catch (error: any) {
-      if (error.response?.status === 401) {
-        await refreshAccessToken();
-        const retryToken = await AsyncStorage.getItem('accessToken');
-        return await axios.post(url, data, {
-          headers: {
-            Authorization: `Bearer ${retryToken}`,
-            'Content-Type': 'application/json',
-          },
-        });
-      } else {
-        throw error;
-      }
-    }
-  };
+  const acceptFriendRequest = useCallback((sender: string) =>
+    api.post('/api/managefriends/friendrequests/accept', { sender }), []);
 
-  const getWithRetry = async (url: string) => {
-    try {
-      const token = await AsyncStorage.getItem('accessToken');
-      return await axios.get(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-    } catch (error: any) {
-      if (error.response?.status === 401) {
-        await refreshAccessToken();
-        const retryToken = await AsyncStorage.getItem('accessToken');
-        return await axios.get(url, {
-          headers: {
-            Authorization: `Bearer ${retryToken}`,
-          },
-        });
-      } else {
-        throw error;
-      }
-    }
-  };
+  const rejectFriendRequest = useCallback((sender: string) =>
+    api.post('/api/managefriends/friendrequests/reject', { sender }), []);
 
-  const sendFriendRequest = (receiver: string) =>
-    postWithRetry(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/managefriends/friendrequests/send`, { receiver });
+  const cancelFriendRequestSender = useCallback((receiver: string) =>
+    api.post('/api/managefriends/friendrequests/sender/cancel', { receiver }), []);
 
-  const acceptFriendRequest = (sender: string) =>
-    postWithRetry(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/managefriends/friendrequests/accept`, { sender });
+  const cancelFriendRequestReceiver = useCallback((sender: string) =>
+    api.post('/api/managefriends/friendrequests/receiver/cancel', { sender }), []);
 
-  const rejectFriendRequest = (sender: string) =>
-    postWithRetry(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/managefriends/friendrequests/reject`, { sender });
+  const getUserFriends = useCallback(() =>
+    api.get('/api/managefriends/user/get/friends'), []);
 
-  const cancelFriendRequestSender = (receiver: string) =>
-    postWithRetry(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/managefriends/friendrequests/sender/cancel`, { receiver });
+  const syncContacts = useCallback((phoneNumbers: (string | undefined)[]) =>
+    api.post('/api/managefriends/user/contacts/sync', { phoneNumbers }), []);
 
-  const cancelFriendRequestReceiver = (sender: string) =>
-    postWithRetry(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/managefriends/friendrequests/receiver/cancel`, { sender });
+  const getReceivedFriendRequests = useCallback(() =>
+    api.get('/api/managefriends/user/get/received/friend/requests'), []);
 
-  const getUserFriends = () =>
-    getWithRetry(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/managefriends/user/get/friends`);
-
-  const syncContacts = (phoneNumbers: (string | undefined)[]) =>
-    postWithRetry(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/managefriends/user/contacts/sync`, { phoneNumbers });
-
-  const getReceivedFriendRequests = () =>
-    getWithRetry(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/managefriends/user/get/received/friend/requests`);
-
-  const removeFriendFromFriendList = (friendId: string) =>
-    postWithRetry(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/managefriends/friends/remove/friend/from/friendslist`, { friendId });
+  const removeFriendFromFriendList = useCallback((friendId: string) =>
+    api.post('/api/managefriends/friends/remove/friend/from/friendslist', { friendId }), []);
 
   return {
     sendFriendRequest,

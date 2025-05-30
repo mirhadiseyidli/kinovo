@@ -2,11 +2,11 @@ import React, { useEffect, useRef, useState, forwardRef, useImperativeHandle } f
 import { FlatList, Dimensions, View, ScrollView } from 'react-native';
 import { MonthViewProps, Event, CalendarHeaderMonthViewRefProps } from '@/types/allTypes';
 import MonthCalendar from './MonthView/MonthCalendar';
-import { useGetMyEventsMonthView } from '@/hooks/useGetMyEventsMonthView';
 import { format } from 'date-fns';
 import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
 import WeekDayNames from './CalendarHeader/WeekDayNames';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useEventContext } from '@/context/EventContext';
 
 const setNewDates = (year: number, month: number) => {
   const prevMonth = month === 0 ? { year: year - 1, month: 11 } : { year, month: month - 1 };
@@ -25,8 +25,7 @@ const MonthView = forwardRef<CalendarHeaderMonthViewRefProps, MonthViewProps>(({
   const screenWidth = Dimensions.get('window').width;
   const monthKeys = setNewDates(dates.year, dates.month);
   const listRef = useRef<FlatList>(null);
-  const [events, setEvents] = useState<Event[]>([]);
-  const { fetchMyEventsMonthView, loading } = useGetMyEventsMonthView();
+  const { fetchEventsForMonth, refreshEvents, loading } = useEventContext();
   const tabBarHeight = useBottomTabBarHeight();
   const key = fromDropdownRef?.current
     ? `month-${currentDateRef.current.getFullYear()}-${currentDateRef.current.getMonth()}`
@@ -39,14 +38,17 @@ const MonthView = forwardRef<CalendarHeaderMonthViewRefProps, MonthViewProps>(({
   }));
 
   useEffect(() => {
-    const getEventsData = async () => {
-      const eventsData = await fetchMyEventsMonthView(dates.month, dates.year);
-      setEvents(eventsData?.events);
+    const fetchEvents = async () => {
+      if (refreshing) {
+        await refreshEvents();
+      } else {
+        await fetchEventsForMonth(dates.month, dates.year);
+      }
       onFinishRefresh();
     };
 
-    getEventsData();
-  }, [refreshing]);
+    fetchEvents();
+  }, [refreshing, dates.month, dates.year]);
 
   const prependMonth = () => {
     setTimeout(() => {
@@ -84,40 +86,41 @@ const MonthView = forwardRef<CalendarHeaderMonthViewRefProps, MonthViewProps>(({
   };
 
   return (
-    <FlatList
-      ref={listRef}
-      horizontal
-      pagingEnabled
-      showsHorizontalScrollIndicator={false}
-      data={monthKeys}
-      keyExtractor={(item) => `${item.year}-${item.month}`}
-      renderItem={({ item }) => (
-        <ScrollView 
-          style={{ width: screenWidth, height: 'auto', paddingBottom: tabBarHeight }}
-          showsVerticalScrollIndicator={false}
-          stickyHeaderHiddenOnScroll={false}
-          stickyHeaderIndices={[0]}
-        >
-          <WeekDayNames 
-            refreshing={refreshing}
-          />
-          <MonthCalendar
-            monthDate={new Date(item.year, item.month, 1)}
-            refreshing={refreshing}
-            loading={loading}
-            eventsData={events}
-            handleMonthYearChange={handleMonthYearChange}
-          />
-        </ScrollView>
-      )}
-      initialScrollIndex={1}
-      getItemLayout={(_, index) => ({
-        length: screenWidth,
-        offset: screenWidth * index,
-        index,
-      })}
-      onMomentumScrollEnd={handleMomentumScrollEnd}
-    />
+    <View style={{ flex: 1, width: screenWidth }}>
+      <FlatList
+        ref={listRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        data={monthKeys}
+        keyExtractor={(item) => `${item.year}-${item.month}`}
+        renderItem={({ item }) => (
+          <ScrollView 
+            style={{ width: screenWidth, height: 'auto', paddingBottom: tabBarHeight }}
+            showsVerticalScrollIndicator={false}
+            stickyHeaderHiddenOnScroll={false}
+            stickyHeaderIndices={[0]}
+          >
+            <WeekDayNames 
+              refreshing={refreshing}
+            />
+            <MonthCalendar
+              monthDate={new Date(item.year, item.month, 1)}
+              refreshing={refreshing}
+              loading={loading}
+              handleMonthYearChange={handleMonthYearChange}
+            />
+          </ScrollView>
+        )}
+        initialScrollIndex={1}
+        getItemLayout={(_, index) => ({
+          length: screenWidth,
+          offset: screenWidth * index,
+          index,
+        })}
+        onMomentumScrollEnd={handleMomentumScrollEnd}
+      />
+    </View>
   );
 });
 

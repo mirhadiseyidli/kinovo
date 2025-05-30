@@ -24,8 +24,7 @@ const AuthButton: React.FC<AuthButtonProps & { disabled?: boolean }> = ({ onPres
       disabled={disabled}
       onLayout={handleLayout}
       style={{
-        flexShrink: 1,
-        height: '100%',
+        height: 72,
         aspectRatio: 1, // Keeps it square
         backgroundColor,
         borderRadius: 16, // Makes it fully rounded

@@ -1,5 +1,5 @@
 // components/Calendar/WeekView.tsx
-import React, { useState, useRef, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { View, FlatList, Dimensions, ScrollView, Animated as RNAnimated, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { addDays, startOfWeek } from 'date-fns';
 import HourList from './WeekView/HourList';
@@ -11,6 +11,7 @@ import { Colors } from '@/constants/Colors';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { ThemedView } from '../ThemedView';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { useEventContext } from '@/context/EventContext';
 
 const HOURS = Array.from({ length: 25 }, (_, i) => i);
 const screenWidth = Dimensions.get('window').width;
@@ -38,6 +39,7 @@ const WeekView = forwardRef(({ handleMonthYearChange, fromDropdownRef }: WeekVie
   const tabBarHeight = useBottomTabBarHeight();
   const sharedX = React.useRef(new RNAnimated.Value(0)).current;
   const weekPages = buildWeekPages(selectedDate);
+  const { fetchEventsForWeek } = useEventContext();
 
   useImperativeHandle(ref, () => ({
     update: (date: Date) => {
@@ -47,6 +49,11 @@ const WeekView = forwardRef(({ handleMonthYearChange, fromDropdownRef }: WeekVie
     }
   }));
 
+  useEffect(() => {
+    // Fetch events for the current week when the component mounts or date changes
+    fetchEventsForWeek(selectedDate);
+  }, [selectedDate, fetchEventsForWeek]);
+
   const handleMomentumScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { x } = event.nativeEvent.contentOffset;
     const page = Math.round(x / (screenWidth - 50));
@@ -55,13 +62,16 @@ const WeekView = forwardRef(({ handleMonthYearChange, fromDropdownRef }: WeekVie
       setSelectedDate(newDate);
       handleMonthYearChange(newDate.getMonth(), newDate.getFullYear(), newDate.getDay(), false);
       pagesListRef.current?.scrollToIndex({ index: 1, animated: false });
+      
+      // Fetch events for the new week
+      fetchEventsForWeek(newDate);
     }
   };
 
   return (
     <ScrollView 
       style={{ width: screenWidth }}
-      contentContainerStyle={{ flexDirection: 'column', paddingBottom: tabBarHeight }}
+      contentContainerStyle={{ flexDirection: 'column', paddingBottom: 8 }}
       showsVerticalScrollIndicator={false}
       bounces={true}
       stickyHeaderHiddenOnScroll={false}
