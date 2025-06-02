@@ -9,6 +9,7 @@ const {
   getUser,
   getUserFriendByEmailSearch,
   getUserFriendByNameSearch,
+  markStoriesViewed,
 } = require('../controllers/userController');
 const { authMiddleware, checkRole } = require('../utils/authMiddleware');
 
@@ -27,7 +28,8 @@ router.post('/user/create', authMiddleware, createUser);
 router.get('/user/get/profile', authMiddleware, getUser, getUserProfile);
 router.get('/me/friends/search/by/email', authMiddleware, getUserFriendByEmailSearch, getUserProfile);
 router.get('/me/friends/search/by/name', authMiddleware, getUserFriendByNameSearch, getUserProfile);
-router.delete('/:id', getUser, deleteUsers);
+router.delete('/:id', authMiddleware, getUser, deleteUsers);
 router.patch('/user/edit/myprofile', authMiddleware, editMyProfile);
+router.post('/user/stories/mark-viewed', authMiddleware, markStoriesViewed);
 
 module.exports = router;

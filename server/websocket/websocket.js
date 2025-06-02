@@ -1,10 +1,10 @@
 // websocketServer.js
 const WebSocket = require('ws');
 const { handleMessage } = require('./websocketMessageRouter');
+const { connectedUsers, removeConnectedUser } = require('./websocketUtils');
 
 const initWebSocket = () => {
   const wss = new WebSocket.Server({ port: 6000 });
-  const connectedUsers = new Map();
 
   wss.on('connection', (ws) => {
     console.log('Client connected');
@@ -15,7 +15,9 @@ const initWebSocket = () => {
 
     ws.on('close', () => {
       for (const [userId, socket] of connectedUsers.entries()) {
-        if (socket === ws) connectedUsers.delete(userId);
+        if (socket === ws) {
+          removeConnectedUser(userId);
+        }
       }
     });
   });

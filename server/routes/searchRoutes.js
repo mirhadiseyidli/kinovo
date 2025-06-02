@@ -5,6 +5,6 @@ const { authMiddleware, checkRole } = require('../utils/authMiddleware');
 const router = express.Router();
 
 router.get('/users', authMiddleware, searchPeople);
-router.get('/discover/search/everything', authMiddleware, searchRelevantEvents);
+router.get('/events', authMiddleware, searchRelevantEvents);
 
 module.exports = router;

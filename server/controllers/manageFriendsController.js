@@ -1,5 +1,7 @@
 const FriendRequest = require('../database/schemas/friendRequestsSchema');
 const Users = require('../database/schemas/usersSchema');
+const { sendNotificationToUser } = require('../websocket/websocketUtils');
+const { createFriendRequestNotification, updateFriendRequestNotificationStatus, createNotification } = require('./notificationsController');
 
 // Send friend request
 const sendFriendRequest = async (req, res) => {
@@ -42,6 +44,9 @@ const sendFriendRequest = async (req, res) => {
 
     await friendRequest.save();
 
+    // Note: The friend request watcher will automatically send the WebSocket notification
+    // No need to create a separate notification here to avoid duplicates
+
     res.status(200).json({ message: 'Friend request sent successfully', friendRequest });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -70,6 +75,31 @@ const acceptFriendRequest = async (req, res) => {
     await Users.findByIdAndUpdate(receiver, { $addToSet: { friends: sender } });
     await Users.findByIdAndUpdate(sender, { $addToSet: { friends: receiver } });
 
+    // Send WebSocket notification to receiver that friend request was accepted
+    sendNotificationToUser(receiver.toString(), {
+      type: 'friendRequestAccepted',
+      requestId: friendRequest._id.toString()
+    });
+
+    // Create a notification for the sender that their request was accepted
+    const receiverUser = await Users.findById(receiver);
+    if (receiverUser) {
+      const notification = await createNotification({
+        recipient: sender,
+        sender: receiver,
+        type: 'friend_request_accepted',
+        title: 'Friend Request Accepted',
+        subtitle: `${receiverUser.full_name} accepted your friend request`,
+        status: 'unseen'
+      });
+
+      // Send real-time notification via WebSocket
+      sendNotificationToUser(sender.toString(), {
+        type: 'newNotification',
+        data: notification
+      });
+    }
+
     res.status(200).json({ message: 'Friend request accepted', friendRequest });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -95,6 +125,31 @@ const rejectFriendRequest = async (req, res) => {
       return res.status(404).json({ error: 'Friend request not found or invalid sender/receiver' });
     }
 
+    // Send WebSocket notification to receiver that friend request was rejected
+    sendNotificationToUser(receiver.toString(), {
+      type: 'friendRequestRejected',
+      requestId: friendRequest._id.toString()
+    });
+
+    // Create a notification for the sender that their request was rejected
+    const receiverUser = await Users.findById(receiver);
+    if (receiverUser) {
+      const notification = await createNotification({
+        recipient: sender,
+        sender: receiver,
+        type: 'friend_request_rejected',
+        title: 'Friend Request Declined',
+        subtitle: `${receiverUser.full_name} declined your friend request`,
+        status: 'unseen'
+      });
+
+      // Send real-time notification via WebSocket
+      sendNotificationToUser(sender.toString(), {
+        type: 'newNotification',
+        data: notification
+      });
+    }
+
     res.status(200).json({ message: 'Friend request rejected', friendRequest });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -115,13 +170,38 @@ const cancelFriendRequestSender = async (req, res) => {
       return res.status(400).json({ message: 'Receiver ID is required' });
     }
 
-    const friendRequest = await FriendRequest.findOneAndDelete({ sender, receiver, status: 'pending' });
+    // Find the friend request first to get the ID before deleting
+    const friendRequest = await FriendRequest.findOne({ sender, receiver, status: 'pending' });
     if (!friendRequest) {
       return res.status(404).json({ error: 'Friend request not found or cannot be cancelled' });
     }
 
+    const friendRequestId = friendRequest._id.toString();
+    console.log(`Cancelling friend request ${friendRequestId} from ${sender} to ${receiver}`);
+
+    // Send WebSocket notification to receiver BEFORE deleting anything
+    console.log(`Sending WebSocket cancellation message to receiver ${receiver} for request ${friendRequestId}`);
+    const websocketSent = sendNotificationToUser(receiver.toString(), {
+      type: 'friendRequestCancelled',
+      requestId: friendRequestId
+    });
+    console.log(`WebSocket message sent successfully: ${websocketSent}`);
+
+    // Delete the friend request
+    const deletedRequest = await FriendRequest.findByIdAndDelete(friendRequest._id);
+    console.log(`Deleted friend request:`, deletedRequest ? 'SUCCESS' : 'FAILED');
+
+    // Remove any related notifications for this friend request
+    const Notification = require('../database/schemas/notificationsSchema');
+    const deletedNotifications = await Notification.deleteMany({ 
+      friend_request: friendRequest._id,
+      type: 'friend_request'
+    });
+    console.log(`Deleted ${deletedNotifications.deletedCount} notifications for friend request ${friendRequestId}`);
+
     res.status(200).json({ message: 'Friend request cancelled successfully', friendRequest });
   } catch (error) {
+    console.error('Error cancelling friend request:', error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -139,13 +219,36 @@ const cancelFriendRequestReceiver = async (req, res) => {
       return res.status(400).json({ message: 'Sender ID is required' });
     }
 
-    const friendRequest = await FriendRequest.findOneAndDelete({ sender, receiver, status: 'pending' });
+    // Find the friend request first to get the ID before deleting
+    const friendRequest = await FriendRequest.findOne({ sender, receiver, status: 'pending' });
     if (!friendRequest) {
       return res.status(404).json({ error: 'Friend request not found or cannot be cancelled' });
     }
 
+    const friendRequestId = friendRequest._id.toString();
+    console.log(`Receiver ${receiver} cancelling friend request ${friendRequestId} from ${sender}`);
+
+    // Delete the friend request
+    await FriendRequest.findByIdAndDelete(friendRequest._id);
+
+    // Remove any related notifications for this friend request
+    const Notification = require('../database/schemas/notificationsSchema');
+    const deletedNotifications = await Notification.deleteMany({ 
+      friend_request: friendRequest._id,
+      type: 'friend_request'
+    });
+    console.log(`Deleted ${deletedNotifications.deletedCount} notifications for friend request ${friendRequestId}`);
+
+    // Send WebSocket notification to receiver that friend request was cancelled
+    console.log(`Sending WebSocket cancellation message to receiver ${receiver}`);
+    sendNotificationToUser(receiver.toString(), {
+      type: 'friendRequestCancelled',
+      requestId: friendRequestId
+    });
+
     res.status(200).json({ message: 'Friend request cancelled successfully', friendRequest });
   } catch (error) {
+    console.error('Error cancelling friend request:', error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -218,7 +321,33 @@ const getReceivedFriendRequests = async (req, res) => {
 
     const receiverId = req.user._id;
     const requests = await FriendRequest.find({ receiver: receiverId, status: 'pending' }).populate('sender');
-    res.status(200).json({ requests });
+    
+    // Get receiver's friends list to calculate mutual friends
+    const receiver = await Users.findById(receiverId).select('friends');
+    const receiverFriends = receiver?.friends || [];
+    
+    // Calculate mutual friends count for each request
+    const requestsWithMutualFriends = await Promise.all(
+      requests.map(async (request) => {
+        // Get sender's friends list
+        const sender = await Users.findById(request.sender._id).select('friends');
+        const senderFriends = sender?.friends || [];
+        
+        // Find mutual friends by comparing friend arrays
+        const mutualFriends = receiverFriends.filter(receiverFriendId => 
+          senderFriends.some(senderFriendId => 
+            receiverFriendId.toString() === senderFriendId.toString()
+          )
+        );
+        
+        return {
+          ...request.toObject(),
+          mutualFriendsCount: mutualFriends.length
+        };
+      })
+    );
+    
+    res.status(200).json({ requests: requestsWithMutualFriends });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

@@ -40,9 +40,9 @@ export default function Auth() {
         bounces={false}
         keyboardShouldPersistTaps="handled"
         style={{ flex: 1 }}
-        contentContainerStyle={{ flexGrow: 1, justifyContent: 'space-between' }}
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'space-between', paddingBottom: insets.bottom }}
         showsVerticalScrollIndicator={false}
-        scrollEnabled={false}
+        scrollEnabled={true}
       >
         <View style={{ flex: 1 }}>
           {/* Logo and Company Name Section */}
@@ -81,19 +81,19 @@ export default function Auth() {
                 style={{
                   flex: 1,
                   height: 1,
-                  backgroundColor: themeColors.textSecondary,
+                  backgroundColor: themeColors.border,
                 }}
               />
               <ThemedText
                 style={{
                   marginHorizontal: 16,
-                  color: themeColors.textSecondary,
+                  color: themeColors.border,
                   textAlign: 'center',
                 }}
               >
                 or continue with
               </ThemedText>
-              <ThemedView style={{ flex: 1, height: 1, backgroundColor: themeColors.text }} />
+              <ThemedView style={{ flex: 1, height: 1, backgroundColor: themeColors.border }} />
             </ThemedView>
 
             {/* OAuth Buttons */}
@@ -109,13 +109,7 @@ export default function Auth() {
         <ThemedView style={{ 
           flexDirection: 'row', 
           alignItems: 'center', 
-          justifyContent: 'center', 
-          paddingVertical: 16,
-          position: 'relative',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          marginBottom: 16
+          justifyContent: 'center'
         }}>
           <ThemedText>Don't have an account?</ThemedText>
           <TouchableOpacity onPress={() => router.push('/login/signUp')}>

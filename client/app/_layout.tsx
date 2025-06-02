@@ -23,9 +23,7 @@ export default function RootLayout() {
       <Provider store={store}>
         <KeyboardProvider>
           <AuthProvider>
-            <NotificationProvider>
-              <InnerLayout />
-            </NotificationProvider>
+            <InnerLayout />
           </AuthProvider>
         </KeyboardProvider>
       </Provider>

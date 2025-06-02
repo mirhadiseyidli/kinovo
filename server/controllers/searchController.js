@@ -34,6 +34,8 @@ const searchRelevantEvents = async (req, res) => {
     const userId = req.user._id;
     const term = req.query.query; // Extract search term from query
     
+    console.log('Search events - userId:', userId, 'term:', term); // Debug log
+    
     if (!term) {
       return res.status(400).json({ error: 'Search term is required.' });
     }
@@ -42,12 +44,25 @@ const searchRelevantEvents = async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
+    // Debug: Check if any events with 'test' exist at all
+    const allTestEvents = await Events.find({
+      title: { $regex: term, $options: 'i' }
+    });
+    console.log('All events matching term:', allTestEvents.map(e => ({ 
+      title: e.title, 
+      visibility: e.visibility, 
+      creator: e.creator,
+      _id: e._id 
+    }))); // Debug log
+
     // Fetch the user's friends (assumes `friends` is an array of ObjectIds on the user schema)
     const user = await User.findById(userId).select('friends');
     const friendIds = user?.friends || [];
+    
+    console.log('User friends:', friendIds); // Debug log
 
     // Build the query with term matching on title and description
-    const events = await Events.find({
+    const query = {
       $and: [
         {
           $or: [
@@ -63,7 +78,14 @@ const searchRelevantEvents = async (req, res) => {
           ]
         }
       ]
-    }).sort({ start_time: 1 });
+    };
+    
+    console.log('Events query:', JSON.stringify(query, null, 2)); // Debug log
+    
+    const events = await Events.find(query).sort({ start_time: 1 });
+    
+    console.log('Found events:', events.length); // Debug log
+    console.log('Events:', events.map(e => ({ title: e.title, visibility: e.visibility, creator: e.creator }))); // Debug log
 
     res.status(200).json(events);
   } catch (err) {

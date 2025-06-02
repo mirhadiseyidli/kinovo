@@ -9,7 +9,6 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import TwoFactorAuth from '@/components/Auth/TwoFactorAuth';
-import auth from '@react-native-firebase/auth';
 import AnimatedCheckBox from '@/components/AnimatedCheckBox';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -35,7 +34,7 @@ const SignUpContent: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [showPhoneInput, setShowPhoneInput] = useState(false);
   const [show2FA, setShow2FA] = useState(false);
-  const [verificationId, setVerificationId] = useState('');
+  const [confirm, setConfirm] = useState<any>(null);
   const [touched, setTouched] = useState({
     firstName: false,
     lastName: false,
@@ -67,8 +66,22 @@ const SignUpContent: React.FC = () => {
     
     const date = new Date(dob);
     const today = new Date();
+    
+    // Check if it's a valid date
+    if (isNaN(date.getTime())) return false;
+    
+    // Check month and day validity
+    const [year, month, day] = dob.split('-').map(Number);
+    const monthDays = new Date(year, month, 0).getDate();
+    if (month < 1 || month > 12 || day < 1 || day > monthDays) return false;
+    
+    // Calculate age
     const age = today.getFullYear() - date.getFullYear();
-    return age >= 13 && age <= 120;
+    const monthDiff = today.getMonth() - date.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
+      return age - 1 >= 13;
+    }
+    return age >= 13;
   };
 
   const validatePhone = (phone: string) => {
@@ -93,14 +106,8 @@ const SignUpContent: React.FC = () => {
   const getFullPhoneNumber = (phone: string) => {
     // Remove all non-digit characters
     const cleaned = phone.replace(/\D/g, '');
-    console.log('Phone number cleaning:', {
-      original: phone,
-      cleaned: cleaned
-    });
     // Ensure we have exactly 10 digits and prefix with +1
-    const formatted = cleaned.length === 10 ? `+1${cleaned}` : '';
-    console.log('Final formatted number:', formatted);
-    return formatted;
+    return cleaned.length === 10 ? `+1${cleaned}` : '';
   };
 
   const handleFieldChange = (field: string, value: string) => {
@@ -114,42 +121,75 @@ const SignUpContent: React.FC = () => {
       phone: setPhoneNumber
     };
 
+    // Initialize error variable
+    let error = '';
+
     if (field === 'phone') {
       // Format the phone number for display
       const formattedPhone = formatPhoneNumber(value);
       setters[field](formattedPhone);
+    } else if (field === 'dob') {
+      // Remove any non-digits
+      const cleaned = value.replace(/\D/g, '');
+      
+      // Format for display (MM/DD/YYYY)
+      let formatted = '';
+      if (cleaned.length > 0) {
+        // Handle month
+        formatted = cleaned.slice(0, 2);
+        if (cleaned.length > 2) {
+          formatted += '/' + cleaned.slice(2, 4);
+          if (cleaned.length > 4) {
+            formatted += '/' + cleaned.slice(4, 8);
+          }
+        }
+      }
+      
+      // Only update if it's a valid partial date or empty
+      if (cleaned.length <= 8) {
+        setters[field](formatted);
+      }
+      
+      // Validate the date if we have all 8 digits
+      if (cleaned.length === 8) {
+        const month = cleaned.slice(0, 2);
+        const day = cleaned.slice(2, 4);
+        const year = cleaned.slice(4, 8);
+        
+        // Convert to YYYY-MM-DD format for validation
+        const isoDate = `${year}-${month}-${day}`;
+        error = !validateDOB(isoDate) ? 'Invalid date or age must be 13+' : '';
+      }
     } else {
       setters[field](value);
     }
     
     setTouched(prev => ({ ...prev, [field]: true }));
     
-    // Field-specific validation
-    let error = '';
-    switch (field) {
-      case 'firstName':
-      case 'lastName':
-        error = !value.trim() ? `${field === 'firstName' ? 'First' : 'Last'} name is required` : '';
-        break;
-      case 'email':
-        error = !validateEmail(value) ? 'Invalid email address' : '';
-        break;
-      case 'password':
-        error = value.length < 6 ? 'Password must be at least 6 characters' : '';
-        break;
-      case 'confirmPassword':
-        error = value !== password ? 'Passwords do not match' : '';
-        break;
-      case 'dob':
-        error = !validateDOB(value) ? 'Invalid date (YYYY-MM-DD) or age must be 13+' : '';
-        break;
-      case 'phone':
-        if (value) {
-          const cleaned = value.replace(/\D/g, '');
-          error = cleaned.length < 10 ? 'Please enter a complete phone number' : 
-                 cleaned.length > 10 ? 'Phone number should be 10 digits' : '';
-        }
-        break;
+    // Field-specific validation if error hasn't been set
+    if (!error) {
+      switch (field) {
+        case 'firstName':
+        case 'lastName':
+          error = !value.trim() ? `${field === 'firstName' ? 'First' : 'Last'} name is required` : '';
+          break;
+        case 'email':
+          error = !validateEmail(value) ? 'Invalid email address' : '';
+          break;
+        case 'password':
+          error = value.length < 6 ? 'Password must be at least 6 characters' : '';
+          break;
+        case 'confirmPassword':
+          error = value !== password ? 'Passwords do not match' : '';
+          break;
+        case 'phone':
+          if (value) {
+            const cleaned = value.replace(/\D/g, '');
+            error = cleaned.length < 10 ? 'Please enter a complete phone number' : 
+                   cleaned.length > 10 ? 'Phone number should be 10 digits' : '';
+          }
+          break;
+      }
     }
     setErrors(prev => ({ ...prev, [field]: error }));
   };
@@ -187,11 +227,31 @@ const SignUpContent: React.FC = () => {
   };
 
   const validateStep3 = () => {
-    const newErrors = {
+    const newErrors: {
+      firstName: string;
+      lastName: string;
+      dob: string;
+    } = {
       firstName: !firstName.trim() ? 'First name is required' : '',
       lastName: !lastName.trim() ? 'Last name is required' : '',
-      dob: !validateDOB(dob) ? 'Invalid date (YYYY-MM-DD) or age must be 13+' : '',
+      dob: ''
     };
+
+    // Handle DOB validation
+    if (dob) {
+      const cleaned = dob.replace(/\D/g, '');
+      if (cleaned.length === 8) {
+        const month = cleaned.slice(0, 2);
+        const day = cleaned.slice(2, 4);
+        const year = cleaned.slice(4, 8);
+        const isoDate = `${year}-${month}-${day}`;
+        newErrors.dob = !validateDOB(isoDate) ? 'Invalid date or age must be 13+' : '';
+      } else {
+        newErrors.dob = 'Please enter a complete date';
+      }
+    } else {
+      newErrors.dob = 'Date of birth is required';
+    }
 
     setErrors(prev => ({ ...prev, ...newErrors }));
     setTouched(prev => ({
@@ -225,6 +285,18 @@ const SignUpContent: React.FC = () => {
     }
   };
 
+  const getDateForSubmission = (displayDate: string): string => {
+    if (!displayDate) return '';
+    const cleaned = displayDate.replace(/\D/g, '');
+    if (cleaned.length !== 8) return '';
+    
+    const month = cleaned.slice(0, 2);
+    const day = cleaned.slice(2, 4);
+    const year = cleaned.slice(4, 8);
+    
+    return `${year}-${month}-${day}`;
+  };
+
   const handleSignUp = async () => {
     if (!validateStep3()) {
       const errorMessages = Object.values(errors).filter(error => error !== '');
@@ -234,89 +306,110 @@ const SignUpContent: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await axios.post(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/auth/signup`, {
-        firstName,
-        lastName,
-        email,
+      // Format date of birth
+      const formattedDob = getDateForSubmission(dob);
+      
+      // Format phone number
+      const cleanedPhone = phoneNumber.replace(/\D/g, '');
+      if (cleanedPhone.length !== 10) {
+        throw new Error('Invalid phone number format');
+      }
+
+      // Create the request payload
+      const signupData = {
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        full_name: `${firstName.trim()} ${lastName.trim()}`,
+        email: email.trim().toLowerCase(),
         password,
-        dob,
-        phoneNumber
-      });
+        date_of_birth: formattedDob,
+        phone_number: {
+          country_code: "1",
+          area_code: cleanedPhone.substring(0, 3),
+          phone_num: cleanedPhone.substring(3),
+          full_num: `+1${cleanedPhone}`
+        },
+        username: email.trim().toLowerCase(),
+      };
+
+      console.log('Sending signup data:', signupData);
+
+      const response = await axios.post(
+        `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/auth/signup`,
+        signupData
+      );
 
       if (response.data.success) {
         router.replace('/');
       }
     } catch (error: any) {
+      console.error('Signup error:', error.response?.data || error.message);
       setLoading(false);
-      Alert.alert('Registration Failed', error.response?.data?.message || 'An error occurred during registration');
+      Alert.alert(
+        'Registration Failed',
+        error.response?.data?.message || error.message || 'An error occurred during registration'
+      );
     }
   };
 
   const handleSendVerificationCode = async () => {
     try {
-      console.log('Current phone number state:', phoneNumber);
-      
       if (!validatePhone(phoneNumber)) {
-        console.log('Phone validation failed');
         Alert.alert('Invalid Phone Number', 'Please enter a valid 10-digit US phone number');
         return;
       }
 
-      setLoading(true);
-      const fullPhoneNumber = getFullPhoneNumber(phoneNumber);
-      
-      console.log('Phone number validation:', {
-        input: phoneNumber,
-        cleaned: phoneNumber.replace(/\D/g, ''),
-        formatted: fullPhoneNumber,
-        length: fullPhoneNumber.length,
-        startsWithPlus1: fullPhoneNumber.startsWith('+1')
-      });
-
-      // Additional validation to ensure we have a valid E.164 format
-      if (!fullPhoneNumber || fullPhoneNumber.length !== 12 || !fullPhoneNumber.startsWith('+1')) {
-        console.log('E.164 format validation failed');
-        throw new Error('Invalid phone number format');
+      // Clean the phone number
+      const cleanedPhone = phoneNumber.replace(/\D/g, '');
+      if (cleanedPhone.length !== 10) {
+        Alert.alert('Invalid Phone Number', 'Please enter a valid 10-digit US phone number');
+        return;
       }
 
-      console.log('Attempting to send verification code to:', fullPhoneNumber);
-
-      const confirmation = await auth().signInWithPhoneNumber(fullPhoneNumber);
-      console.log('Verification confirmation received');
-      
-      setVerificationId(confirmation.verificationId);
+      // Show 2FA screen
       setShow2FA(true);
     } catch (error: any) {
-      console.error('Phone verification error details:', {
-        errorCode: error.code,
-        errorMessage: error.message,
-        fullError: error
-      });
-      
-      let errorMessage = 'Failed to send verification code';
-      
-      if (error.code === 'auth/invalid-phone-number' || error.message === 'Invalid phone number format') {
-        errorMessage = 'Please enter a valid 10-digit US phone number';
-      } else if (error.code === 'auth/argument-error') {
-        errorMessage = 'Please enter a complete 10-digit phone number';
-      } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = 'Too many attempts. Please try again later.';
-      }
-      
-      Alert.alert('Verification Failed', errorMessage);
+      console.error('Phone verification error:', error);
+      Alert.alert(
+        'Verification Failed',
+        error.message || 'Failed to initiate phone verification. Please try again.'
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const handleVerificationSuccess = (accessToken: string, refreshToken: string, userId: string) => {
-    // Handle successful verification and login
-    router.replace('/');
+  const handleVerificationSuccess = async (verificationId: string, verificationCode: string) => {
+    try {
+      setLoading(true);
+      
+      // Send verification details to your backend
+      const response = await axios.post(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/auth/verify-phone`, {
+        verificationId,
+        verificationCode,
+        phoneNumber,
+        email,
+        password,
+      });
+
+      if (response.data.success) {
+        // Move to the next step
+        setCurrentStep(3);
+        setShow2FA(false);
+      } else {
+        Alert.alert('Verification Failed', response.data.message || 'Failed to verify phone number');
+      }
+    } catch (error: any) {
+      console.error('Verification error:', error);
+      Alert.alert('Error', error.response?.data?.message || 'Failed to complete verification');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCancel2FA = () => {
     setShow2FA(false);
-    router.replace('/login');
+    setCurrentStep(2);
   };
 
   const renderStepIndicator = () => (
@@ -442,7 +535,6 @@ const SignUpContent: React.FC = () => {
           borderWidth: (touched.firstName && errors.firstName) ? 1 : 0,
           borderColor: (touched.firstName && errors.firstName) ? 'red' : '#D1D5DB',
         }}
-        leftIcon={<Feather name="user" size={18} color={themeColors.placeholderTextColor} />}
       />
 
       <Input
@@ -461,29 +553,28 @@ const SignUpContent: React.FC = () => {
           borderWidth: (touched.lastName && errors.lastName) ? 1 : 0,
           borderColor: (touched.lastName && errors.lastName) ? 'red' : '#D1D5DB',
         }}
-        leftIcon={<Feather name="user" size={18} color={themeColors.placeholderTextColor} />}
       />
 
       <Input
         value={dob}
         onChangeText={(value) => handleFieldChange('dob', value)}
-        placeholder="Date of Birth (YYYY-MM-DD)"
+        placeholder="Date of Birth (MM/DD/YYYY)"
         keyboardType="numeric"
+        maxLength={10}
         style={{
           backgroundColor: themeColors.inputBackgroundColor,
           borderRadius: 8,
           paddingHorizontal: 16,
           height: 44,
-          marginBottom: 48,
+          marginBottom: 4,
           fontSize: 16,
           color: themeColors.text,
           borderWidth: (touched.dob && errors.dob) ? 1 : 0,
           borderColor: (touched.dob && errors.dob) ? 'red' : '#D1D5DB',
         }}
-        leftIcon={<Feather name="calendar" size={18} color={themeColors.placeholderTextColor} />}
       />
 
-      <ThemedView style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 48 }}>
+      <ThemedView style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 24 }}>
         <AnimatedCheckBox
           value={isAgreedToTerms}
           onValueChange={setIsAgreedToTerms}
@@ -491,7 +582,7 @@ const SignUpContent: React.FC = () => {
           tintColors={{ true: themeColors.mountainGreen, false: themeColors.text }}
           style={{ height: 18, width: 18 }}
         />
-        <ThemedView style={{ marginLeft: 8, flex: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
+        <ThemedView style={{ marginLeft: 4, flex: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
           <ThemedText style={{ fontSize: 14, lineHeight: 20 }}>
             I agree to the{' '}
           </ThemedText>
@@ -526,10 +617,12 @@ const SignUpContent: React.FC = () => {
   if (show2FA) {
     return (
       <TwoFactorAuth
-        verificationId={verificationId}
         phoneNumber={phoneNumber}
         onVerificationSuccess={handleVerificationSuccess}
-        onCancel={handleCancel2FA}
+        onCancel={() => {
+          setShow2FA(false);
+          setCurrentStep(2);
+        }}
       />
     );
   }
@@ -563,7 +656,7 @@ const SignUpContent: React.FC = () => {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={{ flex: 1 }}
+      style={{ flex: 1, paddingTop: insets.top, backgroundColor: 'red' }}
     >
       <ScrollView
         bounces={false}
@@ -571,98 +664,93 @@ const SignUpContent: React.FC = () => {
         style={{ flex: 1 }}
         contentContainerStyle={{ 
           flexGrow: 1,
-          justifyContent: 'space-between'
+          justifyContent: 'space-between',
+          paddingBottom: insets.bottom
         }}
         showsVerticalScrollIndicator={false}
         automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         keyboardDismissMode="none"
-        scrollEnabled={false}
+        scrollEnabled={true}
       >
-        <ThemedView style={{ 
-          flex: 1, 
-          paddingHorizontal: 16,
-          paddingTop: Platform.OS === 'ios' ? 20 : 0
-        }}>
-          {/* Top Section: Logo + Steps */}
-          <ThemedView>
-            {/* Logo and Company Name Section */}
-            <ThemedView style={{ 
-              flexDirection: 'column', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              marginBottom: 32,
-              marginTop: Platform.OS === 'ios' ? 0 : 20
-            }}>
-              <Image
-                source={require('@/assets/logo_2.png')}
-                style={{
-                  width: width * 0.45,
-                  height: width * 0.45,
-                  resizeMode: 'contain',
-                  bottom: 0,
-                }}
-              />
-              <ThemedText style={{ fontSize: 40, fontFamily: 'Helvetica Neue Bold', fontWeight: 'bold', letterSpacing: -1, alignSelf: 'center' }}>Kinovo</ThemedText>
-            </ThemedView>
-
-            {/* Step Indicator */}
-            {renderStepIndicator()}
-
-            {/* Welcome Text Section */}
-            <ThemedView style={{ marginBottom: 16, alignItems: 'center' }}>
-              <ThemedText style={{ fontSize: 24, marginBottom: 8, textAlign: 'center' }}>
-                {getStepTitle()}
-              </ThemedText>
-              <ThemedText style={{ fontSize: 14, color: themeColors.textSecondary, textAlign: 'center' }}>
-                {getStepDescription()}
-              </ThemedText>
-            </ThemedView>
+        {/* Top Section: Logo + Steps */}
+        <ThemedView style={{ flex: 1 }}>
+          {/* Logo and Company Name Section */}
+          <ThemedView style={{ 
+            flexDirection: 'column', 
+            alignItems: 'center', 
+            justifyContent: 'flex-start', 
+            marginBottom: 32,
+            marginTop: Platform.OS === 'ios' ? 60 : 40
+          }}>
+            <Image
+              source={require('@/assets/logo_2.png')}
+              style={{
+                width: width * 0.45,
+                height: width * 0.45,
+                resizeMode: 'contain',
+                bottom: 0,
+              }}
+            />
+            <ThemedText style={{ fontSize: 40, fontFamily: 'Helvetica Neue Bold', fontWeight: 'bold', letterSpacing: -1, alignSelf: 'center' }}>Kinovo</ThemedText>
           </ThemedView>
 
-          {/* Bottom Section: Form + Buttons */}
-          <ThemedView>
-            {/* Form Fields */}
-            <ThemedView>
-              {currentStep === 1 && renderStep1()}
-              {currentStep === 2 && renderStep2()}
-              {currentStep === 3 && renderStep3()}
+          {/* Step Indicator */}
+          {renderStepIndicator()}
 
+          {/* Welcome Text Section */}
+          <ThemedView style={{ marginBottom: 16, alignItems: 'center' }}>
+            <ThemedText style={{ fontSize: 24, marginBottom: 8, textAlign: 'center' }}>
+              {getStepTitle()}
+            </ThemedText>
+            <ThemedText style={{ fontSize: 14, color: themeColors.textSecondary, textAlign: 'center' }}>
+              {getStepDescription()}
+            </ThemedText>
+          </ThemedView>
+        </ThemedView>
+
+        {/* Bottom Section: Form + Buttons */}
+        <ThemedView>
+          {/* Form Fields */}
+          <ThemedView>
+            {currentStep === 1 && renderStep1()}
+            {currentStep === 2 && renderStep2()}
+            {currentStep === 3 && renderStep3()}
+
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={currentStep === 3 ? handleSignUp : handleNext}
+              disabled={loading}
+              style={{
+                alignItems: 'center',
+                backgroundColor: themeColors.mountainGreen,
+                paddingVertical: 12,
+                borderRadius: 8,
+                opacity: loading ? 0.7 : 1,
+              }}
+            >
+              <ThemedText style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>
+                {loading ? 'Creating Account...' : currentStep === 3 ? 'Create Account' : 'Next'}
+              </ThemedText>
+            </TouchableOpacity>
+
+            {currentStep !== 1 && (
               <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={currentStep === 3 ? handleSignUp : handleNext}
-                disabled={loading}
+                onPress={handleBack}
                 style={{
                   alignItems: 'center',
-                  backgroundColor: themeColors.mountainGreen,
+                  backgroundColor: 'transparent',
                   paddingVertical: 12,
                   borderRadius: 8,
-                  opacity: loading ? 0.7 : 1,
+                  borderWidth: 1,
+                  borderColor: themeColors.textSecondary,
+                  marginTop: 16,
                 }}
               >
-                <ThemedText style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>
-                  {loading ? 'Creating Account...' : currentStep === 3 ? 'Create Account' : 'Next'}
+                <ThemedText style={{ color: themeColors.textSecondary, fontSize: 16, fontWeight: '600' }}>
+                  Back
                 </ThemedText>
               </TouchableOpacity>
-
-              {currentStep !== 1 && (
-                <TouchableOpacity
-                  onPress={handleBack}
-                  style={{
-                    alignItems: 'center',
-                    backgroundColor: 'transparent',
-                    paddingVertical: 12,
-                    borderRadius: 8,
-                    borderWidth: 1,
-                    borderColor: themeColors.textSecondary,
-                    marginTop: 16,
-                  }}
-                >
-                  <ThemedText style={{ color: themeColors.textSecondary, fontSize: 16, fontWeight: '600' }}>
-                    Back
-                  </ThemedText>
-                </TouchableOpacity>
-              )}
-            </ThemedView>
+            )}
           </ThemedView>
         </ThemedView>
 
@@ -671,13 +759,7 @@ const SignUpContent: React.FC = () => {
           <View style={{ 
             flexDirection: 'row', 
             alignItems: 'center', 
-            justifyContent: 'center',
-            paddingVertical: 16,
-            position: 'relative',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            marginBottom: 4
+            justifyContent: 'center'
           }}>
             <ThemedText>Already have an account?</ThemedText>
             <TouchableOpacity onPress={handleBack}>

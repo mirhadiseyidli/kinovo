@@ -2,6 +2,8 @@
 const { registerFriendWatcher } = require('./handlers/friendRequestsWebsocket');
 const { sendFriendNewEventsChangeStream } = require('./handlers/friendNumberOfNewEvents');
 const { handleAISummary } = require('./handlers/aiSummaryWebsocket');
+const { registerNotificationsWatcher } = require('./handlers/notificationsWebsocket');
+const { addConnectedUser } = require('./websocketUtils');
 
 const handleMessage = async (message, ws, connectedUsers) => {
   try {
@@ -10,13 +12,21 @@ const handleMessage = async (message, ws, connectedUsers) => {
 
     switch (type) {
       case 'ManageFriends':
-        connectedUsers.set(userId, ws);
+        addConnectedUser(userId, ws);
         registerFriendWatcher(userId, ws);
         break;
 
       case 'FriendsEventActivity':
-        connectedUsers.set(userId, ws);
+        addConnectedUser(userId, ws);
         sendFriendNewEventsChangeStream(userId, ws);
+        break;
+
+      case 'NotificationsListener':
+        addConnectedUser(userId, ws);
+        // Register for friend request notifications
+        registerFriendWatcher(userId, ws);
+        // Register for general notifications (event creation, etc.)
+        registerNotificationsWatcher(userId, ws);
         break;
 
       case 'get_daily_insight':

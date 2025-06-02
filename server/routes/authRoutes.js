@@ -5,6 +5,8 @@ const { generateAccessToken, generateRefreshToken } = require('../utils/token');
 const bcrypt = require('bcrypt');
 const logger = require('winston'); // Optional for logging
 const { v4: uuidv4 } = require('uuid');
+const jwt = require('jsonwebtoken');
+const admin = require('../config/firebase-admin');
 require('dotenv').config();
 
 const router = express.Router();
@@ -121,49 +123,259 @@ router.post('/login', async (req, res) => {
 });
 
 router.post('/signup', async (req, res) => {
+  console.log('req.body', req.body);
 
-  const { firstName, lastName, email, password } = req.body
+  try {
+    const {
+      first_name,
+      last_name,
+      full_name,
+      email,
+      password,
+      date_of_birth,
+      phone_number
+    } = req.body;
 
-  const hashedPassword = await hashPassword(password)
+    // Validate required fields
+    if (!first_name || !last_name || !email || !password || !phone_number) {
+      return res.status(400).json({
+        success: false,
+        message: 'All required fields must be provided'
+      });
+    }
 
-  let existingUser = await User.findOne({ email: email }).select('-password');
+    // Check if user already exists
+    let existingUser = await User.findOne({ email }).select('-password');
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email already exists, please try to log in'
+      });
+    }
 
-  if(existingUser) {
-    return res.status(400).json({
-      message: 'Email already exists, please try to log in'
-    })
-  };
+    // Hash password
+    const hashedPassword = await hashPassword(password);
 
-  if (!existingUser) {
-    existingUser = await User.create({
-      first_name: firstName,
-      last_name: lastName,
+    // Create new user
+    const newUser = await User.create({
+      first_name,
+      last_name,
+      full_name,
       username: email,
-      email: email,
+      email,
       password: hashedPassword,
+      date_of_birth,
+      phone_number,
       profile_picture: null,
     });
-  };
 
-  const userDataFromDB = await User.findOne({ email: email  }).select('-password');
+    // Get user data without password
+    const userDataFromDB = await User.findOne({ email }).select('-password');
 
-  if(userDataFromDB) {
-    const accessToken = generateAccessToken({ _id: userDataFromDB._id, email: userDataFromDB.email });
-    const refreshToken = generateRefreshToken({ _id: userDataFromDB._id, email: userDataFromDB.email });
+    if (userDataFromDB) {
+      const accessToken = generateAccessToken({ _id: userDataFromDB._id, email: userDataFromDB.email });
+      const refreshToken = generateRefreshToken({ _id: userDataFromDB._id, email: userDataFromDB.email });
 
-    return res.status(200).json({
+      return res.status(200).json({
+        success: true,
+        user: {
+          _id: userDataFromDB._id,
+          email: userDataFromDB.email,
+          first_name: userDataFromDB.first_name,
+          last_name: userDataFromDB.last_name,
+          full_name: userDataFromDB.full_name,
+          profile_picture: userDataFromDB.profile_picture,
+        },
+        accessToken,
+        refreshToken,
+      });
+    }
+
+    throw new Error('Failed to create user');
+  } catch (error) {
+    console.error('Signup error:', error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Internal server error'
+    });
+  }
+});
+
+router.post('/refresh', async (req, res) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    return res.status(401).json({ message: 'Refresh token required' });
+  }
+
+  try {
+    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+    
+    // Generate a new access token
+    const newAccessToken = generateAccessToken({
+      _id: decoded._id,
+      email: decoded.email,
+    });
+
+    res.status(200).json({ accessToken: newAccessToken });
+  } catch (err) {
+    return res.status(403).json({ message: 'Invalid or expired refresh token' });
+  }
+});
+
+// GET user's phone number for MFA
+router.post('/get-phone', async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Email is required' 
+    });
+  }
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    // Return the user's phone number for MFA
+    return res.json({
       success: true,
+      phoneNumber: user.phone_number?.full_num || null
+    });
+  } catch (error) {
+    console.error('Error fetching phone number:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Verify login after phone verification
+router.post('/verify-login', async (req, res) => {
+  const { email, verificationId, verificationCode } = req.body;
+
+  if (!email || !verificationId || !verificationCode) {
+    return res.status(400).json({
+      success: false,
+      message: 'Email, verification ID and code are required'
+    });
+  }
+
+  try {
+    // First find the user
+    const user = await User.findOne({ email }).select('-password');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Verify the phone code using Firebase Admin SDK
+    try {
+      const phoneCredential = admin.auth.PhoneAuthProvider.credential(
+        verificationId,
+        verificationCode
+      );
+      await admin.auth().signInWithCredential(phoneCredential);
+    } catch (error) {
+      console.error('Phone verification failed:', error);
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid verification code'
+      });
+    }
+
+    // Generate tokens
+    const accessToken = generateAccessToken({ _id: user._id, email: user.email });
+    const refreshToken = generateRefreshToken({ _id: user._id, email: user.email });
+
+    // Return user data and tokens
+    return res.json({
+      success: true,
+      userId: user._id,
       user: {
-        _id: userDataFromDB._id,
-        email: userDataFromDB.email,
-        first_name: userDataFromDB.first_name,
-        last_name: userDataFromDB.last_name,
-        full_name: `${userDataFromDB.first_name} ${userDataFromDB.last_name}`,
-        profile_picture: userDataFromDB.profile_picture,
+        _id: user._id,
+        email: user.email,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        full_name: `${user.first_name} ${user.last_name}`,
+        profile_picture: user.profile_picture,
       },
       accessToken,
-      refreshToken,
-    })
+      refreshToken
+    });
+  } catch (error) {
+    console.error('Error verifying login:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Verify phone number during signup
+router.post('/verify-phone', async (req, res) => {
+  const { verificationId, verificationCode, phoneNumber, email, password } = req.body;
+
+  if (!verificationId || !verificationCode || !phoneNumber || !email || !password) {
+    return res.status(400).json({
+      success: false,
+      message: 'All fields are required'
+    });
+  }
+
+  try {
+    // First check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email already exists'
+      });
+    }
+
+    // Verify the phone code using Firebase Admin SDK
+    try {
+      // Format phone number for checking
+      const cleanedPhone = phoneNumber.replace(/\D/g, '');
+      const formattedPhone = cleanedPhone.length === 10 ? `+1${cleanedPhone}` : phoneNumber;
+
+      // Check if phone number is already in use
+      const phoneExists = await User.findOne({ 'phone_number.full_num': formattedPhone });
+      if (phoneExists) {
+        return res.status(400).json({
+          success: false,
+          message: 'Phone number is already registered'
+        });
+      }
+
+      // If we get here, the client-side verification was successful and phone is available
+      return res.json({
+        success: true,
+        message: 'Phone verification successful',
+        phoneNumber: formattedPhone
+      });
+    } catch (error) {
+      console.error('Phone verification failed:', error);
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid verification code'
+      });
+    }
+  } catch (error) {
+    console.error('Error in verify-phone:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
   }
 });
 

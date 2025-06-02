@@ -29,7 +29,15 @@ const eventsSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    default: null
+    required: true,
+    validate: {
+      validator: async function(value) {
+        const Category = mongoose.model('Category');
+        const category = await Category.findOne({ name: value, active: true });
+        return category !== null;
+      },
+      message: props => `${props.value} is not a valid category`
+    }
   },
   description: {
     type: String, // Text description of the event
@@ -87,9 +95,13 @@ const eventsSchema = new mongoose.Schema({
   }],
   visibility: {
     type: String,
-    enum: ['public', 'private', 'select'],
-    default: 'public',
+    enum: ['public', 'private', 'selected'],
+    default: 'private',
   },
+  excludedDates: [{
+    type: Date,
+    default: []
+  }], // Dates to exclude from recurring event generation
 });
 
 module.exports = mongoose.model('Events', eventsSchema);
