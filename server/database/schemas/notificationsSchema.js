@@ -1,31 +1,90 @@
 const mongoose = require('mongoose');
-const { v4: uuidv4 } = require('uuid');
 
 const notificationsSchema = new mongoose.Schema({
-  user: {
+  recipient: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Users', // Refers to Users Schema
+    ref: 'Users',
+    required: true,
+  },
+  sender: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Users',
     default: null,
   },
   event: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Events', // Refers to Events Schema
+    ref: 'Events',
+    default: null,
+  },
+  friend_request: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'FriendRequests',
     default: null,
   },
   type: {
     type: String,
-    enum: ['Reminder', 'Update', 'Cancel'], // Allowed values for type
+    enum: [
+      'friend_request',
+      'friend_request_accepted', 
+      'friend_request_rejected',
+      'event_created',
+      'event_attendance_confirmed',
+      'new_event_nearby',
+      'event_reminder',
+      'event_updated',
+      'event_liked',
+      'new_comment',
+      'someone_joined',
+      'event_reminder',
+      'event_update',
+      'event_cancel'
+    ],
     required: true,
+  },
+  title: {
+    type: String,
+    required: true,
+  },
+  subtitle: {
+    type: String,
+    default: null,
   },
   message_body: {
     type: String,
-    default: null, // Allow it to be nullable
+    default: null,
   },
-  sent_at: {
+  data: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {},
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'accepted', 'rejected', 'seen', 'unseen'],
+    default: 'unseen',
+  },
+  is_seen: {
+    type: Boolean,
+    default: false,
+  },
+  created_at: {
     type: Date,
-    default: Date.now(),  // Date & Time at the time of request
+    default: Date.now,
     required: true,
+  },
+  updated_at: {
+    type: Date,
+    default: Date.now,
   }
 });
+
+// Update the updated_at field before saving
+notificationsSchema.pre('save', function(next) {
+  this.updated_at = new Date();
+  next();
+});
+
+// Index for efficient queries
+notificationsSchema.index({ recipient: 1, created_at: -1 });
+notificationsSchema.index({ recipient: 1, is_seen: 1 });
 
 module.exports = mongoose.model('Notifications', notificationsSchema);

@@ -46,3 +46,7 @@
 # Apple Weather Kit Key
 */key
 */key/*
+
+# Firebase config files
+*/google-services.json
+*/GoogleService-Info.plist

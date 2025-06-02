@@ -14,6 +14,8 @@ const searchRoutes = require('./routes/searchRoutes');
 const friendSuggestionsRoutes = require('./routes/userSuggestionsRoutes');
 const eventsRoutes = require('./routes/eventsRoutes');
 const weatherRoutes = require('./routes/appleWeatherRoutes');
+const notificationsRoutes = require('./routes/notificationsRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
 
 const app = express();
 
@@ -29,6 +31,10 @@ app.use(express.json()); // Parse JSON request bodies
 app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'Server is running.' });
 });
+
+// Initialize categories
+const { initializeCategories } = require('./controllers/categoryController');
+initializeCategories().catch(console.error);
 
 // Check Authentication (JWT based)
 const { verifyAccessToken } = require('./utils/token');
@@ -60,6 +66,8 @@ app.use('/api/managefriends', manageFriendsRoutes);
 app.use('/api/friendsuggestions', friendSuggestionsRoutes);
 app.use('/api/manageevents', eventsRoutes);
 app.use('/api/weather', weatherRoutes);
+app.use('/api/notifications', notificationsRoutes);
+app.use('/api', categoryRoutes);
 
 // Start Server
 const PORT = process.env.BACKEND_PORT || 5002;

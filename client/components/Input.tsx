@@ -2,6 +2,8 @@ import React from 'react';
 import { View, TextInput, Text, TextInputProps } from 'react-native';
 import { ThemedView } from '@/components/ThemedView';
 import { InputProps } from '@/types/allTypes';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { Colors } from '@/constants/Colors';
 
 const Input: React.FC<InputProps> = ({
   value,
@@ -9,21 +11,25 @@ const Input: React.FC<InputProps> = ({
   placeholder,
   secureTextEntry = false,
   leftIcon,
+  style,
   ...props
 }) => {
+  const colorScheme = useColorScheme();
+  const themeColors = Colors[colorScheme ?? 'dark'];
+
   return (
     // Need to add leftIcon to placeholder
-    <ThemedView style={{ width: '100%', aspectRatio: 'auto', marginBottom: 8 }}>
+    <ThemedView style={{ width: '100%', marginBottom: 8 }}>
       <TextInput
-        style={{
+        style={[{
           borderWidth: 1,
           borderRadius: 8,
           paddingHorizontal: 12,
           paddingVertical: 12,
-          textAlign: 'left',
-          fontSize: 14, // Approximate equivalent to text-[3.5vw] (adjust as needed)
-        }}
+          fontSize: 14,
+        }, style]}
         placeholder={placeholder}
+        placeholderTextColor={themeColors.placeholderTextColor}
         value={value}
         onChangeText={onChangeText}
         secureTextEntry={secureTextEntry}

@@ -6,13 +6,34 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "autoIncrement": true,
+      "ios": {
+        "resourceClass": "m-medium",
+        "buildConfiguration": "Debug",
+        "credentialsSource": "remote",
+        "enterpriseProvisioning": "adhoc"
+      },
+      "env": {
+        "GOOGLE_SERVICES_PLIST": "GOOGLE_SERVICES_PLIST"
+      },
+      "channel": "development"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "ios": {
+        "resourceClass": "m-medium",
+        "buildConfiguration": "Release",
+        "credentialsSource": "remote",
+        "enterpriseProvisioning": "adhoc"
+      },
+      "channel": "preview"
     },
     "production": {
-      "autoIncrement": true
+      "ios": {
+        "resourceClass": "m-medium",
+        "autoIncrement": true
+      }
     }
   },
   "submit": {

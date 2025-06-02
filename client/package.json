@@ -9,6 +9,7 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@expo/metro-config": "^0.20.14",
     "@expo/metro-runtime": "~5.0.4",
     "@expo/prebuild-config": "~9.0.0",
     "@expo/ui": "^0.1.1-alpha.7",
@@ -17,6 +18,7 @@
     "@react-native-community/cli": "^18.0.0",
     "@react-native-firebase/app": "^22.2.0",
     "@react-native-firebase/auth": "^22.2.0",
+    "@react-native-firebase/crashlytics": "^22.2.0",
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/elements": "^2.3.8",
     "@react-navigation/material-top-tabs": "^7.2.2",
@@ -27,6 +29,7 @@
     "expo": "53.0.9",
     "expo-auth-session": "~6.1.5",
     "expo-blur": "~14.1.4",
+    "expo-build-properties": "~0.14.6",
     "expo-checkbox": "~4.1.4",
     "expo-contacts": "~14.2.4",
     "expo-dev-client": "~5.1.8",
@@ -41,13 +44,11 @@
     "expo-splash-screen": "~0.30.8",
     "expo-status-bar": "~2.2.3",
     "expo-symbols": "~0.4.4",
-    "firebase": "^11.8.1",
     "jwt-decode": "^4.0.0",
     "openai": "^4.89.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-native": "0.79.2",
-    "react-native-auto-skeleton": "^0.1.22",
     "react-native-gesture-handler": "~2.24.0",
     "react-native-image-colors": "^2.4.0",
     "react-native-keyboard-controller": "^1.17.1",
@@ -61,7 +62,8 @@
     "react-native-tab-view": "^4.0.6",
     "react-native-web": "^0.20.0",
     "react-redux": "^9.2.0",
-    "expo-build-properties": "~0.14.6"
+    "expo-modules-autolinking": "~2.1.0",
+    "expo-updates": "~0.28.13"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

@@ -65,6 +65,7 @@ const editMyProfile = async (req, res) => {
 const createUser = async (req, res) => {
   try {
     const userData = req.body;
+    console.log('userData', userData);
 
     const user = await User.create(userData);
 
@@ -148,6 +149,74 @@ const getUserFriendByNameSearch = async (req, res) => {
   }
 }
 
+const markStoriesViewed = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Unauthorized: User not logged in' });
+    }
+
+    const { friendId, eventIds } = req.body;
+    const userId = req.user._id;
+
+    if (!friendId || !eventIds || !Array.isArray(eventIds)) {
+      return res.status(400).json({ message: 'Friend ID and event IDs array are required' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Find existing entry for this friend in last_checked_events
+    let friendEntry = user.last_checked_events.find(entry => 
+      entry.friend.toString() === friendId
+    );
+
+    if (friendEntry) {
+      // Update existing entry - add new events or update timestamps
+      eventIds.forEach(eventId => {
+        const existingEvent = friendEntry.viewed_events.find(ve => 
+          ve.event.toString() === eventId
+        );
+        
+        if (existingEvent) {
+          // Update timestamp for existing event
+          existingEvent.viewed_at = new Date();
+        } else {
+          // Add new event
+          friendEntry.viewed_events.push({
+            event: eventId,
+            viewed_at: new Date()
+          });
+        }
+      });
+    } else {
+      // Create new entry for this friend
+      const newEntry = {
+        friend: friendId,
+        viewed_events: eventIds.map(eventId => ({
+          event: eventId,
+          viewed_at: new Date()
+        }))
+      };
+      user.last_checked_events.push(newEntry);
+    }
+    
+    // Mark the field as modified to ensure change stream detection
+    user.markModified('last_checked_events');
+    
+    const savedUser = await user.save();
+    
+    res.status(200).json({ 
+      message: 'Stories marked as viewed successfully',
+      viewedCount: eventIds.length
+    });
+  } catch (error) {
+    console.error('Error marking stories as viewed:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 module.exports = { 
   getUserProfile,
   getUsers,
@@ -158,4 +227,5 @@ module.exports = {
   getUser,
   getUserFriendByEmailSearch,
   getUserFriendByNameSearch,
+  markStoriesViewed,
  };
