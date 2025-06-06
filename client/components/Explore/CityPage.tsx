@@ -67,10 +67,11 @@ const CityPage = () => {
     <ScrollView 
       style={{ flex: 1 }}
       refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
+        <RefreshControl 
+          refreshing={refreshing} 
           onRefresh={onRefresh}
-          tintColor={themeColors.text}
+          tintColor={themeColors.mountainGreen}
+          colors={[themeColors.mountainGreen]}
         />
       }
     >
@@ -173,7 +174,7 @@ const CityPage = () => {
                   opacity: 0.8
                 }}
               >
-                Tap here to create the first event in {city}! 🎉
+                Tap here to create the first event in {city}!
               </ThemedText>
             </TouchableOpacity>
           )}

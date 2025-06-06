@@ -3,6 +3,18 @@ import fs from 'fs';
 import path from 'path';
 import { ExpoConfig, ConfigContext } from '@expo/config';
 
+const buildProfile = process.env.EAS_BUILD_PROFILE;
+
+const apsEnv =
+  buildProfile === 'development'
+    ? 'development'
+    : buildProfile === 'preview'
+    ? 'production' // or 'production' depending on your goal for preview
+    : 'production';
+
+console.log('🔍 Build profile:', buildProfile);
+console.log('🔍 APS environment:', apsEnv);
+
 const plistPath = './GoogleService-Info.plist';
 
 function ensurePlistFileExists() {
@@ -53,20 +65,29 @@ export default ({ config }: ConfigContext): ExpoConfig => {
           },
         ],
         NSPhotoLibraryUsageDescription: 'Allow this app to access your photo library.',
-        NSCameraUsageDescription: 'Allow this app to access your camera.',
+        NSCalendarsUsageDescription: 'Allow Kinovo to access your calendar',
+        NSCalendarsFullAccessUsageDescription: 'Allow Kinovo to access your calendar for event syncing',
+        NSRemindersUsageDescription: 'Allow Kinovo to access your reminders for event alerts',
+        NSRemindersFullAccessUsageDescription: 'Allow Kinovo to access your reminders for event alerts',
         NSLocationWhenInUseUsageDescription:
           'This app needs access to your location for better event suggestions.',
         NSLocationAlwaysUsageDescription: 'We use your location to improve recommendations.',
         NSContactsUsageDescription:
           'Allow this app to access your contacts to help connect with your friends.',
         ITSAppUsesNonExemptEncryption: false,
-        UIBackgroundModes: ['remote-notification'],
+        UIBackgroundModes: [
+          'remote-notification',
+          'fetch',
+          'location',
+          'processing'
+        ],
         FirebaseAppDelegateProxyEnabled: true,
+        UNNotificationAlertStyle: 'alert',
+        NSNotificationAlertSound: 'default', // or a custom sound file name
+        NSUserActivityTypes: ['com.kinovoapp.kinovo.event'], // Added for calendar/reminder integration
       },
       entitlements: {
-        'aps-environment': 'production',
-        'com.apple.developer.push-notifications': true,
-        'UIBackgroundModes': ['remote-notification'],
+        'aps-environment': apsEnv,
         'com.apple.developer.in-app-payments': [], // for Apple Pay
         'com.apple.developer.weatherkit': true,
         'com.apple.developer.usernotifications.time-sensitive': true,
@@ -91,15 +112,16 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       'expo-secure-store',
       '@react-native-firebase/app',
       '@react-native-firebase/auth',
+      '@react-native-firebase/app-check',
+      'expo-notifications',
+      'expo-calendar',
       [
         'expo-build-properties',
         {
           ios: {
             useFrameworks: 'static',
             entitlements: {
-              'aps-environment': 'production',
-              'com.apple.developer.push-notifications': true,
-              'UIBackgroundModes': ['remote-notification'],
+              'aps-environment': apsEnv,
               'com.apple.developer.in-app-payments': [], // for Apple Pay
               'com.apple.developer.weatherkit': true,
               'com.apple.developer.usernotifications.time-sensitive': true,

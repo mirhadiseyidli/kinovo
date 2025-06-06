@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuthSession } from '@/components/Auth/AuthProvider';
 
 const { width } = Dimensions.get('window');
 
@@ -17,6 +18,7 @@ export default function TwoFactorScreen() {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const insets = useSafeAreaInsets();
+  const { signIn } = useAuthSession();
 
   // Redirect back to login if credentials weren't verified
   useEffect(() => {
@@ -34,10 +36,11 @@ export default function TwoFactorScreen() {
         verificationId,
         verificationCode
       });
+      console.log("Response:", response.data);
 
       if (response.data.success) {
-        // Navigate to the home screen or wherever you want after successful login
-        router.replace('/');
+        const { accessToken, refreshToken, user } = response.data;
+        signIn(accessToken, refreshToken, user._id);
       } else {
         throw new Error(response.data.message || 'Failed to verify login');
       }

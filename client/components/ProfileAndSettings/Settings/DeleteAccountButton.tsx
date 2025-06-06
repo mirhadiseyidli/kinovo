@@ -13,7 +13,7 @@ const DeleteAccountComponent: React.FC<DeleteAccountProps> = ({ onPress }) => {
   return (
     <TouchableOpacity onPress={onPress} style={{ flexDirection: 'row', alignItems: 'center', padding: 10 }}>
       <AntDesign name="deleteuser" size={24} color={themeColors.specialRed} />
-      <ThemedText style={{ marginLeft: 10, fontSize: 16, color: themeColors.specialRed }}>Delete Account</ThemedText>
+      <ThemedText style={{ marginLeft: 10, fontSize: 16, color: themeColors.specialRed }}>Deactivate Account</ThemedText>
     </TouchableOpacity>
   );
 };

@@ -51,7 +51,7 @@ export const UserListItem: React.FC<UserListItemProps> = ({
     if (onPress) {
       onPress();
     } else if (!disableNavigation) {
-      router.replace(`/(auth)/(tabs)/(profile)/${encodeURIComponent(_id)}`);
+      router.replace(`/(auth)/(profile)/${encodeURIComponent(_id)}`);
     }
   };
 

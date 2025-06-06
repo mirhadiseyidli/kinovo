@@ -25,8 +25,13 @@ const UserSettings = () => {
       />
       <SettingComponent 
         icon="activity" 
-        title="Manage Favorite Activites" 
-        onPress={() => router.push('/(auth)/(tabs)/(profile)/')} // make a route
+        title="Manage Favorite Activities" 
+        onPress={() => router.push('/(auth)/(profileSections)/manageFavoriteActivities')} 
+      />
+      <SettingComponent 
+        icon="slash" 
+        title="Manage Blocked Users" 
+        onPress={() => router.push('/(auth)/(profileSections)/blockedUsers')} 
       />
     </View>
   );

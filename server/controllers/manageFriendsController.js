@@ -366,12 +366,22 @@ const removeFriendFromFriendsList = async (req, res) => {
       return res.status(400).json({ message: 'Friend ID is required' });
     }
 
+    // Remove friend from user's friends list
     await Users.findByIdAndUpdate(userId, {
-      $pull: { friends: friendId }
+      $pull: { 
+        friends: friendId,
+        // Remove friend from all tags
+        'tags.$[].friends': friendId
+      }
     });
 
+    // Remove user from friend's friends list and tags
     await Users.findByIdAndUpdate(friendId, {
-      $pull: { friends: userId }
+      $pull: { 
+        friends: userId,
+        // Remove user from all tags
+        'tags.$[].friends': userId
+      }
     });
 
     res.status(200).json({ message: 'Friend removed successfully' });

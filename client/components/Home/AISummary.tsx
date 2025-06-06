@@ -24,7 +24,7 @@ const useGPTWebSocket = () => {
   
   const fetchUserData = async (): Promise<User | null> => {
     try {
-      const accessToken = await AsyncStorage.getItem('accessToken');
+      const accessToken = await SecureStore.getItemAsync('accessToken');
       if (!accessToken) throw new Error('No access token available');
 
       const response = await axios.get(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/users/me`, {
@@ -55,7 +55,7 @@ const useGPTWebSocket = () => {
       });
 
       const { accessToken } = response.data;
-      await AsyncStorage.setItem('accessToken', accessToken);
+      await SecureStore.setItemAsync('accessToken', accessToken);
 
       await fetchUserData();
     } catch (error) {

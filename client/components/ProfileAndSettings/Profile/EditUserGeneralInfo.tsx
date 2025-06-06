@@ -27,19 +27,20 @@ const EditUserGeneralInfo = () => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { fetchUserData, refetchUser } = useUserData();
+  const [refreshing, setRefreshing] = useState(false);
   const [user, setUser] = useState<User | null>(null);
-  const [firstName, setFirstName] = useState(user?.first_name || '');
-  const [lastName, setLastName] = useState(user?.last_name || '');
-  const [bio, setBio] = useState(user?.bio || '');
-  const [locationCity, setLocationCity] = useState(user?.location?.city || '');
-  const [locationState, setLocationState] = useState(user?.location?.state || '');
-  const [placeId, setPlaceId] = useState(user?.location?.city || '');
-  const [locationLatitude, setLocationLatitude] = useState(user?.location?.coordinates?.lat || null);
-  const [locationLongitude, setLocationLongitude] = useState(user?.location?.coordinates?.lng || null);
-  const [locationInput, setLocationInput] = useState(user?.location?.text || '');
-  const [instagramUsername, setInstagramUsername] = useState(user?.social_handles?.instagram?.username || '');
-  const [facebookUsername, setFacebookUsername] = useState(user?.social_handles?.facebook?.username || '');
-  const [dateOfBirth, setDateOfBirth] = useState(user?.date_of_birth ? new Date(user.date_of_birth) : null);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [bio, setBio] = useState('');
+  const [locationCity, setLocationCity] = useState('');
+  const [locationState, setLocationState] = useState('');
+  const [placeId, setPlaceId] = useState('');
+  const [locationLatitude, setLocationLatitude] = useState<number | null>(null);
+  const [locationLongitude, setLocationLongitude] = useState<number | null>(null);
+  const [locationInput, setLocationInput] = useState('');
+  const [instagramUsername, setInstagramUsername] = useState('');
+  const [facebookUsername, setFacebookUsername] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState<Date | null>(null);
   const { editMyProfile, isLoading, showSavedMessage } = useEditUserProfile({
     firstName,
     lastName,
@@ -54,28 +55,49 @@ const EditUserGeneralInfo = () => {
     dateOfBirth
   });
 
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    const fetchedUser = await fetchUserData();
+    if (fetchedUser) {
+      setUser(fetchedUser);
+      setFirstName(fetchedUser.first_name || '');
+      setLastName(fetchedUser.last_name || '');
+      setBio(fetchedUser.bio || '');
+      setLocationCity(fetchedUser.location?.city || '');
+      setLocationState(fetchedUser.location?.state || '');
+      setPlaceId(fetchedUser.location?.city || '');
+      setLocationLatitude(fetchedUser.location?.coordinates?.lat || null);
+      setLocationLongitude(fetchedUser.location?.coordinates?.lng || null);
+      setLocationInput(fetchedUser.location?.text || '');
+      setInstagramUsername(fetchedUser.social_handles?.instagram?.username || '');
+      setFacebookUsername(fetchedUser.social_handles?.facebook?.username || '');
+      setDateOfBirth(fetchedUser.date_of_birth ? new Date(fetchedUser.date_of_birth) : null);
+    }
+    setRefreshing(false);
+  }, []);
+
   useEffect(() => {
     const getUser = async () => {
       const fetchedUser = await fetchUserData();
-      setUser(fetchedUser);
+      if (fetchedUser) {
+        setUser(fetchedUser);
+        setFirstName(fetchedUser.first_name || '');
+        setLastName(fetchedUser.last_name || '');
+        setBio(fetchedUser.bio || '');
+        setLocationCity(fetchedUser.location?.city || '');
+        setLocationState(fetchedUser.location?.state || '');
+        setPlaceId(fetchedUser.location?.city || '');
+        setLocationLatitude(fetchedUser.location?.coordinates?.lat || null);
+        setLocationLongitude(fetchedUser.location?.coordinates?.lng || null);
+        setLocationInput(fetchedUser.location?.text || '');
+        setInstagramUsername(fetchedUser.social_handles?.instagram?.username || '');
+        setFacebookUsername(fetchedUser.social_handles?.facebook?.username || '');
+        setDateOfBirth(fetchedUser.date_of_birth ? new Date(fetchedUser.date_of_birth) : null);
+      }
     };
 
     getUser();
-    if (user) {
-      setFirstName(user.first_name || '');
-      setLastName(user.last_name || '');
-      setBio(user.bio || '');
-      setLocationCity(user.location?.city || '');
-      setLocationState(user.location?.state || '');
-      setPlaceId(user.location?.city || '');
-      setLocationLatitude(user.location?.coordinates?.lat || null);
-      setLocationLongitude(user.location?.coordinates?.lng || null);
-      setLocationInput(user.location?.text || '');
-      setInstagramUsername(user.social_handles?.instagram?.username || '');
-      setFacebookUsername(user.social_handles?.facebook?.username || '');
-      setDateOfBirth(user?.date_of_birth ? new Date(user.date_of_birth) : null);
-    }
-  }, [user]);
+  }, []);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -96,26 +118,22 @@ const EditUserGeneralInfo = () => {
         scrollEventThrottle={16}
         scrollEnabled={true}
         showsVerticalScrollIndicator={false}
-        // refreshControl={
-        //   <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        // }
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            tintColor={themeColors.mountainGreen}
+            colors={[themeColors.text]}
+          />
+        }
       >
-        {/* Header */}
-        <View
-          style={{
-            marginBottom: 6,
-          }}
-        >
-          <SettingsPageHeader label='Edit Profile'/>
-        </View>
-
         {/* Saved Message */}
         {showSavedMessage && (
           <SavedMessage visible={showSavedMessage} />
         )}
 
         {/* Profile Picture */}
-        <View style={{ alignItems: 'center', marginTop: 120 }}>
+        <View style={{ alignItems: 'center', marginTop: 32 }}>
           <EditUserProfilePhotos user={user} />
         </View>
 

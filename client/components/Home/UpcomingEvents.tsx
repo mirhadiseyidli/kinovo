@@ -9,7 +9,6 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { useFocusEffect } from '@react-navigation/native';
 import { Event } from '@/types/allTypes';
-import { AutoSkeletonView } from 'react-native-auto-skeleton';
 import { useRouter } from 'expo-router';
 
 const UpcomingEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }> = React.memo(({ refreshing, onFinishRefresh }) => {
@@ -131,7 +130,7 @@ const UpcomingEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => voi
                 opacity: 0.8
               }}
             >
-              Tap here to create your first event! 🎉
+              Tap here to create your first event! 
             </ThemedText>
           </TouchableOpacity>
         )}

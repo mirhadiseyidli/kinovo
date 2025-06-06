@@ -11,8 +11,12 @@ import Cities from '@/components/Explore/Cities';
 import NearbyEvents from '@/components/Explore/NearbyEvents';
 import useSearchEverythingDiscovery from '@/hooks/useSearchEverythingDiscovery';
 import { User, Event } from '@/types/allTypes';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { Colors } from '@/constants/Colors';
 
 const DiscoverScreen = () => {
+  const colorScheme = useColorScheme();
+  const themeColors = Colors[colorScheme ?? 'dark'];
   const [searchQuery, setSearchQuery] = useState('');
   const scrollViewRef = useRef<ScrollView>(null);
   const tabBarHeight = useBottomTabBarHeight();
@@ -96,10 +100,11 @@ const DiscoverScreen = () => {
   ]);
 
   const handleBackdropPress = () => {
-    setSearchQuery('');
     setIsSearchActive(false);
     setSuggestions({ users: [], events: [] });
   };
+
+  console.log(isSearchActive, showSuggestions)
 
   return (
     <ThemedView style={{ flex: 1 }}>
@@ -108,10 +113,17 @@ const DiscoverScreen = () => {
         stickyHeaderHiddenOnScroll={true}
         style={{ flex: 1 }}
         scrollEventThrottle={16}
-        scrollEnabled={!showSuggestions} // Disable scrolling when search is active
+        scrollEnabled={!showSuggestions} // Only disable scroll when suggestions are visible
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="none"
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            tintColor={themeColors.mountainGreen}
+            colors={[themeColors.mountainGreen]}
+          />
         }
       >
         <ThemedView
@@ -136,6 +148,7 @@ const DiscoverScreen = () => {
               setInputValue={setSearchQuery}
               suggestions={suggestions}
               placeholder="Search for events or friends..."
+              onSearchActiveChange={setIsSearchActive}
             />
           </ThemedView>
 

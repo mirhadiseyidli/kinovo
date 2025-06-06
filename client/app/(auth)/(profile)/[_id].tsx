@@ -8,7 +8,6 @@ import PreferenceSettings from "@/components/ProfileAndSettings/Settings/Prefren
 import ResourcesSettings from "@/components/ProfileAndSettings/Settings/ResourcesSettings";
 import LegalAndPrivacySettings from "@/components/ProfileAndSettings/Settings/LegalAndPrivacySettings";
 import SignOutComponent from "@/components/ProfileAndSettings/Settings/SignOutButton";
-import { useBottomTabBarHeight, BottomTabBarHeightContext } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Header from "@/components/Header";
 import AppInfoSettings from "@/components/ProfileAndSettings/Settings/AppInfoSettings";
@@ -17,37 +16,43 @@ import UserGeneralInfo from "@/components/ProfileAndSettings/Profile/UserGeneral
 import FavoriteActivities from "@/components/ProfileAndSettings/Profile/FavoriteActivities";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams } from 'expo-router';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { Colors } from '@/constants/Colors';
 
 type UserGeneralInfoRef = {
   onRefresh: () => void;
 };
 
 const ProfilePage = () => {
-  const tabBarHeight = useBottomTabBarHeight(); // Get tab bar height dynamically
   const insets = useSafeAreaInsets();
   const { _id } = useLocalSearchParams();
   const userInfoRef = useRef<UserGeneralInfoRef>(null);
+  const colorScheme = useColorScheme();
+  const themeColors = Colors[colorScheme ?? 'dark'];
 
   const onRefresh = useCallback(() => {
     userInfoRef.current?.onRefresh?.();
   }, []);
 
   return (
-    <ThemedView style={{ flex: 1, paddingBottom: tabBarHeight }}>
+    <ThemedView style={{ flex: 1 }}>
       <ScrollView
         overScrollMode={'auto'}
         style={{ 
           flex: 1,
-        }}
-        contentContainerStyle={{
-          paddingBottom: tabBarHeight,
         }}
         scrollEventThrottle={8}
         scrollEnabled={true}
         nestedScrollEnabled={true}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={false} onRefresh={onRefresh} progressViewOffset={insets.top} tintColor={'white'}/>
+          <RefreshControl 
+            refreshing={false} 
+            onRefresh={onRefresh}
+            progressViewOffset={insets.top}
+            tintColor={themeColors.mountainGreen}
+            colors={[themeColors.mountainGreen]}
+          />
         }
       >
         <ThemedView style={{ flex: 1, marginBottom: 48 }}>

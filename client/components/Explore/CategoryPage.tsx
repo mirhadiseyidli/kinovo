@@ -64,10 +64,11 @@ const CategoryPage = () => {
     <ScrollView 
       style={{ flex: 1, padding: 16 }}
       refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
+        <RefreshControl 
+          refreshing={refreshing} 
           onRefresh={onRefresh}
-          tintColor={themeColors.text}
+          tintColor={themeColors.mountainGreen}
+          colors={[themeColors.mountainGreen]}
         />
       }
     >
@@ -170,7 +171,7 @@ const CategoryPage = () => {
                   opacity: 0.8
                 }}
               >
-                Tap here to create the first {category} event! 🎉
+                Tap here to create the first {category} event!
               </ThemedText>
             </TouchableOpacity>
           )}

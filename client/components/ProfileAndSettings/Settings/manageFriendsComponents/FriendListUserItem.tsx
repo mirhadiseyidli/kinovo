@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, Image, TouchableOpacity, ActivityIndicator, ActionSheetIOS } from 'react-native';
+import { View, Text, Image, TouchableOpacity, ActivityIndicator, ActionSheetIOS, Alert } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
@@ -10,6 +10,7 @@ import { useManageFriends } from '@/hooks/useManageFriends';
 import { useFocusEffect } from '@react-navigation/native';
 import { ContextMenu } from '@expo/ui/swift-ui';
 import { Button } from '@expo/ui/swift-ui';
+import api from '@/utils/api';
 
 export default function FriendListUserItem({
   _id,
@@ -17,6 +18,7 @@ export default function FriendListUserItem({
   subtitle,
   avatarUri,
   status,
+  mutualFriendsCount,
   onAdd,
   onRemove,
   onInvite,
@@ -35,7 +37,10 @@ export default function FriendListUserItem({
     } = useManageFriends();
 
   const openUserProfile = (_id: string) => {
-    router.push(`/(auth)/(tabs)/(profile)/${encodeURIComponent(_id)}`);
+    router.push({
+      pathname: "/(auth)/(profile)/[_id]",
+      params: { _id }
+    });
   }
 
   const truncateName = (name: string, maxLength: number) => {
@@ -70,24 +75,53 @@ export default function FriendListUserItem({
     }, [isWaiting])
   );
 
+  const handleBlockUser = async () => {
+    try {
+      await api.post('/api/users/block', { userId: _id });
+      Alert.alert('Success', 'User has been blocked');
+      onRemove?.();
+    } catch (error) {
+      console.error('Error blocking user:', error);
+      Alert.alert('Error', 'Failed to block user. Please try again.');
+    }
+  };
+
+  const showBlockUserConfirmation = () => {
+    Alert.alert(
+      'Block User',
+      'Are you sure you want to block this user? They will be removed from your friends list and won\'t be able to interact with you.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: handleBlockUser
+        }
+      ]
+    );
+  };
+
   const showRemoveFriendConfirmation = () => {
-    ActionSheetIOS.showActionSheetWithOptions(
-      {
-        title: 'Are you sure you want to remove this friend?',
-        options: ['Cancel', 'Remove Friend', 'Block User'],
-        cancelButtonIndex: 0,
-        destructiveButtonIndex: [1, 2],
-        userInterfaceStyle: colorScheme === 'dark' ? 'dark' : 'light',
-      },
-      async (buttonIndex) => {
-        if (buttonIndex === 1) {
+    Alert.alert(
+      'Remove Friend',
+      'Are you sure you want to remove this friend from your friends list?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
           await removeFriendFromFriendList(_id);
           onRemove?.();
-        } else if (buttonIndex === 2) {
-          // TODO: Implement block user functionality
-          console.log('Block user');
+          }
         }
-      }
+      ]
     );
   };
 
@@ -139,7 +173,7 @@ export default function FriendListUserItem({
               />
               <Button 
                 systemImage={"exclamationmark.triangle"} 
-                onPress={() => console.log('Block user')}
+                onPress={showBlockUserConfirmation}
                 children='Block User'
                 role='destructive'
               />
@@ -158,6 +192,8 @@ export default function FriendListUserItem({
             </ContextMenu.Trigger>
           </ContextMenu>
         );
+        case 'manageTagFriend':
+          return;
       case 'request': {
         if (decision === 'accepted') {
           return (
@@ -253,7 +289,7 @@ export default function FriendListUserItem({
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text style={{ fontWeight: 'bold', color: themeColors.text }}>{truncateName(name, 18)}</Text>
             </View>
-            {subtitle && <Text style={{ color: themeColors.placeholderTextColor, marginTop: 2 }}>{subtitle}</Text>}
+            {subtitle && <Text style={{ color: themeColors.placeholderTextColor, marginTop: 2 }}>{truncateName(subtitle, 18)}</Text>}
           </View>
         </View>
         {renderAction()}
@@ -294,7 +330,14 @@ export default function FriendListUserItem({
                 </View>
               )}
             </View>
-            {subtitle && <Text style={{ color: themeColors.placeholderTextColor, marginTop: 2 }}>{truncateName(subtitle, 18)}</Text>}
+            <View style={{ flexDirection: 'column', gap: 2 }}>
+              {subtitle && <Text style={{ color: themeColors.placeholderTextColor }}>{truncateName(subtitle, 18)}</Text>}
+              {typeof mutualFriendsCount === 'number' && mutualFriendsCount > 0 && (
+                <Text style={{ color: themeColors.placeholderTextColor, fontSize: 12 }}>
+                  {mutualFriendsCount} {mutualFriendsCount === 1 ? 'mutual friend' : 'mutual friends'}
+                </Text>
+              )}
+            </View>
           </View>
         </View>
         <TouchableOpacity 

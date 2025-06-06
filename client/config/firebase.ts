@@ -1,6 +1,7 @@
 import { initializeApp, getApps } from '@react-native-firebase/app';
 import { getAuth } from '@react-native-firebase/auth';
 import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import appCheck, { ReactNativeFirebaseAppCheckProvider } from '@react-native-firebase/app-check';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -20,7 +21,24 @@ if (!getApps().length) {
     apiKey: '***', // Hide sensitive data in logs
     clientId: '***',
   });
-  initializeApp(firebaseConfig);
+  const app = initializeApp(firebaseConfig);
+  
+  // Initialize App Check with the new pattern
+  const provider = new ReactNativeFirebaseAppCheckProvider();
+  provider.configure({
+    android: {
+      provider: __DEV__ ? 'debug' : 'playIntegrity',
+    },
+    apple: {
+      provider: __DEV__ ? 'debug' : 'deviceCheck',
+    },
+  });
+  
+  const appChecks = appCheck().initializeAppCheck({
+    provider,
+    isTokenAutoRefreshEnabled: true,
+  });
+  console.log('App Checks:', appChecks);
 }
 
 // Initialize Auth
@@ -30,7 +48,7 @@ const auth = getAuth();
 const configurePhoneAuth = async () => {
   if (__DEV__) {
     // In development, allow test phone numbers
-    auth.settings.appVerificationDisabledForTesting = false;
+    auth.settings.appVerificationDisabledForTesting = true;
     console.log('Development mode: test phone numbers enabled');
   } else {
     // In production, use real phone verification
@@ -61,4 +79,6 @@ export const initiatePhoneAuth = async (phoneNumber: string): Promise<FirebaseAu
     console.error('Error initiating phone auth:', error);
     throw error;
   }
-}; 
+};
+
+export { auth, configurePhoneAuth }; 

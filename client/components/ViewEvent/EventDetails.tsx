@@ -25,51 +25,22 @@ import { jwtDecode } from 'jwt-decode';
 const EventDetailsSection: React.FC<EventProp> = ({ event }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const [loggedInUserId, setLoggedInUserId] = useState<string | null>(null);
-  const [currentUserStatus, setCurrentUserStatus] = useState<'pending' | 'maybe' | 'accepted' | 'rejected' | null>(null);
   const [showAddAttendeesModal, setShowAddAttendeesModal] = useState(false);
-  
-  const { respondToInvitation, cancelEvent: cancelEventAPI, loading: invitationLoading } = useEventInvitation();
+  const { respondToInvitation } = useEventInvitation();
   const { refreshEvents } = useEventContext();
-  const { occurrence_start, is_occurrence } = useLocalSearchParams();
-  const router = useRouter();
   const { accessToken } = useAuthSession();
-
-  // Check if this is a recurring event
-  const isRecurringEvent = event.recurrence?.checked && 
-                          event.recurrence?.frequency && 
-                          event.recurrence?.frequency !== 'none';
-
-  // Check if this is a specific occurrence of a recurring event
+  const router = useRouter();
+  const { occurrence_start, is_occurrence } = useLocalSearchParams();
+  const loggedInUserId = accessToken?.current ? (jwtDecode(accessToken.current) as any)?._id : null;
+  console.log('loggedInUserId', loggedInUserId);
   const isRecurringOccurrence = is_occurrence === 'true' && occurrence_start;
 
-  useEffect(() => {
-    const token = accessToken?.current;
-    if (token) {
-      try {
-        const decodedToken: any = jwtDecode(token);
-        // The token might have the ID in different fields, let's check them all
-        const userId = decodedToken.userId || decodedToken.sub || decodedToken._id;
-        console.log('Full decoded token:', decodedToken);
-        console.log('Extracted user ID:', userId);
-        setLoggedInUserId(userId);
-        console.log('Event creator:', event.creator);
-        console.log('Event creator ID:', event.creator?._id);
-        console.log('Is creator match?', userId === event.creator?._id);
-      } catch (error) {
-        console.error('Error decoding token:', error);
-      }
-    }
-  }, [accessToken, event.creator?._id]);
-
-  useEffect(() => {
-    const status = event.attendees?.find(att => 
-      att.user?._id === loggedInUserId
-    )?.status ?? null;
-    setCurrentUserStatus(status);
-    console.log('Current user status:', status);
-    console.log('Is creator check in render:', event.creator?._id === loggedInUserId);
-  }, [event.attendees, loggedInUserId, event.creator?._id]);
+  // Check if event is in the past
+  const isEventInPast = useMemo(() => {
+    if (!event.end_time) return false;
+    const eventEndTime = new Date(event.end_time);
+    return eventEndTime < new Date();
+  }, [event.end_time]);
 
   const formatDateTime = (date: Date | null) =>
     date ? format(new Date(date), 'MMMM d, yyyy, h:mm a') : 'Unknown';
@@ -91,24 +62,20 @@ const EventDetailsSection: React.FC<EventProp> = ({ event }) => {
       : formatDateTime(event.end_time)
     : 'End time unknown';
 
-  const handleInvitationResponse = useCallback(async (
-    status: 'accepted' | 'maybe' | 'rejected',
-    options?: { modifyType?: 'this_only' | 'all_future' }
-  ) => {
+  const handleInvitationResponse = useCallback(async (status: 'accepted' | 'maybe' | 'rejected', options?: { modifyType: 'this_only' | 'all_future' }) => {
     if (!event._id) return;
     
     try {
       const requestOptions: any = {};
       
       // If this is a recurring occurrence and we have options, include them
-      if (isRecurringOccurrence && options?.modifyType) {
+      if (isRecurringOccurrence && options?.modifyType && occurrence_start) {
         const occurrenceDate = Array.isArray(occurrence_start) ? occurrence_start[0] : occurrence_start;
         requestOptions.occurrenceDate = occurrenceDate;
         requestOptions.modifyType = options.modifyType;
       }
       
       await respondToInvitation(event._id, status, Object.keys(requestOptions).length > 0 ? requestOptions : undefined);
-      setCurrentUserStatus(status);
       // Refresh events to update calendar
       await refreshEvents();
     } catch (error) {
@@ -212,7 +179,7 @@ const EventDetailsSection: React.FC<EventProp> = ({ event }) => {
         requestOptions.modifyType = options.modifyType;
       }
       
-      await cancelEventAPI(event._id, Object.keys(requestOptions).length > 0 ? requestOptions : undefined);
+      await respondToInvitation(event._id, 'rejected', Object.keys(requestOptions).length > 0 ? requestOptions : undefined);
       
       // Refresh events to update calendar
       await refreshEvents();
@@ -235,7 +202,7 @@ const EventDetailsSection: React.FC<EventProp> = ({ event }) => {
     } catch (error) {
       console.error('Failed to cancel event:', error);
     }
-  }, [event._id, cancelEventAPI, refreshEvents, isRecurringOccurrence, occurrence_start, router]);
+  }, [event._id, respondToInvitation, refreshEvents, isRecurringOccurrence, occurrence_start, router]);
 
   const cancelEvent = useCallback(() => {
     // If this is a recurring event occurrence, show the alert to choose modification type
@@ -290,8 +257,11 @@ const EventDetailsSection: React.FC<EventProp> = ({ event }) => {
         <EventRecurrence frequency={event.recurrence.frequency} endDate={event.recurrence.end_date} />
       )}
 
+      {!isEventInPast && (
       <EventStatusActionButtons 
-        currentUserStatus={currentUserStatus}
+          currentUserStatus={event.attendees?.find(att => 
+            att.user?._id === loggedInUserId
+          )?.status ?? null}
         onAccept={acceptInvitation}
         onMaybe={maybeInvitation}
         onDecline={declineInvitation}
@@ -299,9 +269,10 @@ const EventDetailsSection: React.FC<EventProp> = ({ event }) => {
         onEdit={editEvent}
         onInvite={inviteToEvent}
         isCreator={event.creator?._id === loggedInUserId}
-        loading={invitationLoading}
+          loading={false}
         isInvited={event.attendees?.some(att => att.user._id === loggedInUserId)}
       />
+      )}
 
       <EventLocationInfo location={event?.location} />
 

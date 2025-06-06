@@ -8,7 +8,6 @@ import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { Event } from '@/types/allTypes';
-import { AutoSkeletonView } from 'react-native-auto-skeleton';
 import { useGetMyPastEvents } from '@/hooks/useGetMyPastEvents';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -218,7 +217,7 @@ const PastEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }>
                 opacity: 0.8
               }}
             >
-              Past events will appear here once you attend them 🎈
+              Past events will appear here once you attend them 
             </ThemedText>
           </View>
         </View>

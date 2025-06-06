@@ -27,28 +27,15 @@ const PastEvent: React.FC<{ event: Event; loading: boolean }> = ({ event, loadin
       onPress={handleViewEvent}
       style={{
         padding: 16,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: themeColors.border,
         flexDirection: 'column',
         gap: 12,
         position: 'relative',
         overflow: 'hidden',
       }}
     >
-
-      <LinearGradient
-        colors={['#1A1A1A', '#2D2D2D']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          borderRadius: 12,
-          opacity: 0.9, // Slight transparency for a sleeker look
-        }}
-      />
-
       {/* Title */}
       <View style={{ flexDirection: 'column' }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -59,9 +46,9 @@ const PastEvent: React.FC<{ event: Event; loading: boolean }> = ({ event, loadin
           <View
             style={{
               paddingHorizontal: 8,
-              paddingVertical: 6,
+              paddingVertical: 4,
               borderRadius: 4,
-              backgroundColor: themeColors.background,
+              backgroundColor: themeColors.mountainGreen,
             }}
           >
             <Text style={{ color: themeColors.text, fontWeight: '600', fontSize: 12, textTransform: 'capitalize' }}>
@@ -87,7 +74,7 @@ const PastEvent: React.FC<{ event: Event; loading: boolean }> = ({ event, loadin
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Feather name="map-pin" size={16} color={themeColors.textThird} />
             <Text style={{ color: themeColors.textThird, fontSize: 14 }}>
-              {truncateText(event?.location.text || '', 25)}
+              {truncateText(event?.location.text || 'Location TBD', 25)}
             </Text>
           </View>
         </View>

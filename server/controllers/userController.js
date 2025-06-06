@@ -1,5 +1,6 @@
 const User = require('../database/schemas/usersSchema');
 const FriendRequests = require('../database/schemas/friendRequestsSchema');
+const { sendEmail } = require('../utils/emailService'); // Make sure this exists
 
 require('dotenv').config();
 
@@ -93,18 +94,33 @@ const findMe = async (req, res) => {
 };
 
 const getUser = async (req, res, next) => {
-  let found_user;
   try {
-    found_user = await User.findOne({ _id: req.query._id }).select('-password');
-    if (found_user == null) {
+    // Check if the requested user exists
+    const requestedUser = await User.findOne({ _id: req.query._id }).select('-password');
+    if (!requestedUser) {
       return res.status(404).json({ message: 'Cannot find the user' });
-    };
+    }
+
+    // Check if current user is blocked by the requested user
+    const isBlockedByRequestedUser = requestedUser.blocked_users.some(
+      block => block.user.toString() === req.user._id.toString()
+    );
+
+    // Check if current user has blocked the requested user
+    const currentUser = await User.findById(req.user._id).select('blocked_users');
+    const hasBlockedRequestedUser = currentUser.blocked_users.some(
+      block => block.user.toString() === requestedUser._id.toString()
+    );
+
+    if (isBlockedByRequestedUser || hasBlockedRequestedUser) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    res.user = requestedUser;
+    next();
   } catch (err) {
     return res.status(500).json({ message: err.message });
-  };
-
-  res.user = found_user;
-  next();
+  }
 };
 
 const getUserFriendByEmailSearch = async (req, res) => {
@@ -217,6 +233,517 @@ const markStoriesViewed = async (req, res) => {
   }
 };
 
+/**
+ * Request account deletion
+ * This will mark the account for deletion but not immediately delete it
+ */
+const requestAccountDeletion = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Calculate deletion date (30 days from now)
+    const deletionDate = new Date();
+    deletionDate.setDate(deletionDate.getDate() + 30);
+
+    // Mark the account for deletion
+    user.delete_requested = true;
+    user.deleted_at = deletionDate;
+    await user.save();
+
+    // Send email notification
+    // try {
+    //   await sendEmail({
+    //     to: user.email,
+    //     subject: 'Account Deletion Request Confirmation',
+    //     html: `
+    //       <h2>Account Deletion Request Confirmation</h2>
+    //       <p>Hello ${user.first_name},</p>
+    //       <p>We've received your request to delete your Kinovo account. Your account is scheduled for permanent deletion on ${deletionDate.toLocaleDateString()}.</p>
+    //       <p>During this 30-day period:</p>
+    //       <ul>
+    //         <li>You can still log in to your account</li>
+    //         <li>You can cancel the deletion request at any time</li>
+    //         <li>After ${deletionDate.toLocaleDateString()}, your account and all associated data will be permanently deleted</li>
+    //       </ul>
+    //       <p>If you wish to cancel the deletion, please log in to your account and visit the account settings.</p>
+    //       <p>If you did not request this deletion, please contact our support team immediately.</p>
+    //     `
+    //   });
+    // } catch (emailError) {
+    //   console.error('Failed to send deletion confirmation email:', emailError);
+    //   // Continue with the process even if email fails
+    // }
+
+    // Send success response
+    return res.status(200).json({
+      success: true,
+      message: 'Account has been marked for deletion. This will be processed within 30 days.',
+      deletionDate: deletionDate
+    });
+
+  } catch (error) {
+    console.error('Error in requestAccountDeletion:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'An error occurred while processing your request',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Cancel a pending account deletion request
+ */
+const cancelAccountDeletion = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check if there's a pending deletion
+    if (!user.delete_requested) {
+      return res.status(400).json({
+        success: false,
+        message: 'No pending deletion request found'
+      });
+    }
+
+    // Cancel the deletion
+    user.delete_requested = false;
+    user.deleted_at = null;
+    await user.save();
+
+    // Send email notification
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: 'Account Deletion Cancelled',
+        html: `
+          <h2>Account Deletion Cancelled</h2>
+          <p>Hello ${user.first_name},</p>
+          <p>We're confirming that your account deletion request has been cancelled. Your account will remain active and no data will be deleted.</p>
+          <p>If you did not cancel this deletion request, please contact our support team immediately.</p>
+        `
+      });
+    } catch (emailError) {
+      console.error('Failed to send deletion cancellation email:', emailError);
+      // Continue with the process even if email fails
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Account deletion request has been cancelled.'
+    });
+
+  } catch (error) {
+    console.error('Error in cancelAccountDeletion:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'An error occurred while processing your request',
+      error: error.message
+    });
+  }
+};
+
+const blockUser = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Unauthorized: User not logged in' });
+    }
+
+    const { userId, reason } = req.body;
+    
+    // Validate userId
+    if (!userId) {
+      return res.status(400).json({ message: 'User ID is required' });
+    }
+
+    // Check if trying to block self
+    if (userId === req.user._id.toString()) {
+      return res.status(400).json({ message: 'Cannot block yourself' });
+    }
+
+    // Check if user to block exists
+    const userToBlock = await User.findById(userId);
+    if (!userToBlock) {
+      return res.status(404).json({ message: 'User to block not found' });
+    }
+
+    // Check if already blocked
+    const currentUser = await User.findById(req.user._id);
+    const isAlreadyBlocked = currentUser.blocked_users.some(
+      blockedUser => blockedUser.user.toString() === userId
+    );
+
+    if (isAlreadyBlocked) {
+      return res.status(400).json({ message: 'User is already blocked' });
+    }
+
+    // Add to blocked users and remove from friends and tags
+    await User.findByIdAndUpdate(
+      req.user._id,
+      {
+        $push: {
+          blocked_users: {
+            user: userId,
+            reason: reason || null
+          }
+        },
+        $pull: {
+          friends: userId,
+          // Remove blocked user from all tags
+          'tags.$[].friends': userId
+        }
+      }
+    );
+
+    // Also remove the blocker from the blocked user's friends list and tags
+    await User.findByIdAndUpdate(
+      userId,
+      {
+        $pull: {
+          friends: req.user._id,
+          // Remove blocker from all tags
+          'tags.$[].friends': req.user._id
+        }
+      }
+    );
+
+    res.status(200).json({ message: 'User blocked successfully' });
+  } catch (error) {
+    console.error('Error blocking user:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const unblockUser = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Unauthorized: User not logged in' });
+    }
+
+    const { userId } = req.body;
+    
+    // Validate userId
+    if (!userId) {
+      return res.status(400).json({ message: 'User ID is required' });
+    }
+
+    // Check if user to unblock exists
+    const userToUnblock = await User.findById(userId);
+    if (!userToUnblock) {
+      return res.status(404).json({ message: 'User to unblock not found' });
+    }
+
+    // Check if actually blocked
+    const currentUser = await User.findById(req.user._id);
+    const isBlocked = currentUser.blocked_users.some(
+      blockedUser => blockedUser.user.toString() === userId
+    );
+
+    if (!isBlocked) {
+      return res.status(400).json({ message: 'User is not blocked' });
+    }
+
+    // Remove from blocked users
+    await User.findByIdAndUpdate(
+      req.user._id,
+      {
+        $pull: {
+          blocked_users: {
+            user: userId
+          }
+        }
+      }
+    );
+
+    res.status(200).json({ message: 'User unblocked successfully' });
+  } catch (error) {
+    console.error('Error unblocking user:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const getBlockedUsers = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Unauthorized: User not logged in' });
+    }
+
+    const user = await User.findById(req.user._id)
+      .select('blocked_users')
+      .populate('blocked_users.user', 'username full_name profile_picture');
+
+    res.status(200).json({
+      blockedUsers: user.blocked_users.map(blocked => ({
+        _id: blocked.user._id,
+        username: blocked.user.username,
+        full_name: blocked.user.full_name,
+        profile_picture: blocked.user.profile_picture,
+        blocked_at: blocked.blocked_at,
+        reason: blocked.reason
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching blocked users:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Add a new activity tag
+const addActivityTag = async (req, res) => {
+  try {
+    const { activity_name } = req.body;
+
+    if (!activity_name) {
+      return res.status(400).json({ message: 'Activity name is required' });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Check if tag already exists
+    const existingTag = user.tags.find(tag => tag.activity_name === activity_name);
+    if (existingTag) {
+      return res.status(400).json({ message: 'Tag already exists for this activity' });
+    }
+
+    // Add new tag
+    user.tags.push({ activity_name, friends: [] });
+    await user.save();
+
+    res.status(200).json({ message: 'Activity tag added successfully', tag: user.tags[user.tags.length - 1] });
+  } catch (error) {
+    console.error('Error adding activity tag:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Remove an activity tag
+const removeActivityTag = async (req, res) => {
+  try {
+    const { activity_name } = req.body;
+
+    if (!activity_name) {
+      return res.status(400).json({ message: 'Activity name is required' });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Find and remove the tag
+    const tagIndex = user.tags.findIndex(tag => tag.activity_name === activity_name);
+    if (tagIndex === -1) {
+      return res.status(404).json({ message: 'Tag not found' });
+    }
+
+    user.tags.splice(tagIndex, 1);
+    await user.save();
+
+    res.status(200).json({ message: 'Activity tag removed successfully' });
+  } catch (error) {
+    console.error('Error removing activity tag:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Add friends to an activity tag
+const addFriendsToTag = async (req, res) => {
+  try {
+    const { activity_name, friend_ids } = req.body;
+
+    if (!activity_name || !friend_ids || !Array.isArray(friend_ids)) {
+      return res.status(400).json({ message: 'Activity name and array of friend IDs are required' });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Find the tag
+    const tag = user.tags.find(tag => tag.activity_name === activity_name);
+    if (!tag) {
+      return res.status(404).json({ message: 'Tag not found' });
+    }
+
+    // Validate that all friends exist and are actually friends
+    const friendsToAdd = await User.find({
+      _id: { $in: friend_ids },
+      _id: { $in: user.friends }
+    });
+
+    if (friendsToAdd.length !== friend_ids.length) {
+      return res.status(400).json({ message: 'Some users are not in your friends list' });
+    }
+
+    // Add friends to tag if they're not already there
+    friend_ids.forEach(friendId => {
+      if (!tag.friends.includes(friendId)) {
+        tag.friends.push(friendId);
+      }
+    });
+
+    await user.save();
+
+    // Fetch the updated user with populated friends
+    const updatedUser = await User.findById(user._id).populate('tags.friends', 'full_name username profile_picture');
+    const updatedTag = updatedUser.tags.find(t => t.activity_name === activity_name);
+
+    res.status(200).json({ 
+      message: 'Friends added to tag successfully',
+      tag: updatedTag
+    });
+  } catch (error) {
+    console.error('Error adding friends to tag:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Remove friends from an activity tag
+const removeFriendsFromTag = async (req, res) => {
+  try {
+    const { activity_name, friend_ids } = req.body;
+
+    if (!activity_name || !friend_ids || !Array.isArray(friend_ids)) {
+      return res.status(400).json({ message: 'Activity name and array of friend IDs are required' });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Find the tag
+    const tag = user.tags.find(tag => tag.activity_name === activity_name);
+    if (!tag) {
+      return res.status(404).json({ message: 'Tag not found' });
+    }
+
+    // Remove friends from tag
+    tag.friends = tag.friends.filter(friendId => !friend_ids.includes(friendId.toString()));
+    await user.save();
+
+    // Fetch the updated user with populated friends
+    const updatedUser = await User.findById(user._id).populate('tags.friends', 'full_name username profile_picture');
+    const updatedTag = updatedUser.tags.find(t => t.activity_name === activity_name);
+
+    res.status(200).json({ 
+      message: 'Friends removed from tag successfully',
+      tag: updatedTag
+    });
+  } catch (error) {
+    console.error('Error removing friends from tag:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Get all tags with friends
+const getUserTags = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id)
+      .populate('tags.friends', 'full_name username profile_picture');
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.status(200).json({ tags: user.tags });
+  } catch (error) {
+    console.error('Error getting user tags:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+const getFavoriteActivities = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('favorite_activities');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json({ favorite_activities: user.favorite_activities || [] });
+  } catch (error) {
+    console.error('Error getting favorite activities:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+const addFavoriteActivity = async (req, res) => {
+  try {
+    const { activity } = req.body;
+    if (!activity) {
+      return res.status(400).json({ message: 'Activity is required' });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (user.favorite_activities.includes(activity)) {
+      return res.status(400).json({ message: 'Activity already in favorites' });
+    }
+
+    user.favorite_activities.push(activity);
+    await user.save();
+
+    res.json({ message: 'Activity added to favorites', favorite_activities: user.favorite_activities });
+  } catch (error) {
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ message: error.message });
+    }
+    console.error('Error adding favorite activity:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+const removeFavoriteActivity = async (req, res) => {
+  console.log('removeFavoriteActivity', req.body);
+  try {
+    const { activity } = req.body;
+    if (!activity) {
+      return res.status(400).json({ message: 'Activity is required' });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      console.log('user not found');
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const activityIndex = user.favorite_activities.indexOf(activity);
+    if (activityIndex === -1) {
+      return res.status(400).json({ message: 'Activity not found in favorites' });
+    }
+
+    user.favorite_activities.splice(activityIndex, 1);
+    await user.save();
+
+    res.json({ message: 'Activity removed from favorites', favorite_activities: user.favorite_activities });
+  } catch (error) {
+    console.error('Error removing favorite activity:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
 module.exports = { 
   getUserProfile,
   getUsers,
@@ -228,4 +755,17 @@ module.exports = {
   getUserFriendByEmailSearch,
   getUserFriendByNameSearch,
   markStoriesViewed,
- };
+  requestAccountDeletion,
+  cancelAccountDeletion,
+  blockUser,
+  unblockUser,
+  getBlockedUsers,
+  addActivityTag,
+  removeActivityTag,
+  addFriendsToTag,
+  removeFriendsFromTag,
+  getUserTags,
+  getFavoriteActivities,
+  addFavoriteActivity,
+  removeFavoriteActivity,
+};

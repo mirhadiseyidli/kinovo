@@ -13,19 +13,17 @@ const UserProfilePhoto = ({ profile_picture }: UserProfilePhotoProps) => {
   const screenWidth = Dimensions.get('window').width;
 
   return (
-    <View style={{ alignItems: 'center', marginTop: 150 }}>
-      <View style={{ width: 140, height: 140, borderRadius: 70, borderWidth: 2, borderColor: themeColors.mountainGreen, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-        {profile_picture ? (
-          <Image
-            source={{ uri: profile_picture }}
-            style={{ width: '100%', height: '100%' }}
-            fadeDuration={100}
-            progressiveRenderingEnabled
-          />
-        ) : (
-          <Feather name="user" size={80} color={themeColors.mountainGreen} />
-        )}
-      </View>
+    <View style={{ width: 120, height: 120, borderRadius: 70, borderWidth: 2, borderColor: themeColors.mountainGreen, overflow: 'hidden' }}>
+      {profile_picture ? (
+        <Image
+          source={{ uri: profile_picture }}
+          style={{ width: '100%', height: '100%' }}
+          fadeDuration={100}
+          progressiveRenderingEnabled
+        />
+      ) : (
+        <Feather name="user" size={80} color={themeColors.mountainGreen} />
+      )}
     </View>
   );
 };

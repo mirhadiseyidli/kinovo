@@ -281,7 +281,7 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
           >
             <ThemedView style={{
               flex: 1,
-              height: 200,
+              height: 140,
               backgroundColor: Colors[colorScheme ?? 'dark'].background,
               borderRadius: 12,
               borderWidth: 2,

@@ -109,6 +109,14 @@ const usersSchema = new mongoose.Schema({
     type: Date,
     default: Date.now(),
   },
+  delete_requested: {
+    type: Boolean,
+    default: false,
+  },
+  deleted_at: {
+    type: Date,
+    default: null,
+  },
   friends: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Users',
@@ -142,7 +150,60 @@ const usersSchema = new mongoose.Schema({
   }],
   favorite_activities: [{
     type: String,
-    default: []
+    enum: [
+      'Alpine Ski', 'Backcountry Ski', 'Badminton', 'Canoeing', 'Crossfit',
+      'E-Bike Ride', 'Elliptical', 'E-Mountain Bike Ride', 'Golf', 'Gravel Ride',
+      'Handcycle', 'High Intensity Interval Training', 'Hike', 'Ice Skate',
+      'Inline Skate', 'Kayaking', 'Kitesurf', 'Mountain Bike Ride', 'Nordic Ski',
+      'Pickleball', 'Pilates', 'Racquetball', 'Ride', 'Rock Climbing',
+      'Roller Ski', 'Rowing', 'Run', 'Sail', 'Skateboard', 'Snowboard',
+      'Snowshoe', 'Soccer', 'Squash', 'Stair Stepper', 'Stand Up Paddling',
+      'Surfing', 'Swim', 'Table Tennis', 'Tennis', 'Trail Run', 'Velomobile',
+      'Walk', 'Weight Training', 'Wheelchair', 'Windsurf', 'Workout', 'Yoga'
+    ],
+    validate: {
+      validator: async function(value) {
+        const Category = mongoose.model('Category');
+        const category = await Category.findOne({ name: value, active: true });
+        return category !== null;
+      },
+      message: props => `${props.value} is not a valid activity`
+    }
+  }],
+  tags: [{
+    activity_name: {
+      type: String,
+      enum: [
+        'Alpine Ski', 'Backcountry Ski', 'Badminton', 'Canoeing', 'Crossfit',
+        'E-Bike Ride', 'Elliptical', 'E-Mountain Bike Ride', 'Golf', 'Gravel Ride',
+        'Handcycle', 'High Intensity Interval Training', 'Hike', 'Ice Skate',
+        'Inline Skate', 'Kayaking', 'Kitesurf', 'Mountain Bike Ride', 'Nordic Ski',
+        'Pickleball', 'Pilates', 'Racquetball', 'Ride', 'Rock Climbing',
+        'Roller Ski', 'Rowing', 'Run', 'Sail', 'Skateboard', 'Snowboard',
+        'Snowshoe', 'Soccer', 'Squash', 'Stair Stepper', 'Stand Up Paddling',
+        'Surfing', 'Swim', 'Table Tennis', 'Tennis', 'Trail Run', 'Velomobile',
+        'Walk', 'Weight Training', 'Wheelchair', 'Windsurf', 'Workout', 'Yoga'
+      ],
+      required: true,
+      validate: {
+        validator: async function(value) {
+          const Category = mongoose.model('Category');
+          const category = await Category.findOne({ name: value, active: true });
+          return category !== null;
+        },
+        message: props => `${props.value} is not a valid activity`
+      }
+    },
+    friends: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Users',
+      validate: {
+        validator: function(value) {
+          return !this._id.equals(value);
+        },
+        message: 'User cannot tag themselves'
+      }
+    }]
   }],
   social_handles: {
     _id: false,
@@ -181,6 +242,28 @@ const usersSchema = new mongoose.Schema({
       ]
     }
   ],
+  blocked_users: [{
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Users',
+      required: true,
+      validate: {
+        validator: function(value) {
+          return !this._id.equals(value);
+        },
+        message: 'User cannot block themselves',
+      }
+    },
+    blocked_at: {
+      type: Date,
+      default: Date.now,
+      required: true
+    },
+    reason: {
+      type: String,
+      default: null
+    }
+  }],
   ai_assistant_id: {
     type: String,
     required: false,

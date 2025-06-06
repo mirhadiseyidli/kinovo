@@ -27,7 +27,10 @@
         "credentialsSource": "remote",
         "enterpriseProvisioning": "adhoc"
       },
-      "channel": "preview"
+      "channel": "preview",
+      "env": {
+        "GOOGLE_SERVICES_PLIST": "GOOGLE_SERVICES_PLIST"
+      }
     },
     "production": {
       "ios": {

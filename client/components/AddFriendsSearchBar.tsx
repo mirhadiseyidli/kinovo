@@ -34,7 +34,7 @@ const AddFriendsSearchBar: React.FC<AddFriendsSearchBarProps> = ({
   const handleUserPress = (user: User) => {
     // Navigate to user profile using the correct dynamic route
     router.push({
-      pathname: "/(auth)/(tabs)/(profile)/[_id]" as const,
+      pathname: "/(auth)/(profile)/[_id]" as const,
       params: { _id: user._id }
     });
     onChangeText(''); // Clear search after selection

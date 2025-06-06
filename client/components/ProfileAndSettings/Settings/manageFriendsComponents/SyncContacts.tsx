@@ -10,6 +10,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
 import { useManageFriends } from '@/hooks/useManageFriends';
+import { IconSymbol } from '@/components/ui/IconSymbol';
 
 export default function ContactSyncScreen() {
   const [contactsPermission, setContactsPermission] = useState(false);
@@ -114,15 +115,47 @@ export default function ContactSyncScreen() {
       ) : (
         <>
           {contacts.length === 0 ? (
-            <ThemedText 
-              style={{ 
-                fontSize: 16, 
-                color: themeColors.placeholderTextColor,
-                textAlign: 'center' 
-              }}
-            >
-              {`No friends from your contacts yet.\nMake sure numbers are saved with a country code (e.g. +1) to sync properly.`}
-            </ThemedText>
+            <View style={{
+              backgroundColor: themeColors.background,
+              borderRadius: 12,
+              padding: 16,
+              borderWidth: 2,
+              borderStyle: 'dashed',
+              borderColor: themeColors.border,
+              width: '100%',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 120,
+            }}>
+              <View style={{ marginBottom: 12 }}>
+                <IconSymbol
+                  name="person.2"
+                  size={32}
+                  color={themeColors.placeholderTextColor}
+                />
+              </View>
+              <ThemedText 
+                style={{ 
+                  fontSize: 16, 
+                  color: themeColors.placeholderTextColor,
+                  textAlign: 'center',
+                  marginBottom: 4,
+                  fontWeight: '600'
+                }}
+              >
+                No contacts found on Kinovo
+              </ThemedText>
+              <ThemedText 
+                style={{ 
+                  fontSize: 14, 
+                  color: themeColors.placeholderTextColor,
+                  textAlign: 'center',
+                  opacity: 0.8
+                }}
+              >
+                Make sure numbers are saved with a country code (e.g. +1) 📱
+              </ThemedText>
+            </View>
           ) : (
             <View style={{ flexDirection: 'column', gap: 16 }}>
               {contacts.map((user) => (

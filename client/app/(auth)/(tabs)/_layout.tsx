@@ -116,12 +116,6 @@ const TabsLayout = React.memo(() => {
               tabBarIcon: TabBarIcons.user,
             }}
           />
-          <Tabs.Screen
-            name="(profile)/[_id]"
-            options={{
-              href: null,
-            }}
-          />
         </Tabs>
       </View>
     </CalendarViewProvider>
