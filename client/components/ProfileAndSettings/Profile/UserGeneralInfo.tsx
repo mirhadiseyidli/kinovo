@@ -94,48 +94,6 @@ const UserGeneralInfo = forwardRef(({ _id }: UserGeneralInfoProps, ref) => {
     onRefresh,
   }));
 
-  // useFocusEffect(
-  //   useCallback(() => {
-  //     const socket = new WebSocket('ws://localhost:6000');
-
-  //     socket.onopen = () => {
-  //       if (user?._id) {
-  //         socket.send(JSON.stringify({
-  //           type: 'ManageFriends',
-  //           userId: user._id,
-  //         }));
-  //       }
-  //     };
-
-  //     socket.onmessage = (event) => {
-  //       const message = JSON.parse(event.data);
-  //       console.log(message);
-
-  //       switch (message.type) {
-  //         case 'friendRequestReceived':
-  //           console.log('📨 New friend request from:', message.from);
-  //           break;
-
-  //         case 'friendRemoved':
-  //           console.log('❌ You were removed by:', message.removedBy);
-  //           setFriendshipStatus(null);
-  //           fetchUser(); // refetch profile info
-  //           break;
-
-  //         case 'friendAdded':
-  //           console.log('✅ You were added as a friend by:', message.addedBy);
-  //           setFriendshipStatus('friend');
-  //           fetchUser(); // refetch to reflect updated friend state
-  //           break;
-  //       }
-  //     };
-
-  //     return () => {
-  //       socket.close();
-  //     };
-  //   }, [user?._id, fetchUser])
-  // );
-
   useFocusEffect(
     useCallback(() => {
       if (friendRequestStatus?.status === 'pending') {
@@ -159,40 +117,41 @@ const UserGeneralInfo = forwardRef(({ _id }: UserGeneralInfoProps, ref) => {
   }
 
   return (
-    <ThemedView style={{ flex: 1, alignItems: 'center', paddingBottom: insets.bottom, paddingTop: insets.top }}>
+    <View style={{ flex: 1, alignItems: 'center' }}>
+      <View style={{ flex: 1, alignItems: 'center', flexDirection: 'row', paddingVertical: 16, width: '100%', paddingHorizontal: 16 }}>
+        {/* Profile Photo */}
+        <View style={{ flex: 1, alignItems: 'flex-start' }}>
+          <UserProfilePhoto profile_picture={userToView.profile_picture}/>
+        </View>
 
-      {/* Navigate Back Button */}
-      <NavigateBackButton />
-      
-      {/* Block/Report user action button */}
-      <UserProfileActionMenuButton
-        showOptions={showOptions}
-        setShowOptions={setShowOptions}
-        onReportUser={() => {
-          setShowOptions(false);
-          // Report user logic here
-        }}
-        onBlockUser={() => {
-          setShowOptions(false);
-          // Block user logic here
-        }}
-      />
-
-      {/* Cover Photo */}
-      <UserCoverPhoto cover_photo={userToView.cover_photo}/>
-
-      {/* Profile Photo */}
-      <UserProfilePhoto profile_picture={userToView.profile_picture}/>
-
-      {/* User Basic Info */}
-      <UserProfileBasicInfo
-        full_name={userToView.full_name}
-        username={userToView.username}
-        number_of_friends={userToView.friends?.length}
-        number_of_events={userToView.events?.length}
-        instagram_username={userToView.social_handles?.instagram?.username}
-        facebook_username={userToView.social_handles?.instagram?.username}
-      />
+        {/* User Basic Info */}
+        <View style={{ flex: 1.5, alignItems: 'flex-start' }}>
+          <UserProfileBasicInfo
+            full_name={userToView.full_name}
+            username={userToView.username}
+            number_of_friends={userToView.friends?.length}
+            number_of_events={userToView.events?.length}
+          />
+        </View>
+      </View>
+        {(userToView.social_handles?.instagram?.username || userToView.social_handles?.facebook?.username) && (
+          <View style={{ flex: 1, alignItems: 'center', flexDirection: 'row', paddingVertical: 16, width: '100%', paddingHorizontal: 16 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 24 }}>
+              {userToView.social_handles?.instagram?.username && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', width: 'auto' }}>
+                  <Feather name="instagram" size={20} style={{ marginHorizontal: 10, color: themeColors.text }} />
+                  <ThemedText style={{ marginBottom: 4, fontSize: 14 }}>{userToView.social_handles?.instagram?.username}</ThemedText>
+                </View>
+              )}
+              {userToView.social_handles?.facebook?.username && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', width: 'auto' }}>
+                  <Feather name="facebook" size={20} style={{ marginHorizontal: 10, color: themeColors.text }} />
+                  <ThemedText style={{ marginBottom: 4, fontSize: 14 }}>{userToView.social_handles?.facebook?.username}</ThemedText>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
 
       {/* Add Friend / Friends and Share Buttons */}
       <View style={{ flexDirection: 'row', width: '100%', paddingHorizontal: 16, gap: 8 }}>
@@ -204,7 +163,7 @@ const UserGeneralInfo = forwardRef(({ _id }: UserGeneralInfoProps, ref) => {
       <View style={{ flexGrow: 1, marginTop: 16 }}>
         {userToView && <UserInfoTabs user={userToView} />}
       </View>
-    </ThemedView>
+    </View>
   );
 });
 

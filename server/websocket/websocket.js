@@ -5,6 +5,7 @@ const { connectedUsers, removeConnectedUser } = require('./websocketUtils');
 
 const initWebSocket = () => {
   const wss = new WebSocket.Server({ port: 6000 });
+  console.log('WebSocket server started on port 6000');
 
   wss.on('connection', (ws) => {
     console.log('Client connected');

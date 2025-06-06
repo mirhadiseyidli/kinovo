@@ -129,7 +129,7 @@ export default function NotificationsPage() {
       // Navigate to the sender's profile for new friend request notifications
       if (notification.sender?._id) {
         router.push({
-          pathname: "/(auth)/(tabs)/(profile)/[_id]" as const,
+          pathname: "/(auth)/(profile)/[_id]" as const,
           params: { _id: notification.sender._id }
         });
       }
@@ -137,7 +137,7 @@ export default function NotificationsPage() {
       // Navigate to the sender's profile for friend request notifications
       if (notification.sender?._id) {
         router.push({
-          pathname: "/(auth)/(tabs)/(profile)/[_id]" as const,
+          pathname: "/(auth)/(profile)/[_id]" as const,
           params: { _id: notification.sender._id }
         });
       }
@@ -234,7 +234,6 @@ export default function NotificationsPage() {
       </View>
 
       {/* Recent Activity Section Header */}
-      {sortedNotifications.length > 0 && (
         <View style={{ 
           flexDirection: 'row', 
           alignItems: 'center', 
@@ -250,7 +249,6 @@ export default function NotificationsPage() {
             Recent Activity
           </Text>
         </View>
-      )}
     </View>
   );
 
@@ -320,10 +318,11 @@ export default function NotificationsPage() {
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingTop: 16, paddingBottom: insets.bottom }}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
+          <RefreshControl 
+            refreshing={refreshing} 
             onRefresh={handleRefresh}
-            tintColor={themeColors.tint}
+            tintColor={themeColors.mountainGreen}
+            colors={[themeColors.mountainGreen]}
           />
         }
         showsVerticalScrollIndicator={false}

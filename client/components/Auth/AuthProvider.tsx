@@ -29,7 +29,7 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
 
   useEffect(() => {
     (async (): Promise<void> => {
-      const accessToken = await AsyncStorage.getItem('accessToken');
+      const accessToken = await SecureStore.getItemAsync('accessToken');
       const refreshToken = await SecureStore.getItemAsync('refreshToken');
 
       accessTokenRef.current = accessToken || '';
@@ -95,7 +95,7 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
       const newAccessToken = response.data.accessToken;
 
       if (newAccessToken) {
-        await AsyncStorage.setItem('accessToken', newAccessToken);
+        await SecureStore.setItemAsync('accessToken', newAccessToken);
         accessTokenRef.current = newAccessToken;
       } else {
         signOut();
@@ -111,7 +111,7 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
 
   const signIn = useCallback(async (accessToken: string, refreshToken: string, userId: string) => {
     fadeTransition(async () => {
-      await AsyncStorage.setItem('accessToken', accessToken);
+      await SecureStore.setItemAsync('accessToken', accessToken);
       await AsyncStorage.setItem('userId', userId);
       await SecureStore.setItemAsync('refreshToken', refreshToken);
       accessTokenRef.current = accessToken;
@@ -122,7 +122,7 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
 
   const signOut = useCallback(async () => {
     fadeTransition(async () => {
-      await AsyncStorage.removeItem('accessToken');
+      await SecureStore.deleteItemAsync('accessToken');
       await AsyncStorage.removeItem('userId');
       await SecureStore.deleteItemAsync('refreshToken');
       accessTokenRef.current = null;

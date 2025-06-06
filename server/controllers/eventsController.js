@@ -5,6 +5,7 @@ const { RRule } = require('rrule');
 const { createEventCreationNotification } = require('./notificationsController');
 
 const createEvent = async (req, res) => {
+  console.log('createEvent', req.body);
   try {
     const {
       event_picture,

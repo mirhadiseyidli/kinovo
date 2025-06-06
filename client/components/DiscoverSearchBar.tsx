@@ -15,6 +15,7 @@ interface DiscoverSearchBarProps {
     events: Event[];
   };
   placeholder: string;
+  onSearchActiveChange?: (active: boolean) => void;
 }
 
 const DiscoverSearchBar: React.FC<DiscoverSearchBarProps> = ({
@@ -22,6 +23,7 @@ const DiscoverSearchBar: React.FC<DiscoverSearchBarProps> = ({
   setInputValue,
   suggestions,
   placeholder,
+  onSearchActiveChange,
 }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
@@ -40,12 +42,11 @@ const DiscoverSearchBar: React.FC<DiscoverSearchBarProps> = ({
   const handleUserPress = (user: User) => {
     // Navigate to user profile using the correct dynamic route
     router.push({
-      pathname: "/(auth)/(tabs)/(profile)/[_id]" as const,
+      pathname: "/(auth)/(profile)/[_id]" as const,
       params: { _id: user._id }
     });
     setInputValue(''); // Clear search after selection
-    setIsSearchFocused(false);
-    inputRef.current?.blur();
+    setShowSuggestions(false);
   };
 
   const handleEventPress = (event: Event) => {
@@ -57,22 +58,23 @@ const DiscoverSearchBar: React.FC<DiscoverSearchBarProps> = ({
       });
     }
     setInputValue(''); // Clear search after selection
-    setIsSearchFocused(false);
-    inputRef.current?.blur();
+    setShowSuggestions(false);
   };
 
   const handleClearSearch = () => {
     setInputValue('');
-    setIsSearchFocused(false);
-    inputRef.current?.blur();
+    setShowSuggestions(false);
   };
 
   const handleInputFocus = () => {
     setIsSearchFocused(true);
+    onSearchActiveChange?.(true);
   };
 
   const handleBackdropPress = () => {
+    setShowSuggestions(false);
     setIsSearchFocused(false);
+    onSearchActiveChange?.(false);
     inputRef.current?.blur();
   };
 
@@ -101,9 +103,9 @@ const DiscoverSearchBar: React.FC<DiscoverSearchBarProps> = ({
             flexDirection: 'row',
             alignItems: 'center',
             backgroundColor: themeColors.inputBackgroundColor,
-            borderRadius: 8, // Match login input border radius
+            borderRadius: 8,
             paddingHorizontal: 16,
-            height: 44, // Match login input height
+            height: 44,
             position: 'relative',
             width: '100%',
             zIndex: 1001,
@@ -130,7 +132,6 @@ const DiscoverSearchBar: React.FC<DiscoverSearchBarProps> = ({
             value={inputValue}
             onChangeText={setInputValue}
             onFocus={handleInputFocus}
-            onBlur={() => setIsSearchFocused(false)}
             autoCapitalize="none"
             autoCorrect={false}
           />
@@ -158,7 +159,7 @@ const DiscoverSearchBar: React.FC<DiscoverSearchBarProps> = ({
             maxHeight: 300,
             width: '100%',
             position: 'absolute',
-            top: 52, // Adjusted for new height
+            top: 52,
             left: 0,
             zIndex: 1002,
             shadowColor: '#000',
@@ -172,7 +173,8 @@ const DiscoverSearchBar: React.FC<DiscoverSearchBarProps> = ({
           }}>
             <ScrollView 
               style={{ maxHeight: 300 }} 
-              keyboardShouldPersistTaps={'always'} 
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="none"
               nestedScrollEnabled={true}
               showsVerticalScrollIndicator={false}
             >

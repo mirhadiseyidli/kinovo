@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, TouchableWithoutFeedback, Platform } from "react-native";
-// import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { Feather } from '@expo/vector-icons';
 import { ThemedText } from '@/components/ThemedText';
 import { EditDateOfBirthProps, DatePickerChangeHandler } from '@/types/allTypes';
-import { DateTimePicker } from '@expo/ui/swift-ui';
+// import { DateTimePicker } from '@expo/ui/swift-ui';
 
 const EditDateOfBirth = ({ dateOfBirth, setDateOfBirth }: EditDateOfBirthProps) => {
   const colorScheme = useColorScheme();
@@ -14,7 +14,7 @@ const EditDateOfBirth = ({ dateOfBirth, setDateOfBirth }: EditDateOfBirthProps) 
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [tempStartDate, setTempStartDate] = useState(dateOfBirth || new Date());
 
-  const handleStartDateChange: DatePickerChangeHandler = (selectedDate) => {
+  const handleStartDateChange: DatePickerChangeHandler = (event: DateTimePickerEvent, selectedDate: Date | undefined) => {
     if (selectedDate) {
       setTempStartDate(selectedDate); // Store temporary selection
     }
@@ -53,15 +53,15 @@ const EditDateOfBirth = ({ dateOfBirth, setDateOfBirth }: EditDateOfBirthProps) 
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}>
               <View style={{ backgroundColor: themeColors.background, padding: 20, borderRadius: 10, minHeight: 280 }}>
                 <View style={{ minWidth: 280, width: '100%', alignItems: 'center' }}>
-                  <DateTimePicker
+                  {/* <DateTimePicker
                     initialDate={tempStartDate.toISOString()}
                     color={themeColors.mountainGreen}
                     displayedComponents="dateAndTime"
                     variant="graphical"
                     onDateSelected={handleStartDateChange}
                     style={{ minHeight: 280, minWidth: 280, width: '100%' }}
-                  />
-                  {/* <DateTimePicker
+                  /> */}
+                  <DateTimePicker
                     value={tempStartDate} // Use temporary value
                     textColor={themeColors.text}
                     accentColor={themeColors.mountainGreen}
@@ -71,7 +71,7 @@ const EditDateOfBirth = ({ dateOfBirth, setDateOfBirth }: EditDateOfBirthProps) 
                     display={Platform.OS === 'ios' ? 'inline' : 'spinner'}
                     onChange={handleStartDateChange} // Update temp value on change
                     style={{ minHeight: 280, minWidth: 280, width: '100%' }}
-                  /> */}
+                  />
                 </View>
                 {/* Confirm Button for Android */}
                 <TouchableOpacity

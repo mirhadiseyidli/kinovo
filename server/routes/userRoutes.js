@@ -10,26 +10,56 @@ const {
   getUserFriendByEmailSearch,
   getUserFriendByNameSearch,
   markStoriesViewed,
+  requestAccountDeletion,
+  cancelAccountDeletion,
+  blockUser,
+  unblockUser,
+  getBlockedUsers,
+  addActivityTag,
+  removeActivityTag,
+  addFriendsToTag,
+  removeFriendsFromTag,
+  getUserTags,
+  getFavoriteActivities,
+  addFavoriteActivity,
+  removeFavoriteActivity
 } = require('../controllers/userController');
 const { authMiddleware, checkRole } = require('../utils/authMiddleware');
 
 const router = express.Router();
 
-router.get('/me', authMiddleware, findMe);
-// router.get('/', authMiddleware, getUsers);
-// router.post('/', authMiddleware, createUser);
-// router.get('/:id', authMiddleware, getUser, getUserProfile);
-// router.delete('/:id', authMiddleware, getUser, deleteUsers);
-// router.get('/:id', authMiddleware, editUser);
+// Favorite Activities routes
+router.get('/favorite-activities', authMiddleware, getFavoriteActivities);
+router.post('/favorite-activities', authMiddleware, addFavoriteActivity);
+router.delete('/favorite-activities', authMiddleware, removeFavoriteActivity);
 
-// router.get('/me', findMe);
-router.get('/', authMiddleware, getUsers);
+// Tag management routes
+router.post('/tags', authMiddleware, addActivityTag);
+router.delete('/tags', authMiddleware, removeActivityTag);
+router.post('/tags/friends', authMiddleware, addFriendsToTag);
+router.delete('/tags/friends', authMiddleware, removeFriendsFromTag);
+router.get('/tags', authMiddleware, getUserTags);
+
+// Blocked users routes
+router.get('/blocked', authMiddleware, getBlockedUsers);
+router.post('/block', authMiddleware, blockUser);
+router.post('/unblock', authMiddleware, unblockUser);
+
+// Account deletion routes
+router.post('/delete-account', authMiddleware, requestAccountDeletion);
+router.post('/cancel-deletion', authMiddleware, cancelAccountDeletion);
+
+// User profile and management routes
+router.get('/me', authMiddleware, findMe);
 router.post('/user/create', authMiddleware, createUser);
 router.get('/user/get/profile', authMiddleware, getUser, getUserProfile);
 router.get('/me/friends/search/by/email', authMiddleware, getUserFriendByEmailSearch, getUserProfile);
 router.get('/me/friends/search/by/name', authMiddleware, getUserFriendByNameSearch, getUserProfile);
-router.delete('/:id', authMiddleware, getUser, deleteUsers);
 router.patch('/user/edit/myprofile', authMiddleware, editMyProfile);
 router.post('/user/stories/mark-viewed', authMiddleware, markStoriesViewed);
+
+// Generic user routes - keep these last as they have less specific patterns
+router.get('/', authMiddleware, getUsers);
+router.delete('/:id', authMiddleware, getUser, deleteUsers);
 
 module.exports = router;

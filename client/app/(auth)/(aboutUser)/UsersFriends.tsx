@@ -15,26 +15,24 @@ import { useGetUserToViewFriends } from '@/hooks/useGetUserToViewFriends';
 import { useFocusEffect } from '@react-navigation/native';
 import SearchFriendsBar from '@/components/SearchFriendsBar';
 import FriendListUserItem from '@/components/ProfileAndSettings/Settings/manageFriendsComponents/FriendListUserItem';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default React.memo(function UserFriends({ user }: UserProp) {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [searchQuery, setSearchQuery] = useState('');
-  const { friendsList, refetchUserToViewFriends , loading } = useGetUserToViewFriends(user?._id);
-  const tabBarHeight = useBottomTabBarHeight(); // Get tab bar height dynamically
+  const { friendsList, fetchUserToViewFriends , loading } = useGetUserToViewFriends(user?._id);
   const insets = useSafeAreaInsets();
 
   useFocusEffect(
     React.useCallback(() => {
-      refetchUserToViewFriends();
-    }, [refetchUserToViewFriends])
+      fetchUserToViewFriends();
+    }, [fetchUserToViewFriends])
   );
 
   return (
-      <SafeAreaView style={{ flex: 1, alignItems: 'center' }} edges={['bottom']}>
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, flexGrow: 1 }} style={{ width: '100%', paddingBottom: tabBarHeight }}>
+      <ThemedView style={{ flex: 1, alignItems: 'center' }}>
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, flexGrow: 1 }} style={{ width: '100%' }}>
           <View style={{ flexDirection: 'column', gap: 16, alignItems: 'center' }}>
             {loading ? (
               <ThemedText 
@@ -82,6 +80,6 @@ export default React.memo(function UserFriends({ user }: UserProp) {
             )}
           </View>
         </ScrollView>
-      </SafeAreaView>
+      </ThemedView>
   );
 });

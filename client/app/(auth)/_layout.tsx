@@ -1,6 +1,6 @@
 import { useAuthSession } from "@/components/Auth/AuthProvider";
-import { Redirect, Stack } from 'expo-router';
-import { Text, TouchableOpacity } from 'react-native';
+import { Redirect, router, Stack } from 'expo-router';
+import { Alert, Text, TouchableOpacity, View } from 'react-native';
 import { ReactNode } from "react";
 import { LocationProvider } from '@/context/LocationContext'; // ✅ Import LocationProvider
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -12,16 +12,29 @@ import { useLocalSearchParams } from "expo-router";
 import { cancelAnimation } from 'react-native-reanimated';
 import { SharedValue, useSharedValue } from 'react-native-reanimated';
 import { NotificationProvider } from "@/context/NotificationContext";
+import ContextMenuWithTrigger from "@/components/ContextMenuWithTrigger";
+import { useManageFriends } from "@/hooks/useManageFriends";
+import api from "@/utils/api";
+import { jwtDecode } from "jwt-decode";
+import { CustomJwtPayload } from '@/types/allTypes';
 
 export default function RootLayout(): ReactNode {
   const { accessToken, isLoading } = useAuthSession();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
+  const params = useLocalSearchParams();
+  console.log('params', params);
+  const profileUserId = typeof params._id === 'string' ? params._id : params._id?.[0];
+  console.log('profileUserId', profileUserId);
 
   // Declare shared values in a scope accessible to listeners
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
-  const gestureActive = useSharedValue(false);
+  const gestureActive = useSharedValue(0);
+
+  const {
+    removeFriendFromFriendList
+  } = useManageFriends();
   
 
   if (isLoading) {
@@ -80,21 +93,6 @@ export default function RootLayout(): ReactNode {
                 }}
               />
               <Stack.Screen 
-                name="(notifications)"
-                options={{ 
-                  title: 'Notifications',
-                  headerShown: true,
-                  headerBackButtonDisplayMode: 'minimal',
-                  headerStyle: { 
-                    backgroundColor: themeColors.background
-                  },
-                  headerTintColor: themeColors.text,
-                  headerTitleStyle: {
-                    fontWeight: 'bold'
-                  }
-                }}
-              />
-              <Stack.Screen 
                 name="(viewEvent)/[event_id]"
                 options={{ 
                   title: 'Event Details',
@@ -120,14 +118,14 @@ export default function RootLayout(): ReactNode {
                     // Cleanup on blur
                     translateX.value = 0;
                     translateY.value = 0;
-                    gestureActive.value = false;
+                    gestureActive.value = 0;
                   },
                   beforeRemove: () => {
                     'worklet';
                     // Cleanup before removal
                     translateX.value = 0;
                     translateY.value = 0;
-                    gestureActive.value = false;
+                    gestureActive.value = 0;
                   },
                 }}
               />

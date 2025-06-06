@@ -15,6 +15,7 @@ import { Feather, FontAwesome } from '@expo/vector-icons';
 import { IconSymbolName } from '@/components/ui/IconSymbol';
 import { AnimatedStyle, DerivedValue, SharedValue } from 'react-native-reanimated';
 import { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { JwtPayload } from 'jwt-decode';
 
 // =========================
 // User-related Types
@@ -568,11 +569,13 @@ export interface FriendListUserItemProps {
   name: string;
   subtitle?: string;
   avatarUri?: string;
-  status: 'onKinovo' | 'invite' | 'request' | 'manageFriend';
+  status: 'onKinovo' | 'invite' | 'request' | 'manageFriend' | 'manageTagFriend';
+  mutualFriendsCount?: number;
   onAdd?: () => void;
   onRemove?: () => void;
   onInvite?: () => void;
   onEdit?: () => void;
+  tagName?: string;
 }
 
 export interface FriendListUserItemCardProps {
@@ -593,7 +596,9 @@ export interface FriendListUserItemCardProps {
 export interface SettingItemProps {
   icon: keyof typeof Feather.glyphMap;
   title: string;
+  subtitle?: string;
   onPress: () => void;
+  enabled?: boolean;
 }
 
 export interface SettingsPageHeaderProps {
@@ -1033,4 +1038,10 @@ export interface FriendRequestCardProps {
   request: FriendRequestNotification;
   onAccept: (senderId: string) => void;
   onDecline: (senderId: string) => void;
+}
+
+export interface CustomJwtPayload extends JwtPayload {
+  _id: string;
+  email: string;
+  username: string;
 }

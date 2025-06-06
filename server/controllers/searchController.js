@@ -9,23 +9,33 @@ const searchPeople = async (req, res) => {
             return res.status(400).json({ error: 'Search term is required.' });
         }
 
-        // Query both users and drones collections in parallel
+        // Get current user with blocked users
+        const currentUser = await User.findById(req.user._id).select('blocked_users');
+        const blockedUserIds = currentUser.blocked_users.map(block => block.user.toString());
+
+        // Query users collection excluding blocked users and users who blocked the current user
         const users = await User.find({
-            _id: { $ne: req.user._id },
-            $or: [
-                { email: { $regex: term, $options: 'i' } },
-                { username: { $regex: term, $options: 'i' } },
-                { first_name: { $regex: term, $options: 'i' } },
-                { last_name: { $regex: term, $options: 'i' } },
-                { full_name: { $regex: term, $options: 'i' } },
-                { phone_number: { $regex: term, $options: 'i' } }
+            _id: { $ne: req.user._id }, // Exclude self
+            $and: [
+                { _id: { $nin: blockedUserIds } }, // Exclude users that current user blocked
+                { 'blocked_users.user': { $ne: req.user._id } }, // Exclude users who blocked current user
+                {
+                    $or: [
+                        { email: { $regex: term, $options: 'i' } },
+                        { username: { $regex: term, $options: 'i' } },
+                        { first_name: { $regex: term, $options: 'i' } },
+                        { last_name: { $regex: term, $options: 'i' } },
+                        { full_name: { $regex: term, $options: 'i' } },
+                        { phone_number: { $regex: term, $options: 'i' } }
+                    ]
+                }
             ]
         });
 
         res.status(200).json(users);
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: 'Failed to search users and drones' });
+        res.status(500).json({ error: 'Failed to search users' });
     }
 };
 

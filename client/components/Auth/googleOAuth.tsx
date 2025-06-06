@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Button, Alert, Image, TouchableOpacity } from 'react-native';
 import * as Google from 'expo-auth-session/providers/google';
-import * as AuthSession from 'expo-auth-session';
 import axios from 'axios';
 import AuthButton from '@/components/Auth/AuthButton';
 import { AuthLoginProps } from '@/types/allTypes';
@@ -30,7 +29,7 @@ const GoogleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
 
       const authenticate = async () => {
         try {
-          const backendResponse = await axios.post(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/auth/google`, {
+          const backendResponse = await axios.post(`${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/auth/google-auth`, {
             idToken,
           });
 

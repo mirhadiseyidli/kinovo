@@ -1,4 +1,4 @@
-import { View, Image, Platform } from 'react-native';
+import { View, Image, Platform, RefreshControl } from 'react-native';
 import React, { useState, useCallback } from 'react';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -9,9 +9,11 @@ import { Colors } from '@/constants/Colors';
 import { useFocusEffect } from '@react-navigation/native';
 import type { ApiError, FriendRequest } from '@/types/allTypes';
 import { useManageFriends } from '@/hooks/useManageFriends';
+import { IconSymbol } from '@/components/ui/IconSymbol';
 
 export default function FriendRequests() {
   const [requests, setRequests] = useState<FriendRequest[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { 
@@ -19,6 +21,13 @@ export default function FriendRequests() {
     acceptFriendRequest,
     rejectFriendRequest
   } = useManageFriends();
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    const response = await getReceivedFriendRequests();
+    setRequests(response.data.requests);
+    setRefreshing(false);
+  }, [getReceivedFriendRequests]);
 
   useFocusEffect(
     useCallback(() => {
@@ -32,8 +41,23 @@ export default function FriendRequests() {
   );
 
   return (
-    <ThemedView style={{ flex: 1, alignItems: 'center' }}>
-      <ScrollView contentContainerStyle={{ marginTop: 16, width: '100%', paddingHorizontal: 16, flexGrow: 1 }}>
+    <ThemedView style={{ flex: 1, width: '100%' }}>
+      <ScrollView 
+        contentContainerStyle={{ 
+          marginTop: 16,
+          paddingHorizontal: 16,
+          flexGrow: 1,
+        }}
+        style={{ width: '100%' }}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            tintColor={themeColors.mountainGreen}
+            colors={[themeColors.mountainGreen]}
+          />
+        }
+      >
         {requests.length > 0 ? (
           requests.map((req, index) => (
             <FriendListUserItem
@@ -48,16 +72,47 @@ export default function FriendRequests() {
             />
           ))
         ) : (
-          <ThemedText 
-            style={{ 
-              fontSize: 16, 
-              color: themeColors.placeholderTextColor, 
-              marginTop: 32,
-              textAlign: 'center'
-            }}
-          >
-            {`Still waiting for some connections?\nGo make the first move!`}
-          </ThemedText>
+          <View style={{
+            backgroundColor: themeColors.background,
+            borderRadius: 12,
+            padding: 16,
+            borderWidth: 2,
+            borderStyle: 'dashed',
+            borderColor: themeColors.border,
+            width: '100%',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: 120,
+          }}>
+            <View style={{ marginBottom: 12 }}>
+              <IconSymbol
+                name="person.badge.plus"
+                size={32}
+                color={themeColors.placeholderTextColor}
+              />
+            </View>
+            <ThemedText 
+              style={{ 
+                fontSize: 16, 
+                color: themeColors.placeholderTextColor,
+                textAlign: 'center',
+                marginBottom: 4,
+                fontWeight: '600'
+              }}
+            >
+              No friend requests yet
+            </ThemedText>
+            <ThemedText 
+              style={{ 
+                fontSize: 14, 
+                color: themeColors.placeholderTextColor,
+                textAlign: 'center',
+                opacity: 0.8
+              }}
+            >
+              Go make the first move! 🤝
+            </ThemedText>
+          </View>
         )}
       </ScrollView>
     </ThemedView>

@@ -39,19 +39,31 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = ({
   const [attentionEvents, setAttentionEvents] = useState<Event[]>(initialEvents || []);
   const [loadingResponses, setLoadingResponses] = useState<{ [key: string]: boolean }>({});
 
-  const declinedColor = '#FF3B30'; // iOS red color for declined events
-  const pendingColor = '#FFB347'; // Warm yellow color for pending responses
+  const declinedColor = "transparent"; // iOS red color for declined events
+  const pendingColor = "transparent"; // Warm yellow color for pending responses
 
-  const getTimeLeft = (startTime: string | Date | null) => {
-    if (!startTime) return { value: 0, unit: 'DAYS' };
+  const isFutureEvent = (event: Event) => {
+    const now = new Date();
+    const eventStartDate = event.start_time ? new Date(event.start_time) : null;
+    return eventStartDate && now < eventStartDate;
+  };
+
+  const futureEvents = attentionEvents.filter(isFutureEvent);
+
+  const getTimeLeft = (startTime: string | Date | null, endTime: string | Date | null) => {
+    if (!startTime || !endTime) return { value: 0, unit: 'DAYS' };
     
     const now = new Date();
-    const eventDate = new Date(startTime);
-    const diffMs = eventDate.getTime() - now.getTime();
+    const eventStartDate = new Date(startTime);
+    const eventEndDate = new Date(endTime);
     
-    // Return early if the event is in the past
-    if (diffMs <= 0) return { value: 0, unit: 'DAYS' };
+    // If the event is in the past or ongoing, don't show it
+    if (now >= eventStartDate) {
+      return { value: 0, unit: 'DAYS' };
+    }
     
+    // If the event is in the future
+    const diffMs = eventStartDate.getTime() - now.getTime();
     const diffMins = Math.floor(diffMs / (1000 * 60));
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
@@ -167,11 +179,11 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = ({
   };
 
   const renderEventCard = (event: Event, isLoading: boolean, isRejected: boolean) => {
-    const timeLeft = getTimeLeft(event.start_time);
+    const timeLeft = getTimeLeft(event.start_time, event.end_time);
     const eventImage = event.event_picture ? { uri: event.event_picture } : getCategoryImage(event.category);
 
-    // Don't render if the event is in the past
-    if (timeLeft.value <= 0) return null;
+    // Don't render if the event is in the past or ongoing
+    if (timeLeft.value === 0) return null;
 
     return (
       <TouchableOpacity
@@ -180,84 +192,22 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = ({
         style={{
           marginBottom: 16,
           borderRadius: 12,
+          borderWidth: 1,
+          borderColor: themeColors.border,
           overflow: 'hidden',
         }}
       >
-        <LinearGradient
+        {/* <LinearGradient
           colors={['#1A1A1A', '#2D2D2D']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={{
             minHeight: 160,
           }}
-        >
+        > */}
           <View style={{ flexDirection: 'row', flex: 1 }}>
             {/* Left Section */}
             <View style={{ flex: 3, padding: 16, paddingBottom: 0 }}>
-              {/* Status Badge */}
-              <View style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: isRejected ? declinedColor : pendingColor,
-                paddingHorizontal: 8,
-                paddingVertical: 2,
-                borderRadius: 4,
-                alignSelf: 'flex-start',
-                marginBottom: 12,
-              }}>
-                {isRejected ? (
-                  <>
-                    <Feather name="x-circle" size={10} color="#FFFFFF" style={{ marginRight: 4 }} />
-                    <ThemedText style={{ 
-                      fontSize: 10,
-                      color: '#FFFFFF',
-                      fontWeight: 'bold',
-                      textTransform: 'uppercase',
-                    }}>
-                      Declined
-                    </ThemedText>
-                    <View style={{
-                      width: 1,
-                      height: '80%',
-                      backgroundColor: 'rgba(255, 255, 255, 0.3)',
-                      marginHorizontal: 6,
-                    }} />
-                    <ThemedText style={{ 
-                      fontSize: 10,
-                      color: '#FFFFFF',
-                      fontWeight: 'bold',
-                    }}>
-                      {timeLeft.value} {timeLeft.unit} LEFT
-                    </ThemedText>
-                  </>
-                ) : (
-                  <>
-                    <Feather name="clock" size={10} color="#FFFFFF" style={{ marginRight: 4 }} />
-                    <ThemedText style={{ 
-                      fontSize: 10,
-                      color: '#FFFFFF',
-                      fontWeight: 'bold',
-                      textTransform: 'uppercase',
-                    }}>
-                      Pending
-                    </ThemedText>
-                    <View style={{
-                      width: 1,
-                      height: '80%',
-                      backgroundColor: 'rgba(255, 255, 255, 0.3)',
-                      marginHorizontal: 6,
-                    }} />
-                    <ThemedText style={{ 
-                      fontSize: 10,
-                      color: '#FFFFFF',
-                      fontWeight: 'bold',
-                    }}>
-                      {timeLeft.value} {timeLeft.unit} LEFT
-                    </ThemedText>
-                  </>
-                )}
-              </View>
-
               {/* Event Title */}
               <ThemedText style={{ 
                 fontSize: 14,
@@ -277,8 +227,8 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = ({
               </View>
 
               {/* Location */}
-              {event.location?.text && (
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              {event.location?.text ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                   <Feather name="map-pin" size={12} color={themeColors.textSecondary} style={{ marginRight: 8 }} />
                   <ThemedText 
                     numberOfLines={1}
@@ -293,7 +243,87 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = ({
                       : event.location.text}
                   </ThemedText>
                 </View>
+              ) : (
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <Feather name="map-pin" size={12} color={themeColors.textSecondary} style={{ marginRight: 8 }} />
+                  <ThemedText 
+                    numberOfLines={1}
+                    style={{ 
+                      fontSize: 12,
+                      color: themeColors.textSecondary,
+                      maxWidth: '90%'
+                    }}
+                  >
+                    Location TBD
+                  </ThemedText>
+                </View>
               )}
+
+              {/* Status Badge */}
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: "transparent",
+                borderColor: themeColors.mountainGreen,
+                borderWidth: 1,
+                paddingHorizontal: 8,
+                paddingVertical: 2,
+                borderRadius: 4,
+                alignSelf: 'flex-start',
+              }}>
+                {isRejected ? (
+                  <>
+                    <Feather name="x-circle" size={10} color="#FFFFFF" style={{ marginRight: 4 }} />
+                    <ThemedText style={{ 
+                      fontSize: 10,
+                      color: themeColors.text,
+                      fontWeight: 'bold',
+                      textTransform: 'uppercase',
+                      textDecorationLine: 'line-through'
+                    }}>
+                      Declined
+                    </ThemedText>
+                    <View style={{
+                      width: 1,
+                      height: '80%',
+                      backgroundColor: themeColors.text,
+                      marginHorizontal: 6,
+                    }} />
+                    <ThemedText style={{ 
+                      fontSize: 10,
+                      color: themeColors.text,
+                      fontWeight: 'bold',
+                    }}>
+                      {`${timeLeft.value} ${timeLeft.unit} LEFT`}
+                    </ThemedText>
+                  </>
+                ) : (
+                  <>
+                    <Feather name="clock" size={10} color="#FFFFFF" style={{ marginRight: 4 }} />
+                    <ThemedText style={{ 
+                      fontSize: 10,
+                      color: themeColors.text,
+                      fontWeight: 'bold',
+                      textTransform: 'uppercase',
+                    }}>
+                      Pending
+                    </ThemedText>
+                    <View style={{
+                      width: 1,
+                      height: '80%',
+                      backgroundColor: themeColors.text,
+                      marginHorizontal: 6,
+                    }} />
+                    <ThemedText style={{ 
+                      fontSize: 10,
+                      color: themeColors.text,
+                      fontWeight: 'bold',
+                    }}>
+                      {`${timeLeft.value} ${timeLeft.unit} LEFT`}
+                    </ThemedText>
+                  </>
+                )}
+              </View>
             </View>
 
             {/* Right Section */}
@@ -304,13 +334,13 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = ({
               alignItems: 'flex-end'
             }}>
               {/* Invited By Section */}
-              <View style={{ marginBottom: 12, alignItems: 'flex-end' }}>
+              <View style={{ flexDirection: 'row', marginBottom: 12, alignItems: 'flex-end' }}>
                 <ThemedText style={{ 
                   fontSize: 10,
                   color: '#FFFFFF',
                   opacity: 0.9,
-                  marginBottom: 4,
                   textAlign: 'right',
+                  marginRight: 4,
                 }}>
                   Invited by
                 </ThemedText>
@@ -326,7 +356,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = ({
 
               {/* Event Image */}
               <View style={{
-                width: 60,
+                width: 64,
                 aspectRatio: 1,
                 borderRadius: 8,
                 overflow: 'hidden',
@@ -462,12 +492,12 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = ({
               )}
             </View>
           </View>
-        </LinearGradient>
+        {/* </LinearGradient> */}
       </TouchableOpacity>
     );
   };
 
-  if (attentionEvents.length === 0) {
+  if (futureEvents.length === 0) {
     return (
       <ThemedView style={{ width: '100%', paddingHorizontal: 16 }}>
         {showHeader && (
@@ -475,7 +505,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = ({
             Attention Required
           </ThemedText>
         )}
-        <TouchableOpacity
+        <View
           style={{
             backgroundColor: themeColors.background,
             borderRadius: 12,
@@ -517,7 +547,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = ({
           >
             No events need your attention right now
           </ThemedText>
-        </TouchableOpacity>
+        </View>
       </ThemedView>
     );
   }
@@ -546,7 +576,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = ({
       )}
 
       <ThemedView style={{ paddingHorizontal: showHeader ? 16 : 0 }}>
-        {attentionEvents.map((event) => renderEventCard(event, loadingResponses[event._id || ''] || false, event.userStatus === 'rejected'))}
+        {futureEvents.map((event) => renderEventCard(event, loadingResponses[event._id || ''] || false, event.userStatus === 'rejected'))}
       </ThemedView>
     </ThemedView>
   );

@@ -66,10 +66,11 @@ export default function AttentionRequiredScreen() {
       <ScrollView 
         style={{ flex: 1, padding: 16 }}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
+          <RefreshControl 
+            refreshing={refreshing} 
             onRefresh={onRefresh}
-            tintColor={themeColors.text}
+            tintColor={themeColors.mountainGreen}
+            colors={[themeColors.mountainGreen]}
           />
         }
       >

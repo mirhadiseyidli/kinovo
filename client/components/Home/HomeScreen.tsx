@@ -7,8 +7,12 @@ import PastEvents from '@/components/Home/PastEvents';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AttentionRequired from './AttentionRequired';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { Colors } from '@/constants/Colors';
 
 const HomeScreen = () => {
+  const colorScheme = useColorScheme();
+  const themeColors = Colors[colorScheme ?? 'dark'];
   const tabBarHeight = useBottomTabBarHeight();
   const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(true);
@@ -60,7 +64,12 @@ const HomeScreen = () => {
         scrollEnabled={true}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            tintColor={themeColors.mountainGreen}
+            colors={[themeColors.mountainGreen]}
+          />
         }
       >
         <ThemedView

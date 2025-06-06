@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, Image, TouchableOpacity, ActionSheetIOS, ViewStyle } from 'react-native';
+import { View, Text, Image, TouchableOpacity, ActionSheetIOS, ViewStyle, TextStyle } from 'react-native';
 import { Event } from '@/types/allTypes';
 import { ThemedText } from '../ThemedText';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -46,21 +46,100 @@ type AttendeeRowProps = {
 };
 
 const AttendeeRow = React.memo(({ attendee, isCreator, creatorId, onRemove }: AttendeeRowProps) => {
-  const rowStyle: ViewStyle = {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
+  const colorScheme = useColorScheme();
+  const themeColors = Colors[colorScheme ?? 'dark'];
+
+  const getStatusStyle = () => {
+    switch (attendee.status) {
+      case 'accepted':
+        return {
+          backgroundColor: themeColors.mountainGreen,
+          color: '#FFFFFF'
+        };
+      case 'maybe':
+        return {
+          backgroundColor:  "#FFB347",
+          borderColor:  "#FFB347",
+          borderWidth: 1,
+          color: themeColors.text
+        };
+      case 'rejected':
+        return {
+          backgroundColor: 'transparent',
+          borderColor: themeColors.mountainGreen,
+          borderWidth: 1,
+          color: themeColors.text,
+          opacity: 0.7,
+        };
+      default:
+        return {
+          backgroundColor: themeColors.background,
+          borderColor: themeColors.mountainGreen,
+          borderWidth: 1,
+          color: themeColors.text
+        };
+    }
   };
 
+  const getTextStyle = (): TextStyle => {
+    switch (attendee.status) {
+      case 'rejected':
+        return {
+          textDecorationLine: 'line-through'
+        };
+      default:
+        return {};
+    }
+  };
+
+  const getStatusText = () => {
+    switch (attendee.status) {
+      case 'accepted':
+        return 'Going';
+      case 'maybe':
+        return 'Maybe';
+      case 'rejected':
+        return 'Not Going';
+      default:
+        return 'Pending';
+    }
+  };
+
+  const statusStyle = getStatusStyle();
+  const textStyle = getTextStyle();
+
   return (
-    <View style={rowStyle}>
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+    <View style={{
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 12,
+    }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
         <Image 
           source={attendee.user.profile_picture ? { uri: attendee.user.profile_picture } : require('@/assets/profile-pic-2.jpeg')} 
           style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} 
         />
-        <ThemedText>{attendee.user.full_name}</ThemedText>
+        <View style={{ flex: 1 }}>
+          <ThemedText>{attendee.user.full_name}</ThemedText>
+          <View style={{
+            paddingHorizontal: 8,
+            paddingVertical: 2,
+            borderRadius: 4,
+            alignSelf: 'flex-start',
+            marginTop: 4,
+            ...statusStyle
+          }}>
+            <ThemedText style={{ 
+              fontSize: 8,
+              fontWeight: 'bold',
+              color: statusStyle.color,
+              ...textStyle
+            }}>
+              {getStatusText()}
+            </ThemedText>
+          </View>
+        </View>
       </View>
       {isCreator && attendee.user._id !== creatorId && (
         <TouchableOpacity onPress={() => onRemove(attendee.user._id!)}>

@@ -16,7 +16,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import SearchFriendsBar from '@/components/SearchFriendsBar';
 import { useGetUserToViewEvents } from '@/hooks/useGetUserToViewEvents';
 import FriendListUserItem from '@/components/ProfileAndSettings/Settings/manageFriendsComponents/FriendListUserItem';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import EventView from '@/components/Event';
 
@@ -24,20 +23,19 @@ export default React.memo(function UserEvents({ user }: UserProp) {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [searchQuery, setSearchQuery] = useState('');
-  const { eventsList, refetchUserToViewEvents, loading } = useGetUserToViewEvents(user?._id);
+  const { eventsList, fetchUserToViewEvents, loading } = useGetUserToViewEvents(user?._id);
   // const { friendsList, refetchUserToViewFriends , loading } = useGetUserToViewFriends(user?._id);
-  const tabBarHeight = useBottomTabBarHeight(); // Get tab bar height dynamically
   const insets = useSafeAreaInsets();
 
   useFocusEffect(
     React.useCallback(() => {
-      refetchUserToViewEvents();
-    }, [refetchUserToViewEvents])
+      fetchUserToViewEvents();
+    }, [fetchUserToViewEvents])
   );
 
   return (
-      <SafeAreaView style={{ flex: 1, alignItems: 'center' }} edges={['bottom']}>
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, flexGrow: 1 }} style={{ width: '100%', paddingBottom: tabBarHeight }}>
+      <ThemedView style={{ flex: 1, alignItems: 'center' }}>
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, flexGrow: 1 }} style={{ width: '100%' }}>
           <View style={{ flexDirection: 'column', gap: 16, alignItems: 'center' }}>
             {loading ? (
               <ThemedText 
@@ -81,6 +79,6 @@ export default React.memo(function UserEvents({ user }: UserProp) {
             )}
           </View>
         </ScrollView>
-      </SafeAreaView>
+      </ThemedView>
   );
 });

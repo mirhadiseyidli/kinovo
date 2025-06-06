@@ -69,6 +69,10 @@ app.use('/api/weather', weatherRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api', categoryRoutes);
 
+// Start the cron jobs
+const accountDeletionCron = require('./cron/accountDeletionCron');
+accountDeletionCron.start();
+
 // Start Server
 const PORT = process.env.BACKEND_PORT || 5002;
 app.listen(PORT, () => {

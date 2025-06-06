@@ -79,7 +79,67 @@ const EmailLogin: React.FC<EmailLoginProps> = ({ onLoginSuccess }) => {
         throw new Error(loginResponse.data.message || 'Invalid email or password');
       }
 
-      // If credentials are valid, get the phone number
+      // Check if account is marked for deletion
+      if (loginResponse.data.isMarkedForDeletion) {
+        // Show confirmation dialog
+        Alert.alert(
+          'Account Deactivated',
+          'This account was deactivated. Would you like to reactivate it?',
+          [
+            {
+              text: 'No',
+              style: 'cancel',
+              onPress: () => {
+                setLoading(false);
+                // Clear password field
+                setPassword('');
+              }
+            },
+            {
+              text: 'Yes, Reactivate',
+              style: 'default',
+              onPress: async () => {
+                try {
+                  // Call reactivate endpoint
+                  await api.post('/api/auth/reactivate-account', {
+                    email
+                  });
+                  
+                  // Proceed with getting phone number and 2FA
+                  const phoneResponse = await api.post('/api/auth/get-phone', {
+                    email
+                  });
+                  
+                  // Save email if remember me is checked
+                  if (isChecked) {
+                    await AsyncStorage.setItem(REMEMBERED_EMAIL_KEY, email);
+                  } else {
+                    await AsyncStorage.removeItem(REMEMBERED_EMAIL_KEY);
+                  }
+
+                  // Navigate to 2FA screen
+                  router.push({
+                    pathname: '/login/two-factor',
+                    params: {
+                      email,
+                      phoneNumber: phoneResponse.data.phoneNumber,
+                      verifiedCredentials: 'true'
+                    }
+                  });
+                } catch (error: any) {
+                  const errorMessage = error.response?.data?.message || error.message || 'Failed to reactivate account';
+                  Alert.alert('Error', errorMessage);
+                } finally {
+                  setLoading(false);
+                }
+              }
+            }
+          ]
+        );
+        return;
+      }
+
+      // If account is not marked for deletion, proceed with normal flow
       const phoneResponse = await api.post('/api/auth/get-phone', {
         email
       });
