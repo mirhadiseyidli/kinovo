@@ -6,7 +6,6 @@ const cors = require('cors');
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
-const tokenRoutes = require('./routes/tokenRoutes');
 const userRoutes = require('./routes/userRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const manageFriendsRoutes = require('./routes/manageFriendsRoutes');
@@ -58,7 +57,6 @@ app.get('/api/check-auth', (req, res) => {
 
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/token', tokenRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/assistants', aiRoutes);
 app.use('/api/search', searchRoutes);

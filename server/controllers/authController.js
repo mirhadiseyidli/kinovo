@@ -23,7 +23,6 @@ const checkPassword = (password, hash) => bcrypt.compare(password, hash);
 
 // Auth Controller Functions
 const googleAuth = async (req, res) => {
-  console.log('Google Auth Request:', req.body);
   const { idToken } = req.body;
 
   if (!idToken) {
@@ -203,7 +202,10 @@ const signup = async (req, res) => {
 };
 
 const refreshToken = async (req, res) => {
-  const { refreshToken } = req.body;
+  console.log('--------------------------------');
+  console.log('Refresh token request headers:', req.headers);
+  console.log('--------------------------------');
+  const refreshToken = req.headers.authorization?.split(' ')[1];
 
   if (!refreshToken) {
     return res.status(401).json({ message: 'Refresh token required' });
@@ -218,6 +220,7 @@ const refreshToken = async (req, res) => {
 
     res.status(200).json({ accessToken: newAccessToken });
   } catch (err) {
+    console.error('Error verifying refresh token:', err);
     return res.status(403).json({ message: 'Invalid or expired refresh token' });
   }
 };
