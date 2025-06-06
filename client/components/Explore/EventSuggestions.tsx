@@ -86,6 +86,16 @@ const EventSuggestions: React.FC<EventSuggestionsProps> = ({ refreshing, onFinis
           >
             Add more interests to get personalized suggestions
           </ThemedText>
+          <ThemedText
+            style={{
+              fontSize: 14,
+              textAlign: 'center',
+              marginTop: 8,
+              color: themeColors.textThird,
+            }}
+          >
+            Tap to refresh
+          </ThemedText>
         </TouchableOpacity>
       </ThemedView>
     );

@@ -18,14 +18,14 @@ const {
   changeUsername,
   reactivateAccount
 } = require('../controllers/authController');
-
+const { tokenMiddleware } = require('../utils/tokenMiddleware');
 const router = express.Router();
 
 // Public authentication routes (pre-login/signup)
 router.post('/google-auth', googleAuth);
 router.post('/login', login);
 router.post('/signup', signup);
-router.post('/refresh-token', refreshToken);
+router.post('/refresh-token', tokenMiddleware, refreshToken);
 router.post('/verify-login', verifyLogin);
 
 // Public phone verification routes (used during signup)
