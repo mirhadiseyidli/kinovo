@@ -5,51 +5,59 @@ get_parameter() {
     aws ssm get-parameter --name "$1" --with-decryption --query Parameter.Value --output text
 }
 
-# Fetch all environment variables
+# Generate .env file from SSM Parameter Store
 cat << EOF > .env
 # Server Configuration
 NODE_ENV=production
-BACKEND_PORT=5002
+BACKEND_PORT=$(get_parameter "/kinovo/BACKEND_PORT")
 
 # MongoDB Configuration
-MONGODB_URI=$(get_parameter "/kinovo/mongodb-uri")
+MONGODB_URI=$(get_parameter "/kinovo/MONGODB_URI")
 
 # JWT Configuration
-JWT_SECRET=$(get_parameter "/kinovo/jwt-secret")
-JWT_REFRESH_SECRET=$(get_parameter "/kinovo/jwt-refresh-secret")
+JWT_ACCESS_SECRET=$(get_parameter "/kinovo/JWT_ACCESS_SECRET")
+JWT_REFRESH_SECRET=$(get_parameter "/kinovo/JWT_REFRESH_SECRET")
 
-# Google OAuth
-GOOGLE_CLIENT_ID=$(get_parameter "/kinovo/google-client-id")
-GOOGLE_CLIENT_SECRET=$(get_parameter "/kinovo/google-client-secret")
-GOOGLE_CALLBACK_URL=$(get_parameter "/kinovo/google-callback-url")
+# Google
+GOOGLE_CLIENT_ID=$(get_parameter "/kinovo/GOOGLE_CLIENT_ID")
+GOOGLE_MAPS_API_KEY=$(get_parameter "/kinovo/GOOGLE_MAPS_API_KEY")
 
-# Firebase Admin
-FIREBASE_PROJECT_ID=$(get_parameter "/kinovo/firebase-project-id")
-FIREBASE_PRIVATE_KEY=$(get_parameter "/kinovo/firebase-private-key")
-FIREBASE_CLIENT_EMAIL=$(get_parameter "/kinovo/firebase-client-email")
+# Apple
+APPLE_TEAM_ID=$(get_parameter "/kinovo/APPLE_TEAM_ID")
+APPLE_WEATHER_KEY_ID=$(get_parameter "/kinovo/APPLE_WEATHER_KEY_ID")
+APPLE_BUNDLE_ID=$(get_parameter "/kinovo/APPLE_BUNDLE_ID")
+APPLE_WEATHER_PRIVATE_KEY=$(get_parameter "/kinovo/APPLE_WEATHER_PRIVATE_KEY")
+APPLE_CLIENT_ID=$(get_parameter "/kinovo/APPLE_CLIENT_ID")
 
 # OpenAI
-OPENAI_API_KEY=$(get_parameter "/kinovo/openai-api-key")
+OPENAI_API_KEY=$(get_parameter "/kinovo/OPENAI_API_KEY")
 
-# Email Configuration
-SMTP_HOST=$(get_parameter "/kinovo/smtp-host")
-SMTP_PORT=$(get_parameter "/kinovo/smtp-port")
-SMTP_USER=$(get_parameter "/kinovo/smtp-user")
-SMTP_PASS=$(get_parameter "/kinovo/smtp-pass")
+# Firebase
+FIREBASE_PROJECT_ID=$(get_parameter "/kinovo/FIREBASE_PROJECT_ID")
+FIREBASE_PRIVATE_KEY=$(get_parameter "/kinovo/FIREBASE_PRIVATE_KEY")
+FIREBASE_CLIENT_EMAIL=$(get_parameter "/kinovo/FIREBASE_CLIENT_EMAIL")
+FIREBASE_DATABASE_URL=$(get_parameter "/kinovo/FIREBASE_DATABASE_URL")
+FIREBASE_API_KEY=$(get_parameter "/kinovo/FIREBASE_API_KEY")
+FIREBASE_STORAGE_BUCKET=$(get_parameter "/kinovo/FIREBASE_STORAGE_BUCKET")
+FIREBASE_MESSAGING_SENDER_ID=$(get_parameter "/kinovo/FIREBASE_MESSAGING_SENDER_ID")
+FIREBASE_IOS_CLIENT_ID=$(get_parameter "/kinovo/FIREBASE_IOS_CLIENT_ID")
+FIREBASE_APP_ID=$(get_parameter "/kinovo/FIREBASE_APP_ID")
+FIREBASE_PRIVATE_KEY_ID=$(get_parameter "/kinovo/FIREBASE_PRIVATE_KEY_ID")
+FIREBASE_CLIENT_ID=$(get_parameter "/kinovo/FIREBASE_CLIENT_ID")
 
-# AWS Configuration
-AWS_ACCESS_KEY_ID=$(get_parameter "/kinovo/aws-access-key")
-AWS_SECRET_ACCESS_KEY=$(get_parameter "/kinovo/aws-secret-key")
-AWS_REGION=$(get_parameter "/kinovo/aws-region")
-AWS_S3_BUCKET=$(get_parameter "/kinovo/aws-s3-bucket")
+# SMTP / Email
+SMTP_HOST=$(get_parameter "/kinovo/SMTP_HOST")
+SMTP_PORT=$(get_parameter "/kinovo/SMTP_PORT")
+SMTP_SECURE=$(get_parameter "/kinovo/SMTP_SECURE")
+SMTP_USER=$(get_parameter "/kinovo/SMTP_USER")
+SMTP_FROM=$(get_parameter "/kinovo/SMTP_FROM")
 
-# Slack Integration
-SLACK_BOT_TOKEN=$(get_parameter "/kinovo/slack-bot-token")
-SLACK_SIGNING_SECRET=$(get_parameter "/kinovo/slack-signing-secret")
-
-# Weather API
-WEATHER_API_KEY=$(get_parameter "/kinovo/weather-api-key")
+# Gmail OAuth
+GMAIL_CLIENT_ID=$(get_parameter "/kinovo/GMAIL_CLIENT_ID")
+GMAIL_CLIENT_SECRET=$(get_parameter "/kinovo/GMAIL_CLIENT_SECRET")
+GMAIL_REDIRECT_URI=$(get_parameter "/kinovo/GMAIL_REDIRECT_URI")
+GMAIL_REFRESH_TOKEN=$(get_parameter "/kinovo/GMAIL_REFRESH_TOKEN")
 EOF
 
-# Set proper permissions
-chmod 600 .env 
+# Lock down the .env file
+chmod 600 .env
