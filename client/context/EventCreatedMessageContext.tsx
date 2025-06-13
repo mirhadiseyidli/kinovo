@@ -4,18 +4,26 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { ThemedView } from '@/components/ThemedView';
 
-const EventCreatedMessageContext = createContext({ show: () => {} });
+type MessageType = 'created' | 'updated';
+
+interface EventMessageContextType {
+  show: (type?: MessageType) => void;
+}
+
+const EventCreatedMessageContext = createContext<EventMessageContextType>({ show: () => {} });
 
 export const useEventCreatedMessage = () => useContext(EventCreatedMessageContext);
 
 export const EventCreatedMessageProvider = ({ children }: { children: ReactNode }) => {
   const [visible, setVisible] = useState(false);
+  const [messageType, setMessageType] = useState<MessageType>('created');
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const screenWidth = Dimensions.get('window').width;
   const screenHeight = Dimensions.get('window').height;
 
-  const show = () => {
+  const show = (type: MessageType = 'created') => {
+    setMessageType(type);
     setVisible(true);
     setTimeout(() => setVisible(false), 1500);
   };
@@ -39,7 +47,9 @@ export const EventCreatedMessageProvider = ({ children }: { children: ReactNode 
             padding: 16,
             borderRadius: 8,
           }}>
-            <Text style={{ color: themeColors.text, fontWeight: 'bold', textAlign: 'center', fontSize: 16 }}>Event Created!</Text>
+            <Text style={{ color: themeColors.text, fontWeight: 'bold', textAlign: 'center', fontSize: 16 }}>
+              {messageType === 'created' ? 'Event Created!' : 'Event Changes Saved'}
+            </Text>
           </ThemedView>
         </View>
       )}

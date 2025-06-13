@@ -44,8 +44,6 @@ const searchRelevantEvents = async (req, res) => {
     const userId = req.user._id;
     const term = req.query.query; // Extract search term from query
     
-    console.log('Search events - userId:', userId, 'term:', term); // Debug log
-    
     if (!term) {
       return res.status(400).json({ error: 'Search term is required.' });
     }
@@ -54,22 +52,11 @@ const searchRelevantEvents = async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Debug: Check if any events with 'test' exist at all
-    const allTestEvents = await Events.find({
-      title: { $regex: term, $options: 'i' }
-    });
-    console.log('All events matching term:', allTestEvents.map(e => ({ 
-      title: e.title, 
-      visibility: e.visibility, 
-      creator: e.creator,
-      _id: e._id 
-    }))); // Debug log
-
-    // Fetch the user's friends (assumes `friends` is an array of ObjectIds on the user schema)
-    const user = await User.findById(userId).select('friends');
+    // Fetch the user's friends, reported events, and not interested events
+    const user = await User.findById(userId).select('friends reported_events not_interested_events');
     const friendIds = user?.friends || [];
-    
-    console.log('User friends:', friendIds); // Debug log
+    const reportedEventIds = (user?.reported_events || []).map(event => event.toString());
+    const notInterestedEventIds = (user?.not_interested_events || []).map(item => item.event.toString());
 
     // Build the query with term matching on title and description
     const query = {
@@ -86,16 +73,13 @@ const searchRelevantEvents = async (req, res) => {
             { title: { $regex: term, $options: 'i' } },
             { description: { $regex: term, $options: 'i' } }
           ]
-        }
+        },
+        // Exclude reported events and not interested events
+        { _id: { $nin: [...reportedEventIds, ...notInterestedEventIds] } }
       ]
     };
     
-    console.log('Events query:', JSON.stringify(query, null, 2)); // Debug log
-    
     const events = await Events.find(query).sort({ start_time: 1 });
-    
-    console.log('Found events:', events.length); // Debug log
-    console.log('Events:', events.map(e => ({ title: e.title, visibility: e.visibility, creator: e.creator }))); // Debug log
 
     res.status(200).json(events);
   } catch (err) {

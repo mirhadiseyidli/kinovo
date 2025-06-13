@@ -2,6 +2,7 @@ const express = require('express');
 const { authMiddleware } = require('../utils/authMiddleware');
 const {
   googleAuth,
+  appleAuth,
   login,
   signup,
   refreshToken,
@@ -23,6 +24,7 @@ const router = express.Router();
 
 // Public authentication routes (pre-login/signup)
 router.post('/google-auth', googleAuth);
+router.post('/apple-auth', appleAuth);
 router.post('/login', login);
 router.post('/signup', signup);
 router.post('/refresh-token', tokenMiddleware, refreshToken);

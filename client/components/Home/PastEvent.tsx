@@ -28,8 +28,7 @@ const PastEvent: React.FC<{ event: Event; loading: boolean }> = ({ event, loadin
       style={{
         padding: 16,
         borderRadius: 12,
-        borderWidth: 1,
-        borderColor: themeColors.border,
+        backgroundColor: themeColors.eventCardBackgroundColor,
         flexDirection: 'column',
         gap: 12,
         position: 'relative',
@@ -51,7 +50,7 @@ const PastEvent: React.FC<{ event: Event; loading: boolean }> = ({ event, loadin
               backgroundColor: themeColors.mountainGreen,
             }}
           >
-            <Text style={{ color: themeColors.text, fontWeight: '600', fontSize: 12, textTransform: 'capitalize' }}>
+            <Text style={{ color: 'white', fontWeight: '600', fontSize: 12, textTransform: 'capitalize' }}>
               {event.category?.toLowerCase() || 'Other'}
             </Text>
           </View>
@@ -62,8 +61,8 @@ const PastEvent: React.FC<{ event: Event; loading: boolean }> = ({ event, loadin
         <View style={{ flexDirection: 'column', gap: 8 }}>
           {/* Date */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Feather name="calendar" size={16} color={themeColors.textThird} />
-            <Text style={{ color: themeColors.textThird, fontSize: 14 }}>
+            <Feather name="calendar" size={16} color={themeColors.textSecondary} />
+            <Text style={{ color: themeColors.textSecondary, fontSize: 14 }}>
               {event.start_time
                 ? new Date(event.start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                 : 'Date not available'}
@@ -72,8 +71,8 @@ const PastEvent: React.FC<{ event: Event; loading: boolean }> = ({ event, loadin
 
           {/* Location */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Feather name="map-pin" size={16} color={themeColors.textThird} />
-            <Text style={{ color: themeColors.textThird, fontSize: 14 }}>
+            <Feather name="map-pin" size={16} color={themeColors.textSecondary} />
+            <Text style={{ color: themeColors.textSecondary, fontSize: 14 }}>
               {truncateText(event?.location.text || 'Location TBD', 25)}
             </Text>
           </View>

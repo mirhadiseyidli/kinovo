@@ -9,6 +9,7 @@ import EventSuggestions from '@/components/Explore/EventSuggestions';
 import Categories from '@/components/Explore/Categories';
 import Cities from '@/components/Explore/Cities';
 import NearbyEvents from '@/components/Explore/NearbyEvents';
+import FriendsEvents from '@/components/Explore/FriendsEvents';
 import useSearchEverythingDiscovery from '@/hooks/useSearchEverythingDiscovery';
 import { User, Event } from '@/types/allTypes';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -23,6 +24,7 @@ const DiscoverScreen = () => {
   const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
   const [refreshingNearbyEvents, setRefreshingNearbyEvents] = useState(false);
+  const [refreshingFriendsEvents, setRefreshingFriendsEvents] = useState(false);
   const [refreshingCategories, setRefreshingCategories] = useState(false);
   const [refreshingCities, setRefreshingCities] = useState(false);
   const [refreshingEventSuggestions, setRefreshingEventSuggestions] = useState(false);
@@ -61,6 +63,7 @@ const DiscoverScreen = () => {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     setRefreshingNearbyEvents(true);
+    setRefreshingFriendsEvents(true);
     setRefreshingCategories(true);
     setRefreshingCities(true);
     setRefreshingEventSuggestions(true);
@@ -68,6 +71,10 @@ const DiscoverScreen = () => {
 
   const onFinishRefreshNearbyEvents = useCallback(() => {
     setRefreshingNearbyEvents(false);
+  }, []);
+
+  const onFinishRefreshFriendsEvents = useCallback(() => {
+    setRefreshingFriendsEvents(false);
   }, []);
 
   const onFinishRefreshCategories = useCallback(() => {
@@ -85,6 +92,7 @@ const DiscoverScreen = () => {
   useEffect(() => {
     if (
       !refreshingNearbyEvents &&
+      !refreshingFriendsEvents &&
       !refreshingCategories &&
       !refreshingCities &&
       !refreshingEventSuggestions &&
@@ -94,6 +102,7 @@ const DiscoverScreen = () => {
     }
   }, [
     refreshingNearbyEvents,
+    refreshingFriendsEvents,
     refreshingCategories,
     refreshingCities,
     refreshingEventSuggestions
@@ -104,14 +113,15 @@ const DiscoverScreen = () => {
     setSuggestions({ users: [], events: [] });
   };
 
-  console.log(isSearchActive, showSuggestions)
+  
 
   return (
     <ThemedView style={{ flex: 1 }}>
       <ScrollView
+        ref={scrollViewRef}
+        style={{ flex: 1 }}
         stickyHeaderIndices={[0]}
         stickyHeaderHiddenOnScroll={true}
-        style={{ flex: 1 }}
         scrollEventThrottle={16}
         scrollEnabled={!showSuggestions} // Only disable scroll when suggestions are visible
         showsVerticalScrollIndicator={false}
@@ -158,6 +168,14 @@ const DiscoverScreen = () => {
               onFinishRefresh={onFinishRefreshNearbyEvents} 
             />
           </ThemedView>
+
+          <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }}>
+            <FriendsEvents 
+              refreshing={refreshingFriendsEvents}
+              onFinishRefresh={onFinishRefreshFriendsEvents}
+            />
+          </ThemedView>
+
           <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <Categories 
               refreshing={refreshingCategories}

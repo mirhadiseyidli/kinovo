@@ -14,6 +14,11 @@ import { ThemedView } from "@/components/ThemedView";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { NotificationProvider } from "@/context/NotificationContext";
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { EventCreatedMessageProvider } from "@/context/EventCreatedMessageContext";
+import { EventProvider } from "@/context/EventContext";
+import { LocationProvider } from "@/context/LocationContext";
+import { UserPresence } from "@/components/UserPresence";
+import { initializeFirebaseDatabase } from "@/config/firebase";
 
 registerRootComponent(RootLayout);
 
@@ -23,7 +28,15 @@ export default function RootLayout() {
       <Provider store={store}>
         <KeyboardProvider>
           <AuthProvider>
-            <InnerLayout />
+            <EventProvider>
+              <LocationProvider>
+                <EventCreatedMessageProvider>
+                  <NotificationProvider>
+                    <InnerLayout />
+                  </NotificationProvider>
+                </EventCreatedMessageProvider>
+              </LocationProvider>
+            </EventProvider>
           </AuthProvider>
         </KeyboardProvider>
       </Provider>
@@ -67,6 +80,10 @@ function InnerLayout() {
     }
   }, [isLogoLoaded]);
 
+  useEffect(() => {
+    initializeFirebaseDatabase();
+  }, []);
+
   const onLayoutRootView = useCallback(async () => {
     if (appIsReady) {
       await SplashScreen.hideAsync();
@@ -89,6 +106,7 @@ function InnerLayout() {
     </View>
   ) : (
     <ThemedView style={{ flex: 1 }}>
+        <UserPresence />
         <Slot />
     </ThemedView>
   );

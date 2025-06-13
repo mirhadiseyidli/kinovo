@@ -190,7 +190,7 @@ const NotificationCard: React.FC<NotificationCardProps> = ({ notification, onPre
               }}
             >
               <Text style={{ color: 'white', fontSize: 12, fontWeight: '500' }}>
-                {notification.event.category || notification.event.title}
+                {notification?.event?.category}
               </Text>
             </View>
           )}
@@ -205,7 +205,7 @@ const NotificationCard: React.FC<NotificationCardProps> = ({ notification, onPre
               }}
             >
               <Text style={{ color: themeColors.text, fontSize: 12, fontWeight: '500' }}>
-                @{notification.sender.username.length > 16 
+                @{notification.sender.username?.length > 16 
                   ? notification.sender.username.substring(0, 16) + '...' 
                   : notification.sender.username}
               </Text>

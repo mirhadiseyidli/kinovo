@@ -18,7 +18,7 @@ const initializeCategories = async () => {
     if (existingCount === 0) {
       const categories = defaultCategories.map(name => ({ name }));
       await Category.insertMany(categories);
-      console.log('✅ Default categories initialized successfully');
+
     }
   } catch (error) {
     console.error('Error initializing categories:', error);
@@ -27,12 +27,12 @@ const initializeCategories = async () => {
 
 const getCategories = async (req, res) => {
   try {
-    console.log('Fetching categories...');
+  
     const categories = await Category.find({ active: true })
       .select('name icon')
       .sort('name');
     
-    console.log(`Found ${categories.length} categories`);
+    
     res.status(200).json({ categories });
   } catch (error) {
     console.error('Error fetching categories:', error);

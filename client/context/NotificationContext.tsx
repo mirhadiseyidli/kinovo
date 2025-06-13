@@ -3,6 +3,8 @@ import { useManageFriends } from '@/hooks/useManageFriends';
 import { FriendRequestNotification, NotificationData } from '@/types/allTypes';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '@/utils/api';
+import { useNotifications as useFirebaseNotificationsHook, useFirebaseUpdate } from '@/hooks/useFirebaseRealtime';
+import { useAuthSession } from '@/components/Auth/AuthProvider';
 
 // Create notification context
 interface NotificationContextType {
@@ -20,24 +22,122 @@ interface NotificationContextType {
   markNotificationAsViewed: (notificationId: string) => Promise<void>;
   markAllNotificationsAsViewed: () => Promise<void>;
   refreshData: () => Promise<void>;
+  // Firebase-related additions
+  mergedNotifications: NotificationData[];
+  firebaseLoading: boolean;
+  markFirebaseNotificationAsRead: (notificationId: string) => Promise<boolean>;
 }
 
 const NotificationContext = createContext<NotificationContextType | null>(null);
 
 // Provider component
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { userId } = useAuthSession();
   const [friendRequests, setFriendRequests] = useState<FriendRequestNotification[]>([]);
   const [notifications, setNotifications] = useState<NotificationData[]>([]);
   const [viewedNotifications, setViewedNotifications] = useState<Set<string>>(new Set());
   const [unseenNotificationCount, setUnseenNotificationCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [mergedNotifications, setMergedNotifications] = useState<NotificationData[]>([]);
+  
+  // Get Firebase notifications
+  const { notifications: firebaseNotifications, loading: firebaseLoading, markAsRead } = useFirebaseNotificationsHook();
   
   const {
     getReceivedFriendRequests,
     acceptFriendRequest,
     rejectFriendRequest
   } = useManageFriends();
+
+  // Helper function to merge notifications from context and Firebase
+  const mergeNotificationsFromSources = useCallback((contextNotifications: NotificationData[], firebaseArray: any[]) => {
+    // Create a map of existing notifications by ID
+    const notificationMap = new Map<string, NotificationData>();
+    
+    // Clean up and validate context notifications before adding to map
+    contextNotifications.forEach(notification => {
+      if (notification && notification._id) {
+        notificationMap.set(notification._id, notification);
+      }
+    });
+    
+    // Add or update with Firebase notifications (they're more up-to-date)
+    firebaseArray.forEach(fbNotification => {
+      if (fbNotification && fbNotification._id) {
+        // Convert Firebase notification to match our NotificationData type
+        const notification = {
+          _id: fbNotification._id.toString(), // Ensure ID is a string
+          type: fbNotification.type || 'event_created',
+          title: fbNotification.title || '',
+          subtitle: fbNotification.subtitle,
+          message_body: fbNotification.message_body,
+          status: fbNotification.status || 'unseen',
+          is_seen: fbNotification.is_seen || false,
+          created_at: fbNotification.timestamp ? new Date(fbNotification.timestamp).toISOString() : new Date().toISOString(),
+          updated_at: fbNotification.updated_at || new Date().toISOString(),
+          recipient: fbNotification.recipient,
+          sender: fbNotification.sender,
+          event: fbNotification.event,
+          friend_request: fbNotification.friend_request,
+          data: fbNotification.data,
+          count: fbNotification.count,
+          location: fbNotification.location
+        };
+        
+        notificationMap.set(notification._id, notification);
+      }
+    });
+    
+    // Convert the map back to an array and sort by timestamp (newest first)
+    return Array.from(notificationMap.values())
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, []);
+
+  // Merge Firebase notifications whenever they change
+  useEffect(() => {
+    if (firebaseNotifications) {
+      try {
+        // Convert Firebase object to array and filter out invalid entries
+        const firebaseArray = Object.values(firebaseNotifications || {})
+          .filter(item => item && typeof item === 'object');
+        
+        if (firebaseArray.length > 0) {
+          // Merge with existing notifications
+          const merged = mergeNotificationsFromSources(notifications, firebaseArray);
+          
+          // Check for and log any potential duplicate IDs
+          const idCount = new Map<string, number>();
+          merged.forEach(item => {
+            const count = idCount.get(item._id) || 0;
+            idCount.set(item._id, count + 1);
+          });
+          
+          const duplicates = Array.from(idCount.entries())
+            .filter(([_, count]) => count > 1)
+            .map(([id]) => id);
+          
+          if (duplicates.length > 0) {
+            console.warn('Duplicate notification IDs found:', duplicates);
+          }
+          
+          // Update state with merged notifications
+          setMergedNotifications(merged);
+          
+          // Update unseen count
+          const unseenCount = merged.filter(n => !n.is_seen).length;
+          setUnseenNotificationCount(unseenCount);
+        }
+      } catch (error) {
+        console.error('Error merging notifications:', error);
+        // Fallback to using just the API notifications
+        setMergedNotifications(notifications);
+      }
+    } else {
+      // If no Firebase notifications, just use the REST API notifications
+      setMergedNotifications(notifications);
+    }
+  }, [firebaseNotifications, notifications, mergeNotificationsFromSources]);
 
   const fetchFriendRequests = useCallback(async () => {
     try {
@@ -54,7 +154,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       const response = await api.get('/api/notifications');
 
       if (response.status === 200) {
-        console.log('Fetched notifications from API:', response.data.notifications);
         setNotifications(response.data.notifications || []);
         // Set initial unseen count from server
         if (typeof response.data.unseenCount === 'number') {
@@ -107,7 +206,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, [rejectFriendRequest]);
 
   const markNotificationAsViewed = useCallback(async (notificationId: string) => {
-    console.log('Marking notification as viewed:', notificationId);
     // Mark notification as read (seen) but keep it in the list
     setNotifications(prev => 
       prev.map(notification => 
@@ -116,37 +214,81 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
           : notification
       )
     );
+    
+    // Also update merged notifications
+    setMergedNotifications(prev => 
+      prev.map(notification => 
+        notification._id === notificationId 
+          ? { ...notification, is_seen: true }
+          : notification
+      )
+    );
 
-    // Also mark as seen in the backend - this will trigger the change stream
     try {
-      await api.put('/api/notifications/mark-seen', {
-        notificationIds: [notificationId]
-      });
-      console.log('Successfully marked notification as seen in backend:', notificationId);
+      // Update both Firebase and backend in parallel
+      const updatePromises = [];
+      
+      // Update the backend
+      updatePromises.push(
+        api.put('/api/notifications/mark-seen', {
+          notificationIds: [notificationId]
+        })
+      );
+
+      // Update Firebase if available
+      if (markAsRead) {
+        updatePromises.push(markAsRead(notificationId));
+      }
+
+      // Wait for both updates to complete
+      await Promise.all(updatePromises);
     } catch (error) {
       console.error('Error marking notification as seen:', error);
     }
-  }, []);
+  }, [markAsRead]);
 
   const markAllNotificationsAsViewed = useCallback(async () => {
+    // Get all notification IDs that are not yet seen
+    const unseenNotificationIds = notifications
+      .filter(notification => !notification.is_seen)
+      .map(notification => notification._id);
+    
+    // If no unseen notifications, nothing to do
+    if (unseenNotificationIds.length === 0) return;
+    
+    // Update local state first
+    setNotifications(prev => 
+      prev.map(notification => ({ ...notification, is_seen: true }))
+    );
+    
+    // Update merged notifications as well
+    setMergedNotifications(prev => 
+      prev.map(notification => ({ ...notification, is_seen: true }))
+    );
+    
+    // Mark all friend requests as viewed locally
+    setViewedNotifications(prev => {
+      const currentFriendRequestIds = friendRequests.map(r => r._id);
+      return new Set([...prev, ...currentFriendRequestIds]);
+    });
+    
+    // Update unseen count
+    setUnseenNotificationCount(0);
+    
     try {
-      // Mark all notifications as seen in the backend
+      // Update backend
       await api.put('/api/notifications/mark-seen', {});
-
-      // Update local state to mark all as seen
-      setNotifications(prev => 
-        prev.map(notification => ({ ...notification, is_seen: true }))
-      );
       
-      // Mark all friend requests as viewed locally
-      setViewedNotifications(prev => {
-        const currentFriendRequestIds = friendRequests.map(r => r._id);
-        return new Set([...prev, ...currentFriendRequestIds]);
-      });
+      // Update Firebase for each notification
+      if (markAsRead && unseenNotificationIds.length > 0) {
+        // Update each notification in Firebase
+        const firebaseUpdates = unseenNotificationIds.map(id => markAsRead(id));
+        await Promise.all(firebaseUpdates);
+      }
     } catch (error) {
-      console.error('Error marking notifications as seen:', error);
+      console.error('Error marking all notifications as seen:', error);
     }
-  }, [friendRequests]);
+  }, [friendRequests, notifications, markAsRead]);
 
   const refreshData = useCallback(async () => {
     setRefreshing(true);
@@ -157,179 +299,12 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   }, [fetchFriendRequests, fetchNotifications]);
 
-  // WebSocket for real-time updates
+  // Initial data fetch - only when user is logged in
   useEffect(() => {
-    let socket: WebSocket;
-    let isConnected = false;
-
-    const initSocket = async () => {
-      const url = process.env.EXPO_PUBLIC_WEBSOCKET_CONNECTION_URL;
-      if (!url) return;
-      
-      const userId = await AsyncStorage.getItem('userId');
-      if (!userId) return;
-
-      // Prevent multiple connections
-      if (isConnected) return;
-
-      socket = new WebSocket(url);
-
-      socket.onopen = () => {
-        isConnected = true;
-        console.log('WebSocket connected for notifications (global context)');
-        socket.send(JSON.stringify({
-          type: 'NotificationsListener',
-          userId: userId,
-        }));
-        console.log(`Registered NotificationsListener for user ${userId}`);
-      };
-
-      socket.onmessage = (event) => {
-        const message = JSON.parse(event.data);
-        console.log('Received WebSocket message (global):', message);
-
-        switch (message.type) {
-          case 'newFriendRequest':
-            console.log('Processing newFriendRequest:', message.data);
-            setFriendRequests(prev => [message.data, ...prev]);
-            break;
-          case 'friendRequestAccepted':
-            console.log('Processing friendRequestAccepted:', message.requestId);
-            setFriendRequests(prev => {
-              const filtered = prev.filter(req => req._id !== message.requestId);
-              // Clean up viewed notifications for this request
-              setViewedNotifications(prevViewed => {
-                const newViewed = new Set(prevViewed);
-                newViewed.delete(message.requestId);
-                return newViewed;
-              });
-              return filtered;
-            });
-            break;
-          case 'friendRequestRejected':
-            console.log('Processing friendRequestRejected:', message.requestId);
-            setFriendRequests(prev => {
-              const filtered = prev.filter(req => req._id !== message.requestId);
-              // Clean up viewed notifications for this request
-              setViewedNotifications(prevViewed => {
-                const newViewed = new Set(prevViewed);
-                newViewed.delete(message.requestId);
-                return newViewed;
-              });
-              return filtered;
-            });
-            break;
-          case 'friendRequestCancelled':
-            // Remove the cancelled friend request from the list
-            console.log('Processing friendRequestCancelled:', message.requestId);
-            console.log('Current friend requests before cancellation:', friendRequests.map(r => ({ id: r._id, sender: r.sender?.full_name })));
-            
-            setFriendRequests(prev => {
-              const beforeCount = prev.length;
-              const filtered = prev.filter(req => {
-                const matches = req._id === message.requestId;
-                console.log(`Comparing friend request ${req._id} with cancelled ${message.requestId}: ${matches ? 'MATCH' : 'NO MATCH'}`);
-                return !matches;
-              });
-              const afterCount = filtered.length;
-              console.log(`Friend requests count: ${beforeCount} -> ${afterCount}`);
-              console.log('Remaining friend requests:', filtered.map(r => ({ id: r._id, sender: r.sender?.full_name })));
-              
-              // Clean up viewed notifications for this request
-              setViewedNotifications(prevViewed => {
-                const newViewed = new Set(prevViewed);
-                newViewed.delete(message.requestId);
-                return newViewed;
-              });
-              return filtered;
-            });
-
-            // Also remove related notifications from the notifications array
-            console.log('Current notifications before filtering:', notifications.map(n => ({ 
-              id: n._id, 
-              type: n.type, 
-              friendRequestId: n.friend_request?._id,
-              title: n.title 
-            })));
-            
-            setNotifications(prev => {
-              const beforeCount = prev.length;
-              const filtered = prev.filter(notification => {
-                // Remove notifications that are related to this friend request
-                // Check multiple possible ways the friend request ID might be stored
-                const friendRequestId = notification.friend_request?._id || notification.friend_request;
-                const isRelatedToFriendRequest = notification.type === 'friend_request' && 
-                  (friendRequestId === message.requestId || notification._id === message.requestId);
-                
-                if (isRelatedToFriendRequest) {
-                  console.log(`Removing notification ${notification._id} for cancelled friend request ${message.requestId}`);
-                  console.log('Notification details:', {
-                    notificationId: notification._id,
-                    type: notification.type,
-                    friendRequestId: friendRequestId,
-                    cancelledRequestId: message.requestId
-                  });
-                  return false;
-                }
-                return true;
-              });
-              const afterCount = filtered.length;
-              console.log(`Notifications count: ${beforeCount} -> ${afterCount} (removed friend request notifications)`);
-              console.log('Remaining notifications:', filtered.map(n => ({ 
-                id: n._id, 
-                type: n.type, 
-                friendRequestId: n.friend_request?._id || n.friend_request,
-                title: n.title 
-              })));
-              return filtered;
-            });
-
-            console.log('Friend request cancelled by sender:', message.requestId);
-            break;
-          case 'newNotification':
-            console.log('Received new notification via WebSocket (global):', message.data);
-            setNotifications(prev => [message.data, ...prev]);
-            // Update unseen count from server
-            if (typeof message.unseenCount === 'number') {
-              setUnseenNotificationCount(message.unseenCount);
-            }
-            break;
-          case 'notificationCountUpdate':
-            console.log('Received notification count update (global):', message.unseenCount);
-            // Update unseen count when notifications are marked as seen
-            if (typeof message.unseenCount === 'number') {
-              setUnseenNotificationCount(message.unseenCount);
-            }
-            break;
-          default:
-            console.log('Unknown WebSocket message type:', message.type);
-        }
-      };
-
-      socket.onerror = (error) => {
-        console.error('WebSocket error (global):', error);
-        isConnected = false;
-      };
-
-      socket.onclose = () => {
-        console.log('WebSocket closed for notifications (global)');
-        isConnected = false;
-      };
-    };
-
-    initSocket();
-
-    return () => {
-      isConnected = false;
-      if (socket) {
-        console.log('Cleaning up WebSocket connection (global)');
-        socket.close();
-      }
-    };
-  }, []);
-
-  // Initial data fetch - run only once on mount
-  useEffect(() => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
     const loadData = async () => {
       setLoading(true);
       try {
@@ -339,9 +314,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         setLoading(false);
       }
     };
-
     loadData();
-  }, [fetchFriendRequests, fetchNotifications]);
+  }, [fetchFriendRequests, fetchNotifications, userId]);
 
   // Calculate unseen notifications count (use server-provided count when available)
   const unseenNotificationsCount = useMemo(() => {
@@ -349,14 +323,14 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (unseenNotificationCount > 0) {
       return unseenNotificationCount;
     }
-    return notifications.filter(notification => !notification.is_seen).length;
-  }, [notifications, unseenNotificationCount]);
+    return mergedNotifications.filter(notification => !notification.is_seen).length;
+  }, [mergedNotifications, unseenNotificationCount]);
 
   // Total unseen count includes unseen friend requests + unseen notifications
   const totalUnseenCount = useMemo(() => {
     const friendRequestCount = friendRequests.filter(request => !viewedNotifications.has(request._id)).length;
     const notificationCount = unseenNotificationsCount;
-    console.log(`Total unseen count calculation (global): ${friendRequestCount} friend requests + ${notificationCount} notifications = ${friendRequestCount + notificationCount}`);
+
     return friendRequestCount + notificationCount;
   }, [friendRequests, viewedNotifications, unseenNotificationsCount]);
 
@@ -374,7 +348,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     handleDeclineFriendRequest,
     markNotificationAsViewed,
     markAllNotificationsAsViewed,
-    refreshData
+    refreshData,
+    // Firebase-related additions
+    mergedNotifications,
+    firebaseLoading,
+    markFirebaseNotificationAsRead: markAsRead || (async () => false)
   };
 
   return (

@@ -1,84 +1,127 @@
-import React, { useState } from 'react';
-import { View, ScrollView, Text } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, ActivityIndicator } from 'react-native';
 import { ThemedView } from '@/components/ThemedView';
-import EventName from '@/components/CreateEvent/EventName';
-import EventImage from '@/components/CreateEvent/EventImage';
-import Category from '@/components/CreateEvent/EventType';
-import Description from '@/components/CreateEvent/Description';
-import { ButtonWithLabel } from '@/components/ButtonWithLabel';
-import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
-import type { User, UserProp, EventProp } from '@/types/allTypes';
-import { useGetUserToViewFriends } from '@/hooks/useGetUserToViewFriends';
-import { useFocusEffect } from '@react-navigation/native';
-import SearchFriendsBar from '@/components/SearchFriendsBar';
 import { useGetUserToViewEvents } from '@/hooks/useGetUserToViewEvents';
-import FriendListUserItem from '@/components/ProfileAndSettings/Settings/manageFriendsComponents/FriendListUserItem';
-import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import SearchFriendsBar from '@/components/SearchFriendsBar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import EventView from '@/components/Event';
+import { Feather } from '@expo/vector-icons';
+import { TabFlashList } from '@/components/CollapsibleTab/tab-flash-list';
+import { Route } from '@/components/CollapsibleTab';
 
-export default React.memo(function UserEvents({ user }: UserProp) {
+type UserEventsProps = {
+  userId: string;
+  route?: Route;
+};
+
+export default React.memo(function UserEvents({ userId, route }: UserEventsProps) {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [searchQuery, setSearchQuery] = useState('');
-  const { eventsList, fetchUserToViewEvents, loading } = useGetUserToViewEvents(user?._id);
-  // const { friendsList, refetchUserToViewFriends , loading } = useGetUserToViewFriends(user?._id);
+  const { eventsList, fetchUserToViewEvents, loading } = useGetUserToViewEvents(userId);
   const insets = useSafeAreaInsets();
 
-  useFocusEffect(
-    React.useCallback(() => {
+  useEffect(() => {
+    if (userId) {
       fetchUserToViewEvents();
-    }, [fetchUserToViewEvents])
+    }
+  }, [fetchUserToViewEvents, userId]);
+
+  const renderItem = ({ item }: { item: any }) => {
+    return (
+      <View style={{ marginBottom: 16 }}>
+        <EventView key={item._id} event={item} loading={loading} />
+      </View>
+    );
+  };
+
+  const ListEmptyComponent = () => (
+    <View style={{ paddingTop: 16, width: '100%' }}>
+      <View style={{
+        backgroundColor: themeColors.background,
+        borderRadius: 12,
+        padding: 16,
+        borderWidth: 2,
+        borderStyle: 'dashed',
+        borderColor: themeColors.border,
+        width: '100%',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: 120,
+      }}>
+        <View style={{ marginBottom: 12 }}>
+          <Feather
+            name="calendar"
+            size={32}
+            color={themeColors.placeholderTextColor}
+          />
+        </View>
+        <ThemedText 
+          style={{ 
+            fontSize: 16, 
+            color: themeColors.placeholderTextColor, 
+            textAlign: 'center',
+            marginBottom: 4,
+            fontWeight: '600'
+          }}
+        >
+          No events yet
+        </ThemedText>
+        <ThemedText 
+          style={{ 
+            fontSize: 14, 
+            color: themeColors.placeholderTextColor,
+            textAlign: 'center',
+            opacity: 0.8
+          }}
+        >
+          User's Events will appear here once they've attended any
+        </ThemedText>
+      </View>
+    </View>
   );
 
+  const ListHeaderComponent = () => (
+    loading ? (
+      <View style={{ marginTop: 32, alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={themeColors.mountainGreen} />
+      </View>
+    ) : eventsList.length > 0 ? (
+      <View style={{ marginTop: 16, marginBottom: 16, width: '100%' }}>
+        <SearchFriendsBar
+          placeholder="Search events..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+      </View>
+    ) : null
+  );
+
+  const filteredEvents = eventsList.filter(event => 
+    event.title.toLowerCase().includes(searchQuery.toLowerCase())
+  ).sort((a, b) => {
+    if (!a.start_time) return 1;
+    if (!b.start_time) return -1;
+    return new Date(b.start_time).getTime() - new Date(a.start_time).getTime();
+  });
+
   return (
-      <ThemedView style={{ flex: 1, alignItems: 'center' }}>
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, flexGrow: 1 }} style={{ width: '100%' }}>
-          <View style={{ flexDirection: 'column', gap: 16, alignItems: 'center' }}>
-            {loading ? (
-              <ThemedText 
-                style={{ 
-                  fontSize: 16, 
-                  color: themeColors.placeholderTextColor, 
-                  marginTop: 32,
-                  textAlign: 'center'
-                }}
-              >
-                Loading...
-              </ThemedText>
-            ) : eventsList.length > 0 ? (
-              <>
-                <View style={{ marginTop: 16, marginBottom: 16, width: '100%' }}>
-                  <SearchFriendsBar
-                    placeholder="Search events..."
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                  />
-                </View>
-                {eventsList.map((event) => (
-                  <EventView
-                    key={event._id}
-                    event={event}
-                    loading={false}
-                  />
-                ))}
-              </>
-            ) : (
-              <ThemedText 
-                style={{ 
-                  fontSize: 16, 
-                  color: themeColors.placeholderTextColor, 
-                  marginTop: 32,
-                  textAlign: 'center'
-                }}
-              >
-                {`Looks like it\'s just you for now!\nAdd some friends to get started!`}
-              </ThemedText>
-            )}
-          </View>
-        </ScrollView>
-      </ThemedView>
+    <ThemedView style={{ flex: 1, paddingHorizontal: 16 }}>
+      <TabFlashList
+        index={route?.index || 0}
+        data={loading ? [] : filteredEvents}
+        estimatedItemSize={200}
+        renderItem={renderItem}
+        ListEmptyComponent={!loading ? ListEmptyComponent : null}
+        ListHeaderComponent={ListHeaderComponent}
+        contentContainerStyle={{ 
+          paddingBottom: insets.bottom + 20
+        }}
+        showsVerticalScrollIndicator={false}
+      />
+    </ThemedView>
   );
 });

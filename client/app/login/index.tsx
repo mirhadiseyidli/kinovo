@@ -22,10 +22,10 @@ export default function Auth() {
   const insets = useSafeAreaInsets();
   const { signIn } = useAuthSession();
 
-  const handleLogin: TokenTypes = async (accessToken, refreshToken, userId) => {
+  const handleLogin: TokenTypes = async (accessToken, refreshToken, userId, firebaseToken) => {
     try {
       // Trigger authentication state update
-      signIn(accessToken, refreshToken, userId);
+      signIn(accessToken, refreshToken, userId, firebaseToken);
     } catch (error) {
       console.error('Error storing tokens:', error);
     }
@@ -99,7 +99,7 @@ export default function Auth() {
             {/* OAuth Buttons */}
             <ThemedView style={{ flexDirection: 'row', width: '100%', alignItems: 'center', justifyContent: 'space-evenly', paddingHorizontal: 16 }}>
               <AppleOAuth onLoginSuccess={handleLogin} />
-              <FacebookOAuth onLoginSuccess={handleLogin} />
+              {/* <FacebookOAuth onLoginSuccess={handleLogin} /> */}
               <GoogleOAuth onLoginSuccess={handleLogin} />
             </ThemedView>
           </ThemedView>

@@ -50,10 +50,7 @@ const TwoFactorAuth: React.FC<TwoFactorAuthProps> = ({
       const cleanedPhone = phoneNumber.replace(/\D/g, '');
       const formattedPhone = cleanedPhone.length === 10 ? `+1${cleanedPhone}` : phoneNumber;
       
-      console.log('Attempting to send verification code to:', formattedPhone);
-      
       const result = await initiatePhoneAuth(formattedPhone);
-      console.log('Verification result:', result);
       
       setConfirmation(result);
       setResendTimer(60);
@@ -108,18 +105,10 @@ const TwoFactorAuth: React.FC<TwoFactorAuthProps> = ({
 
     try {
       setLoading(true);
-      console.log('Attempting to confirm code:', code);
       const userCredential = await confirmation.confirm(code);
-      console.log('User credential:', userCredential);
       
       if (userCredential?.user && confirmation.verificationId) {
-        console.log('Server URL:', process.env.EXPO_PUBLIC_SERVER_BASE_URL);
-        console.log('Verification data:', {
-          verificationId: confirmation.verificationId,
-          verificationCode: code
-        });
         const result = await onVerificationSuccess(confirmation.verificationId, code);
-        console.log('Result:', result);
       } else {
         throw new Error('Failed to verify code. Please try again.');
       }

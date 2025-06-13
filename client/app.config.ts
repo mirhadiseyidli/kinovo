@@ -92,7 +92,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         'com.apple.developer.weatherkit': true,
         'com.apple.developer.usernotifications.time-sensitive': true,
         'com.apple.developer.applesignin': ['Default'], // Sign in with Apple
-      }
+      },
+      usesAppleSignIn: true,
     },
     web: {
       bundler: 'metro',
@@ -115,6 +116,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       '@react-native-firebase/app-check',
       'expo-notifications',
       'expo-calendar',
+      'expo-apple-authentication',
       [
         'expo-build-properties',
         {

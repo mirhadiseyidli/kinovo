@@ -46,6 +46,58 @@ export const useEventInvitation = () => {
     }
   };
 
+  const joinEvent = async (
+    eventId: string,
+    status: 'accepted' | 'maybe'
+  ) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const requestBody = {
+        eventId,
+        status
+      };
+
+      const response = await api.post('/api/manageevents/eventslist/join', requestBody);
+      
+      return response.data;
+    } catch (error) {
+      const err = error as ApiError;
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to join event';
+      setError(errorMessage);
+      Alert.alert('Error', errorMessage);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const markNotInterested = async (
+    eventId: string
+  ) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const requestBody = {
+        eventId
+      };
+
+      const response = await api.post('/api/manageevents/eventslist/not-interested', requestBody);
+      
+      return response.data;
+    } catch (error) {
+      const err = error as ApiError;
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to mark event as not interested';
+      setError(errorMessage);
+      Alert.alert('Error', errorMessage);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const cancelEvent = async (
     eventId: string,
     options?: {
@@ -85,6 +137,8 @@ export const useEventInvitation = () => {
 
   return {
     respondToInvitation,
+    joinEvent,
+    markNotInterested,
     cancelEvent,
     loading,
     error

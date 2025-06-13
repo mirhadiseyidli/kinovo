@@ -56,7 +56,7 @@ export default React.memo(function EventDetails() {
             }}
             textStyle={{
               fontWeight: 'bold',
-              color: themeColors.text
+              color: 'white'
             }}
           />
         </ThemedView>

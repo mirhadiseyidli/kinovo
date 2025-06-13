@@ -64,6 +64,7 @@ const DiscoverSearchBar: React.FC<DiscoverSearchBarProps> = ({
   const handleClearSearch = () => {
     setInputValue('');
     setShowSuggestions(false);
+    setIsSearchFocused(false);
   };
 
   const handleInputFocus = () => {
@@ -72,6 +73,7 @@ const DiscoverSearchBar: React.FC<DiscoverSearchBarProps> = ({
   };
 
   const handleBackdropPress = () => {
+    console.log('handleBackdropPress');
     setShowSuggestions(false);
     setIsSearchFocused(false);
     onSearchActiveChange?.(false);

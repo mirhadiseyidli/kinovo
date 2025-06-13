@@ -2,9 +2,7 @@ const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 const tokenMiddleware = (req, res, next) => {
-  console.log('--------------------------------');
-  console.log('Token middleware request headers:', req.headers);
-  console.log('--------------------------------');
+
   const token = req.headers.authorization?.split(' ')[1];
 
   if (!token) {
@@ -13,9 +11,7 @@ const tokenMiddleware = (req, res, next) => {
   }
 
   try {
-    console.log('Verifying token...');
     const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
-    console.log('Token verified successfully for user:', decoded._id);
     req.user = decoded;
     next();
   } catch (error) {

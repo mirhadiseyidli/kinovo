@@ -96,7 +96,7 @@ const UserProfilePreview: React.FC = () => {
         }}
         onPress={handleEditProfile}
       >
-        <Text style={{ color: Colors[colorScheme ?? 'dark'].text, fontWeight: 'bold' }}>{"Edit Profile"}</Text>
+        <Text style={{ color: 'white', fontWeight: 'bold' }}>{"Edit Profile"}</Text>
       </TouchableOpacity>
     </View>
   );

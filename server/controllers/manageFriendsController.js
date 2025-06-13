@@ -1,6 +1,5 @@
 const FriendRequest = require('../database/schemas/friendRequestsSchema');
 const Users = require('../database/schemas/usersSchema');
-const { sendNotificationToUser } = require('../websocket/websocketUtils');
 const { createFriendRequestNotification, updateFriendRequestNotificationStatus, createNotification } = require('./notificationsController');
 
 // Send friend request
@@ -75,12 +74,6 @@ const acceptFriendRequest = async (req, res) => {
     await Users.findByIdAndUpdate(receiver, { $addToSet: { friends: sender } });
     await Users.findByIdAndUpdate(sender, { $addToSet: { friends: receiver } });
 
-    // Send WebSocket notification to receiver that friend request was accepted
-    sendNotificationToUser(receiver.toString(), {
-      type: 'friendRequestAccepted',
-      requestId: friendRequest._id.toString()
-    });
-
     // Create a notification for the sender that their request was accepted
     const receiverUser = await Users.findById(receiver);
     if (receiverUser) {
@@ -91,12 +84,6 @@ const acceptFriendRequest = async (req, res) => {
         title: 'Friend Request Accepted',
         subtitle: `${receiverUser.full_name} accepted your friend request`,
         status: 'unseen'
-      });
-
-      // Send real-time notification via WebSocket
-      sendNotificationToUser(sender.toString(), {
-        type: 'newNotification',
-        data: notification
       });
     }
 
@@ -125,12 +112,6 @@ const rejectFriendRequest = async (req, res) => {
       return res.status(404).json({ error: 'Friend request not found or invalid sender/receiver' });
     }
 
-    // Send WebSocket notification to receiver that friend request was rejected
-    sendNotificationToUser(receiver.toString(), {
-      type: 'friendRequestRejected',
-      requestId: friendRequest._id.toString()
-    });
-
     // Create a notification for the sender that their request was rejected
     const receiverUser = await Users.findById(receiver);
     if (receiverUser) {
@@ -141,12 +122,6 @@ const rejectFriendRequest = async (req, res) => {
         title: 'Friend Request Declined',
         subtitle: `${receiverUser.full_name} declined your friend request`,
         status: 'unseen'
-      });
-
-      // Send real-time notification via WebSocket
-      sendNotificationToUser(sender.toString(), {
-        type: 'newNotification',
-        data: notification
       });
     }
 
@@ -177,19 +152,9 @@ const cancelFriendRequestSender = async (req, res) => {
     }
 
     const friendRequestId = friendRequest._id.toString();
-    console.log(`Cancelling friend request ${friendRequestId} from ${sender} to ${receiver}`);
-
-    // Send WebSocket notification to receiver BEFORE deleting anything
-    console.log(`Sending WebSocket cancellation message to receiver ${receiver} for request ${friendRequestId}`);
-    const websocketSent = sendNotificationToUser(receiver.toString(), {
-      type: 'friendRequestCancelled',
-      requestId: friendRequestId
-    });
-    console.log(`WebSocket message sent successfully: ${websocketSent}`);
 
     // Delete the friend request
     const deletedRequest = await FriendRequest.findByIdAndDelete(friendRequest._id);
-    console.log(`Deleted friend request:`, deletedRequest ? 'SUCCESS' : 'FAILED');
 
     // Remove any related notifications for this friend request
     const Notification = require('../database/schemas/notificationsSchema');
@@ -197,7 +162,6 @@ const cancelFriendRequestSender = async (req, res) => {
       friend_request: friendRequest._id,
       type: 'friend_request'
     });
-    console.log(`Deleted ${deletedNotifications.deletedCount} notifications for friend request ${friendRequestId}`);
 
     res.status(200).json({ message: 'Friend request cancelled successfully', friendRequest });
   } catch (error) {
@@ -226,7 +190,6 @@ const cancelFriendRequestReceiver = async (req, res) => {
     }
 
     const friendRequestId = friendRequest._id.toString();
-    console.log(`Receiver ${receiver} cancelling friend request ${friendRequestId} from ${sender}`);
 
     // Delete the friend request
     await FriendRequest.findByIdAndDelete(friendRequest._id);
@@ -236,14 +199,6 @@ const cancelFriendRequestReceiver = async (req, res) => {
     const deletedNotifications = await Notification.deleteMany({ 
       friend_request: friendRequest._id,
       type: 'friend_request'
-    });
-    console.log(`Deleted ${deletedNotifications.deletedCount} notifications for friend request ${friendRequestId}`);
-
-    // Send WebSocket notification to receiver that friend request was cancelled
-    console.log(`Sending WebSocket cancellation message to receiver ${receiver}`);
-    sendNotificationToUser(receiver.toString(), {
-      type: 'friendRequestCancelled',
-      requestId: friendRequestId
     });
 
     res.status(200).json({ message: 'Friend request cancelled successfully', friendRequest });

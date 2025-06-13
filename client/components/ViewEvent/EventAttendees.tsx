@@ -159,7 +159,6 @@ const EventAttendees = ({ userId, event }: { userId: string | null, event: Event
   const attendeeCount = (event?.attendees ?? []).length || 0;
 
   const handleRemove = useCallback((id: string) => {
-    console.log('remove user');
   }, []);
 
   useAnimatedReaction(

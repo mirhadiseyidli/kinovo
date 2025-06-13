@@ -11,7 +11,7 @@ const EventName: React.FC = () => {
   const placeholder = "Enter event name";
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const { settingEventTitle } = useCreateEventContext();
+  const { title, settingEventTitle } = useCreateEventContext();
   const { width } = Dimensions.get('window');
   
   const debounceRef = useRef<number | null>(null);
@@ -20,9 +20,8 @@ const EventName: React.FC = () => {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
-    debounceRef.current = setTimeout(() => {
-      settingEventTitle(text);
-    }, 5000);
+    // Update immediately instead of debouncing for better UX
+    settingEventTitle(text);
   };
 
   useEffect(() => {
@@ -52,6 +51,7 @@ const EventName: React.FC = () => {
         placeholder={placeholder}
         placeholderTextColor={themeColors.placeholderTextColor}
         onChangeText={handleTextChange}
+        value={title}
         style={{
           flex: 1, // Take up the remaining space
           fontSize: 16,

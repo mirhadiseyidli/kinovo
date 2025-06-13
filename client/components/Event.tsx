@@ -9,7 +9,6 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { UpcomingEventProps, Event } from '@/types/allTypes';
 import { differenceInCalendarDays, format, isToday, isTomorrow, isThisWeek } from 'date-fns';
-import { AutoSkeletonView } from 'react-native-auto-skeleton';
 import { useRouter } from 'expo-router';
 import { getCategoryImage } from '@/constants/CategoryImages';
 import { BlurView } from 'expo-blur';
@@ -48,7 +47,7 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = ({ event, loadin
   let titleStyle: any = { 
     fontSize: 12, 
     fontWeight: '500', 
-    color: `${Colors[colorScheme ?? 'dark'].tint}`, 
+    color: themeColors.tint, 
     marginBottom: 8 
   };
   let borderWidth = 0;
@@ -61,10 +60,6 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = ({ event, loadin
       ...titleStyle,
       textDecorationLine: 'line-through',
     };
-    borderWidth = 1;
-    borderColor = themeColors.mountainGreen;
-  } else if (userStatus === 'maybe') {
-    showStripes = true;
   }
 
   const getDaysRemainingLabel = (eventDate: any): string => {
@@ -132,6 +127,10 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = ({ event, loadin
     }, 50);
   }
 
+  const truncateName = (name: string, maxLength: number) => {
+    return name.length > maxLength ? name.slice(0, maxLength) + '...' : name;
+  };
+
   return (
       <TouchableOpacity 
         style={{ 
@@ -139,18 +138,19 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = ({ event, loadin
           width: '100%', 
           overflow: 'hidden', 
           alignItems: 'center',
+          backgroundColor: themeColors.eventCardBackgroundColor,
           opacity: containerOpacity,
           borderWidth: borderWidth,
           borderColor: borderColor,
-          borderRadius: borderWidth > 0 ? 8 : 0,
-          padding: borderWidth > 0 ? 8 : 0,
+          borderRadius: 12,
           position: 'relative',
+          padding: 16,
           // backgroundColor: 'transparent' 
         }}
         onPress={handleViewEvent}
       >
         {/* Event Image */}
-        <ThemedView style={{ width: height, height: height, marginRight: 16, borderRadius: 8, overflow: 'hidden' }}>
+        <View style={{ width: height, height: height, marginRight: 16, borderRadius: 8, overflow: 'hidden' }}>
           <Image 
             source={event.event_picture ? { uri: event.event_picture } : getCategoryImage(event.category)}
             style={{ width: '100%', height: '100%' }}
@@ -174,47 +174,47 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = ({ event, loadin
               {event.category?.toLowerCase() || 'Other'}
             </ThemedText>
           </BlurView>
-        </ThemedView>
+        </View>
 
         {/* Event Details */}
         <View style={{ flex: 1, justifyContent: 'center', position: 'relative' }}>
           {/* Friend Info */}
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, justifyContent: 'space-between' }}>
-              <ThemedView style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start' }}>
                 <Image
                   source={
                     event.creator?.profile_picture
                       ? { uri: event.creator.profile_picture }
                       : require('../assets/event-default.png')
                   }
-                  style={{ aspectRatio: 1, width: '16%', borderRadius: 50, marginRight: 8 }}
+                  style={{ aspectRatio: 1, width: '16%', borderRadius: 50, marginRight: 4 }}
                 />
                 <ThemedText style={{ fontSize: 12, fontWeight: '500' }}>
-                  {event?.creator?.full_name}
+                  {truncateName(event?.creator?.full_name || 'Unknown', 15)}
                 </ThemedText>
-              </ThemedView>
-              <ThemedView style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
                 {(event?.start_time && event?.end_time && (new Date(event.start_time) <= today && new Date(event.end_time) >= today)) ? (
                   <>
                     <Animated.View style={[
                       { height: 4, width: 4, borderRadius: 999, marginRight: 8, backgroundColor: themeColors.mountainGreen },
                       animatedStyle
                     ]} />
-                    <ThemedText style={{ fontSize: 12, color: themeColors.tint, marginLeft: 'auto' }}>Live</ThemedText>
+                    <ThemedText style={{ fontSize: 12, color: themeColors.tint}}>Live</ThemedText>
                   </>
                 ) : (
                   <>
-                    <Feather name="clock" size={16} color={themeColors.tint} style={{ marginRight: 8 }} />
-                    <ThemedText style={{ fontSize: 12, color: themeColors.tint, marginLeft: 'auto' }}>
+                    <Feather name="clock" size={14} color={themeColors.tint} style={{ marginRight: 4 }} />
+                    <ThemedText style={{ fontSize: 12, color: themeColors.tint }}>
                       {event?.start_time ? getDaysRemainingLabel(event.start_time) : 'Unknown date'}
                     </ThemedText>
                   </>
                 )}
-              </ThemedView>
+              </View>
           </View>
 
           {/* Event Title */}
-          <ThemedView style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <ThemedText style={titleStyle}>
               {event?.title}
             </ThemedText>
@@ -226,21 +226,21 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = ({ event, loadin
                 style={{ marginLeft: 8, marginBottom: 8 }} 
               />
             )}
-          </ThemedView>
+          </View>
 
           {/* Event Date and Time */}
-          <ThemedView style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
             <Feather name="clock" size={14} color={Colors[colorScheme ?? 'dark'].tint} />
-            <ThemedText style={{ fontSize: 10, color: `${Colors[colorScheme ?? 'dark'].tint}`, marginLeft: 8 }}>
+            <ThemedText style={{ fontSize: 10, color: `${Colors[colorScheme ?? 'dark'].tint}`, marginLeft: 4 }}>
               {event?.start_time ? formatEventDateTime(event.start_time) : 'No time'}
             </ThemedText>
-          </ThemedView>
+          </View>
 
           {/* Event Location */}
-          <ThemedView style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Feather name="map-pin" size={14} color={Colors[colorScheme ?? 'dark'].tint} />
-            <ThemedText style={{ fontSize: 10, color: `${Colors[colorScheme ?? 'dark'].tint}`, marginLeft: 8 }}>{event?.location?.text}</ThemedText>
-          </ThemedView>
+            <ThemedText style={{ fontSize: 10, color: `${Colors[colorScheme ?? 'dark'].tint}`, marginLeft: 4 }}>{truncateName(event?.location?.text || 'Location TBD', 18)}</ThemedText>
+          </View>
 
           {/* Maybe status indicator */}
           {userStatus === 'maybe' && (
@@ -248,19 +248,34 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = ({ event, loadin
               position: 'absolute',
               bottom: 0,
               right: 0,
-              backgroundColor: themeColors.mountainGreen,
-              borderRadius: 10,
-              width: 20,
-              height: 20,
+              backgroundColor: themeColors.maybeStatusColor,
+              borderRadius: 4,
+              paddingHorizontal: 4,
+              paddingVertical: 2,
               justifyContent: 'center',
               alignItems: 'center',
               zIndex: 10,
             }}>
-              <MaterialIcons 
-                name="question-mark" 
-                size={12} 
-                color="white" 
-              />
+              <ThemedText style={{ fontSize: 10, color: 'white', fontWeight: 'bold', textTransform: 'capitalize' }}>{event.userStatus}</ThemedText>
+            </View>
+          )}
+          {/* Declined status indicator */}
+          {userStatus === 'rejected' && (
+            <View style={{
+              position: 'absolute',
+              bottom: 0,
+              right: 0,
+              backgroundColor: themeColors.background,
+              borderWidth: 1,
+              borderColor: themeColors.border,
+              borderRadius: 4,
+              paddingHorizontal: 4,
+              paddingVertical: 2,
+              justifyContent: 'center',
+              alignItems: 'center',
+              zIndex: 10,
+            }}>
+              <ThemedText style={{ fontSize: 10, color: themeColors.text, fontWeight: 'bold', textTransform: 'capitalize', textDecorationLine: 'line-through' }}>{event.userStatus}</ThemedText>
             </View>
           )}
         </View>

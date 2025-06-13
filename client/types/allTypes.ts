@@ -245,14 +245,14 @@ export type FriendEventActivity = {
 // =========================
 
 export interface AuthLoginProps {
-  onLoginSuccess: (accessToken: string, refreshToken: string, userId: string) => void;
+  onLoginSuccess: (accessToken: string, refreshToken: string, userId: string, firebaseToken?: string) => void;
 }
 
 export interface EmailLoginProps {
   onLoginSuccess: (accessToken: string, refreshToken: string, userId: string) => void;
 }
 
-export type TokenTypes = (accessToken: string, refreshToken: string, userId: string) => void;
+export type TokenTypes = (accessToken: string, refreshToken: string, userId: string, firebaseToken?: string) => void;
 
 
 export interface AuthButtonProps {
@@ -262,13 +262,15 @@ export interface AuthButtonProps {
 }
 
 export interface AuthContextType {
-  signIn: (accessToken: string, refreshToken: string, userId: string) => void;
+  signIn: (accessToken: string, refreshToken: string, userId: string, firebaseToken?: string) => void;
   signOut: () => void;
   accessToken: RefObject<string | null> | null;
   refreshToken: RefObject<string | null> | null;
+  firebaseToken: RefObject<string | null> | null;
   isLoading: boolean;
   refreshAccessToken: () => Promise<void>;
   checkAuth: () => Promise<void>;
+  userId?: string;
 }
 
 // =========================
@@ -554,10 +556,9 @@ export interface UserGeneralInfoProps {
 export interface UserProfileBasicInfoProps {
   full_name?: string | null;
   username?: string | null;
-  instagram_username?: string | null;
-  facebook_username?: string | null;
   number_of_friends?: number | null;
   number_of_events?: number | null;
+  number_of_activities?: number | null;
 }
 
 // =========================
@@ -639,6 +640,8 @@ export interface ButtonWithLabelProps {
   onPress: () => void;
   containerStyle?: ViewStyle;
   textStyle?: TextStyle;
+  disabled?: boolean;
+  children?: React.ReactNode;
 }
 
 // =========================
@@ -833,7 +836,48 @@ export interface EventVisibilityInfoProps {
   visibility: string;
 }
 
+export type ValidationErrors = {
+  title?: string;
+  category?: string;
+  startTime?: string;
+  endTime?: string;
+  location?: string;
+};
+
 export interface CreateEventContextType {
+  // Form values
+  title: string;
+  picture: string | null;
+  category: string | null;
+  description: string | null;
+  location: {
+    text: string | null;
+    city: string | null;
+    state: string | null;
+    coordinates: { lat: number | null; lng: number | null };
+  };
+  startTime: Date | null;
+  endTime: Date | null;
+  capacity: number | null;
+  recurrence: {
+    checked: boolean;
+    frequency: string | null;
+    end_date: Date | null;
+  };
+  attendees: {
+    user: AttendeeFriend;
+    status?: 'pending' | 'maybe' | 'accepted' | 'rejected';
+  }[];
+  visibility: string;
+  isEditMode: boolean;
+  eventId: string | null;
+  
+  // Form state
+  validationErrors: ValidationErrors;
+  loading: boolean;
+  error: string | null;
+
+  // Setter functions
   settingEventTitle: (name: string) => void;
   settingEventAttendees: (users: AttendeeFriend[]) => void;
   settingEventCapacity: (value: number | null) => void;
@@ -845,7 +889,13 @@ export interface CreateEventContextType {
   settingEventStartTime: (date: Date | null) => void;
   settingEventVisibility: (value: string) => void;
   settingEventCategory: (category: string | null) => void;
+  
+  // Actions
   compileEventData: () => Partial<Event>;
+  validateEvent: () => boolean;
+  resetEventForm: () => void;
+  loadEventForEdit: (eventToEdit: Event) => void;
+  createOrUpdateEvent: () => Promise<{ success: boolean, eventId?: string }>;
 }
 
 // =========================
@@ -873,7 +923,8 @@ export type CalendarHeaderProps = {
   // view: string;
   // handleViewChange: (view: string) => void;
   // height: SharedValue<number>;
-  fromDropdownRef: React.RefObject<boolean>;
+  fromDropdownRef: React.RefObject<boolean>;  
+  onRefresh: () => void;
 };
 
 export type CalendarHeaderOtherProps = {

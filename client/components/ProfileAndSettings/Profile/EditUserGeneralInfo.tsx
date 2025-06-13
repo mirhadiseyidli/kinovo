@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Image, Button, SafeAreaView, TouchableOpacity, TextInput, Dimensions, ScrollView, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import { View, Text, Image, Button, SafeAreaView, TouchableOpacity, TextInput, Dimensions, ScrollView, ActivityIndicator, Alert, RefreshControl, KeyboardAvoidingView, Platform } from 'react-native';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { useFocusEffect } from '@react-navigation/native';
@@ -110,6 +110,11 @@ const EditUserGeneralInfo = () => {
   }
 
   return (
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={{ flex: 1 }}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+    >
     <View style={{ flex: 1 }}>
       <ScrollView
         stickyHeaderIndices={[0]}
@@ -118,6 +123,7 @@ const EditUserGeneralInfo = () => {
         scrollEventThrottle={16}
         scrollEnabled={true}
         showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl 
             refreshing={refreshing} 
@@ -139,7 +145,7 @@ const EditUserGeneralInfo = () => {
 
 
         {/* User Info Inputs */}
-        <View style={{ width: '100%', marginTop: 32, paddingHorizontal: 16 }}>
+          <View style={{ width: '100%', marginTop: 32, paddingHorizontal: 16, paddingBottom: 60 }}>
           {/* First Name */}
           <UserNameEdit
             label="First Name"
@@ -204,6 +210,7 @@ const EditUserGeneralInfo = () => {
         </View>
       </ScrollView>
     </View>
+    </KeyboardAvoidingView>
   );
 };
 

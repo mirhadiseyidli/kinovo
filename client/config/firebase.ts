@@ -1,7 +1,8 @@
-import { initializeApp, getApps } from '@react-native-firebase/app';
-import { getAuth } from '@react-native-firebase/auth';
-import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
-import appCheck, { ReactNativeFirebaseAppCheckProvider } from '@react-native-firebase/app-check';
+import { initializeApp, getApps, getApp } from '@react-native-firebase/app';
+import { getAuth, FirebaseAuthTypes } from '@react-native-firebase/auth';
+import { initializeAppCheck, ReactNativeFirebaseAppCheckProvider } from '@react-native-firebase/app-check';
+import { getDatabase } from '@react-native-firebase/database';
+import { jwtDecode } from 'jwt-decode';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -12,37 +13,58 @@ const firebaseConfig = {
   messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '',
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || '',
   clientId: process.env.EXPO_PUBLIC_FIREBASE_IOS_CLIENT_ID || '',
+  databaseURL: process.env.EXPO_PUBLIC_FIREBASE_DATABASE_URL || '',
+};
+
+export const signInWithFirebaseToken = async (customToken: string): Promise<void> => {
+  try {
+    const result = await auth.signInWithCustomToken(customToken);
+    console.log('result', result);
+    console.log('Firebase authentication successful with custom token');
+  } catch (error) {
+    console.error('Error signing in with custom token:', error);
+    throw error;
+  }
 };
 
 // Initialize Firebase if it hasn't been initialized yet
 if (!getApps().length) {
-  console.log('Initializing Firebase with config:', {
-    ...firebaseConfig,
-    apiKey: '***', // Hide sensitive data in logs
-    clientId: '***',
-  });
-  const app = initializeApp(firebaseConfig);
-  
-  // Initialize App Check with the new pattern
-  const provider = new ReactNativeFirebaseAppCheckProvider();
-  provider.configure({
-    android: {
-      provider: __DEV__ ? 'debug' : 'playIntegrity',
-    },
-    apple: {
-      provider: __DEV__ ? 'debug' : 'deviceCheck',
-    },
-  });
-  
-  const appChecks = appCheck().initializeAppCheck({
-    provider,
-    isTokenAutoRefreshEnabled: true,
-  });
-  console.log('App Checks:', appChecks);
+  console.log('Initializing Firebase with config (redacted)');
+  initializeApp(firebaseConfig);
 }
 
+// Retrieve default app
+const firebaseApp = getApp();
+const db = getDatabase(firebaseApp);
+
+// Initialize App Check once, on initial load
+let appCheckInitialized = false;
+
+if (!appCheckInitialized) {
+  const appCheckProvider = new ReactNativeFirebaseAppCheckProvider();
+  appCheckProvider.configure({
+    android: { provider: __DEV__ ? 'debug' : 'playIntegrity' },
+    apple: { provider: __DEV__ ? 'debug' : 'deviceCheck' },
+  });
+
+  initializeAppCheck(firebaseApp, {
+    provider: appCheckProvider,
+    isTokenAutoRefreshEnabled: true,
+  });
+
+  console.log('App Check initialized');
+  appCheckInitialized = true;
+}
+
+// Initialize Realtime Database settings using modular API
+export const initializeFirebaseDatabase = () => {
+  db.setPersistenceEnabled(true);
+  db.setPersistenceCacheSizeBytes(10 * 1024 * 1024);
+  console.log('Firebase Realtime Database initialized with persistence');
+};
+
 // Initialize Auth
-const auth = getAuth();
+const auth = getAuth(firebaseApp);
 
 // Configure phone auth settings
 const configurePhoneAuth = async () => {
@@ -81,4 +103,4 @@ export const initiatePhoneAuth = async (phoneNumber: string): Promise<FirebaseAu
   }
 };
 
-export { auth, configurePhoneAuth }; 
+export { auth, configurePhoneAuth, db }; 

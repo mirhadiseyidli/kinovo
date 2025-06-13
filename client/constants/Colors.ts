@@ -33,6 +33,8 @@ export const Colors = {
     cardColorsGradientOne: 'rgba(201, 201, 201, 0.9)',
     cardColorsGradientTwo: 'rgba(185, 185, 185, 0.9)',
     textThird: '#525252',
+    maybeStatusColor: '#FFB347',
+    eventCardBackgroundColor: 'rgba(222, 221, 221, 0.51)',
   },
   dark: {
     text: '#ECEDEE',
@@ -59,5 +61,7 @@ export const Colors = {
     cardColorsGradientOne: 'rgba(66, 65, 77, 0.9)',
     cardColorsGradientTwo: 'rgba(46, 45, 57, 0.9)',
     textThird: '#A1A1AA',
+    maybeStatusColor: '#FFB347',
+    eventCardBackgroundColor: 'rgba(51, 51, 51, 0.5)',
   },
 };

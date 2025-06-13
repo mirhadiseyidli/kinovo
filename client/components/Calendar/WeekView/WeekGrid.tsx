@@ -28,7 +28,7 @@ const WeekGrid: React.FC<WeekGridProps> = ({ hours, weekDates, gridRef }) => {
     const startHour = start.getHours() + start.getMinutes() / 60;
     const endHour = end.getHours() + end.getMinutes() / 60;
     
-    console.log('WeekGrid: Event should be at hour:', startHour, 'to', endHour);
+
     
     // The layout structure:
     // - HourList has 18px paddingTop
@@ -46,7 +46,7 @@ const WeekGrid: React.FC<WeekGridProps> = ({ hours, weekDates, gridRef }) => {
     const top = (startHour * HOUR_SLOT_HEIGHT) + HOUR_LIST_PADDING_TOP + LABEL_CENTER_OFFSET;
     const height = Math.max((endHour - startHour) * HOUR_SLOT_HEIGHT, 20);
     
-    console.log('WeekGrid: Positioning event at top:', top, 'height:', height);
+
     
     return { top, height };
   };
@@ -81,18 +81,18 @@ const WeekGrid: React.FC<WeekGridProps> = ({ hours, weekDates, gridRef }) => {
     // Determine styling based on user status
     const userStatus = occurrence.event.userStatus;
     let backgroundColor = themeColors.mountainGreen;
-    let borderColor = 'transparent';
-    let borderWidth = 0;
+    let borderColor = themeColors.mountainGreen;
+    let borderWidth = 1;
     let opacity = 0.9;
     let textStyle: any = {
       color: 'white',
-      fontSize: 10,
+      fontSize: 9,
       fontWeight: '600',
     };
 
     if (userStatus === 'rejected') {
-      backgroundColor = 'transparent';
-      borderColor = themeColors.mountainGreen;
+      backgroundColor = themeColors.background;
+      borderColor = themeColors.border;
       borderWidth = 1;
       opacity = 0.7;
       textStyle = {
@@ -101,13 +101,20 @@ const WeekGrid: React.FC<WeekGridProps> = ({ hours, weekDates, gridRef }) => {
         color: themeColors.text,
       };
     } else if (userStatus === 'maybe') {
+      backgroundColor = themeColors.maybeStatusColor;
+      borderColor = themeColors.maybeStatusColor;
+      borderWidth = 1;
+      textStyle = {
+        ...textStyle,
+        color: 'white',
+      };
+    } else if (userStatus === 'pending') {
       backgroundColor = themeColors.background;
       borderColor = themeColors.mountainGreen;
       borderWidth = 1;
       textStyle = {
         ...textStyle,
         color: themeColors.text,
-        fontWeight: 'bold',
       };
     }
     
@@ -121,7 +128,7 @@ const WeekGrid: React.FC<WeekGridProps> = ({ hours, weekDates, gridRef }) => {
           top: top,
           width: dayWidth - 4,
           height: height,
-          backgroundColor: occurrence.isModified ? themeColors.tint : backgroundColor,
+          backgroundColor: backgroundColor,
           borderColor: borderColor,
           borderWidth: borderWidth,
           borderRadius: 4,
@@ -131,35 +138,6 @@ const WeekGrid: React.FC<WeekGridProps> = ({ hours, weekDates, gridRef }) => {
           overflow: 'hidden',
         }}
       >
-        {/* Striped pattern for 'maybe' status */}
-        {userStatus === 'maybe' && (
-          <View style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            overflow: 'hidden',
-            zIndex: 1,
-          }}>
-            {Array.from({ length: Math.ceil((dayWidth + height) / 8) }).map((_, i) => (
-              <View
-                key={i}
-                style={{
-                  position: 'absolute',
-                  width: 1,
-                  height: Math.sqrt(Math.pow(dayWidth + 20, 2) + Math.pow(height + 20, 2)) + 40,
-                  backgroundColor: themeColors.mountainGreen,
-                  transform: [
-                    { translateX: i * 12 - height - 10 },
-                    { translateY: -25 },
-                    { rotate: '45deg' }
-                  ],
-                }}
-              />
-            ))}
-          </View>
-        )}
         <Text
           style={{...textStyle, zIndex: 2, position: 'relative'}}
           numberOfLines={1}

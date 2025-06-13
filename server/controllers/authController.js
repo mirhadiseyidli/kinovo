@@ -2,9 +2,10 @@ const bcrypt = require('bcrypt');
 const User = require('../database/schemas/usersSchema');
 const { generateAccessToken, generateRefreshToken } = require('../utils/token');
 const { verifyIdToken } = require('../utils/googleAuth');
-const admin = require('../config/firebase-admin');
+const { admin } = require('../config/firebase-admin');
 const jwt = require('jsonwebtoken');
 const logger = require('winston');
+const { verifyIdentityToken } = require('../utils/appleAuth');
 
 // Helper functions
 const hashPassword = password => {
@@ -57,6 +58,7 @@ const googleAuth = async (req, res) => {
     const userDataFromDB = await User.findOne({ google_id: userId }).select('-password');
     const accessToken = generateAccessToken({ _id: userDataFromDB._id, email: user.email });
     const refreshToken = generateRefreshToken({ _id: userDataFromDB._id, email: user.email });
+    const customToken = await admin.auth().createCustomToken(userDataFromDB._id.toString());
 
     res.json({
       success: true,
@@ -70,10 +72,105 @@ const googleAuth = async (req, res) => {
       },
       accessToken,
       refreshToken,
+      firebaseToken: customToken
     });
   } catch (err) {
-    logger.error('Error verifying Google token:', err.message);
+    logger.error('Error verifying Google token:', err);
     res.status(401).json({ success: false, message: 'Invalid Google ID token' });
+  }
+};
+
+// Add this controller function
+const appleAuth = async (req, res) => {
+  const { identityToken, user } = req.body;
+  console.log('user', user);
+  console.log('identityToken', identityToken);
+
+  if (!identityToken) {
+    return res.status(400).json({ success: false, message: 'No token provided' });
+  }
+
+  try {
+    console.log('Processing Apple auth with token', identityToken.substring(0, 20) + '...');
+    const { userId, email, email_verified, payload } = await verifyIdentityToken(identityToken);
+    console.log('Apple Token Verified for user ID:', userId);
+    logger.info(`Apple Token Verified for user ID: ${userId}`);
+
+    // Apple might not return these details every time, so we need to handle that
+    const firstName = user?.fullName?.givenName || 'FirstName';
+    const lastName = user?.fullName?.familyName || 'LastName';
+    const fullName = `${firstName} ${lastName}`;
+    
+    // For Apple, email may only be provided on the first login
+    const userEmail = email || user?.email;
+    
+    if (!userEmail) {
+      // console.log('No email provided from Apple');
+      // Use a random email as a fallback
+      // const randomEmail = `apple_${userId}@example.com`;
+      // console.log('Using fallback email:', randomEmail);
+      
+      // You can either use a fallback email or return an error
+      return res.status(400).json({ success: false, message: 'Email is required for account creation' });
+    }
+
+    console.log('Checking for existing user with apple_id:', userId);
+    let existingUser = await User.findOne({ apple_id: userId });
+    
+    // If no user with apple_id, check if email exists
+    if (!existingUser && userEmail) {
+      console.log('No user found with apple_id, checking email:', userEmail);
+      existingUser = await User.findOne({ email: userEmail });
+      
+      // If user exists with this email but no apple_id, link the accounts
+      if (existingUser) {
+        console.log('Found user with matching email, linking Apple ID');
+        existingUser.apple_id = userId;
+        await existingUser.save();
+      }
+    }
+
+    if (!existingUser) {
+      console.log('Creating new user for Apple ID:', userId);
+      logger.info(`Creating new user for Apple ID: ${userId}`);
+      
+      // For testing purpose, use default values if needed
+      const finalEmail = userEmail || `apple_${userId}@example.com`;
+      
+      existingUser = await User.create({
+        first_name: firstName,
+        last_name: lastName,
+        full_name: fullName,
+        username: finalEmail,
+        email: finalEmail,
+        email_verified: true, // Apple verifies emails
+        apple_id: userId,
+      });
+    }
+
+    console.log('Generating tokens for user:', existingUser._id);
+    const accessToken = generateAccessToken({ _id: existingUser._id, email: existingUser.email });
+    const refreshToken = generateRefreshToken({ _id: existingUser._id, email: existingUser.email });
+    const customToken = await admin.auth().createCustomToken(existingUser._id.toString());
+
+    res.json({
+      success: true,
+      user: {
+        _id: existingUser._id,
+        email: existingUser.email,
+        first_name: existingUser.first_name,
+        last_name: existingUser.last_name,
+        full_name: existingUser.full_name,
+        profile_picture: existingUser.profile_picture,
+      },
+      accessToken,
+      refreshToken,
+      firebaseToken: customToken
+    });
+  } catch (err) {
+    console.error('Error in Apple auth:', err);
+    logger.error('Error verifying Apple token:', err.message);
+    res.status(401).json({ success: false, message: 'Invalid Apple ID token: ' + err.message });
   }
 };
 
@@ -107,6 +204,7 @@ const login = async (req, res) => {
 
     const accessToken = generateAccessToken({ _id: user._id, email: user.email });
     const refreshToken = generateRefreshToken({ _id: user._id, email: user.email });
+    const customToken = await admin.auth().createCustomToken(user._id.toString());
 
     return res.json({
       success: true,
@@ -121,6 +219,7 @@ const login = async (req, res) => {
       },
       accessToken,
       refreshToken,
+      firebaseToken: customToken
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -175,6 +274,7 @@ const signup = async (req, res) => {
     if (userDataFromDB) {
       const accessToken = generateAccessToken({ _id: userDataFromDB._id, email: userDataFromDB.email });
       const refreshToken = generateRefreshToken({ _id: userDataFromDB._id, email: userDataFromDB.email });
+      const customToken = await admin.auth().createCustomToken(userDataFromDB._id.toString());
 
       return res.status(200).json({
         success: true,
@@ -188,6 +288,7 @@ const signup = async (req, res) => {
         },
         accessToken,
         refreshToken,
+        firebaseToken: customToken
       });
     }
 
@@ -202,9 +303,7 @@ const signup = async (req, res) => {
 };
 
 const refreshToken = async (req, res) => {
-  console.log('--------------------------------');
-  console.log('Refresh token request headers:', req.headers);
-  console.log('--------------------------------');
+
   const refreshToken = req.headers.authorization?.split(' ')[1];
 
   if (!refreshToken) {
@@ -693,6 +792,7 @@ const reactivateAccount = async (req, res) => {
 
 module.exports = {
   googleAuth,
+  appleAuth,
   login,
   signup,
   refreshToken,

@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '@/utils/api';
+import { useFirebaseUpdate } from '@/hooks/useFirebaseRealtime';
 
 export default function NotificationsPage() {
   const colorScheme = useColorScheme();
@@ -26,26 +27,50 @@ export default function NotificationsPage() {
   const [page, setPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMoreData, setHasMoreData] = useState(true);
-  const [allNotifications, setAllNotifications] = useState<NotificationData[]>([]);
+  const [localNotifications, setLocalNotifications] = useState<NotificationData[]>([]);
   
   const {
     friendRequests,
-    notifications,
+    mergedNotifications,
     loading,
     refreshing,
+    firebaseLoading,
     handleAcceptFriendRequest,
     handleDeclineFriendRequest,
     markNotificationAsViewed,
     markAllNotificationsAsViewed,
+    markFirebaseNotificationAsRead,
     refreshData
   } = useNotifications();
 
-  // Update local notifications when context notifications change
+  // Update local notifications with merged notifications
   useEffect(() => {
     if (page === 1) {
-      setAllNotifications(notifications);
+      setLocalNotifications(mergedNotifications);
     }
-  }, [notifications, page]);
+  }, [mergedNotifications, page]);
+
+  // Mark all notifications as viewed when the page loads
+  useEffect(() => {
+    if (!loading && !firebaseLoading) {
+      markAllNotificationsAsViewed();
+    }
+  }, [loading, firebaseLoading, markAllNotificationsAsViewed]);
+
+  // Also mark notifications as viewed when the screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      // This runs when the screen comes into focus
+      if (!loading && !firebaseLoading) {
+        markAllNotificationsAsViewed();
+      }
+      
+      return () => {
+        // This already runs when the screen loses focus
+        // No need for additional cleanup
+      };
+    }, [loading, firebaseLoading, markAllNotificationsAsViewed])
+  );
 
   // Load more notifications
   const loadMoreNotifications = useCallback(async () => {
@@ -61,7 +86,7 @@ export default function NotificationsPage() {
         if (newNotifications.length === 0) {
           setHasMoreData(false);
         } else {
-          setAllNotifications(prev => [...prev, ...newNotifications]);
+          setLocalNotifications(prev => [...prev, ...newNotifications]);
           setPage(prev => prev + 1);
         }
       }
@@ -76,24 +101,25 @@ export default function NotificationsPage() {
   const handleRefresh = useCallback(async () => {
     setPage(1);
     setHasMoreData(true);
-    setAllNotifications([]);
+    setLocalNotifications([]);
     await refreshData();
   }, [refreshData]);
-
-  // Mark all notifications as viewed when screen loses focus
-  useFocusEffect(
-    React.useCallback(() => {
-      return () => {
-        // This runs when the screen loses focus
-        markAllNotificationsAsViewed();
-      };
-    }, []) // Remove markAllNotificationsAsViewed from dependencies since it's now stable
-  );
 
   // Sort notifications: unread first, then read, all sorted by time (newest first)
   // Exclude pending friend request notifications (they show in Friend Requests section)
   const sortedNotifications = useMemo(() => {
-    return [...allNotifications]
+    // Filter out invalid notifications first
+    const validNotifications = localNotifications.filter(notification => 
+      notification && notification._id && typeof notification._id === 'string'
+    );
+    
+    // Create a map to deduplicate by ID
+    const notificationMap = new Map();
+    validNotifications.forEach(notification => {
+      notificationMap.set(notification._id, notification);
+    });
+    
+    return Array.from(notificationMap.values())
       .filter(notification => {
         // Exclude pending friend request notifications - they show in Friend Requests section
         if (notification.type === 'friend_request' && notification.status === 'pending') {
@@ -109,7 +135,7 @@ export default function NotificationsPage() {
         // Then sort by time (newest first)
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       });
-  }, [allNotifications]);
+  }, [localNotifications]);
 
   // Separate unread and read notifications (excluding pending friend requests)
   const unreadNotifications = useMemo(() => 
@@ -120,8 +146,8 @@ export default function NotificationsPage() {
     sortedNotifications.filter(n => n.is_seen), [sortedNotifications]
   );
 
-  const handleNotificationPress = (notification: NotificationData) => {
-    // Mark as viewed but keep in list
+  const handleNotificationPress = useCallback((notification: NotificationData) => {
+    // Mark as viewed in context (which will also update Firebase)
     markNotificationAsViewed(notification._id);
     
     // Navigate to relevant screen based on notification type
@@ -148,7 +174,7 @@ export default function NotificationsPage() {
         params: { event_id: notification.event._id }
       });
     }
-  };
+  }, [markNotificationAsViewed, router]);
 
   // Render header component
   const renderHeader = () => (
@@ -292,7 +318,7 @@ export default function NotificationsPage() {
     </View>
   );
 
-  if (loading) {
+  if (loading || firebaseLoading) {
     return (
       <ThemedView style={{ flex: 1, backgroundColor: themeColors.background }}>
         <View style={{ 
@@ -327,7 +353,7 @@ export default function NotificationsPage() {
         }
         showsVerticalScrollIndicator={false}
         data={sortedNotifications}
-        keyExtractor={(item) => item._id}
+        keyExtractor={(item, index) => `notification-${item._id}-${index}`}
         renderItem={({ item: notification }) => (
           <View>
             <NotificationCard

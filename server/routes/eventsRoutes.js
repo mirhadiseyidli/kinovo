@@ -1,11 +1,14 @@
 const express = require('express');
-const { getMyEvents, getUserEvents, createEvent, getMyPastEvents, getMyUpcomingEvents, getMyEventsCalendarMonthView, getMyEventsForDateRange, getEventById, getNearbyEvents, respondToEventInvitation, cancelEvent, deleteRecurringEvents, inviteEventAttendees, getEventsByCategory, getEventsByCity, getAttentionRequiredEvents, getRecommendedEvents } = require('../controllers/eventsController');
+const { getMyEvents, getUserEvents, createEvent, getMyPastEvents, getMyUpcomingEvents, getMyEventsCalendarMonthView, getMyEventsForDateRange, getEventById, getNearbyEvents, respondToEventInvitation, cancelEvent, deleteRecurringEvents, inviteEventAttendees, getEventsByCategory, getEventsByCity, getAttentionRequiredEvents, getRecommendedEvents, getFriendsEvents, joinEvent, markEventNotInterested, reportEvent } = require('../controllers/eventsController');
 const { authMiddleware } = require('../utils/authMiddleware');
 
 const router = express.Router();
 
 router.post('/eventslist/create/new/event', authMiddleware, createEvent);
 router.post('/eventslist/respond/invitation', authMiddleware, respondToEventInvitation);
+router.post('/eventslist/join', authMiddleware, joinEvent);
+router.post('/eventslist/not-interested', authMiddleware, markEventNotInterested);
+router.post('/eventslist/report', authMiddleware, reportEvent);
 router.post('/eventslist/cancel/event', authMiddleware, cancelEvent);
 router.post('/eventslist/:eventId/invite', authMiddleware, inviteEventAttendees);
 router.delete('/eventslist/cleanup/recurring', authMiddleware, deleteRecurringEvents);
@@ -21,6 +24,7 @@ router.get('/eventslist/event/get/event/by/id', authMiddleware, getEventById);
 router.get('/eventslist/get/nearby/events', authMiddleware, getNearbyEvents);
 router.get('/eventslist/category/:category', authMiddleware, getEventsByCategory);
 router.get('/eventslist/city/:city', authMiddleware, getEventsByCity);
+router.get('/eventslist/friends', authMiddleware, getFriendsEvents);
 // router.get('/eventslist/get/event/categories', authMiddleware, getEventCategories);
 
 module.exports = router;

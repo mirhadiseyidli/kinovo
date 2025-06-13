@@ -12,26 +12,55 @@ const Options: React.FC<{ setLimit: (value: number | null) => void }> = ({ setLi
   const screenWidth = Dimensions.get('window').width;
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const [visibility, setVisibility] = useState('private');
-  const [capacity, setCapacity] = useState<number | null>(null);
-  const [isLimited, setIsLimited] = useState(false);
-  const colorAnim = useState(new Animated.Value(0))[0];
-  const slideAnim = useState(new Animated.Value(0))[0];
-  const { settingEventVisibility, settingEventCapacity } = useCreateEventContext();
+  const { visibility: contextVisibility, capacity: contextCapacity, settingEventVisibility, settingEventCapacity } = useCreateEventContext();
+  
+  const [visibility, setVisibility] = useState(contextVisibility || 'private');
+  const [capacity, setCapacity] = useState<number | null>(contextCapacity);
+  const [isLimited, setIsLimited] = useState(contextCapacity !== null);
+  const [capacityInput, setCapacityInput] = useState(contextCapacity !== null ? contextCapacity.toString() : '');
+  const [colorAnim] = useState(new Animated.Value(contextCapacity !== null ? 1 : 0));
+  const [slideAnim] = useState(new Animated.Value(contextCapacity !== null ? 1 : 0));
 
+  // Update local state when context changes (e.g., when loading existing event)
   useEffect(() => {
-    settingEventVisibility(visibility);
-  }, []);
+    if (contextVisibility) {
+      setVisibility(contextVisibility);
+    }
+    
+    if (contextCapacity !== undefined) {
+      setCapacity(contextCapacity);
+      setIsLimited(contextCapacity !== null);
+      setCapacityInput(contextCapacity !== null ? contextCapacity.toString() : '');
+      
+      // Animate the capacity section if needed
+      Animated.timing(slideAnim, {
+        toValue: contextCapacity !== null ? 1 : 0,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+      
+      Animated.timing(colorAnim, {
+        toValue: contextCapacity !== null ? 1 : 0,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+      
+      // Update parent component's limit
+      setLimit(contextCapacity);
+    }
+  }, [contextVisibility, contextCapacity, setLimit]);
 
   const toggleCheck = (newValue: boolean) => {
     setIsLimited(newValue);
 
     if (!newValue) {
       setCapacity(null);
+      setCapacityInput('');
       settingEventCapacity(null);
       setLimit(null);
     } else if (capacity !== null && capacity > 0) {
       settingEventCapacity(capacity);
+      setLimit(capacity);
     }
 
     Animated.timing(slideAnim, {
@@ -92,7 +121,10 @@ const Options: React.FC<{ setLimit: (value: number | null) => void }> = ({ setLi
     settingEventVisibility(lowerVal);
   };
 
-  const onCapacityChange = (num: number) => {
+  const onCapacityChange = (text: string) => {
+    setCapacityInput(text);
+    const numeric = text.replace(/[^0-9]/g, '');
+    const num = numeric === '' ? 0 : parseInt(numeric, 10);
     setCapacity(num);
     if (isLimited) {
       settingEventCapacity(num);
@@ -192,10 +224,8 @@ const Options: React.FC<{ setLimit: (value: number | null) => void }> = ({ setLi
                 </ThemedText>
               </View>
               <TextInput 
-                onChangeText={(num) => {
-                  const numeric = num.replace(/[^0-9]/g, '');
-                  onCapacityChange(numeric === '' ? 0 : parseInt(numeric, 10));
-                }}
+                value={capacityInput}
+                onChangeText={onCapacityChange}
                 placeholder='Number of Attendees'
                 placeholderTextColor={themeColors.placeholderTextColor}
                 keyboardType='numeric'

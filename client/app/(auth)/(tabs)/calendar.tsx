@@ -143,6 +143,7 @@ export default function Calendar() {
             onMonthYearChange={handleMonthYearChange}
             refreshing={refreshing}
             fromDropdownRef={animateMonthRef}
+            onRefresh={onRefresh}
           />
           <RenderedCalendarView
             screenWidth={screenWidth}

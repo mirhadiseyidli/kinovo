@@ -14,6 +14,7 @@ import { useGetNearByEvents } from '@/hooks/useGetNearByEvents';
 import { Event } from '@/types/allTypes';
 import { Picker } from '@react-native-picker/picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import CityLocationModal from './CityLocationModal';
 
 interface NearbyEventsProps {
   refreshing: boolean;
@@ -141,14 +142,17 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedDistance, setSelectedDistance] = useState(50);
   const [distanceModalVisible, setDistanceModalVisible] = useState(false);
+  const [cityModalVisible, setCityModalVisible] = useState(false);
   const screenWidth = Dimensions.get('window').width;
   const scrollRef = useRef<ScrollView>(null);
   const colorScheme = useColorScheme();
-  const [userLocation, setUserLocation] = useState<{ city: string; state: string; lat: number | null; lng: number | null }>({
+  const themeColors = Colors[colorScheme ?? 'dark'];
+  const [userLocation, setUserLocation] = useState<{ city: string; state: string; lat: number | null; lng: number | null; text?: string }>({
     city: 'San Francisco',
     state: 'CA',
-    lat: null,
-    lng: null,
+    lat: 37.7749,
+    lng: -122.4194,
+    text: 'San Francisco, CA'
   });
   const [nearbyEvents, setNearbyEvents] = useState<Event[]>([]);
   const { fetchNearByEvents, loading } = useGetNearByEvents();
@@ -164,19 +168,28 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
   // Initial location fetch
   useEffect(() => {
     (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        return;
-      }
-      let location = await Location.getCurrentPositionAsync({});
-      let geocode = await Location.reverseGeocodeAsync(location.coords);
-      if (geocode.length > 0) {
-        setUserLocation({
-          city: geocode[0].city || 'Unknown',
-          state: geocode[0].region || 'Unknown',
-          lat: location.coords.latitude || null,
-          lng: location.coords.longitude || null
-        });
+      try {
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          // If location permission not granted, use default San Francisco location
+          return;
+        }
+        
+        let location = await Location.getCurrentPositionAsync({});
+        let geocode = await Location.reverseGeocodeAsync(location.coords);
+        
+        if (geocode.length > 0) {
+          setUserLocation({
+            city: geocode[0].city || 'San Francisco',
+            state: geocode[0].region || 'CA',
+            lat: location.coords.latitude,
+            lng: location.coords.longitude,
+            text: `${geocode[0].city || 'San Francisco'}, ${geocode[0].region || 'CA'}`
+          });
+        }
+      } catch (error) {
+        console.error('Error getting location:', error);
+        // Use default San Francisco location on error
       }
     })();
   }, []);
@@ -232,12 +245,29 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
     setCurrentIndex(index);
   };
 
+  const handleSelectLocation = (location: { city: string; state: string; lat: number; lng: number; text: string }) => {
+    setUserLocation(location);
+  };
+
   return (
     <ThemedView style={{ flex: 1, width: screenWidth }}>
       {/* Header */}
-      <ThemedView style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, paddingHorizontal: 16 }}>
-        <Feather name="map-pin" size={16} color={Colors[colorScheme ?? 'dark'].tint} />
-        <ThemedText style={{ fontSize: 18, fontWeight: 'bold' }}>{userLocation.city}, {userLocation.state}</ThemedText>
+      <ThemedView style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, paddingHorizontal: 16 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Feather name="map-pin" size={16} color={Colors[colorScheme ?? 'dark'].tint} />
+          <ThemedText style={{ fontSize: 18, fontWeight: 'bold' }}>{userLocation.city}, {userLocation.state}</ThemedText>
+        </View>
+        <TouchableOpacity
+          onPress={() => setCityModalVisible(true)}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 4
+          }}
+        >
+          <ThemedText style={{ fontSize: 14 }}>City</ThemedText>
+          <Feather name="globe" size={16} color={Colors[colorScheme ?? 'dark'].tint} />
+        </TouchableOpacity>
       </ThemedView>
 
       <ThemedView style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, paddingHorizontal: 16 }}>
@@ -264,6 +294,12 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
           fetchEvents();
         }}
         colorScheme={colorScheme ?? 'dark'}
+      />
+
+      <CityLocationModal
+        visible={cityModalVisible}
+        onClose={() => setCityModalVisible(false)}
+        onSelectLocation={handleSelectLocation}
       />
 
       {/* Show placeholder when no events */}
@@ -315,7 +351,7 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
             </ThemedView>
           </TouchableOpacity>
         </ThemedView>
-      ) : (
+      ) :
         <>
           {/* Horizontal Carousel */}
           <ThemedView style={{ width: screenWidth }}>
@@ -358,35 +394,27 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
           </ThemedView>
 
           {/* Pagination Dots */}
-          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 4 }}>
-            {nearbyEvents.map((_, index) => (
-              <View
-                key={index}
-                onTouchStart={() => scrollToItem(index)}
-                style={{
-                  height: 8,
-                  width: 8,
-                  borderRadius: 4,
-                  backgroundColor: currentIndex === index ? Colors[colorScheme ?? 'dark'].tint : Colors[colorScheme ?? 'dark'].border,
-                }}
-              />
-            ))}
-
-            {/* Dot for See More Button */}
-            {nearbyEvents.length > 5 && (
-              <View
-                onTouchStart={() => scrollToItem(nearbyEvents.length)}
-                style={{
-                  height: 8,
-                  width: 8,
-                  borderRadius: 4,
-                  backgroundColor: currentIndex === nearbyEvents.length ? Colors[colorScheme ?? 'dark'].tint : Colors[colorScheme ?? 'dark'].border,
-                }}
-              />
-            )}
-          </View>
+          {nearbyEvents.length > 1 && (
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8 }}>
+              {nearbyEvents.map((_, index) => (
+                <TouchableOpacity 
+                  key={index}
+                  onPress={() => scrollToItem(index)}
+                >
+                  <View
+                    style={{
+                      width: currentIndex === index ? 20 : 8,
+                      height: 8,
+                      borderRadius: 4,
+                      backgroundColor: currentIndex === index ? Colors[colorScheme ?? 'dark'].mountainGreen : Colors[colorScheme ?? 'dark'].border,
+                    }}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </>
-      )}
+      }
     </ThemedView>
   );
 };

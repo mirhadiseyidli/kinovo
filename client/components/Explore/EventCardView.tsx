@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, ImageBackground, Dimensions, TouchableOpacity } from 'react-native';
+import { View, ImageBackground, Dimensions, TouchableOpacity, Image } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
@@ -46,7 +46,7 @@ const EventCardView: React.FC<SuggestedEventProps> = ({
     if (!date) return '';
     const dateObj = new Date(date);
     const dateStr = dateObj.toLocaleDateString('en-US', { 
-      month: 'long', 
+      month: 'short', 
       day: 'numeric', 
       year: 'numeric' 
     });
@@ -57,16 +57,20 @@ const EventCardView: React.FC<SuggestedEventProps> = ({
     return `${dateStr} • ${timeStr}`;
   }
 
+  const truncateName = (name: string, maxLength: number) => {
+    return name.length > maxLength ? name.slice(0, maxLength) + '...' : name;
+  };
+
   return (
     <TouchableOpacity onPress={handleViewEvent}>
       <ImageBackground
         source={event?.event_picture ? { uri: event.event_picture } : getCategoryImage(event?.category)}
         resizeMode="cover"
         style={{
-          width: screenWidth * 0.92,
+          width: '100%',
           borderRadius: 16,
           overflow: 'hidden',
-          aspectRatio: 1.9,
+          aspectRatio: 2.2,
           alignSelf: 'center',
           marginVertical: 8,
         }}
@@ -83,8 +87,8 @@ const EventCardView: React.FC<SuggestedEventProps> = ({
           zIndex: 1,
         }}>
           <ThemedText style={{ 
-            fontSize: 12, 
-            fontWeight: '600', 
+            fontSize: 10, 
+            fontWeight: 'bold', 
             textTransform: 'capitalize',
             color: '#FFFFFF' // White text for better contrast on mountain green
           }}>
@@ -107,28 +111,39 @@ const EventCardView: React.FC<SuggestedEventProps> = ({
             borderBottomRightRadius: 16,
           }}
         >
-          {/* Event Details */}
-          <ThemedText style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 4 }}>
-            {event?.title || 'Untitled Event'}
-          </ThemedText>
-          
-          {event?.location?.text && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-              <Feather name="map-pin" size={12} color={Colors[colorScheme ?? 'dark'].tint} />
-              <ThemedText style={{ fontSize: 12, marginLeft: 6 }}>
-                {event.location.text}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            {/* Event Details */}
+            <View style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+              <ThemedText style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 4 }}>
+                {event?.title || 'Untitled Event'}
               </ThemedText>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                <Image source={{ uri: event?.creator?.profile_picture || require('@/assets/profile-pic-2.jpeg') }} style={{ width: 16, height: 16, borderRadius: 8 }} />
+                <ThemedText style={{ fontSize: 12 }}>
+                  {event?.creator?.full_name}
+                </ThemedText>
+              </View>
             </View>
-          )}
-          
-          {event?.start_time && (
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Feather name="clock" size={12} color={Colors[colorScheme ?? 'dark'].tint} />
-              <ThemedText style={{ fontSize: 12, marginLeft: 6 }}>
-                {formatDateTime(event.start_time)}
-              </ThemedText>
+            
+            <View style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+              {event?.location?.text && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                  <Feather name="map-pin" size={12} color={Colors[colorScheme ?? 'dark'].tint} />
+                  <ThemedText style={{ fontSize: 12, marginLeft: 6 }}>
+                    {truncateName(event.location.text, 22)}
+                  </ThemedText>
+                </View>
+              )}
+              {event?.start_time && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                  <Feather name="clock" size={12} color={Colors[colorScheme ?? 'dark'].tint} />
+                  <ThemedText style={{ fontSize: 12, marginLeft: 6 }}>
+                    {formatDateTime(event.start_time)}
+                  </ThemedText>
+                </View>
+              )}
             </View>
-          )}
+          </View>
         </BlurView>
       </ImageBackground>
     </TouchableOpacity>

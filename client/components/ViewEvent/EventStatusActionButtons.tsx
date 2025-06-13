@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, TouchableOpacity, Text, ActionSheetIOS, Platform, ViewStyle } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -36,60 +36,93 @@ const EventStatusActionButtons: React.FC<Props> = ({
 }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
+  
+  // Local state to track button status for immediate UI updates
+  const [localUserStatus, setLocalUserStatus] = useState<'pending' | 'maybe' | 'accepted' | 'rejected' | null>(currentUserStatus);
+  const [isUpdating, setIsUpdating] = useState(false);
+  
+  // Update local state when props change
+  useEffect(() => {
+    setLocalUserStatus(currentUserStatus);
+  }, [currentUserStatus]);
+  
+  // Handler for Accept button
+  const handleAccept = useCallback(() => {
+    setIsUpdating(true);
+    setLocalUserStatus('accepted');
+    onAccept();
+    setIsUpdating(false);
+  }, [onAccept]);
+  
+  // Handler for Maybe button
+  const handleMaybe = useCallback(() => {
+    setIsUpdating(true);
+    setLocalUserStatus('maybe');
+    onMaybe();
+    setIsUpdating(false);
+  }, [onMaybe]);
+  
+  // Handler for Decline button
+  const handleDecline = useCallback(() => {
+    setIsUpdating(true);
+    setLocalUserStatus('rejected');
+    onDecline();
+    setIsUpdating(false);
+  }, [onDecline]);
 
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 }}>
       <TouchableOpacity
-        onPress={onAccept}
-        disabled={loading}
+        onPress={handleAccept}
+        disabled={loading || isUpdating}
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          backgroundColor: currentUserStatus === 'accepted' ? themeColors.mountainGreen : themeColors.inputBackgroundColor,
+          backgroundColor: localUserStatus === 'accepted' ? themeColors.mountainGreen : themeColors.inputBackgroundColor,
           borderRadius: 8,
           paddingHorizontal: 16,
           paddingVertical: 10,
-          opacity: loading ? 0.6 : 1,
+          opacity: (loading || isUpdating) ? 0.6 : 1,
         }}
       >
-        <Feather name="check" size={12} color={themeColors.text} style={{ marginRight: 4 }} />
-        <ThemedText style={{ fontSize: 12, fontWeight: '600' }}>
+        <Feather name="check" size={12} color={localUserStatus === 'accepted' ? 'white' : themeColors.text} style={{ marginRight: 4 }} />
+        <ThemedText style={{ fontSize: 12, fontWeight: '600', color: localUserStatus === 'accepted' ? 'white' : themeColors.text }}>
           {isInvited ? 'Accept' : 'Join'}
         </ThemedText>
       </TouchableOpacity>
 
       <TouchableOpacity
-        onPress={onMaybe}
-        disabled={loading}
+        onPress={handleMaybe}
+        disabled={loading || isUpdating}
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          backgroundColor: currentUserStatus === 'maybe' ? themeColors.mountainGreen : themeColors.inputBackgroundColor,
+          backgroundColor: localUserStatus === 'maybe' ? themeColors.mountainGreen : themeColors.inputBackgroundColor,
           borderRadius: 8,
           paddingHorizontal: 16,
           paddingVertical: 10,
-          opacity: loading ? 0.6 : 1,
+          opacity: (loading || isUpdating) ? 0.6 : 1,
         }}
       >
-        <MaterialIcons name="question-mark" size={12} color={themeColors.text} style={{ marginRight: 4 }} />
-        <ThemedText style={{ fontSize: 12, fontWeight: '600' }}>Maybe</ThemedText>
+        <MaterialIcons name="question-mark" size={12} color={localUserStatus === 'maybe' ? 'white' : themeColors.text} style={{ marginRight: 4 }} />
+        <ThemedText style={{ fontSize: 12, fontWeight: '600', color: localUserStatus === 'maybe' ? 'white' : themeColors.text }}>Maybe</ThemedText>
       </TouchableOpacity>
 
       <TouchableOpacity
-        onPress={onDecline}
-        disabled={loading}
+        onPress={handleDecline}
+        disabled={loading || isUpdating}
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          backgroundColor: currentUserStatus === 'rejected' ? themeColors.mountainGreen : themeColors.inputBackgroundColor,
+          backgroundColor: localUserStatus === 'rejected' ? themeColors.mountainGreen : themeColors.inputBackgroundColor,
           borderRadius: 8,
           paddingHorizontal: 16,
           paddingVertical: 10,
-          opacity: loading ? 0.6 : 1,
+          opacity: (loading || isUpdating) ? 0.6 : 1,
         }}
       >
-        <Feather name="x" size={12} color={themeColors.text} style={{ marginRight: 4 }} />
-        <ThemedText style={{ fontSize: 12, fontWeight: '600' }}>
+        <Feather name="x" size={12} color={localUserStatus === 'rejected' ? 'white' : themeColors.text} style={{ marginRight: 4 }} />
+        <ThemedText style={{ fontSize: 12, fontWeight: '600', color: localUserStatus === 'rejected' ? 'white' : themeColors.text }}>
           {isInvited ? 'Decline' : 'Not Interested'}
         </ThemedText>
       </TouchableOpacity>

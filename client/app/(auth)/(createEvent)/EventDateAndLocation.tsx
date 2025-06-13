@@ -2,7 +2,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import DateTime from '@/components/CreateEvent/DateTime';
-import LocationComponent from '@/components/CreateEvent/Location';
+import Location from '@/components/CreateEvent/Location';
 import Frequency from '@/components/CreateEvent/Frequency';
 import { ButtonWithLabel } from '@/components/ButtonWithLabel';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
@@ -32,7 +32,7 @@ export default React.memo(function EventDateAndLocation() {
       >
         {/* Step 2: Date & Location */}
         <DateTime />
-        <LocationComponent />
+        <Location />
         <Frequency />
         {/* Back and Next Buttons */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -63,7 +63,7 @@ export default React.memo(function EventDateAndLocation() {
             }}
             textStyle={{
               fontWeight: 'bold',
-              color: themeColors.text
+              color: 'white'
             }}
           />
         </View>

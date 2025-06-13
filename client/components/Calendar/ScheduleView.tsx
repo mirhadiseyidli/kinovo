@@ -35,9 +35,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({ currentDateRef }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   
-  // Log initial currentDateRef value
-  console.log('ScheduleView: Component mounted/re-rendered with currentDateRef:', currentDateRef.current);
-  
   const [selectedDate, setSelectedDate] = useState<Date>(currentDateRef.current || new Date());
   const [currentDateString, setCurrentDateString] = useState<string>(
     format(currentDateRef.current || new Date(), 'yyyy-MM-dd')
@@ -45,21 +42,15 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({ currentDateRef }) => {
   const height = Dimensions.get('window').height;
   const tabBarHeight = useBottomTabBarHeight();
 
-  console.log('ScheduleView: Initial selectedDate:', format(selectedDate, 'yyyy-MM-dd'));
-
   // Update selectedDate when currentDateRef changes (from month view clicks)
   useEffect(() => {
     if (currentDateRef.current) {
       const newDate = new Date(currentDateRef.current);
       const newDateString = format(newDate, 'yyyy-MM-dd');
       
-      console.log('ScheduleView: currentDateRef changed from', currentDateString, 'to', newDateString);
-      console.log('ScheduleView: currentDateRef.current is:', currentDateRef.current);
-      
       if (newDateString !== currentDateString) {
         setSelectedDate(newDate);
         setCurrentDateString(newDateString);
-        console.log('ScheduleView: Updated selectedDate to:', newDateString);
       }
     }
   }, [currentDateRef.current?.getTime(), currentDateString]); // Use both getTime and current string
@@ -70,7 +61,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({ currentDateRef }) => {
       if (currentDateRef.current) {
         const currentRefString = format(currentDateRef.current, 'yyyy-MM-dd');
         if (currentRefString !== currentDateString) {
-          console.log('ScheduleView: Detected currentDateRef change via interval:', currentRefString);
           const newDate = new Date(currentDateRef.current);
           setSelectedDate(newDate);
           setCurrentDateString(currentRefString);
@@ -89,7 +79,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({ currentDateRef }) => {
       const startDate = startOfMonth(now);
       const endDate = endOfMonth(addMonths(now, 6)); // 6 months ahead
       
-      console.log('ScheduleView: Fetching events from', format(startDate, 'yyyy-MM-dd'), 'to', format(endDate, 'yyyy-MM-dd'));
       await fetchEventsForDateRange(startDate, endDate);
     };
 
@@ -98,7 +87,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({ currentDateRef }) => {
 
   const grouped = useMemo(() => {
     const result = groupOccurrencesByDate(eventOccurrences);
-    console.log('ScheduleView: Event occurrences count:', eventOccurrences.length);
     
     // Filter to show events from a reasonable range
     // Include selected date and a few days before it, plus all future dates
@@ -122,21 +110,17 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({ currentDateRef }) => {
       }
     });
     
-    console.log('ScheduleView: Filtered dates count:', Object.keys(filteredResult).length);
-    console.log('ScheduleView: Target date in filtered results:', format(selectedDate, 'yyyy-MM-dd'), 'exists:', !!filteredResult[format(selectedDate, 'yyyy-MM-dd')]);
     return filteredResult;
   }, [eventOccurrences, selectedDate]);
 
   const sections = useMemo(() => {
     if (!grouped || Object.keys(grouped).length === 0) {
-      console.log('ScheduleView: No grouped data available');
       return [];
     }
 
     const processedSections = Object.entries(grouped)
       .map(([date, data]) => {
         if (!data || !Array.isArray(data)) {
-          console.log('ScheduleView: Invalid data for date:', date);
           return null;
         }
         
@@ -172,8 +156,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({ currentDateRef }) => {
         data: section.data
       }));
 
-    console.log('ScheduleView: Created', processedSections.length, 'sections');
-    console.log('ScheduleView: Available section keys:', processedSections.map(s => s.key));
     return processedSections;
   }, [grouped]);
 
@@ -221,12 +203,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({ currentDateRef }) => {
     const targetKey = format(selectedDate, 'yyyy-MM-dd');
     const sectionIndex = sections.findIndex(section => section.key === targetKey);
     
-    console.log('ScheduleView: Attempting scroll to:', targetKey, 'found at index:', sectionIndex);
-    
     if (sectionIndex >= 0) {
       // Found exact match - scroll to it
-      console.log('ScheduleView: Scrolling to exact match at section', sectionIndex);
-      console.log('ScheduleView: Section at index', sectionIndex, 'is:', sections[sectionIndex]?.key, sections[sectionIndex]?.title);
       
       setTimeout(() => {
         // Double-check the section index right before scrolling
@@ -234,26 +212,20 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({ currentDateRef }) => {
         const currentIndex = currentSections.findIndex(section => section.key === targetKey);
         
         if (currentIndex >= 0 && currentIndex < currentSections.length) {
-          console.log('ScheduleView: Final verification - scrolling to index:', currentIndex, 'for section:', currentSections[currentIndex].key);
-          
           // Calculate manual offset to the target section
           let offset = 0;
           for (let i = 0; i < currentIndex; i++) {
             offset += sectionHeights[i] || 0;
           }
           
-          console.log('ScheduleView: Calculated offset for section', currentIndex, ':', offset);
-          
           // Use scrollToOffset for more precise control
           const flatListRef = (sectionListRef.current as any)?._listRef;
           if (flatListRef) {
-            console.log('ScheduleView: Using FlatList scrollToOffset with offset:', offset);
             flatListRef.scrollToOffset({
               offset: offset,
               animated: true,
             });
           } else {
-            console.log('ScheduleView: FlatList ref not available, falling back to scrollToLocation');
             sectionListRef.current?.scrollToLocation({
               sectionIndex: currentIndex,
               itemIndex: 0,
@@ -262,8 +234,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({ currentDateRef }) => {
               animated: true,
             });
           }
-        } else {
-          console.log('ScheduleView: Section index changed, aborting scroll');
         }
       }, 800); // Even longer delay to ensure stability
     } else {
@@ -284,30 +254,23 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({ currentDateRef }) => {
       });
       
       if (closestIndex >= 0) {
-        console.log('ScheduleView: No exact match, scrolling to closest future date:', sections[closestIndex].key, 'at index:', closestIndex);
         setTimeout(() => {
           const currentSections = sections;
           if (closestIndex < currentSections.length) {
-            console.log('ScheduleView: Final verification - scrolling to closest index:', closestIndex, 'for section:', currentSections[closestIndex].key);
-            
             // Calculate manual offset to the target section
             let offset = 0;
             for (let i = 0; i < closestIndex; i++) {
               offset += sectionHeights[i] || 0;
             }
             
-            console.log('ScheduleView: Calculated offset for closest section', closestIndex, ':', offset);
-            
             // Use scrollToOffset for more precise control
             const flatListRef = (sectionListRef.current as any)?._listRef;
             if (flatListRef) {
-              console.log('ScheduleView: Using FlatList scrollToOffset with offset:', offset);
               flatListRef.scrollToOffset({
                 offset: offset,
                 animated: true,
               });
             } else {
-              console.log('ScheduleView: FlatList ref not available, falling back to scrollToLocation');
               sectionListRef.current?.scrollToLocation({
                 sectionIndex: closestIndex,
                 itemIndex: 0,
@@ -318,8 +281,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({ currentDateRef }) => {
             }
           }
         }, 800);
-      } else {
-        console.log('ScheduleView: No suitable section found for scrolling');
       }
     }
   }, [sections, format(selectedDate, 'yyyy-MM-dd')]); // Depend on both sections and selected date

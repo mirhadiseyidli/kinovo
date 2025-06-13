@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, TextInput, TouchableOpacity, Text, Dimensions, ScrollView, Image, Modal, Keyboard } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { ThemedView } from '@/components/ThemedView';
@@ -13,39 +13,102 @@ import { useCreateEventContext } from '@/context/CreateEventContext';
 import { useUserData } from '@/hooks/useUserData';
 import api from '@/utils/api';
 
+// Define EventAttendee type locally to match context usage
+type AttendeeStatus = 'pending' | 'maybe' | 'accepted' | 'rejected';
+type EventAttendee = {
+  user: AttendeeFriend;
+  status?: AttendeeStatus;
+};
+
 const Attendees: React.FC<{ limit: number | null }> = ({ limit }) => {
-  const [attendees, setAttendees] = useState<AttendeeFriend[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [suggestions, setSuggestions] = useState<AttendeeFriend[]>([]);
   const [showAllAttendees, setShowAllAttendees] = useState(false);
   const [user, setUser] = useState<AttendeeFriend | null>(null);
+  const [attendees, setAttendees] = useState<AttendeeFriend[]>([]);
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const { settingEventAttendees } = useCreateEventContext();
+  const { attendees: contextAttendees, settingEventAttendees } = useCreateEventContext();
   const { fetchUserData } = useUserData();
-  const maxVisibleFriends = 4; // Estimate based on circle + margin (50px + 6px)
+  const maxVisibleFriends = 4;
   const [refreshing, setRefreshing] = useState(false);
 
+  // Use refs to track initialization and updates
+  const isInitialized = useRef(false);
+  const skipNextUpdate = useRef(false);
+  const lastAttendeesList = useRef<string>('');
+  
+  // Initialize component once on mount
   useEffect(() => {
-    const loadUser = async () => {
-      const currentUser = await fetchUserData();
-      if (currentUser) {
+    const initializeComponent = async () => {
+      // Only run once
+      if (isInitialized.current) return;
+      
+      try {
+        // Get current user
+        const currentUser = await fetchUserData();
+        if (!currentUser) return;
         setUser(currentUser);
-        setAttendees((prev) => {
-          const exists = prev.some((a) => a._id === currentUser._id);
-          return exists ? prev : [currentUser, ...prev];
-        });
+        
+        // Create initial attendees list
+        let initialAttendees: AttendeeFriend[] = [];
+        
+        // If we have context attendees, use them as initial state
+        if (contextAttendees && contextAttendees.length > 0) {
+          initialAttendees = contextAttendees.map(a => a.user);
+          
+          // Make sure organizer is included and first
+          const hasOrganizer = initialAttendees.some(a => a._id === currentUser._id);
+          if (!hasOrganizer) {
+            initialAttendees = [currentUser, ...initialAttendees];
+          } else {
+            // Move organizer to first position
+            initialAttendees = [
+              ...initialAttendees.filter(a => a._id === currentUser._id),
+              ...initialAttendees.filter(a => a._id !== currentUser._id)
+            ];
+          }
+        } else {
+          // If no context attendees, just add the organizer
+          initialAttendees = [currentUser];
+        }
+        
+        // Set attendees state
+        setAttendees(initialAttendees);
+        
+        // Set the last attendees list to avoid updates
+        lastAttendeesList.current = JSON.stringify(initialAttendees.map(a => a._id));
+        
+        // Mark as initialized
+        isInitialized.current = true;
+        skipNextUpdate.current = true;
+      } catch (error) {
+        console.error('Error initializing attendees:', error);
       }
     };
-
-    loadUser();
+    
+    initializeComponent();
   }, []);
 
+  // Update context when attendees change
   useEffect(() => {
+    // Skip during initialization
+    if (skipNextUpdate.current) {
+      skipNextUpdate.current = false;
+      return;
+    }
+    
+    // Only update context if attendees have actually changed
+    const currentAttendeesList = JSON.stringify(attendees.map(a => a._id));
+    if (currentAttendeesList !== lastAttendeesList.current && attendees.length > 0) {
     settingEventAttendees(attendees);
-  }, [attendees]);
+      lastAttendeesList.current = currentAttendeesList;
+    }
+  }, [attendees, settingEventAttendees]);
 
+  // Search functionality
   const fetchFriendResults = async (query: string): Promise<AttendeeFriend[]> => {
+    try {
     const emailSearch = api.get(`/api/users/me/friends/search/by/email?query=${query}`);
     const nameSearch = api.get(`/api/users/me/friends/search/by/name?query=${query}`);
 
@@ -56,6 +119,10 @@ const Attendees: React.FC<{ limit: number | null }> = ({ limit }) => {
     );
 
     return uniqueResults;
+    } catch (error) {
+      console.error('Error fetching friends:', error);
+      return [];
+    }
   };
 
   const getFriend = async (query: string) => {
@@ -83,20 +150,23 @@ const Attendees: React.FC<{ limit: number | null }> = ({ limit }) => {
     };
   }, [inputValue]);
 
+  // Attendee management functions
   const handleAdd = (friend: AttendeeFriend) => {
     const alreadyAdded = attendees.some((f) => f._id === friend._id);
     if (alreadyAdded) return;
-    if (limit !== null && attendees.length > limit - 1) return;
+    if (limit !== null && attendees.length >= limit) return;
 
-    setAttendees((prev: AttendeeFriend[]) => [...prev, friend]);
+    setAttendees((prev) => [...prev, friend]);
     setInputValue('');
     setSuggestions([]);
     Keyboard.dismiss();
   };
 
   const handleRemove = (id: string) => {
-    const updated = attendees.filter((friend) => friend._id !== id);
-    setAttendees(updated);
+    // Don't allow removing the organizer
+    if (user && id === user._id) return;
+    
+    setAttendees((prev) => prev.filter((friend) => friend._id !== id));
   };
 
   const truncateName = (full_name: string | undefined, maxLength: number) => {

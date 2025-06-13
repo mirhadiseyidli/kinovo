@@ -11,17 +11,11 @@ const useSearchEverythingDiscovery = () => {
         setError(null);
         
         try {
-            console.log('Starting search with query:', query); // Debug log
-            
             // Use 'query' parameter for both endpoints as expected by the server
             const [usersResponse, eventsResponse] = await Promise.all([
                 api.get(`/api/search/users?query=${encodeURIComponent(query)}`),
                 api.get(`/api/search/events?query=${encodeURIComponent(query)}`)
             ]);
-
-            console.log('Users response:', usersResponse.data); // Debug log
-            console.log('Events response:', eventsResponse.data); // Debug log
-            console.log('Events response status:', eventsResponse.status); // Debug log
 
             // Server returns users array directly, events array directly
             const results = { 
@@ -29,8 +23,7 @@ const useSearchEverythingDiscovery = () => {
                 events: eventsResponse.data || []
             };
             
-            console.log('Final search results:', results); // Debug log
-            console.log('Events count:', results.events.length); // Debug log
+
             return results;
         } catch (error) {
             const err = error as ApiError;

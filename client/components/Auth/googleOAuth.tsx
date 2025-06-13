@@ -34,13 +34,14 @@ const GoogleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
           });
 
           if (backendResponse.status === 200 && backendResponse.data.success) {
-            const { accessToken, refreshToken, user } = backendResponse.data;
+            const { accessToken, refreshToken, user, firebaseToken } = backendResponse.data;
 
-            if (!accessToken || !refreshToken) {
+
+            if (!accessToken || !refreshToken || !firebaseToken) {
               throw new Error('Invalid token response from backend');
             }
 
-            onLoginSuccess(accessToken, refreshToken, user._id);
+            onLoginSuccess(accessToken, refreshToken, user._id, firebaseToken);
           } else {
             Alert.alert('Error', 'Authentication failed.');
           }

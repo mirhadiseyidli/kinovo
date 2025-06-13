@@ -36,9 +36,7 @@ const CityPage = () => {
 
   const fetchEventsByCity = async () => {
     try {
-      console.log('Fetching events for city:', city);
       const response = await api.get(`/api/manageevents/eventslist/city/${encodeURIComponent(city as string)}`);
-      console.log('Response data:', response.data);
       setEvents(response.data);
     } catch (err: any) {
       console.error('Error fetching events:', err);
