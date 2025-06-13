@@ -1,15 +1,15 @@
 #!/bin/bash
 
 # Update system
-sudo yum update -y
+sudo apt update -y
 
 # Install Docker
-sudo yum install -y docker
+sudo apt install -y docker
 sudo service docker start
 sudo usermod -a -G docker ec2-user
 
 # Install Nginx
-sudo amazon-linux-extras install nginx1 -y
+sudo apt install -y nginx
 sudo service nginx start
 sudo systemctl enable nginx
 
@@ -19,7 +19,7 @@ unzip awscliv2.zip
 sudo ./aws/install
 
 # Install certbot for SSL
-sudo yum install -y certbot python3-certbot-nginx
+sudo apt install -y certbot python3-certbot-nginx
 
 # Create app directory
 mkdir -p /home/ec2-user/kinovo-server
