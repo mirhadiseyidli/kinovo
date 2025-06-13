@@ -50,3 +50,6 @@
 # Firebase config files
 */google-services.json
 */GoogleService-Info.plist
+
+# Firebase service account
+*/firebase-service-account.json
