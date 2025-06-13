@@ -15,6 +15,13 @@ const eventsRoutes = require('./routes/eventsRoutes');
 const weatherRoutes = require('./routes/appleWeatherRoutes');
 const notificationsRoutes = require('./routes/notificationsRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
+const googleApiRoutes = require('./routes/googleApiRoutes');
+// const storageRoutes = require('./routes/storageRoutes');
+
+// Firebase and realtime services
+const { configureSecurityRules } = require('./config/firebase-admin');
+const { initializeChangeStreams } = require('./services/databaseListenerService');
+const { shutdownWebSockets } = require('./utils/shutdownUtils');
 
 const app = express();
 
@@ -34,6 +41,12 @@ app.get('/api/health', (req, res) => {
 // Initialize categories
 const { initializeCategories } = require('./controllers/categoryController');
 initializeCategories().catch(console.error);
+
+// Initialize Firebase Realtime Database
+configureSecurityRules().catch(error => {
+  console.error('Failed to configure Firebase security rules:', error);
+});
+initializeChangeStreams();
 
 // Check Authentication (JWT based)
 const { verifyAccessToken } = require('./utils/token');
@@ -66,6 +79,8 @@ app.use('/api/manageevents', eventsRoutes);
 app.use('/api/weather', weatherRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api', categoryRoutes);
+app.use('/api/google', googleApiRoutes);
+// app.use('/api/storage', storageRoutes);
 
 // Start the cron jobs
 const accountDeletionCron = require('./cron/accountDeletionCron');

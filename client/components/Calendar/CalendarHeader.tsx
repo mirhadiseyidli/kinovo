@@ -18,8 +18,9 @@ import MonthSmallView from './CalendarHeader/MonthSmallView';
 import { generateMonthGrid } from './CalendarHeader/utils';
 import { useCalendarViewContext } from '@/context/CalendarViewContext';
 import { useNotifications } from '@/hooks/useNotifications';
+import { Feather } from '@expo/vector-icons';
 
-const CalendarHeaderMonthView = forwardRef<CalendarHeaderMonthViewRefProps, CalendarHeaderProps>(({ currentDateRef, onMonthYearChange, refreshing, fromDropdownRef }, ref) => {
+const CalendarHeaderMonthView = forwardRef<CalendarHeaderMonthViewRefProps, CalendarHeaderProps>(({ currentDateRef, onMonthYearChange, refreshing, fromDropdownRef, onRefresh }, ref) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [monthListOpen, setMonthListOpen] = useState(false);
@@ -169,6 +170,9 @@ const CalendarHeaderMonthView = forwardRef<CalendarHeaderMonthViewRefProps, Cale
     };
   });
 
+  const handleRefresh = useCallback(() => {
+  }, []);
+
   return (
     <ThemedView 
       style={{
@@ -185,6 +189,16 @@ const CalendarHeaderMonthView = forwardRef<CalendarHeaderMonthViewRefProps, Cale
           setMonthListOpen={setMonthListOpen}
         />
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TouchableOpacity 
+            onPress={onRefresh}
+            disabled={refreshing}
+            style={{ 
+              opacity: refreshing ? 0.5 : 1,
+              padding: 6,
+            }}
+          >
+            <Feather name="refresh-cw" size={18} color={themeColors.text} />
+          </TouchableOpacity>
           <CurrentMonthSelector
             ref={currentSelectorRef}
             currentKeyRef={currentDateRef}

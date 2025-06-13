@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, TextInput, Platform, Alert, ActionSheetIOS, Dimensions, Animated, Modal, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 // import { DateTimePicker } from '@expo/ui/swift-ui';
@@ -13,17 +13,53 @@ import AnimatedCheckBox from '../AnimatedCheckBox';
 const { width } = Dimensions.get('window');
 const getFontSize = (percentage: number) => (width * percentage) / 100;
 
+// Helper function to capitalize the first letter of a string
+const capitalizeFirstLetter = (string: string): string => {
+  return string.charAt(0).toUpperCase() + string.slice(1);
+};
+
 const Frequency: React.FC = () => {
   const colorScheme = useColorScheme();
-  const [isRecurring, setIsRecurring] = useState(false);
-  const [unit, setUnit] = useState<string | null>('Select');
-  const [endDate, setEndDate] = useState<Date | null>(new Date());
-  const [tempEndDate, setTempEndDate] = useState<Date>(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const colorAnim = useState(new Animated.Value(0))[0];
-  const slideAnim = useState(new Animated.Value(0))[0];
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const { settingEventRecurrence  } = useCreateEventContext();
+  const { recurrence, settingEventRecurrence } = useCreateEventContext();
+  
+  const [isRecurring, setIsRecurring] = useState(recurrence?.checked || false);
+  const [unit, setUnit] = useState<string>(recurrence?.frequency ? capitalizeFirstLetter(recurrence.frequency) : 'Select');
+  const [endDate, setEndDate] = useState<Date | null>(recurrence?.end_date ? new Date(recurrence.end_date) : new Date());
+  const [tempEndDate, setTempEndDate] = useState<Date>(endDate || new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [colorAnim] = useState(new Animated.Value(recurrence?.checked ? 1 : 0));
+  const [slideAnim] = useState(new Animated.Value(recurrence?.checked ? 1 : 0));
+
+  // Initialize with context values when component mounts or recurrence changes
+  useEffect(() => {
+    if (recurrence) {
+      setIsRecurring(recurrence.checked);
+      
+      if (recurrence.frequency) {
+        setUnit(capitalizeFirstLetter(recurrence.frequency));
+      }
+      
+      if (recurrence.end_date) {
+        const newEndDate = new Date(recurrence.end_date);
+        setEndDate(newEndDate);
+        setTempEndDate(newEndDate);
+      }
+      
+      // Animate to expanded state if recurrence is checked
+      Animated.timing(slideAnim, {
+        toValue: recurrence.checked ? 1 : 0,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+      
+      Animated.timing(colorAnim, {
+        toValue: recurrence.checked ? 1 : 0,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+    }
+  }, [recurrence]);
 
   const toggleCheck = (newValue: boolean) => {
     setIsRecurring(newValue);
@@ -33,7 +69,7 @@ const Frequency: React.FC = () => {
         frequency: null,
         end_date: null
       });
-    } else if (unit && endDate) {
+    } else if (unit !== 'Select' && endDate) {
       settingEventRecurrence({
         checked: true,
         frequency: unit.toLowerCase() as 'daily' | 'weekly' | 'monthly' | 'yearly',
@@ -110,6 +146,18 @@ const Frequency: React.FC = () => {
     }
   };
 
+  const confirmDateSelection = () => {
+    setEndDate(tempEndDate);
+    if (isRecurring && unit !== 'Select') {
+      settingEventRecurrence({
+        checked: true,
+        frequency: unit.toLowerCase() as 'daily' | 'weekly' | 'monthly' | 'yearly',
+        end_date: tempEndDate
+      });
+    }
+    setShowDatePicker(false);
+  };
+
   return (
     <ThemedView style={{ paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8, backgroundColor: Colors[colorScheme ?? 'dark'].inputBackgroundColor, marginBottom: 16 }}>
       {/* Selection: Only Once / Recurring */}
@@ -184,17 +232,7 @@ const Frequency: React.FC = () => {
                       </View>
                       {/* Confirm Button */}
                       <TouchableOpacity
-                        onPress={() => {
-                          setEndDate(tempEndDate);
-                          if (unit && tempEndDate) {
-                            settingEventRecurrence({
-                              checked: true,
-                              frequency: unit.toLowerCase() as 'daily' | 'weekly' | 'monthly' | 'yearly',
-                              end_date: tempEndDate
-                            });
-                          }
-                          setShowDatePicker(false);
-                        }}
+                        onPress={confirmDateSelection}
                         style={{
                           marginTop: 16,
                           marginBottom: 16,

@@ -11,6 +11,7 @@ import { getCategoryIcon, getCategoryColor } from '@/utils/categoryIcons';
 import api from '@/utils/api';
 import type { Event as EventType } from '@/types/allTypes';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const CategoryPage = () => {
   const { category } = useLocalSearchParams();
@@ -23,9 +24,7 @@ const CategoryPage = () => {
 
   const fetchEvents = async () => {
     try {
-      console.log('Fetching events for category:', category);
       const response = await api.get(`/api/manageevents/eventslist/category/${encodeURIComponent(category as string)}`);
-      console.log('Response data:', response.data);
       if (Array.isArray(response.data)) {
         setEvents(response.data);
       } else {
@@ -56,7 +55,18 @@ const CategoryPage = () => {
     setRefreshing(false);
   };
 
-  const navigateToCreateEvent = () => {
+  const navigateToCreateEvent = async () => {
+    // Store the selected category in AsyncStorage
+    if (category) {
+      try {
+        // Set a flag to indicate we're coming from a category page
+        await AsyncStorage.setItem('selectedCategory', category as string);
+      } catch (error) {
+        console.error('Error setting selected category:', error);
+      }
+    }
+    
+    // Navigate to the create event screen
     router.push('/(auth)/(createEvent)/EventDetails');
   };
 

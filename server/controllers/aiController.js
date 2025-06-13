@@ -153,7 +153,7 @@ const getUserEvents = async (userId) => {
   try {
     
     const user = await User.findOne({ _id: userId })
-      .select('-password')
+      .select('-password reported_events not_interested_events')
       .populate({
         path: 'events',
         populate: {
@@ -161,6 +161,16 @@ const getUserEvents = async (userId) => {
           model: 'Events', // adjust this if your model name is different
         },
       });
+      
+    // Get the list of reported event IDs
+    const reportedEventIds = (user?.reported_events || []).map(event => 
+      event.toString()
+    );
+    
+    // Get the list of not interested event IDs
+    const notInterestedEventIds = (user?.not_interested_events || []).map(item => 
+      item.event.toString()
+    );
 
     if (!user || !user.events || user.events.length === 0) {
       return [];
@@ -174,6 +184,12 @@ const getUserEvents = async (userId) => {
 
     const todaysEvents = user.events
       .filter((e) => {
+        // Skip if no event or if event is reported or not interested
+        if (!e.event || 
+            reportedEventIds.includes(e.event._id.toString()) ||
+            notInterestedEventIds.includes(e.event._id.toString())) {
+          return false;
+        }
         const eventDate = new Date(e.event.start_time);
         return eventDate >= today && eventDate < tomorrow;
       })

@@ -77,7 +77,7 @@ export default function AttentionRequiredScreen() {
         {/* Header Card */}
         <ThemedView 
           style={{ 
-            backgroundColor: '#FFB347', // Using the pending color
+            backgroundColor: themeColors.maybeStatusColor, // Using the pending color
             padding: 16,
             borderRadius: 24,
             alignItems: 'center',

@@ -11,7 +11,7 @@ interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
 // Create axios instance with base configuration
 const api = axios.create({
   baseURL: process.env.EXPO_PUBLIC_SERVER_BASE_URL,
-  timeout: 10000,
+  timeout: 30000,
 });
 
 console.log('API utility initialized with interceptors');

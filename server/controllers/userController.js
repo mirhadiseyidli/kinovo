@@ -35,7 +35,7 @@ const deleteUsers = async (req, res) => {
   let user;
   try {
     user = await User.deleteOne({ _id: res.user._id }).select('-password');
-    console.log('deleted', user)
+
     res.status(200).json('Deleted the user', user);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
@@ -66,7 +66,7 @@ const editMyProfile = async (req, res) => {
 const createUser = async (req, res) => {
   try {
     const userData = req.body;
-    console.log('userData', userData);
+
 
     const user = await User.create(userData);
 
@@ -716,7 +716,7 @@ const addFavoriteActivity = async (req, res) => {
 };
 
 const removeFavoriteActivity = async (req, res) => {
-  console.log('removeFavoriteActivity', req.body);
+
   try {
     const { activity } = req.body;
     if (!activity) {
@@ -725,7 +725,7 @@ const removeFavoriteActivity = async (req, res) => {
 
     const user = await User.findById(req.user._id);
     if (!user) {
-      console.log('user not found');
+
       return res.status(404).json({ message: 'User not found' });
     }
 

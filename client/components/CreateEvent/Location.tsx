@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   KeyboardAvoidingView,
@@ -18,16 +18,44 @@ import { useLocation } from '@/context/LocationContext';
 import MapViewModal from '../MapViewModal';
 import { Suggestion, Coordinates, GeocodingApiResult, LocationSelectHandler, SelectedLocation, FetchAddressSuggestions } from '@/types/allTypes';
 import { useCreateEventContext } from '@/context/CreateEventContext';
+import api from '@/utils/api';
 
 const LocationComponent: React.FC = () => {
-  const [selectedLocation, setSelectedLocation] = useState<SelectedLocation>(null);
-  const [mapVisible] = useState(new Animated.Value(0)); // Controls slide animation
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-  const [inputText, setInputText] = useState('');
-  const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const { settingEventLocation } = useCreateEventContext();
+  const { location, settingEventLocation } = useCreateEventContext();
+  
+  const [selectedLocation, setSelectedLocation] = useState<SelectedLocation>(location?.text || null);
+  const [mapVisible] = useState(new Animated.Value(location?.coordinates ? 1 : 0)); // Controls slide animation
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [inputText, setInputText] = useState<string>(location?.text || '');
+  const [coordinates, setCoordinates] = useState<Coordinates | null>(
+    location?.coordinates && location.coordinates.lat && location.coordinates.lng
+      ? { latitude: location.coordinates.lat, longitude: location.coordinates.lng } 
+      : null
+  );
+
+  // Update local state when context changes
+  useEffect(() => {
+    if (location) {
+      setSelectedLocation(location.text);
+      setInputText(location.text || '');
+      
+      if (location.coordinates && location.coordinates.lat && location.coordinates.lng) {
+        setCoordinates({ 
+          latitude: location.coordinates.lat, 
+          longitude: location.coordinates.lng 
+        });
+        
+        // Show map if coordinates exist
+        Animated.timing(mapVisible, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: false,
+        }).start();
+      }
+    }
+  }, [location]);
 
   const fetchAddressSuggestions: FetchAddressSuggestions = async (text) => {
     if (!text.trim()) { // Ensure empty input fully clears suggestions
@@ -36,31 +64,17 @@ const LocationComponent: React.FC = () => {
     }
 
     try {
-      let response = await axios.post(
-        `https://places.googleapis.com/v1/places:searchText`,
-        { textQuery: text },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            "X-Goog-Api-Key": process.env.EXPO_PUBLIC_GOOGLE_MAPS_API,
-            "X-Goog-FieldMask": "*",
-          },
-        }
-      );
-
+      // Use our backend API instead of direct Google API call
+      let response = await api.post('/api/google/places/search', { textQuery: text });
       let results = response.data.places || [];
 
-      // If no results AND input is not empty, use Geocoding API
+      // If no results AND input is not empty, use Geocoding API through our backend
       if (results.length === 0 && text.trim().length > 0) {
-        response = await axios.get(
-          `https://maps.googleapis.com/maps/api/geocode/json`,
-          {
-            params: {
-              address: text,
-              key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API,
-            },
+        response = await api.get('/api/google/geocode', {
+          params: {
+            address: text
           }
-        );
+        });
 
         results = response.data.results.map((item: GeocodingApiResult) => ({
           displayName: { text: item.formatted_address },
@@ -105,6 +119,34 @@ const LocationComponent: React.FC = () => {
     }).start();
   };
 
+  const handleInputChange = (text: string) => {
+    if (text.length < inputText.length) { // Detect letter removal
+      setCoordinates(null); // Hide the map
+      Animated.timing(mapVisible, {
+        toValue: 0, // Hide map animation
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+      
+      // Clear location in context if input is cleared
+      if (!text.trim()) {
+        // Create empty location object instead of null
+        settingEventLocation({ 
+          text: '',
+          city: null,
+          state: null,
+          coordinates: { 
+            lat: null, 
+            lng: null 
+          }
+        });
+      }
+    }
+    
+    setInputText(text);
+    fetchAddressSuggestions(text);
+  };
+
   return (
     <ThemedView>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -125,22 +167,11 @@ const LocationComponent: React.FC = () => {
             style={{
               fontSize: 16,
               color: themeColors.text,
+              flex: 1,
             }}
             placeholder="Add location"
             value={inputText}
-            onChangeText={(text) => {
-              if (text.length < inputText.length) { // Detect letter removal
-                setCoordinates(null); // Hide the map
-                Animated.timing(mapVisible, {
-                  toValue: 0, // Hide map animation
-                  duration: 300,
-                  useNativeDriver: false,
-                }).start();
-              }
-              
-              setInputText(text);
-              fetchAddressSuggestions(text);
-            }}
+            onChangeText={handleInputChange}
           />
         </View>
 
@@ -198,7 +229,9 @@ const LocationComponent: React.FC = () => {
             opacity: mapVisible,
             borderRadius: 8,
             overflow: 'hidden'
-          }}>
+          }}
+          pointerEvents="none" // Disable interactions with the map
+          >
             <MapViewModal
               coordinates={coordinates}
               selectedLocation={selectedLocation}

@@ -27,7 +27,8 @@ const EventTitleAndCategory: React.FC<EventTitleAndCategoryProps> = React.memo((
       fontWeight: 'bold',
       backgroundColor: themeColors.mountainGreen, 
       paddingHorizontal: 8, 
-      borderRadius: 4
+      borderRadius: 4,
+      color: 'white'
     }}>
       {category}
     </ThemedText>

@@ -448,7 +448,7 @@ const Tags = forwardRef<TagsRef>((_, ref) => {
     <ThemedView style={{ flex: 1 }}>
       <ScrollView 
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingTop: 16 }}
+        contentContainerStyle={{ paddingTop: 16, paddingHorizontal: 16 }}
         refreshControl={
           <RefreshControl 
             refreshing={refreshing} 

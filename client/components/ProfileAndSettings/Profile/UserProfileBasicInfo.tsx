@@ -11,23 +11,28 @@ const UserProfileBasicInfo = ({
   full_name,
   username,
   number_of_friends,
-  number_of_events
+  number_of_events,
+  number_of_activities
 }: UserProfileBasicInfoProps) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
 
   return (
     <View style={{ flexDirection: 'column', gap: 8, paddingHorizontal: 16 }}>
-      <ThemedText style={{ fontWeight: 'bold', fontSize: 20 }}>{full_name}</ThemedText>
+      <ThemedText style={{ fontWeight: 'bold', fontSize: 16 }}>{full_name}</ThemedText>
       <ThemedText style={{ fontSize: 14, color: themeColors.placeholderTextColor }}>{username}</ThemedText>
-      <View style={{ flexDirection: 'row', justifyContent: 'flex-start', gap: 24 }}>
-        <View style={{ flexDirection: 'column', width: 'auto', marginVertical: 10 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+        <View style={{ flexDirection: 'column', width: 'auto', marginTop: 10 }}>
+          <ThemedText style={{ marginBottom: 4, fontSize: 14 }}>Events</ThemedText>
+          <ThemedText style={{ fontSize: 16, fontWeight: 'bold', alignSelf: 'center' }}>{number_of_events || 0}</ThemedText>
+        </View>
+        <View style={{ flexDirection: 'column', width: 'auto', marginTop: 10 }}>
           <ThemedText style={{ marginBottom: 4, fontSize: 14 }}>Friends</ThemedText>
           <ThemedText style={{ fontSize: 16, fontWeight: 'bold', alignSelf: 'center' }}>{number_of_friends || 0}</ThemedText>
         </View>
-        <View style={{ flexDirection: 'column', width: 'auto', marginVertical: 10 }}>
-          <ThemedText style={{ marginBottom: 4, fontSize: 14 }}>Events</ThemedText>
-          <ThemedText style={{ fontSize: 16, fontWeight: 'bold', alignSelf: 'center' }}>{number_of_events || 0}</ThemedText>
+        <View style={{ flexDirection: 'column', width: 'auto', marginTop: 10 }}>
+          <ThemedText style={{ marginBottom: 4, fontSize: 14 }}>Activities</ThemedText>
+          <ThemedText style={{ fontSize: 16, fontWeight: 'bold', alignSelf: 'center' }}>{number_of_activities || 0}</ThemedText>
         </View>
       </View>
     </View>

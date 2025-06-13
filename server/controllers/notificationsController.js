@@ -1,15 +1,14 @@
 const Notification = require('../database/schemas/notificationsSchema');
 const FriendRequest = require('../database/schemas/friendRequestsSchema');
 const Users = require('../database/schemas/usersSchema');
-const { sendNotificationToUser } = require('../websocket/websocketUtils');
 
 // Create a new notification
 const createNotification = async (notificationData) => {
   try {
-    console.log('Creating notification:', notificationData);
+  
     const notification = new Notification(notificationData);
     await notification.save();
-    console.log('Notification saved to database:', notification._id);
+
     
     // Populate the notification with sender and other references
     const populatedNotification = await Notification.findById(notification._id)
@@ -17,7 +16,7 @@ const createNotification = async (notificationData) => {
       .populate('event', 'title category')
       .populate('friend_request');
     
-    console.log('Populated notification:', populatedNotification);
+
     return populatedNotification;
   } catch (error) {
     console.error('Error creating notification:', error);
@@ -42,12 +41,6 @@ const createFriendRequestNotification = async (friendRequestId, senderId, recipi
       }
     });
 
-    // Send real-time notification
-    sendNotificationToUser(recipientId.toString(), {
-      type: 'newFriendRequestNotification',
-      data: notification
-    });
-
     return notification;
   } catch (error) {
     console.error('Error creating friend request notification:', error);
@@ -67,17 +60,6 @@ const updateFriendRequestNotificationStatus = async (friendRequestId, status) =>
       { new: true }
     ).populate('sender', 'full_name username profile_picture')
      .populate('recipient', 'full_name username');
-
-    if (notification) {
-      // Send real-time update
-      sendNotificationToUser(notification.recipient._id.toString(), {
-        type: 'friendRequestStatusUpdated',
-        data: {
-          notificationId: notification._id,
-          status: status
-        }
-      });
-    }
 
     return notification;
   } catch (error) {
@@ -174,7 +156,7 @@ const markNotificationsAsSeen = async (req, res) => {
     let result;
     if (notificationIds && Array.isArray(notificationIds)) {
       // Mark specific notifications as seen
-      console.log(`Marking ${notificationIds.length} specific notifications as seen for user ${userId}`);
+    
       result = await Notification.updateMany(
         { 
           _id: { $in: notificationIds },
@@ -187,7 +169,7 @@ const markNotificationsAsSeen = async (req, res) => {
       );
     } else {
       // Mark all notifications as seen
-      console.log(`Marking ALL notifications as seen for user ${userId}`);
+
       result = await Notification.updateMany(
         { recipient: userId },
         { 
@@ -197,7 +179,7 @@ const markNotificationsAsSeen = async (req, res) => {
       );
     }
 
-    console.log(`Updated ${result.modifiedCount} notifications for user ${userId}`);
+
     res.status(200).json({ message: 'Notifications marked as seen' });
   } catch (error) {
     console.error('Error marking notifications as seen:', error);
@@ -261,6 +243,54 @@ const createEventCreationNotification = async (eventId, creatorId, friendIds) =>
   } catch (error) {
     console.error('Error creating event creation notifications:', error);
     throw error;
+  }
+};
+
+// Create a new notification
+exports.createNotification = async (req, res) => {
+  try {
+    const { userId, type, message, relatedId } = req.body;
+    
+    // Create in MongoDB
+    const notification = await Notification.create({
+      user: userId,
+      type,
+      message,
+      related_id: relatedId,
+      read: false,
+    });
+    
+    // Sync to Firebase happens automatically via change stream
+    
+    res.status(201).json({ success: true, notification });
+  } catch (error) {
+    console.error('Error creating notification:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// Mark notification as read
+exports.markAsRead = async (req, res) => {
+  try {
+    const { notificationId } = req.params;
+    
+    // Update in MongoDB
+    const notification = await Notification.findByIdAndUpdate(
+      notificationId,
+      { read: true },
+      { new: true }
+    );
+    
+    if (!notification) {
+      return res.status(404).json({ success: false, message: 'Notification not found' });
+    }
+    
+    // Sync to Firebase happens automatically via change stream
+    
+    res.json({ success: true, notification });
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 

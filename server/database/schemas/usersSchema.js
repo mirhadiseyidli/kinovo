@@ -39,28 +39,28 @@ const usersSchema = new mongoose.Schema({
       type: String,
       default: null,
       required: function () {
-        return !this.google_id; // Required only for non-Google users
+        return !this.google_id && !this.apple_id; // Required only for non-Google users
       }
     },
     area_code: {
       type: String,
       default: null,
       required: function () {
-        return !this.google_id; // Required only for non-Google users
+        return !this.google_id && !this.apple_id; // Required only for non-Google users
       }
     },
     phone_num: {
       type: String,
       default: null,
       required: function () {
-        return !this.google_id; // Required only for non-Google users
+        return !this.google_id && !this.apple_id; // Required only for non-Google users
       }
     },
     full_num: {
       type: String,
       default: null,
       required: function () {
-        return !this.google_id; // Required only for non-Google users
+        return !this.google_id && !this.apple_id; // Required only for non-Google users
       }
     }
   },
@@ -68,10 +68,14 @@ const usersSchema = new mongoose.Schema({
   password: {
     type: String,
     required: function () {
-      return !this.google_id; // Required only for non-Google users
+      return !this.google_id && !this.apple_id; // Required only for non-Google users
     }
   },
   google_id: {
+    type: String,
+    required: false,
+  },
+  apple_id: {
     type: String,
     required: false,
   },
@@ -262,6 +266,80 @@ const usersSchema = new mongoose.Schema({
     reason: {
       type: String,
       default: null
+    }
+  }],
+  not_interested_events: [{
+    event: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Events',
+      required: true
+    },
+    added_at: {
+      type: Date,
+      default: Date.now,
+      required: true
+    }
+  }],
+  event_reports: [{
+    event: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Events',
+      required: true
+    },
+    event_creator: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Users',
+      required: true
+    },
+    reason: {
+      type: String,
+      enum: ['spam', 'inappropriate', 'abuse', 'false_information', 'other'],
+      default: 'other'
+    },
+    details: {
+      type: String,
+      default: null
+    },
+    created_at: {
+      type: Date,
+      default: Date.now,
+      required: true
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'reviewed', 'resolved', 'rejected'],
+      default: 'pending'
+    }
+  }],
+  event_reports_against_me: [{
+    event: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Events',
+      required: true
+    },
+    reason: {
+      type: String,
+      enum: ['spam', 'inappropriate', 'abuse', 'false_information', 'other'],
+      default: 'other'
+    },
+    details: {
+      type: String,
+      default: null
+    },
+    created_at: {
+      type: Date,
+      default: Date.now,
+      required: true
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'reviewed', 'resolved', 'rejected'],
+      default: 'pending'
+    },
+    reporter: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Users',
+      required: true
     }
   }],
   ai_assistant_id: {

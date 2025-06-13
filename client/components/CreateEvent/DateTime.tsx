@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Modal, Dimensions, TouchableWithoutFeedback, Platform } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 // import { DateTimePicker } from '@expo/ui/swift-ui';
@@ -14,23 +14,52 @@ const DateTime = () => {
   const screenWidth = Dimensions.get('window').width;
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const { settingEventStartTime, settingEventEndTime } = useCreateEventContext();
+  const { startTime, endTime, settingEventStartTime, settingEventEndTime } = useCreateEventContext();
 
-  const [startDate, setStartDate] = useState<DateTimeState['startDate']>(new Date());
-  const [endDate, setEndDate] = useState<DateTimeState['endDate']>(new Date());
-  const [showStartPicker, setShowStartPicker] = useState<DateTimeState['showStartPicker']>(false);
-  const [showEndPicker, setShowEndPicker] = useState<DateTimeState['showEndPicker']>(false);
-  const [tempStartDate, setTempStartDate] = useState<DateTimeState['tempStartDate']>(startDate);
-  const [tempEndDate, setTempEndDate] = useState<DateTimeState['tempEndDate']>(endDate);
+  const [startDate, setStartDate] = useState<Date>(startTime || new Date());
+  const [endDate, setEndDate] = useState<Date>(endTime || new Date());
+  const [showStartPicker, setShowStartPicker] = useState<boolean>(false);
+  const [showEndPicker, setShowEndPicker] = useState<boolean>(false);
+  const [tempStartDate, setTempStartDate] = useState<Date>(startDate);
+  const [tempEndDate, setTempEndDate] = useState<Date>(endDate);
+
+  // Update local state when context changes
+  useEffect(() => {
+    if (startTime) {
+      setStartDate(new Date(startTime));
+      setTempStartDate(new Date(startTime));
+    }
+  }, [startTime]);
+
+  useEffect(() => {
+    if (endTime) {
+      setEndDate(new Date(endTime));
+      setTempEndDate(new Date(endTime));
+    }
+  }, [endTime]);
 
   const handleStartDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    if (selectedDate) setTempStartDate(selectedDate);
-    settingEventStartTime(selectedDate ?? null);
+    if (selectedDate) {
+      setTempStartDate(selectedDate);
+    }
   };
   
   const handleEndDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    if (selectedDate) setTempEndDate(selectedDate);
-    settingEventEndTime(selectedDate ?? null);
+    if (selectedDate) {
+      setTempEndDate(selectedDate);
+    }
+  };
+
+  const confirmStartDate = () => {
+    setStartDate(tempStartDate);
+    settingEventStartTime(tempStartDate);
+    setShowStartPicker(false);
+  };
+
+  const confirmEndDate = () => {
+    setEndDate(tempEndDate);
+    settingEventEndTime(tempEndDate);
+    setShowEndPicker(false);
   };
 
   return (
@@ -75,14 +104,6 @@ const DateTime = () => {
               <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}>
                 <View style={{ backgroundColor: themeColors.background, padding: 20, borderRadius: 10, minHeight: 280 }}>
                   <View style={{ minWidth: 280, width: '100%', alignItems: 'center' }}>
-                    {/* <DateTimePicker
-                      initialDate={tempStartDate.toISOString()}
-                      color={themeColors.mountainGreen}
-                      displayedComponents="dateAndTime"
-                      variant="graphical"
-                      onDateSelected={handleStartDateChange}
-                      style={{ minHeight: 280, minWidth: 280, width: '100%' }}
-                    /> */}
                     <DateTimePicker
                       value={tempStartDate} // Use temp value
                       textColor={themeColors.text}
@@ -97,10 +118,7 @@ const DateTime = () => {
                   </View>
                   {/* Confirm Button */}
                   <TouchableOpacity
-                    onPress={() => {
-                      setStartDate(tempStartDate); // Confirm selection
-                      setShowStartPicker(false);
-                    }}
+                    onPress={confirmStartDate}
                     style={{
                       marginTop: 16,
                       marginBottom: 16,
@@ -150,14 +168,6 @@ const DateTime = () => {
               <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}>
                 <View style={{ backgroundColor: themeColors.background, padding: 20, borderRadius: 10, minHeight: 280 }}>
                   <View style={{ minWidth: 280, width: '100%', alignItems: 'center' }}>
-                  {/* <DateTimePicker
-                      initialDate={tempStartDate.toISOString()}
-                      color={themeColors.mountainGreen}
-                      displayedComponents="dateAndTime"
-                      variant="graphical"
-                      onDateSelected={handleStartDateChange}
-                      style={{ minHeight: 280, minWidth: 280, width: '100%' }}
-                    /> */}
                     <DateTimePicker
                       value={tempEndDate} // Use temp value
                       textColor={themeColors.text}
@@ -172,10 +182,7 @@ const DateTime = () => {
                   </View>
                   {/* Confirm Button */}
                   <TouchableOpacity
-                    onPress={() => {
-                      setEndDate(tempEndDate); // Confirm selection
-                      setShowEndPicker(false);
-                    }}
+                    onPress={confirmEndDate}
                     style={{
                       marginTop: 16,
                       marginBottom: 16,

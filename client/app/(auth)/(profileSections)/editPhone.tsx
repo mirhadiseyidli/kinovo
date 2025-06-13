@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { TouchableOpacity, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
@@ -20,7 +20,7 @@ const EditPhone = () => {
   const [currentPhoneNumber, setCurrentPhoneNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const [show2FA, setShow2FA] = useState(false);
-  const [confirmationResult, setConfirmationResult] = useState(null);
+  const [confirmationResult, setConfirmationResult] = useState<any>(null);
 
   React.useEffect(() => {
     const loadUserData = async () => {
@@ -164,32 +164,42 @@ const EditPhone = () => {
           ),
         }} 
       />
-      <ScrollView style={{ flex: 1, padding: 16 }}>
-        <LabeledInput
-          label="Phone Number"
-          value={phoneNumber}
-          onChangeText={(text) => setPhoneNumber(formatPhoneNumber(text))}
-          placeholder="Phone Number (e.g. (123) 456-7890)"
-          keyboardType="phone-pad"
-        />
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={handleSave}
-          disabled={loading}
-          style={{
-            alignItems: 'center',
-            backgroundColor: themeColors.mountainGreen,
-            paddingVertical: 12,
-            borderRadius: 8,
-            opacity: loading ? 0.7 : 1,
-            marginTop: 24,
-          }}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+      >
+        <ScrollView 
+          style={{ flex: 1, padding: 16 }}
+          keyboardShouldPersistTaps="handled"
         >
-          <ThemedText style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>
-            {loading ? 'Verifying...' : 'Save Changes'}
-          </ThemedText>
-        </TouchableOpacity>
-      </ScrollView>
+          <LabeledInput
+            label="Phone Number"
+            value={phoneNumber}
+            onChangeText={(text) => setPhoneNumber(formatPhoneNumber(text))}
+            placeholder="Phone Number (e.g. (123) 456-7890)"
+            keyboardType="phone-pad"
+          />
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={handleSave}
+            disabled={loading}
+            style={{
+              alignItems: 'center',
+              backgroundColor: themeColors.mountainGreen,
+              paddingVertical: 12,
+              borderRadius: 8,
+              opacity: loading ? 0.7 : 1,
+              marginTop: 24,
+              marginBottom: 40,
+            }}
+          >
+            <ThemedText style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>
+              {loading ? 'Verifying...' : 'Save Changes'}
+            </ThemedText>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </ThemedView>
   );
 };

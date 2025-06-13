@@ -10,6 +10,8 @@ import { Colors } from '@/constants/Colors';
 import { useFocusEffect } from '@react-navigation/native';
 import { Event } from '@/types/allTypes';
 import { useRouter } from 'expo-router';
+import { useEventContext } from '@/context/EventContext';
+import { UpcomingEventsSkeleton } from '../Skeleton';
 
 const UpcomingEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }> = React.memo(({ refreshing, onFinishRefresh }) => {
   const { fetchMyEvents, loading } = useGetMyEvents();
@@ -17,6 +19,7 @@ const UpcomingEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => voi
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [myEventsList, setMyEventsList] = useState<Event[]>([]);
   const router = useRouter();
+  const { events, eventOccurrences, refreshing: contextRefreshing } = useEventContext();
 
   if (!myEventsList) {
     <ThemedText>Could't load events</ThemedText>
@@ -40,6 +43,7 @@ const UpcomingEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => voi
     onFinishRefresh();
   }
   
+  // Fetch events when explicitly refreshing
   useFocusEffect(
     React.useCallback(() => {
       if (refreshing) {
@@ -47,6 +51,17 @@ const UpcomingEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => voi
       }
     }, [refreshing])
   );
+
+  // Automatically refresh events when the events context changes
+  useEffect(() => {
+    if (!refreshing && !contextRefreshing) {
+      fetchEvents();
+    }
+  }, [events, eventOccurrences]);
+
+  if (loading || refreshing) {
+    return <UpcomingEventsSkeleton />;
+  }
 
   return (
     <ThemedView style={{ flex: 1, width: '100%' }}>
@@ -71,20 +86,10 @@ const UpcomingEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => voi
       {/* Event List */}
       <View style={{ flex: 1 }}>
         {myEventsList.length > 0 ? (
-          <View>
+          <View style={{ gap: 16 }}>
             {myEventsList.map((event, index) => (
               <View key={`${event._id}-${index}`}>
                 <EventComponent event={event} loading={refreshing || loading}/>
-                {/* Divider Line */}
-                {index < myEventsList.length - 1 && (
-                  <View
-                    style={{
-                      height: 0.3,
-                      backgroundColor: Colors[colorScheme ?? 'dark'].border,
-                      marginVertical: 16,
-                    }}
-                  />
-                )}
               </View>
             ))}
           </View>

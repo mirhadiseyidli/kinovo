@@ -5,15 +5,18 @@ import { createContext, RefObject, ReactNode, useCallback, useContext, useEffect
 import axios, { AxiosError } from 'axios';
 import { Animated, ActivityIndicator, View } from 'react-native';
 import { ApiError, AuthContextType, TokenTypes } from '@/types/allTypes';
+import { signInWithFirebaseToken } from '@/config/firebase';
 
 const AuthContext = createContext<AuthContextType>({
   signIn: () => null,
   signOut: () => null,
   accessToken: null,
   refreshToken: null,
+  firebaseToken: null,
   isLoading: true,
   refreshAccessToken: async () => {},
   checkAuth: async () => {},
+  userId: undefined,
 });
 
 // Access the context as a hook
@@ -24,16 +27,22 @@ export function useAuthSession() {
 export default function AuthProvider({ children }: { children: ReactNode }): ReactNode {
   const accessTokenRef = useRef<string | null>(null);
   const refreshTokenRef = useRef<string | null>(null);
+  const firebaseTokenRef = useRef<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [userId, setUserId] = useState<string | undefined>(undefined);
   const fadeAnim = useState(new Animated.Value(1))[0]; // Initial opacity
 
   useEffect(() => {
     (async (): Promise<void> => {
       const accessToken = await SecureStore.getItemAsync('accessToken');
       const refreshToken = await SecureStore.getItemAsync('refreshToken');
+      const firebaseToken = await SecureStore.getItemAsync('firebaseToken');
+      const storedUserId = await AsyncStorage.getItem('userId');
 
       accessTokenRef.current = accessToken || '';
       refreshTokenRef.current = refreshToken || '';
+      firebaseTokenRef.current = firebaseToken || '';
+      setUserId(storedUserId || undefined);
 
       if (accessToken) {
         await checkAuth();
@@ -109,13 +118,28 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
     }
   };
 
-  const signIn = useCallback(async (accessToken: string, refreshToken: string, userId: string) => {
+  const signIn = useCallback(async (accessToken: string, refreshToken: string, userId: string, firebaseToken?: string) => {
     fadeTransition(async () => {
       await SecureStore.setItemAsync('accessToken', accessToken);
       await AsyncStorage.setItem('userId', userId);
       await SecureStore.setItemAsync('refreshToken', refreshToken);
+      await SecureStore.setItemAsync('firebaseToken', firebaseToken || '');
       accessTokenRef.current = accessToken;
       refreshTokenRef.current = refreshToken;
+      firebaseTokenRef.current = firebaseToken || '';
+      setUserId(userId);
+
+      // Sign in to Firebase with custom token if provided
+      if (firebaseToken) {
+        try {
+          await signInWithFirebaseToken(firebaseToken);
+          console.log('Firebase authentication successful with custom token');
+        } catch (error) {
+          console.error('Firebase authentication failed:', error);
+          // Continue with normal auth flow even if Firebase auth fails
+        }
+      }
+
       router.replace('/');
     });
   }, []);
@@ -125,8 +149,11 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
       await SecureStore.deleteItemAsync('accessToken');
       await AsyncStorage.removeItem('userId');
       await SecureStore.deleteItemAsync('refreshToken');
+      await SecureStore.deleteItemAsync('firebaseToken');
       accessTokenRef.current = null;
       refreshTokenRef.current = null;
+      firebaseTokenRef.current = null;
+      setUserId(undefined);
       router.replace('/login');
     });
   }, []);
@@ -138,9 +165,11 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
         signOut,
         accessToken: accessTokenRef,
         refreshToken: refreshTokenRef,
+        firebaseToken: firebaseTokenRef,
         isLoading,
         refreshAccessToken,
-        checkAuth
+        checkAuth,
+        userId
       }}
     >
       <View style={{ flex: 1 }}>

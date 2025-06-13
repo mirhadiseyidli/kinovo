@@ -33,7 +33,6 @@ const Cities: React.FC<CitiesProps> = ({ refreshing, onFinishRefresh }) => {
   }, [refreshing]);
 
   const handleCityPress = (cityName: string) => {
-    console.log('cityName', cityName);
     router.push(`/(auth)/(city)/${cityName}`);
   };
 

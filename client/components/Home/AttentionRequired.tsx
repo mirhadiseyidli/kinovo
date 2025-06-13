@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { getCategoryImage } from '@/constants/CategoryImages';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { AttentionRequiredSkeleton } from '../Skeleton';
 
 interface AttentionRequiredProps {
   refreshing: boolean;
@@ -33,7 +34,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = ({
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
-  const { fetchAttentionRequiredEvents } = useGetAttentionRequiredEvents();
+  const { fetchAttentionRequiredEvents, loading } = useGetAttentionRequiredEvents();
   const { respondToInvitation } = useEventInvitation();
   const { refreshEvents } = useEventContext();
   const [attentionEvents, setAttentionEvents] = useState<Event[]>(initialEvents || []);
@@ -192,307 +193,297 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = ({
         style={{
           marginBottom: 16,
           borderRadius: 12,
-          borderWidth: 1,
-          borderColor: themeColors.border,
+          backgroundColor: themeColors.eventCardBackgroundColor,
           overflow: 'hidden',
         }}
       >
-        {/* <LinearGradient
-          colors={['#1A1A1A', '#2D2D2D']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={{
-            minHeight: 160,
-          }}
-        > */}
-          <View style={{ flexDirection: 'row', flex: 1 }}>
-            {/* Left Section */}
-            <View style={{ flex: 3, padding: 16, paddingBottom: 0 }}>
-              {/* Event Title */}
-              <ThemedText style={{ 
-                fontSize: 14,
-                fontWeight: '600',
-                marginBottom: 12,
-                color: '#FFFFFF',
-              }}>
-                {event.title}
-              </ThemedText>
-
-              {/* Date/Time */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                <Feather name="calendar" size={12} color={themeColors.textSecondary} style={{ marginRight: 8 }} />
-                <ThemedText style={{ fontSize: 12, color: themeColors.textSecondary }}>
-                  {formatDate(event.start_time)}
-                </ThemedText>
-              </View>
-
-              {/* Location */}
-              {event.location?.text ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                  <Feather name="map-pin" size={12} color={themeColors.textSecondary} style={{ marginRight: 8 }} />
-                  <ThemedText 
-                    numberOfLines={1}
-                    style={{ 
-                      fontSize: 12,
-                      color: themeColors.textSecondary,
-                      maxWidth: '90%'
-                    }}
-                  >
-                    {event.location.text.length > 25 
-                      ? `${event.location.text.substring(0, 25)}...` 
-                      : event.location.text}
-                  </ThemedText>
-                </View>
-              ) : (
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                  <Feather name="map-pin" size={12} color={themeColors.textSecondary} style={{ marginRight: 8 }} />
-                  <ThemedText 
-                    numberOfLines={1}
-                    style={{ 
-                      fontSize: 12,
-                      color: themeColors.textSecondary,
-                      maxWidth: '90%'
-                    }}
-                  >
-                    Location TBD
-                  </ThemedText>
-                </View>
-              )}
-
-              {/* Status Badge */}
-              <View style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: "transparent",
-                borderColor: themeColors.mountainGreen,
-                borderWidth: 1,
-                paddingHorizontal: 8,
-                paddingVertical: 2,
-                borderRadius: 4,
-                alignSelf: 'flex-start',
-              }}>
-                {isRejected ? (
-                  <>
-                    <Feather name="x-circle" size={10} color="#FFFFFF" style={{ marginRight: 4 }} />
-                    <ThemedText style={{ 
-                      fontSize: 10,
-                      color: themeColors.text,
-                      fontWeight: 'bold',
-                      textTransform: 'uppercase',
-                      textDecorationLine: 'line-through'
-                    }}>
-                      Declined
-                    </ThemedText>
-                    <View style={{
-                      width: 1,
-                      height: '80%',
-                      backgroundColor: themeColors.text,
-                      marginHorizontal: 6,
-                    }} />
-                    <ThemedText style={{ 
-                      fontSize: 10,
-                      color: themeColors.text,
-                      fontWeight: 'bold',
-                    }}>
-                      {`${timeLeft.value} ${timeLeft.unit} LEFT`}
-                    </ThemedText>
-                  </>
-                ) : (
-                  <>
-                    <Feather name="clock" size={10} color="#FFFFFF" style={{ marginRight: 4 }} />
-                    <ThemedText style={{ 
-                      fontSize: 10,
-                      color: themeColors.text,
-                      fontWeight: 'bold',
-                      textTransform: 'uppercase',
-                    }}>
-                      Pending
-                    </ThemedText>
-                    <View style={{
-                      width: 1,
-                      height: '80%',
-                      backgroundColor: themeColors.text,
-                      marginHorizontal: 6,
-                    }} />
-                    <ThemedText style={{ 
-                      fontSize: 10,
-                      color: themeColors.text,
-                      fontWeight: 'bold',
-                    }}>
-                      {`${timeLeft.value} ${timeLeft.unit} LEFT`}
-                    </ThemedText>
-                  </>
-                )}
-              </View>
-            </View>
-
-            {/* Right Section */}
-            <View style={{ 
-              flex: 2,
-              padding: 16,
-              paddingBottom: 0,
-              alignItems: 'flex-end'
+        <View style={{ flexDirection: 'row', flex: 1 }}>
+          {/* Left Section */}
+          <View style={{ flex: 3, padding: 16, paddingBottom: 0 }}>
+            {/* Event Title */}
+            <ThemedText style={{ 
+              fontSize: 14,
+              fontWeight: '600',
+              marginBottom: 12,
+              color: themeColors.text,
             }}>
-              {/* Invited By Section */}
-              <View style={{ flexDirection: 'row', marginBottom: 12, alignItems: 'flex-end' }}>
-                <ThemedText style={{ 
-                  fontSize: 10,
-                  color: '#FFFFFF',
-                  opacity: 0.9,
-                  textAlign: 'right',
-                  marginRight: 4,
-                }}>
-                  Invited by
-                </ThemedText>
-                <ThemedText style={{ 
-                  fontSize: 12,
-                  fontWeight: '600',
-                  color: '#FFFFFF',
-                  textAlign: 'right',
-                }}>
-                  {event.creator?.full_name || 'Unknown'}
-                </ThemedText>
-              </View>
+              {event.title}
+            </ThemedText>
 
-              {/* Event Image */}
-              <View style={{
-                width: 64,
-                aspectRatio: 1,
-                borderRadius: 8,
-                overflow: 'hidden',
-                position: 'relative'
-              }}>
-                <ImageBackground
-                  source={eventImage}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                  }}
-                  imageStyle={{ 
-                    opacity: 0.8,
-                    resizeMode: 'cover'
-                  }}
-                >
-                  {/* Category with blur overlay */}
-                  <BlurView
-                    intensity={50}
-                    tint={colorScheme === 'dark' ? 'dark' : 'light'}
-                    style={{
-                      position: 'absolute',
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      paddingVertical: 4,
-                      backgroundColor: colorScheme === 'dark' ? 'rgba(50, 50, 50, 0.6)' : 'rgba(200, 200, 200, 0.6)',
-                    }}
-                  >
-                    <ThemedText style={{ 
-                      fontSize: 8,
-                      color: '#FFFFFF',
-                      fontWeight: 'bold',
-                      textAlign: 'center',
-                      textTransform: 'capitalize',
-                    }}>
-                      {event.category?.toLowerCase() || 'Other'}
-                    </ThemedText>
-                  </BlurView>
-                </ImageBackground>
-              </View>
+            {/* Date/Time */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+              <Feather name="calendar" size={12} color={themeColors.textSecondary} style={{ marginRight: 8 }} />
+              <ThemedText style={{ fontSize: 12, color: themeColors.textSecondary }}>
+                {formatDate(event.start_time)}
+              </ThemedText>
             </View>
-          </View>
 
-          {/* Bottom Content */}
-          <View style={{ 
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-          }}>
-            {/* Action Buttons */}
-            <View style={{ flexDirection: 'row', gap: 6 }}>
-              {isRejected ? (
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                    borderRadius: 6,
-                    paddingHorizontal: 12,
-                    paddingVertical: 8,
-                    opacity: 0.8,
-                    flex: 1,
+            {/* Location */}
+            {event.location?.text ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                <Feather name="map-pin" size={12} color={themeColors.textSecondary} style={{ marginRight: 8 }} />
+                <ThemedText 
+                  numberOfLines={1}
+                  style={{ 
+                    fontSize: 12,
+                    color: themeColors.textSecondary,
+                    maxWidth: '90%'
                   }}
                 >
+                  {event.location.text.length > 25 
+                    ? `${event.location.text.substring(0, 25)}...` 
+                    : event.location.text}
+                </ThemedText>
+              </View>
+            ) : (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                <Feather name="map-pin" size={12} color={themeColors.textSecondary} style={{ marginRight: 8 }} />
+                <ThemedText 
+                  numberOfLines={1}
+                  style={{ 
+                    fontSize: 12,
+                    color: themeColors.textSecondary,
+                    maxWidth: '90%'
+                  }}
+                >
+                  Location TBD
+                </ThemedText>
+              </View>
+            )}
+
+            {/* Status Badge */}
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: "transparent",
+              borderColor: isRejected ? themeColors.border : themeColors.mountainGreen,
+              borderWidth: 1,
+              paddingHorizontal: 8,
+              paddingVertical: 2,
+              borderRadius: 4,
+              alignSelf: 'flex-start',
+            }}>
+              {isRejected ? (
+                <>
+                  <Feather name="x-circle" size={10} color={themeColors.text} style={{ marginRight: 4 }} />
                   <ThemedText style={{ 
-                    fontSize: 11, 
-                    fontWeight: '600',
-                    color: themeColors.textSecondary 
+                    fontSize: 10,
+                    color: themeColors.text,
+                    fontWeight: 'bold',
+                    textTransform: 'uppercase',
+                    textDecorationLine: 'line-through'
                   }}>
-                    Reconsider
+                    Declined
                   </ThemedText>
-                </View>
+                  <View style={{
+                    width: 1,
+                    height: '80%',
+                    backgroundColor: themeColors.text,
+                    marginHorizontal: 6,
+                  }} />
+                  <ThemedText style={{ 
+                    fontSize: 10,
+                    color: themeColors.text,
+                    fontWeight: 'bold',
+                  }}>
+                    {`${timeLeft.value} ${timeLeft.unit} LEFT`}
+                  </ThemedText>
+                </>
               ) : (
                 <>
-                  <TouchableOpacity
-                    onPress={() => handleResponse(event, 'accepted')}
-                    disabled={isLoading}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      backgroundColor: event.userStatus === 'accepted' ? themeColors.mountainGreen : 'rgba(255, 255, 255, 0.1)',
-                      borderRadius: 6,
-                      paddingHorizontal: 12,
-                      paddingVertical: 8,
-                      opacity: isLoading ? 0.6 : 1,
-                      flex: 1,
-                    }}
-                  >
-                    <Feather name="check" size={11} color="#FFFFFF" style={{ marginRight: 4 }} />
-                    <ThemedText style={{ fontSize: 11, fontWeight: '600', color: '#FFFFFF' }}>Accept</ThemedText>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    onPress={() => handleResponse(event, 'maybe')}
-                    disabled={isLoading}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      backgroundColor: event.userStatus === 'maybe' ? themeColors.mountainGreen : 'rgba(255, 255, 255, 0.1)',
-                      borderRadius: 6,
-                      paddingHorizontal: 12,
-                      paddingVertical: 8,
-                      opacity: isLoading ? 0.6 : 1,
-                      flex: 1,
-                    }}
-                  >
-                    <MaterialIcons name="question-mark" size={11} color="#FFFFFF" style={{ marginRight: 4 }} />
-                    <ThemedText style={{ fontSize: 11, fontWeight: '600', color: '#FFFFFF' }}>Maybe</ThemedText>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    onPress={() => handleResponse(event, 'rejected')}
-                    disabled={isLoading}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      backgroundColor: event.userStatus === 'rejected' ? themeColors.mountainGreen : 'rgba(255, 255, 255, 0.1)',
-                      borderRadius: 6,
-                      paddingHorizontal: 12,
-                      paddingVertical: 8,
-                      opacity: isLoading ? 0.6 : 1,
-                      flex: 1,
-                    }}
-                  >
-                    <Feather name="x" size={11} color="#FFFFFF" style={{ marginRight: 4 }} />
-                    <ThemedText style={{ fontSize: 11, fontWeight: '600', color: '#FFFFFF' }}>Decline</ThemedText>
-                  </TouchableOpacity>
+                  <Feather name="clock" size={10} color={themeColors.text} style={{ marginRight: 4 }} />
+                  <ThemedText style={{ 
+                    fontSize: 10,
+                    color: themeColors.text,
+                    fontWeight: 'bold',
+                    textTransform: 'uppercase',
+                  }}>
+                    Pending
+                  </ThemedText>
+                  <View style={{
+                    width: 1,
+                    height: '80%',
+                    backgroundColor: themeColors.text,
+                    marginHorizontal: 6,
+                  }} />
+                  <ThemedText style={{ 
+                    fontSize: 10,
+                    color: themeColors.text,
+                    fontWeight: 'bold',
+                  }}>
+                    {`${timeLeft.value} ${timeLeft.unit} LEFT`}
+                  </ThemedText>
                 </>
               )}
             </View>
           </View>
-        {/* </LinearGradient> */}
+
+          {/* Right Section */}
+          <View style={{ 
+            flex: 2,
+            padding: 16,
+            paddingBottom: 0,
+            alignItems: 'flex-end'
+          }}>
+            {/* Invited By Section */}
+            <View style={{ flexDirection: 'row', marginBottom: 12, alignItems: 'flex-end' }}>
+              <ThemedText style={{ 
+                fontSize: 10,
+                color: themeColors.text,
+                opacity: 0.9,
+                textAlign: 'right',
+                marginRight: 4,
+              }}>
+                Invited by
+              </ThemedText>
+              <ThemedText style={{ 
+                fontSize: 12,
+                fontWeight: '600',
+                color: themeColors.text,
+                textAlign: 'right',
+              }}>
+                {event.creator?.full_name || 'Unknown'}
+              </ThemedText>
+            </View>
+
+            {/* Event Image */}
+            <View style={{
+              width: 64,
+              aspectRatio: 1,
+              borderRadius: 8,
+              overflow: 'hidden',
+              position: 'relative'
+            }}>
+              <ImageBackground
+                source={eventImage}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                }}
+                imageStyle={{ 
+                  opacity: 0.8,
+                  resizeMode: 'cover'
+                }}
+              >
+                {/* Category with blur overlay */}
+                <BlurView
+                  intensity={50}
+                  tint={colorScheme === 'dark' ? 'dark' : 'light'}
+                  style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    paddingVertical: 4,
+                    backgroundColor: colorScheme === 'dark' ? 'rgba(50, 50, 50, 0.6)' : 'rgba(200, 200, 200, 0.6)',
+                  }}
+                >
+                  <ThemedText style={{ 
+                    fontSize: 8,
+                    color: themeColors.text,
+                    fontWeight: 'bold',
+                    textAlign: 'center',
+                    textTransform: 'capitalize',
+                  }}>
+                    {event.category?.toLowerCase() || 'Other'}
+                  </ThemedText>
+                </BlurView>
+              </ImageBackground>
+            </View>
+          </View>
+        </View>
+
+        {/* Bottom Content */}
+        <View style={{ 
+          paddingHorizontal: 16,
+          paddingVertical: 12,
+        }}>
+          {/* Action Buttons */}
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            {isRejected ? (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: themeColors.eventCardBackgroundColor,
+                  borderRadius: 6,
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  opacity: 0.8,
+                  flex: 1,
+                }}
+              >
+                <ThemedText style={{ 
+                  fontSize: 11, 
+                  fontWeight: '600',
+                  color: themeColors.textSecondary 
+                }}>
+                  Reconsider
+                </ThemedText>
+              </View>
+            ) : (
+              <>
+                <TouchableOpacity
+                  onPress={() => handleResponse(event, 'accepted')}
+                  disabled={isLoading}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: themeColors.eventCardBackgroundColor,
+                    borderRadius: 6,
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    opacity: isLoading ? 0.6 : 1,
+                    flex: 1,
+                  }}
+                >
+                  <Feather name="check" size={11} color={themeColors.text} style={{ marginRight: 4 }} />
+                  <ThemedText style={{ fontSize: 11, fontWeight: '600', color: themeColors.text }}>Accept</ThemedText>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => handleResponse(event, 'maybe')}
+                  disabled={isLoading}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: themeColors.eventCardBackgroundColor,
+                    borderRadius: 6,
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    opacity: isLoading ? 0.6 : 1,
+                    flex: 1,
+                  }}
+                >
+                  <MaterialIcons name="question-mark" size={11} color={themeColors.text} style={{ marginRight: 4 }} />
+                  <ThemedText style={{ fontSize: 11, fontWeight: '600', color: themeColors.text }}>Maybe</ThemedText>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => handleResponse(event, 'rejected')}
+                  disabled={isLoading}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: themeColors.eventCardBackgroundColor,
+                    borderRadius: 6,
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    opacity: isLoading ? 0.6 : 1,
+                    flex: 1,
+                  }}
+                >
+                  <Feather name="x" size={11} color={themeColors.text} style={{ marginRight: 4 }} />
+                  <ThemedText style={{ fontSize: 11, fontWeight: '600', color: themeColors.text }}>Decline</ThemedText>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
       </TouchableOpacity>
     );
   };
@@ -550,6 +541,10 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = ({
         </View>
       </ThemedView>
     );
+  }
+
+  if (loading || refreshing) {
+    return <AttentionRequiredSkeleton />;
   }
 
   return (

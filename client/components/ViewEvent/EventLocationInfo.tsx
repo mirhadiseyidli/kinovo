@@ -1,5 +1,5 @@
-import React from 'react';
-import { View } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, InteractionManager } from 'react-native';
 import { ThemedText } from '../ThemedText';
 import { EventLocationInfoProps } from '@/types/allTypes';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -12,6 +12,16 @@ import OpenMapsAndNavigateButton from '../OpenMapsAndNavigateButton';
 const EventLocationInfo: React.FC<EventLocationInfoProps> = React.memo(({ location }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
+  const [isMapReady, setIsMapReady] = useState(false);
+  
+  // Defer map loading until after interactions/animations are complete
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => {
+      setIsMapReady(true);
+    });
+    
+    return () => task.cancel();
+  }, []);
 
   return (
     <View style={{ flexDirection: 'column', gap: 16 }}>
@@ -21,7 +31,9 @@ const EventLocationInfo: React.FC<EventLocationInfoProps> = React.memo(({ locati
           <View style={{ flexDirection: 'column', gap: 4 }}>
             <ThemedText>{location?.text || 'Location TBD'}</ThemedText>
             <ThemedText style={{ color: themeColors.placeholderTextColor }}>
-              {location?.city}, {location?.state}
+              {(location?.city && location?.state)
+                ? `${location.city}, ${location.state}`
+                : (location?.city || location?.state || 'TBD')}
             </ThemedText>
           </View>
         </View>
@@ -29,8 +41,18 @@ const EventLocationInfo: React.FC<EventLocationInfoProps> = React.memo(({ locati
           <WeatherDisplay lat={location.coordinates.lat} lon={location.coordinates.lng} size={24} />
         </View> */}
       </View>
-      {location?.coordinates?.lat != null && location?.coordinates?.lng != null && (
-        <View style={{ flex: 1, width: '100%', height: 150, borderRadius: 8, overflow: 'hidden' }}>
+      {location?.coordinates?.lat != null && location?.coordinates?.lng != null && isMapReady && (
+        <View 
+          style={{ 
+            flex: 1, 
+            width: '100%', 
+            height: 150, 
+            borderRadius: 8, 
+            overflow: 'hidden',
+            position: 'relative',
+          }}
+          pointerEvents="none" // Disable all interactions with the map
+        >
           <MapViewModal
             coordinates={{
               latitude: location.coordinates.lat,
@@ -39,22 +61,20 @@ const EventLocationInfo: React.FC<EventLocationInfoProps> = React.memo(({ locati
             selectedLocation={location.text}
           />
           <View
-            pointerEvents="box-only"
             style={{
               position: 'absolute',
-              top: 0,
               bottom: 0,
-              left: 0,
               right: 0,
-              backgroundColor: 'transparent',
-              zIndex: 1,
+              zIndex: 10,
             }}
-          />
-          <OpenMapsAndNavigateButton 
-            selectedLocation={location.text}
-            latitude={location.coordinates.lat}
-            longitude={location.coordinates.lng}
-          />
+            pointerEvents="auto" // Enable interactions with the button
+          >
+            <OpenMapsAndNavigateButton 
+              selectedLocation={location.text}
+              latitude={location.coordinates.lat}
+              longitude={location.coordinates.lng}
+            />
+          </View>
         </View>
       )}
     </View>

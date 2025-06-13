@@ -5,7 +5,6 @@ const { RRule } = require('rrule');
 const { createEventCreationNotification } = require('./notificationsController');
 
 const createEvent = async (req, res) => {
-  console.log('createEvent', req.body);
   try {
     const {
       event_picture,
@@ -21,7 +20,19 @@ const createEvent = async (req, res) => {
       visibility
     } = req.body;
 
-    const attendeesWithStatus = (attendees || []).map(({ user }) => ({
+    // Ensure creator is included in attendees
+    let processedAttendees = [...attendees];
+    const creatorId = req.user._id.toString();
+    const creatorIncluded = processedAttendees.some(
+      att => att.user && att.user._id && att.user._id.toString() === creatorId
+    );
+
+    // If creator not included, add them
+    if (!creatorIncluded) {
+      processedAttendees.unshift({ user: { _id: creatorId } });
+    }
+
+    const attendeesWithStatus = (processedAttendees || []).map(({ user }) => ({
       user,
       status: user._id.toString() === req.user._id.toString() ? 'accepted' : 'pending'
     }));
@@ -95,15 +106,11 @@ const createEvent = async (req, res) => {
     // Send notifications to friends for public and private events
     if ((visibility === 'public' || visibility === 'private') && creator.friends.length > 0) {
       try {
-        console.log(`Creating event notifications for ${creator.friends.length} friends for event: ${event.title}`);
         const notifications = await createEventCreationNotification(event._id, req.user._id, creator.friends);
-        console.log(`Successfully created ${notifications.length} event notifications`);
       } catch (notificationError) {
         console.error('Error sending event creation notifications:', notificationError);
         // Don't fail the event creation if notifications fail
       }
-    } else {
-      console.log(`Not sending notifications - visibility: ${visibility}, friends count: ${creator.friends.length}`);
     }
 
     res.status(201).json({ success: true, event });
@@ -115,28 +122,42 @@ const createEvent = async (req, res) => {
 
 const getMyEvents = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).populate({
-      path: 'events.event',
-      match: { status: { $ne: 'cancelled' } },
-      populate: [
-        { path: 'creator', select: '_id full_name profile_picture' },
-        {
-          path: 'attendees.user',
-          model: 'Users',
-          select: '_id full_name profile_picture'
-        }
-      ]
-    });
+    const user = await User.findById(req.user._id)
+      .populate({
+        path: 'events.event',
+        match: { status: { $ne: 'cancelled' } },
+        populate: [
+          { path: 'creator', select: '_id full_name profile_picture' },
+          {
+            path: 'attendees.user',
+            model: 'Users',
+            select: '_id full_name profile_picture'
+          }
+        ]
+      })
+      .select('events reported_events not_interested_events');
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Include events with 'accepted' or 'maybe' status
+    // Get the list of reported event IDs
+    const reportedEventIds = (user.reported_events || []).map(event => 
+      event.toString()
+    );
+    
+    // Get the list of not interested event IDs
+    const notInterestedEventIds = (user.not_interested_events || []).map(item => 
+      item.event.toString()
+    );
+
+    // Include events with 'accepted' or 'maybe' status and filter out reported and not interested events
     const relevantEvents = (user.events || [])
       .filter(userEvent => 
         userEvent.event && 
-        (userEvent.status === 'accepted' || userEvent.status === 'maybe')
+        (userEvent.status === 'accepted' || userEvent.status === 'maybe') &&
+        !reportedEventIds.includes(userEvent.event._id.toString()) && // Filter out reported events
+        !notInterestedEventIds.includes(userEvent.event._id.toString()) // Filter out not interested events
       )
       .map(userEvent => ({
         ...userEvent.event.toObject(),
@@ -156,22 +177,38 @@ const getMyEvents = async (req, res) => {
 
 const getMyEventsCalendarMonthView = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).populate({
-      path: 'events.event',
-      match: { status: { $ne: 'cancelled' } },
-      select: 'title start_time recurrence status'
-    });
+    const user = await User.findById(req.user._id)
+      .populate({
+        path: 'events.event',
+        match: { status: { $ne: 'cancelled' } },
+        select: 'title start_time recurrence status'
+      })
+      .select('events reported_events not_interested_events');
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
+
+    // Get the list of reported event IDs
+    const reportedEventIds = (user.reported_events || []).map(event => 
+      event.toString()
+    );
+    
+    // Get the list of not interested event IDs
+    const notInterestedEventIds = (user.not_interested_events || []).map(item => 
+      item.event.toString()
+    );
 
     const now = new Date();
     const pastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1); 
     const nextMonthEnd = new Date(now.getFullYear(), now.getMonth() + 2, 0); 
 
     const allUserEvents = (user.events || [])
-      .filter(e => e.event) // Include all events regardless of status
+      .filter(e => 
+        e.event && 
+        !reportedEventIds.includes(e.event._id.toString()) && // Filter out reported events
+        !notInterestedEventIds.includes(e.event._id.toString()) // Filter out not interested events
+      )
       .map(e => ({
         ...e.event.toObject(),
         userStatus: e.status // Include the user's response status
@@ -216,25 +253,41 @@ const getMyEventsForDateRange = async (req, res) => {
       return res.status(400).json({ message: 'Invalid date format' });
     }
 
-    const user = await User.findById(req.user._id).populate({
-      path: 'events.event',
-      match: { status: { $ne: 'cancelled' } },
-      populate: [
-        { path: 'creator', select: '-password' },
-        {
-          path: 'attendees.user',
-          model: 'Users',
-          select: '-password'
-        }
-      ]
-    });
+    const user = await User.findById(req.user._id)
+      .populate({
+        path: 'events.event',
+        match: { status: { $ne: 'cancelled' } },
+        populate: [
+          { path: 'creator', select: '-password' },
+          {
+            path: 'attendees.user',
+            model: 'Users',
+            select: '-password'
+          }
+        ]
+      })
+      .select('events reported_events not_interested_events');
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    // Get the list of reported event IDs
+    const reportedEventIds = (user.reported_events || []).map(event => 
+      event.toString()
+    );
+    
+    // Get the list of not interested event IDs
+    const notInterestedEventIds = (user.not_interested_events || []).map(item => 
+      item.event.toString()
+    );
+
     const allUserEvents = (user.events || [])
-      .filter(e => e.event) // Include all events regardless of status
+      .filter(e => 
+        e.event && 
+        !reportedEventIds.includes(e.event._id.toString()) && // Filter out reported events
+        !notInterestedEventIds.includes(e.event._id.toString()) // Filter out not interested events
+      )
       .map(e => ({
         ...e.event.toObject(),
         userStatus: e.status // Include the user's response status
@@ -326,158 +379,36 @@ const getMyEventsForDateRange = async (req, res) => {
   }
 };
 
-// const getMyEventsCalendarMonthView = async (req, res) => {
-//   try {
-//     // Fetch the user and populate only the needed event fields.
-//     const user = await User.findById(req.user._id).populate({
-//       path: 'events.event',
-//       select: 'title start_time recurrence'
-//     });
-
-//     if (!user) {
-//       return res.status(404).json({ message: 'User not found' });
-//     }
-
-//     // Determine the center month dynamically using query parameters if provided.
-//     let centerDate = new Date();
-//     console.log(req.query)
-//     if (req.query.year && req.query.month) {
-//       const year = Number(req.query.year);
-//       const month = Number(req.query.month);
-//       console.log('year', year);
-//       console.log('month', month);
-//       centerDate = new Date(year, month, 1);
-//       console.log(new Date(year, month, 1))
-//     }
-
-//     // Define the date range for the view: from the start of the month before the center month to the end of the month after.
-//     const pastMonthStart = new Date(centerDate.getFullYear(), centerDate.getMonth() - 1, 1);
-//     const nextMonthEnd = new Date(centerDate.getFullYear(), centerDate.getMonth() + 2, 0);
-
-//     console.log(pastMonthStart, centerDate, nextMonthEnd)
-
-//     // Get all events linked to the user.
-//     const allUserEvents = (user.events || [])
-//       .filter(e => e.event)
-//       .map(e => e.event);
-
-//     console.log(allUserEvents)
-
-//     let finalEvents = [];
-//     // Track unique event occurrences to avoid duplicates.
-//     const occurrenceSet = new Set();
-
-//     for (const event of allUserEvents) {
-//       const eventDate = new Date(event.start_time);
-//       const recurrence = event.recurrence || {};
-//       const isRecurring = recurrence.checked &&
-//                           recurrence.frequency &&
-//                           recurrence.frequency.toLowerCase() !== 'none';
-
-//       if (!isRecurring) {
-//         // For non-recurring events, include them if they fall within the defined date range.
-//         if (eventDate >= pastMonthStart && eventDate <= nextMonthEnd) {
-//           const normalizedEventDate = new Date(eventDate);
-//           normalizedEventDate.setMilliseconds(0);
-//           const key = `${event._id}-${normalizedEventDate.toISOString()}`;
-//           if (!occurrenceSet.has(key)) {
-//             finalEvents.push({
-//               ...event.toObject(),
-//               occurrence: normalizedEventDate
-//             });
-//             occurrenceSet.add(key);
-//           }
-//         }
-//       } else {
-//         // For recurring events, use RRule to compute each occurrence date in the range.
-//         const freqMapping = {
-//           daily: RRule.DAILY,
-//           weekly: RRule.WEEKLY,
-//           monthly: RRule.MONTHLY,
-//           yearly: RRule.YEARLY
-//         };
-      
-//         // Set rule options: if recurrence.end_date is provided, use it; otherwise, generate up to nextMonthEnd.
-//         const ruleOptions = {
-//           freq: freqMapping[recurrence.frequency.toLowerCase()],
-//           dtstart: eventDate,
-//           until: recurrence.end_date ? new Date(recurrence.end_date) : nextMonthEnd
-//         };
-      
-//         const rule = new RRule(ruleOptions);
-      
-//         // Instead of using rule.between, compute the first occurrence after pastMonthStart,
-//         // then continue iterating until nextMonthEnd.
-//         let occurrenceDate = rule.after(pastMonthStart, true);
-//         const occurrenceDates = [];
-//         while (occurrenceDate && occurrenceDate <= nextMonthEnd) {
-//           occurrenceDates.push(occurrenceDate);
-//           occurrenceDate = rule.after(occurrenceDate);
-//         }
-      
-//         for (const occDate of occurrenceDates) {
-//           const normalizedOccDate = new Date(occDate);
-//           normalizedOccDate.setMilliseconds(0);
-//           const key = `${event._id}-${normalizedOccDate.toISOString()}`;
-//           if (!occurrenceSet.has(key)) {
-//             finalEvents.push({
-//               ...event.toObject(),
-//               occurrence: normalizedOccDate
-//             });
-//             occurrenceSet.add(key);
-//           }
-//         }
-//       }
-//     }
-
-//     // Sort the final list of events by the occurrence date.
-//     finalEvents.sort((a, b) => new Date(a.occurrence) - new Date(b.occurrence));
-
-//     console.log(finalEvents)
-
-//     return res.status(200).json({ events: finalEvents });
-//   } catch (error) {
-//     console.error('Error in getMyEventsCalendarMonthViewRRule:', error);
-//     return res.status(500).json({ message: 'Server error' });
-//   }
-// };
-
-
-// const movePastEventsForUser = async (userId) => {
-//   const now = new Date();
-
-//   const user = await User.findById(userId).populate('events');
-//   if (!user) return;
-
-//   // Separate upcoming and past events
-//   const pastEvents = user.events.filter(event => event.start_time && new Date(event.start_time) < now);
-//   const upcomingEvents = user.events.filter(event => event.start_time && new Date(event.start_time) >= now);
-
-//   // Update user document
-//   await User.findByIdAndUpdate(userId, {
-//     $set: { events: upcomingEvents.map(e => e._id) },
-//     $addToSet: { past_events: { $each: pastEvents.map(e => e._id) } }
-//   });
-// };
-
 const getMyUpcomingEvents = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).populate({
-      path: 'events.event',
-      match: { status: { $ne: 'cancelled' } },
-      populate: [
-        { path: 'creator', select: '-password' },
-        {
-          path: 'attendees.user',
-          model: 'Users',
-          select: '-password'
-        }
-      ]
-    });
+    const user = await User.findById(req.user._id)
+      .populate({
+        path: 'events.event',
+        match: { status: { $ne: 'cancelled' } },
+        populate: [
+          { path: 'creator', select: '-password' },
+          {
+            path: 'attendees.user',
+            model: 'Users',
+            select: '-password'
+          }
+        ]
+      })
+      .select('events reported_events not_interested_events');
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
+    
+    // Get the list of reported event IDs
+    const reportedEventIds = (user.reported_events || []).map(event => 
+      event.toString()
+    );
+    
+    // Get the list of not interested event IDs
+    const notInterestedEventIds = (user.not_interested_events || []).map(item => 
+      item.event.toString()
+    );
 
     const now = new Date();
     const futureLimit = new Date(now.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year from now
@@ -489,7 +420,9 @@ const getMyUpcomingEvents = async (req, res) => {
       // Include events with 'accepted' or 'maybe' status
       const isIncluded = userEvent.status === 'accepted' || userEvent.status === 'maybe';
       const hasEvent = !!userEvent.event;
-      if (!isIncluded || !hasEvent) continue;
+      const isReported = hasEvent && reportedEventIds.includes(userEvent.event._id.toString());
+      const isNotInterested = hasEvent && notInterestedEventIds.includes(userEvent.event._id.toString());
+      if (!isIncluded || !hasEvent || isReported || isNotInterested) continue;
 
       const event = userEvent.event;
       const eventStartTime = new Date(event.start_time);
@@ -580,22 +513,34 @@ const getMyUpcomingEvents = async (req, res) => {
 
 const getMyPastEvents = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).populate({
-      path: 'events.event',
-      match: { status: { $ne: 'cancelled' } },
-      populate: [
-        { path: 'creator', select: '-password' },
-        {
-          path: 'attendees.user',
-          model: 'Users',
-          select: '-password'
-        }
-      ]
-    });
+    const user = await User.findById(req.user._id)
+      .populate({
+        path: 'events.event',
+        match: { status: { $ne: 'cancelled' } },
+        populate: [
+          { path: 'creator', select: '-password' },
+          {
+            path: 'attendees.user',
+            model: 'Users',
+            select: '-password'
+          }
+        ]
+      })
+      .select('events reported_events not_interested_events');
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
+
+    // Get the list of reported event IDs
+    const reportedEventIds = (user.reported_events || []).map(event => 
+      event.toString()
+    );
+    
+    // Get the list of not interested event IDs
+    const notInterestedEventIds = (user.not_interested_events || []).map(item => 
+      item.event.toString()
+    );
 
     const now = new Date();
 
@@ -603,8 +548,10 @@ const getMyPastEvents = async (req, res) => {
       const isAccepted = e.status === 'accepted';
       const hasEvent = !!e.event;
       const isPast = hasEvent && new Date(e.event.end_time) < now;
+      const isReported = hasEvent && reportedEventIds.includes(e.event._id.toString());
+      const isNotInterested = hasEvent && notInterestedEventIds.includes(e.event._id.toString());
 
-      return isAccepted && isPast;
+      return isAccepted && isPast && !isReported && !isNotInterested;
     }).map(e => e.event); // return the populated event
 
     if (!pastEvents || pastEvents.length === 0) {
@@ -613,41 +560,76 @@ const getMyPastEvents = async (req, res) => {
 
     res.status(200).json({ past_events: pastEvents });
   } catch (error) {
-    console.error('Error in getMyEvents:', error);
+    console.error('Error in getMyPastEvents:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
 
-// const cleanUpUserEvents = async () => {
-//   const users = await User.find({}).select('events past_events');
-
-//   for (const user of users) {
-//     const uniqueEvents = [...new Set((user.events || []).map(e => String(e)))];
-//     const uniquePastEvents = [...new Set((user.past_events || []).map(e => String(e)))];
-
-//     await User.findByIdAndUpdate(user._id, {
-//       $set: {
-//         events: uniqueEvents,
-//         past_events: uniquePastEvents
-//       }
-//     });
-//   }
-
-//   console.log('Duplicates cleaned up in all user event lists');
-// };
-
 const getUserEvents = async (req, res) => {
   try {
-    const userId = req.params._id;
-    const found_events = await User.findOne({ _id: userId }).populate({ path: 'events' });
-
-  } catch (error) {
-      res.status(500).json({ message: 'Server error' });
+    const userId = req.query._id;
+    if (!userId) {
+      return res.status(400).json({ message: 'User ID is required' });
     }
+
+    // Get the current user's reported events and not interested events
+    const currentUser = await User.findById(req.user._id).select('reported_events not_interested_events');
+    const reportedEventIds = (currentUser?.reported_events || []).map(event => 
+      event.toString()
+    );
+    const notInterestedEventIds = (currentUser?.not_interested_events || []).map(item => 
+      item.event.toString()
+    );
+
+    const user = await User.findById(userId).populate({
+      path: 'events.event',
+      match: { status: { $ne: 'cancelled' } },
+      populate: [
+        { path: 'creator', select: '_id full_name profile_picture' },
+        {
+          path: 'attendees.user',
+          model: 'Users',
+          select: '_id full_name profile_picture'
+        }
+      ]
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Include events with 'accepted' or 'maybe' status
+    const relevantEvents = (user.events || [])
+      .filter(userEvent => 
+        userEvent.event && 
+        (userEvent.status === 'accepted' || userEvent.status === 'maybe') &&
+        !reportedEventIds.includes(userEvent.event._id.toString()) && // Filter out events the current user reported
+        !notInterestedEventIds.includes(userEvent.event._id.toString()) // Filter out not interested events
+      )
+      .map(userEvent => ({
+        ...userEvent.event.toObject(),
+        userStatus: userEvent.status // Include user's response status
+      }));
+
+    return res.status(200).json({ events: relevantEvents });
+  } catch (error) {
+    console.error('Error in getUserEvents:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
 };
 
 const getEventById = async (req, res) => {
   try {
+    // First check if the event is in the user's reported events or not interested events
+    const user = await User.findById(req.user._id).select('reported_events not_interested_events');
+    const reportedEventIds = (user?.reported_events || []).map(event => event.toString());
+    const notInterestedEventIds = (user?.not_interested_events || []).map(item => item.event.toString());
+    
+    // If the requested event is in reported events or not interested events, don't return it
+    if (reportedEventIds.includes(req.query._id) || notInterestedEventIds.includes(req.query._id)) {
+      return res.status(404).json({ message: 'No event with that id was found'});
+    }
+    
     const found_event = await Events.findById(req.query._id).populate([
       {
         path: 'attendees.user',
@@ -660,7 +642,7 @@ const getEventById = async (req, res) => {
     ]);
 
     if (!found_event) {
-      res.status(404).json({ message: 'No event with that id was found'});
+      return res.status(404).json({ message: 'No event with that id was found'});
     };
 
     res.status(201).json({ found_event: found_event });
@@ -668,39 +650,6 @@ const getEventById = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 }
-
-
-// const cleanUpUserEvents = async () => {
-//   const VALID_STATUSES = ['pending', 'maybe', 'accepted', 'rejected'];
-//   const users = await User.find({}).select('_id events');
-
-//   for (const user of users) {
-//     const cleanedEvents = (user.events || []).filter(e => {
-//       return (
-//         e.event &&
-//         typeof e.event === 'object' && // not just _id with buffer
-//         VALID_STATUSES.includes(e.status)
-//       );
-//     });
-
-//     await User.findByIdAndUpdate(user._id, {
-//       $set: { events: cleanedEvents }
-//     });
-//   }
-
-//   console.log('✅ Cleaned up malformed event references.');
-// };
-
-// const deleteAllEvents = async () => {
-//   try {
-//     // Delete all events in the collection
-//     const deletionResult = await Events.deleteMany({});
-//     await User.updateMany({}, { $set: { events: [] } });
-//     console.log(`✅ Successfully deleted ${deletionResult.deletedCount} events.`);
-//   } catch (error) {
-//     console.error('Error deleting all events:', error);
-//   }
-// };
 
 const getNearbyEvents = async (req, res) => {
   try {
@@ -713,9 +662,11 @@ const getNearbyEvents = async (req, res) => {
       return res.status(400).json({ message: 'Invalid coordinates' });
     }
 
-    // Fetch user's friends
-    const user = await User.findById(req.user._id).select('friends');
+    // Fetch user's friends, reported events, and not interested events
+    const user = await User.findById(req.user._id).select('friends reported_events not_interested_events');
     const friends = user.friends || [];
+    const reportedEventIds = (user.reported_events || []).map(event => event.toString());
+    const notInterestedEventIds = (user.not_interested_events || []).map(item => item.event.toString());
 
     // Get current date and time
     const now = new Date();
@@ -725,6 +676,8 @@ const getNearbyEvents = async (req, res) => {
     const events = await Events.find({
       $and: [
         { status: { $ne: 'cancelled' } },
+        { _id: { $nin: reportedEventIds } }, // Exclude reported events
+        { _id: { $nin: notInterestedEventIds } }, // Exclude not interested events
         {
           $or: [
             { visibility: 'public' },
@@ -756,7 +709,8 @@ const getNearbyEvents = async (req, res) => {
           ]
         }
       ]
-    });
+    })
+    .populate('creator', 'first_name last_name username full_name profile_picture'); // Populate creator with user details
 
     // Process events to get upcoming occurrences
     const processedEvents = [];
@@ -867,21 +821,7 @@ const getNearbyEvents = async (req, res) => {
   }
 };
 
-// const getEventCategories = async (req, res) => {
-//   try {
-//     const categories = await Events.distinct('category', {
-//       category: { $ne: null }
-//     });
-
-//     res.status(200).json({ categories });
-//   } catch (error) {
-//     console.error('Error fetching event categories:', error);
-//     res.status(500).json({ message: 'Server error' });
-//   }
-// };
-
 const respondToEventInvitation = async (req, res) => {
-
   try {
     const { eventId, status, occurrenceDate, modifyType } = req.body;
     
@@ -1109,7 +1049,7 @@ const deleteRecurringEvents = async (req, res) => {
 
     const recurringEventIds = recurringEvents.map(event => event._id);
     
-    console.log(`Found ${recurringEvents.length} recurring events to delete`);
+
 
     // Delete all recurring events from the Events collection
     const deletionResult = await Events.deleteMany({
@@ -1123,8 +1063,7 @@ const deleteRecurringEvents = async (req, res) => {
       { $pull: { events: { event: { $in: recurringEventIds } } } }
     );
 
-    console.log(`✅ Successfully deleted ${deletionResult.deletedCount} recurring events`);
-    console.log(`✅ Updated ${userUpdateResult.modifiedCount} users' event lists`);
+
 
     res.status(200).json({ 
       success: true,
@@ -1139,7 +1078,7 @@ const deleteRecurringEvents = async (req, res) => {
 };
 
 const inviteEventAttendees = async (req, res) => {
-  console.log('her')
+  
   try {
     const { eventId } = req.params;
     const { invitees, inviteToAllOccurrences } = req.body;
@@ -1217,16 +1156,15 @@ const inviteEventAttendees = async (req, res) => {
 };
 
 const getEventsByCategory = async (req, res) => {
-  try {
-    const { category } = req.params;
-    console.log('Fetching events for category:', category);
-    console.log('User ID:', req.user._id);
+  const { category } = req.params;
 
-    // Get user's friends
-    const user = await User.findById(req.user._id).select('friends');
+  try {
+    // Get user friends, reported events, and not interested events
+    const user = await User.findById(req.user._id).select('friends reported_events not_interested_events');
     const friends = user.friends || [];
+    const reportedEventIds = (user.reported_events || []).map(event => event.toString());
+    const notInterestedEventIds = (user.not_interested_events || []).map(item => item.event.toString());
     
-    console.log('User friends:', friends);
 
     // Get current date and time
     const now = new Date();
@@ -1239,6 +1177,7 @@ const getEventsByCategory = async (req, res) => {
     const events = await Events.find({
       category,
       status: { $ne: 'cancelled' },
+      _id: { $nin: [...reportedEventIds, ...notInterestedEventIds] }, // Exclude reported and not interested events
       $and: [
         {
           $or: [
@@ -1377,16 +1316,15 @@ const getEventsByCategory = async (req, res) => {
 };
 
 const getEventsByCity = async (req, res) => {
-  try {
-    const { city } = req.params;
-    console.log('Fetching events for city:', city);
-    console.log('User ID:', req.user._id);
+  const { city } = req.params;
 
-    // Get user's friends
-    const user = await User.findById(req.user._id).select('friends');
+  try {
+    // Get user friends, reported events, and not interested events
+    const user = await User.findById(req.user._id).select('friends reported_events not_interested_events');
     const friends = user.friends || [];
-    
-    console.log('User friends:', friends);
+    const reportedEventIds = (user.reported_events || []).map(event => event.toString());
+    const notInterestedEventIds = (user.not_interested_events || []).map(item => item.event.toString());
+  
 
     // Get current date and time
     const now = new Date();
@@ -1399,6 +1337,7 @@ const getEventsByCity = async (req, res) => {
     const events = await Events.find({
       'location.city': { $regex: new RegExp('^' + city + '$', 'i') }, // Case-insensitive exact match
       status: { $ne: 'cancelled' },
+      _id: { $nin: [...reportedEventIds, ...notInterestedEventIds] }, // Exclude reported and not interested events
       $and: [
         {
           $or: [
@@ -1529,31 +1468,43 @@ const getEventsByCity = async (req, res) => {
       };
     });
 
-    res.json(eventsWithUserStatus);
+    return res.status(200).json(eventsWithUserStatus);
   } catch (error) {
-    console.error('Error in getEventsByCity:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error fetching events by city:', error);
+    return res.status(500).json({ message: 'Server error' });
   }
 };
 
 const getAttentionRequiredEvents = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).populate({
-      path: 'events.event',
-      match: { status: { $ne: 'cancelled' } },
-      populate: [
-        { path: 'creator', select: '_id full_name profile_picture' },
-        {
-          path: 'attendees.user',
-          model: 'Users',
-          select: '_id full_name profile_picture'
-        }
-      ]
-    });
+    const user = await User.findById(req.user._id)
+      .populate({
+        path: 'events.event',
+        match: { status: { $ne: 'cancelled' } },
+        populate: [
+          { path: 'creator', select: '_id full_name profile_picture' },
+          {
+            path: 'attendees.user',
+            model: 'Users',
+            select: '_id full_name profile_picture'
+          }
+        ]
+      })
+      .select('events reported_events not_interested_events');
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
+    
+    // Get the list of reported event IDs
+    const reportedEventIds = (user.reported_events || []).map(event => 
+      event.toString()
+    );
+    
+    // Get the list of not interested event IDs
+    const notInterestedEventIds = (user.not_interested_events || []).map(item => 
+      item.event.toString()
+    );
 
     const now = new Date();
 
@@ -1562,6 +1513,12 @@ const getAttentionRequiredEvents = async (req, res) => {
       .filter(userEvent => {
         // Make sure the event exists and hasn't been cancelled
         if (!userEvent.event || userEvent.event.status === 'cancelled') {
+          return false;
+        }
+        
+        // Filter out reported events and not interested events
+        if (reportedEventIds.includes(userEvent.event._id.toString()) || 
+            notInterestedEventIds.includes(userEvent.event._id.toString())) {
           return false;
         }
 
@@ -1641,9 +1598,9 @@ const getAttentionRequiredEvents = async (req, res) => {
 
 const getRecommendedEvents = async (req, res) => {
   try {
-    // Get user's preferences and friends
+    // Get user's preferences, friends, and exclusion lists
     const user = await User.findById(req.user._id)
-      .select('favorite_activities location friends')
+      .select('favorite_activities location friends reported_events not_interested_events')
       .populate('friends', '_id');
 
     if (!user) {
@@ -1656,6 +1613,8 @@ const getRecommendedEvents = async (req, res) => {
     const friendIds = friends.map(friend => friend._id);
     const userActivities = user.favorite_activities || [];
     const userLocation = user.location?.coordinates || null;
+    const reportedEventIds = (user.reported_events || []).map(event => event.toString());
+    const notInterestedEventIds = (user.not_interested_events || []).map(item => item.event.toString());
 
     // Base query for upcoming events that are either public or private from friends
     const baseQuery = {
@@ -1671,6 +1630,14 @@ const getRecommendedEvents = async (req, res) => {
         // Exclude events user is already attending
         {
           'attendees.user': { $ne: req.user._id }
+        },
+        // Exclude reported events
+        {
+          _id: { $nin: reportedEventIds }
+        },
+        // Exclude not interested events
+        {
+          _id: { $nin: notInterestedEventIds }
         }
       ]
     };
@@ -1738,17 +1705,385 @@ const getRecommendedEvents = async (req, res) => {
 const calculateDistance = (lat1, lon1, lat2, lon2) => {
   const R = 3963; // Earth's radius in miles
   const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
+  const dLng = toRad(lon2 - lon1);
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 };
 
 const toRad = (value) => {
   return (value * Math.PI) / 180;
+};
+
+/**
+ * Generates recurring event dates based on frequency
+ * @param {Date} startDate - The start date of the event
+ * @param {Date} endDate - The end date of the recurrence
+ * @param {string} frequency - The frequency type (daily, weekly, monthly)
+ * @returns {Date[]} - Array of occurrence dates
+ */
+const generateRecurringEventDates = (startDate, endDate, frequency) => {
+  const now = new Date();
+  let freq;
+  
+  // Convert frequency string to RRule frequency constant
+  switch (frequency.toLowerCase()) {
+    case 'daily':
+      freq = RRule.DAILY;
+      break;
+    case 'weekly':
+      freq = RRule.WEEKLY;
+      break;
+    case 'monthly':
+      freq = RRule.MONTHLY;
+      break;
+    default:
+      freq = RRule.WEEKLY; // Default to weekly if unknown
+  }
+  
+  // Create RRule for recurring events
+  const rule = new RRule({
+    freq: freq,
+    dtstart: startDate,
+    until: endDate
+  });
+  
+  // Get all occurrence dates
+  let occurrences = rule.all();
+  
+  // Filter out past occurrences (except today)
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  
+  occurrences = occurrences.filter(date => date >= todayStart);
+  
+  // Limit to next 10 occurrences to avoid too many instances
+  return occurrences;
+};
+
+const getFriendsEvents = async (req, res) => {
+  try {
+    // Get user's friends, reported events, and not interested events
+    const user = await User.findById(req.user._id).select('friends reported_events not_interested_events');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Get the list of reported event IDs
+    const reportedEventIds = (user.reported_events || []).map(event => 
+      event.toString()
+    );
+    
+    // Get the list of not interested event IDs
+    const notInterestedEventIds = (user.not_interested_events || []).map(item => 
+      item.event.toString()
+    );
+    
+    const friends = user.friends || [];
+    
+    // Get current date and time
+    const now = new Date();
+    
+    // Find events that are:
+    // 1. Public events created by friends
+    // 2. Private events created by friends if the user is invited
+    // 3. Selected events if the user is invited
+    const events = await Events.find({
+      status: { $ne: 'cancelled' },
+      end_time: { $gte: now },
+      _id: { $nin: [...reportedEventIds, ...notInterestedEventIds] }, // Exclude reported and not interested events
+      $and: [
+        {
+          $or: [
+            // Public events created by friends
+            { 
+              visibility: 'public',
+              creator: { $in: friends }
+            },
+            // Private events created by friends if user is invited
+            { 
+              visibility: 'private',
+              creator: { $in: friends },
+            },
+            // Selected events if user is invited
+            {
+              visibility: 'selected',
+              creator: { $in: friends },
+              'attendees.user': req.user._id
+            }
+          ]
+        }
+      ]
+    })
+    .populate('creator', 'first_name last_name username full_name profile_picture')
+    .populate('attendees.user', 'first_name last_name username full_name profile_picture')
+    .sort({ start_time: 1 });
+
+    const processedEvents = [];
+
+    // Process each event to handle recurring events
+    for (const event of events) {
+      if (event.recurrence?.checked && event.recurrence.frequency && event.recurrence.frequency !== 'none') {
+        // Handle recurring events - generate occurrences
+        const eventStartTime = new Date(event.start_time);
+        const eventEndTime = new Date(event.end_time);
+        
+        // Calculate recurrence end date (1 year from now if not specified)
+        const recurrenceEndDate = event.recurrence.end_date 
+          ? new Date(event.recurrence.end_date) 
+          : new Date(now.getTime() + (365 * 24 * 60 * 60 * 1000));
+        
+        // Generate upcoming occurrences based on recurrence pattern
+        const upcomingOccurrences = generateRecurringEventDates(
+          eventStartTime,
+          recurrenceEndDate,
+          event.recurrence.frequency
+        );
+        
+        // Create event objects for each upcoming occurrence
+        for (const occurrenceDate of upcomingOccurrences) {
+          // Skip if this date is excluded
+          const isExcluded = event.excludedDates && event.excludedDates.some(excludedDate => 
+            new Date(excludedDate).toDateString() === occurrenceDate.toDateString()
+          );
+
+          if (!isExcluded) {
+            // Calculate the duration of the original event
+            const eventDuration = eventEndTime.getTime() - eventStartTime.getTime();
+            const occurrenceEndTime = new Date(occurrenceDate.getTime() + eventDuration);
+
+            processedEvents.push({
+              ...event.toObject(),
+              start_time: occurrenceDate,
+              end_time: occurrenceEndTime,
+              _id: `${event._id}-${occurrenceDate.toISOString()}`,
+              originalEventId: event._id,
+              isRecurringOccurrence: true
+            });
+          }
+        }
+      } else {
+        // For non-recurring events, just add them to the list
+        processedEvents.push(event.toObject());
+      }
+    }
+
+    // Sort events by start time
+    processedEvents.sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+
+    // Add user-specific fields to each event
+    const eventsWithUserStatus = processedEvents.map(event => {
+      const userAttendee = event.attendees?.find(att => 
+        att.user._id.toString() === req.user._id.toString()
+      );
+      const isCreator = event.creator._id.toString() === req.user._id.toString();
+      const isFriendEvent = friends.some(friendId => 
+        friendId.toString() === event.creator._id.toString()
+      );
+
+      return {
+        ...event,
+        isUserAttending: !!userAttendee,
+        isUserInvited: !!userAttendee,
+        isUserCreator: isCreator,
+        isFriendEvent: isFriendEvent,
+        userStatus: userAttendee?.status || null
+      };
+    });
+
+    res.json(eventsWithUserStatus);
+  } catch (error) {
+    console.error('Error in getFriendsEvents:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const joinEvent = async (req, res) => {
+  try {
+    const { eventId, status } = req.body;
+    
+    if (!eventId || !status) {
+      return res.status(400).json({ message: 'Event ID and status are required' });
+    }
+
+    if (!['accepted', 'maybe'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status. Must be accepted or maybe' });
+    }
+
+    // Find the event
+    const event = await Events.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    // Check if user is already in the attendees list
+    const attendeeIndex = event.attendees.findIndex(
+      attendee => attendee.user.toString() === req.user._id.toString()
+    );
+
+    if (attendeeIndex !== -1) {
+      // User is already in the attendees list, just update their status
+      event.attendees[attendeeIndex].status = status;
+    } else {
+      // User is not in the attendees list, add them
+      event.attendees.push({
+        user: req.user._id,
+        status
+      });
+    }
+
+    await event.save();
+
+    // Update user's events list
+    const user = await User.findById(req.user._id);
+    const userEventIndex = user.events.findIndex(
+      userEvent => userEvent.event.toString() === eventId
+    );
+
+    if (userEventIndex !== -1) {
+      user.events[userEventIndex].status = status;
+    } else {
+      user.events.push({ event: eventId, status });
+    }
+
+    await user.save();
+
+    return res.status(200).json({ 
+      success: true, 
+      message: `Successfully ${status === 'accepted' ? 'joined' : 'marked as maybe for'} the event`,
+      status 
+    });
+  } catch (error) {
+    console.error('Error in joinEvent:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const markEventNotInterested = async (req, res) => {
+  try {
+    const { eventId } = req.body;
+    
+    if (!eventId) {
+      return res.status(400).json({ message: 'Event ID is required' });
+    }
+
+    // Find the event
+    const event = await Events.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    // Add the event to the user's not interested events list
+    const user = await User.findById(req.user._id);
+    
+    // Check if the event is already in the not interested list
+    const alreadyNotInterested = user.not_interested_events.some(
+      item => item.event.toString() === eventId
+    );
+
+    if (!alreadyNotInterested) {
+      user.not_interested_events.push({
+        event: eventId,
+        added_at: new Date()
+      });
+      await user.save();
+    }
+
+    // If the user is in the attendees list, remove them
+    const attendeeIndex = event.attendees.findIndex(
+      attendee => attendee.user.toString() === req.user._id.toString()
+    );
+
+    if (attendeeIndex !== -1) {
+      event.attendees.splice(attendeeIndex, 1);
+      await event.save();
+    }
+
+    // Remove the event from the user's events list if it exists
+    const userEventIndex = user.events.findIndex(
+      userEvent => userEvent.event.toString() === eventId
+    );
+
+    if (userEventIndex !== -1) {
+      user.events.splice(userEventIndex, 1);
+      await user.save();
+    }
+
+    return res.status(200).json({ 
+      success: true, 
+      message: 'Successfully marked event as not interested'
+    });
+  } catch (error) {
+    console.error('Error in markEventNotInterested:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const reportEvent = async (req, res) => {
+  try {
+    const { eventId, reason, details } = req.body;
+    
+    if (!eventId) {
+      return res.status(400).json({ message: 'Event ID is required' });
+    }
+
+    // Find the event
+    const event = await Events.findById(eventId).populate('creator');
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    // Validate that the user isn't reporting their own event
+    if (event.creator._id.toString() === req.user._id.toString()) {
+      return res.status(400).json({ message: 'You cannot report your own event' });
+    }
+
+    // Check if user has already reported this event
+    const reporter = await User.findById(req.user._id);
+    const existingReport = reporter.event_reports.find(
+      report => report.event.toString() === eventId
+    );
+
+    if (existingReport) {
+      return res.status(400).json({ message: 'You have already reported this event' });
+    }
+
+    // Add report to reporter's event_reports list
+    reporter.event_reports.push({
+      event: eventId,
+      event_creator: event.creator._id,
+      reason: reason || 'other',
+      details: details || null,
+      created_at: new Date(),
+      status: 'pending'
+    });
+
+    await reporter.save();
+
+    // Add report to event creator's event_reports_against_me list
+    const eventCreator = await User.findById(event.creator._id);
+    eventCreator.event_reports_against_me.push({
+      event: eventId,
+      reason: reason || 'other',
+      details: details || null,
+      created_at: new Date(),
+      status: 'pending',
+      reporter: req.user._id
+    });
+
+    await eventCreator.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Event reported successfully'
+    });
+  } catch (error) {
+    console.error('Error in reportEvent:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
 };
 
 module.exports = { 
@@ -1768,5 +2103,9 @@ module.exports = {
   getEventsByCategory,
   getEventsByCity,
   getAttentionRequiredEvents,
-  getRecommendedEvents
+  getRecommendedEvents,
+  getFriendsEvents,
+  joinEvent,
+  markEventNotInterested,
+  reportEvent
 };

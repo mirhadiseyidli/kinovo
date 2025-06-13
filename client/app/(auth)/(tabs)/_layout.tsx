@@ -36,7 +36,7 @@ const TabsLayout = React.memo(() => {
     ios: {
       position: 'absolute' as const,
       backgroundColor: Colors[colorScheme ?? 'dark'].background,
-      borderTopWidth: 1,
+      borderTopWidth: 0,
       borderTopColor: Colors[colorScheme ?? 'dark'].border,
       shadowOpacity: 0.1,
       elevation: 3,

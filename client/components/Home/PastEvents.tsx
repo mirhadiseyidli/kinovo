@@ -13,6 +13,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import EventFilters, { FilterType, DateFilter } from './EventFilters';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { PastEventsSkeleton } from '../Skeleton';
 
 const THIS_MONTH = 'This Month';
 const LAST_MONTH = 'Last Month';
@@ -148,6 +149,10 @@ const PastEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }>
         return 'Filter Events';
     }
   };
+
+  if (loading || refreshing) {
+    return <PastEventsSkeleton />;
+  }
 
   return (
     <ThemedView style={{ flex: 1, width: '100%' }}>

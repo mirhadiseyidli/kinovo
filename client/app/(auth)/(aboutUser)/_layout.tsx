@@ -1,60 +1,33 @@
-import React, { useState, useEffect } from 'react';
+import React, { forwardRef, useImperativeHandle, useState } from 'react';
+import { View, useWindowDimensions, Text } from 'react-native';
+import { TabView, SceneMap, TabBar, TabBarProps } from 'react-native-tab-view';
 import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
-import { useWindowDimensions } from 'react-native';
-import AboutUser from './AboutUser';
-import UserEvents from './UsersEvents';
-import UserFriends from './UsersFriends';
-import type { User, UserProp } from '@/types/allTypes';
+  import UserEvents from '@/app/(auth)/(aboutUser)/UsersEvents';
+  import UserFriends from '@/app/(auth)/(aboutUser)/UsersFriends';
+  import UserActivities from '@/app/(auth)/(aboutUser)/UserActivities';
+import { User, UserProp } from '@/types/allTypes';
+import { Stack } from 'expo-router';
 
-export default function UserInfoTabs({ user }: UserProp) {
+const ProfileTabs = forwardRef((props: { user: User }, ref) => {
+  const layout = useWindowDimensions();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const layout = useWindowDimensions();
-
-  const [index, setIndex] = useState(0);
-  const [routes] = useState([
-    { key: 'about', title: 'About' },
-    { key: 'events', title: 'Events' },
-    { key: 'friends', title: 'Friends' },
-  ]);
-
-  const renderScene = ({ route }: { route: { key: string } }) => {
-    switch (route.key) {
-      case 'about':
-        return <AboutUser user={user} />;
-      case 'events':
-        return <UserEvents user={user} />;
-      case 'friends':
-        return <UserFriends user={user} />;
-      default:
-        return null;
-    }
-  };
 
   return (
     <ThemedView style={{ flex: 1 }}>
-      <TabView
-        lazy
-        lazyPreloadDistance={0}
-        navigationState={{ index, routes }}
-        renderScene={renderScene}
-        onIndexChange={setIndex}
-        initialLayout={{ width: layout.width }}
-        commonOptions={{ labelStyle: { fontSize: 16, fontWeight: 'bold' } }}
-        renderTabBar={props => (
-          <TabBar
-            {...props}
-            indicatorStyle={{ backgroundColor: themeColors.text, height: 2 }}
-            style={{ backgroundColor: themeColors.background, borderBottomWidth: 0.5, borderBottomColor: themeColors.placeholderTextColor }}
-            activeColor={themeColors.text}
-            inactiveColor={themeColors.inputBackgroundColor}
-            pressColor="transparent"
-          />
-        )}
-      />
+      <Stack
+        screenOptions={{
+          headerShown: false
+        }}
+      >
+        <Stack.Screen name="UserEvents" options={{ headerShown: false }} />
+        <Stack.Screen name="UserFriends" options={{ headerShown: false }} />
+        <Stack.Screen name="UserActivities" options={{ headerShown: false }} />
+      </Stack>
     </ThemedView>
   );
-}
+});
+
+export default ProfileTabs; 

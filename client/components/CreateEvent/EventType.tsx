@@ -18,6 +18,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { CategoryProps } from '@/types/allTypes';
 import { useCreateEventContext } from '@/context/CreateEventContext';
 import { useCategories } from '@/hooks/useCategories';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SPRING_CONFIG = {
@@ -29,11 +30,40 @@ const SPRING_CONFIG = {
 const Category: React.FC<CategoryProps> = ({ onCategorySelect }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const { settingEventCategory } = useCreateEventContext();
+  const { category, settingEventCategory } = useCreateEventContext();
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
   const [showPicker, setShowPicker] = useState(false);
   const { categories, fetchCategories, loading } = useCategories();
   const translateY = useSharedValue(SCREEN_HEIGHT);
+
+  // Check for a category in AsyncStorage and context
+  useEffect(() => {
+    const checkForSelectedCategory = async () => {
+      try {
+        // First check AsyncStorage for a pre-selected category
+        const storedCategory = await AsyncStorage.getItem('selectedCategory');
+
+        
+        if (storedCategory) {
+          // Apply the stored category
+          setSelectedCategory(storedCategory);
+          onCategorySelect(storedCategory);
+          settingEventCategory(storedCategory);
+          
+          // Clear the AsyncStorage value to prevent it from being used again
+          await AsyncStorage.removeItem('selectedCategory');
+        } else if (category) {
+          // If no stored category, use the one from context if available
+          setSelectedCategory(category);
+          onCategorySelect(category);
+        }
+      } catch (error) {
+
+      }
+    };
+    
+    checkForSelectedCategory();
+  }, [category, onCategorySelect, settingEventCategory]);
 
   useEffect(() => {
     if (showPicker) {

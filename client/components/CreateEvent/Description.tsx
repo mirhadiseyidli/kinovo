@@ -9,25 +9,31 @@ import { useCreateEvent } from '@/hooks/useCreateEvent';
 import { useCreateEventContext } from '@/context/CreateEventContext';
 
 const Description: React.FC = () => {
-  const [input, setInput] = useState<ChangeEventHandler['input']>(''); // Track input value
   const placeholder = "Write about your event...";
   const screenWidth = Dimensions.get('window').width;
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const { settingEventDescription } = useCreateEventContext();
+  const { description, settingEventDescription } = useCreateEventContext();
+  const [input, setInput] = useState<string>(description || ''); 
   const debounceRef = useRef<number | null>(null);
 
+  // Update local state when context changes (e.g., when loading existing event)
+  useEffect(() => {
+    if (description !== null) {
+      setInput(description);
+    }
+  }, [description]);
+
   // Handle Text Change
-  const handleTextChange: ChangeEventHandler['handleTextChange'] = (text) => {
-    setInput(text.trim() === '' ? '' : text);
+  const handleTextChange = (text: string) => {
+    setInput(text);
 
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
 
-    debounceRef.current = setTimeout(() => {
-      settingEventDescription(text.trim() === '' ? '' : text);
-    }, 5000);
+    // Update immediately for better UX
+    settingEventDescription(text.trim() === '' ? null : text);
   };
 
   useEffect(() => {

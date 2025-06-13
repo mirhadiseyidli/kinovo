@@ -48,7 +48,7 @@ const DayCell = React.memo<DayCellProps>(({ date, month, today, cellWidth, cellH
         marginBottom: 2,
         backgroundColor: isToday ? themeColors.mountainGreen : undefined,
       }}>
-        <Text style={{ color: themeColors.text, fontSize: 12, opacity: isCurrentMonth ? 1 : 0.5 }}>
+        <Text style={{ color: isToday ? 'white' : themeColors.text, fontSize: 12, opacity: isCurrentMonth ? 1 : 0.5 }}>
           {date.getDate()}
         </Text>
       </View>
@@ -56,32 +56,40 @@ const DayCell = React.memo<DayCellProps>(({ date, month, today, cellWidth, cellH
       {dayOccurrences.slice(0, 3).map(occurrence => {
         // Determine styling based on user status
         const userStatus = occurrence.event.userStatus;
-        let backgroundColor = occurrence.isModified ? themeColors.tint : themeColors.mountainGreen;
-        let borderColor = 'transparent';
-        let borderWidth = 0;
+        let backgroundColor = themeColors.mountainGreen;
+        let borderColor = themeColors.mountainGreen;
+        let borderWidth = 1;
         let opacity = isCurrentMonth ? 1 : 0.5;
         let textStyle: any = { 
-          color: themeColors.text, 
-          fontSize: 10, 
+          color: 'white', 
+          fontSize: 9, 
           fontWeight: '600' 
         };
 
         if (userStatus === 'rejected') {
-          backgroundColor = 'transparent';
-          borderColor = themeColors.mountainGreen;
+          backgroundColor = themeColors.background;
+          borderColor = themeColors.border;
           borderWidth = 1;
           textStyle = {
             ...textStyle,
+            color: themeColors.text,
             textDecorationLine: 'line-through',
             opacity: 0.7,
           };
         } else if (userStatus === 'maybe') {
+          backgroundColor = themeColors.maybeStatusColor;
+          borderColor = themeColors.maybeStatusColor;
+          borderWidth = 1;
+          textStyle = {
+            ...textStyle,
+          };
+        } else if (userStatus === 'pending') {
           backgroundColor = themeColors.background;
           borderColor = themeColors.mountainGreen;
           borderWidth = 1;
           textStyle = {
             ...textStyle,
-            fontWeight: 'bold',
+            color: themeColors.text,
           };
         }
 
@@ -103,35 +111,6 @@ const DayCell = React.memo<DayCellProps>(({ date, month, today, cellWidth, cellH
               position: 'relative',
             }}
           >
-            {/* Striped pattern for 'maybe' status */}
-            {userStatus === 'maybe' && (
-              <View style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                overflow: 'hidden',
-                zIndex: 1,
-              }}>
-                {Array.from({ length: Math.ceil((cellWidth + cellHeight) / 4) }).map((_, i) => (
-                  <View
-                    key={i}
-                    style={{
-                      position: 'absolute',
-                      width: 1,
-                      height: Math.sqrt(cellWidth * cellWidth + cellHeight * cellHeight) + 10,
-                      backgroundColor: themeColors.mountainGreen,
-                      transform: [
-                        { translateX: i * 6 - cellWidth * 0.5 },
-                        { translateY: -cellHeight * 0.5 },
-                        { rotate: '45deg' }
-                      ],
-                    }}
-                  />
-                ))}
-              </View>
-            )}
             <Text
               style={{...textStyle, zIndex: 2, position: 'relative'}}
               numberOfLines={1}
@@ -144,8 +123,8 @@ const DayCell = React.memo<DayCellProps>(({ date, month, today, cellWidth, cellH
       })}
 
       {dayOccurrences.length > 3 && (
-        <View style={{ marginTop: 2, width: '100%', borderRadius: 3, paddingLeft: 4, paddingVertical: 1, justifyContent: 'center', backgroundColor: themeColors.mountainGreen }}>
-          <Text style={{ color: themeColors.text, fontSize: 10, fontWeight: '600' }}>
+        <View style={{ marginTop: 2, width: '100%', borderRadius: 3, paddingLeft: 4, paddingVertical: 1, justifyContent: 'center', backgroundColor: themeColors.mountainGreen, opacity: isCurrentMonth ? 1 : 0.5 }}>
+          <Text style={{ color: 'white', fontSize: 10, fontWeight: '600' }}>
             +{dayOccurrences.length - 3} more
           </Text>
         </View>

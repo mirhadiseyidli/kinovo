@@ -27,10 +27,6 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
   const router = useRouter();
 
   // Determine styling based on user status
-  let gradientColors: [string, string] = [themeColors.cardColorsGradientOne, themeColors.cardColorsGradientTwo];
-  let gradientOpacity = 0.9;
-  let borderWidth = 0;
-  let borderColor = 'transparent';
   let titleStyle: any = { 
     color: themeColors.text, 
     fontSize: 16, 
@@ -38,18 +34,11 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
   };
 
   if (userStatus === 'rejected') {
-    gradientColors = ['transparent', 'transparent'];
-    gradientOpacity = 1;
-    borderWidth = 1;
-    borderColor = themeColors.mountainGreen;
     titleStyle = {
       ...titleStyle,
       textDecorationLine: 'line-through',
       opacity: 0.7,
     };
-  } else if (userStatus === 'maybe') {
-    borderWidth = 1;
-    borderColor = themeColors.cardColorsGradientOne;
   }
 
   const getStatusText = () => {
@@ -70,9 +59,9 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
   const getStatusColor = () => {
     switch (userStatus) {
       case 'pending':
-        return themeColors.textThird;
-      case 'maybe':
         return themeColors.text;
+      case 'maybe':
+        return 'white';
       case 'accepted':
         return 'white';
       case 'rejected':
@@ -85,13 +74,13 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
   const getStatusBackgroundColor = () => {
     switch (userStatus) {
       case 'pending':
-        return themeColors.inputBackgroundColor;
-      case 'maybe':
         return themeColors.background;
+      case 'maybe':
+        return themeColors.maybeStatusColor;
       case 'accepted':
         return themeColors.mountainGreen;
       case 'rejected':
-        return 'transparent';
+        return themeColors.background;
       default:
         return themeColors.inputBackgroundColor;
     }
@@ -100,13 +89,13 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
   const getStatusBorderColor = () => {
     switch (userStatus) {
       case 'pending':
-        return themeColors.textThird;
-      case 'maybe':
         return themeColors.mountainGreen;
+      case 'maybe':
+        return themeColors.maybeStatusColor;
       case 'accepted':
         return themeColors.mountainGreen;
       case 'rejected':
-        return themeColors.mountainGreen;
+        return themeColors.border;
       default:
         return themeColors.textThird;
     }
@@ -139,6 +128,10 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
     });
   };
 
+  const truncateName = (name: string, maxLength: number) => {
+    return name.length > maxLength ? name.slice(0, maxLength) + '...' : name;
+  };
+
   return (
     <TouchableOpacity onPress={handleEventPress}>
       <View
@@ -148,60 +141,17 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
-          borderWidth: borderWidth,
-          borderColor: borderColor,
           overflow: 'hidden',
           position: 'relative',
+          backgroundColor: themeColors.eventCardBackgroundColor,
         }}
       >
-        <LinearGradient
-          colors={gradientColors}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            borderRadius: 12,
-            opacity: gradientOpacity,
-          }}
-        />
-        {/* Striped pattern for 'maybe' status */}
-        {userStatus === 'maybe' && (
-          <View style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            overflow: 'hidden',
-          }}>
-            {Array.from({ length: 40 }).map((_, i) => (
-              <View
-                key={i}
-                style={{
-                  position: 'absolute',
-                  width: 3,
-                  height: 200,
-                  backgroundColor: themeColors.background,
-                  transform: [
-                    { translateX: i * 12 - 50 },
-                    { translateY: -50 },
-                    { rotate: '45deg' }
-                  ],
-                }}
-              />
-            ))}
-          </View>
-        )}
         <View style={{ flex: 1 }}>
           <Text style={titleStyle}>{title}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-            <Feather name="clock" size={12} color={themeColors.textThird} />
+            <Feather name="clock" size={12} color={themeColors.textSecondary} />
             <Text style={{ 
-              color: themeColors.textThird, 
+              color: themeColors.textSecondary, 
               fontSize: 14, 
               marginLeft: 6,
               opacity: userStatus === 'rejected' ? 0.7 : 1
@@ -211,14 +161,14 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
           </View>
           {location && (
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-              <Feather name="map-pin" size={12} color={themeColors.textThird} />
+              <Feather name="map-pin" size={12} color={themeColors.textSecondary} />
               <Text style={{ 
                 color: themeColors.textThird, 
                 fontSize: 14, 
                 marginLeft: 6,
                 opacity: userStatus === 'rejected' ? 0.7 : 1
               }}>
-                {location}
+                {truncateName(location, 22)}
               </Text>
             </View>
           )}
@@ -233,35 +183,6 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
           position: 'relative',
           overflow: 'hidden',
         }}>
-          {/* Striped pattern for 'maybe' status chip */}
-          {userStatus === 'maybe' && (
-            <View style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              overflow: 'hidden',
-              zIndex: 1,
-            }}>
-              {Array.from({ length: Math.ceil((100 + 40) / 6) }).map((_, i) => (
-                <View
-                  key={i}
-                  style={{
-                    position: 'absolute',
-                    width: 1,
-                    height: Math.sqrt(100 * 100 + 40 * 40) + 20,
-                    backgroundColor: themeColors.mountainGreen,
-                    transform: [
-                      { translateX: i * 6 - 50 },
-                      { translateY: -20 },
-                      { rotate: '45deg' }
-                    ],
-                  }}
-                />
-              ))}
-            </View>
-          )}
           <Text style={{
             fontSize: 12,
             fontWeight: '600',

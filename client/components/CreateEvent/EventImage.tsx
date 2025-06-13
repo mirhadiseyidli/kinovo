@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { EventImageProps, UploadedImage } from '@/types/allTypes';
 import { View, Image, TouchableOpacity, Alert, Dimensions } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -6,10 +6,17 @@ import { Feather } from '@expo/vector-icons';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { getCategoryImage } from '@/constants/CategoryImages';
+import { useCreateEventContext } from '@/context/CreateEventContext';
 
 const EventImage: React.FC<EventImageProps> = ({ eventType }) => {
-  const [uploadedImage, setUploadedImage] = useState<UploadedImage>(null);
+  const { picture, settingEventPicture } = useCreateEventContext();
+  const [uploadedImage, setUploadedImage] = useState<UploadedImage>(picture);
   const screenWidth = Dimensions.get('window').width;
+
+  // Update local state when context changes
+  useEffect(() => {
+    setUploadedImage(picture);
+  }, [picture]);
 
   // Handle Image Upload
   const handleImageUpload = async () => {
@@ -21,14 +28,16 @@ const EventImage: React.FC<EventImageProps> = ({ eventType }) => {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
         quality: 1,
       });
 
       if (!result.canceled) {
-        setUploadedImage(result.assets[0].uri); // Set the uploaded image URI
+        const imageUri = result.assets[0].uri;
+        setUploadedImage(imageUri); // Set local state
+        settingEventPicture(imageUri); // Update context
       }
     } catch (error) {
       Alert.alert('Error', 'Could not upload the image.');
@@ -38,6 +47,7 @@ const EventImage: React.FC<EventImageProps> = ({ eventType }) => {
   // Remove Uploaded Image
   const handleRemoveImage = () => {
     setUploadedImage(null);
+    settingEventPicture(null);
   };
 
   // Determine the image source (uploaded image OR default event category)
@@ -46,12 +56,33 @@ const EventImage: React.FC<EventImageProps> = ({ eventType }) => {
     : getCategoryImage(eventType);
 
   return (
-    <View style={{ width: '60%', aspectRatio: 1, borderRadius: 16, overflow: 'hidden' }}>
+    <TouchableOpacity 
+      onPress={handleImageUpload}
+      style={{ width: '60%', aspectRatio: 1, borderRadius: 16, overflow: 'hidden' }}
+    >
       <Image
         source={imageSource}
         style={{ width: '100%', height: '100%', resizeMode: 'cover' }}
       />
-    </View>
+      {uploadedImage && (
+        <TouchableOpacity
+          style={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            borderRadius: 15,
+            width: 30,
+            height: 30,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+          onPress={handleRemoveImage}
+        >
+          <Feather name="x" size={18} color="white" />
+        </TouchableOpacity>
+      )}
+    </TouchableOpacity>
   );
 };
 

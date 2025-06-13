@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
-import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Keyboard, Dimensions, TouchableWithoutFeedback, Modal, Pressable } from 'react-native';
 import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { Feather } from '@expo/vector-icons';
 import { EditUserLocationProps, PlaceSuggestion, PlaceDetails } from '@/types/allTypes';
+import api from '@/utils/api';
 
 export const EditUserLocation = ({
   label,
@@ -20,6 +22,46 @@ export const EditUserLocation = ({
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [locationSuggestions, setLocationSuggestions] = useState<PlaceSuggestion[]>([]);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const inputRef = useRef<TextInput>(null);
+  const [inputPosition, setInputPosition] = useState({ top: 0, height: 0, width: 0, left: 0 });
+  const [modalVisible, setModalVisible] = useState(false);
+
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+      setKeyboardVisible(true);
+    });
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardVisible(false);
+    });
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (locationSuggestions.length > 0) {
+      measureInputPosition();
+      setModalVisible(true);
+    } else {
+      setModalVisible(false);
+    }
+  }, [locationSuggestions]);
+
+  const measureInputPosition = () => {
+    if (inputRef.current) {
+      inputRef.current.measureInWindow((x, y, width, height) => {
+        setInputPosition({ 
+          top: y + height, 
+          height, 
+          width, 
+          left: x 
+        });
+      });
+    }
+  };
 
   const fetchLocationSuggestions = async (text: string) => {
     if (!text.trim()) {
@@ -33,14 +75,7 @@ export const EditUserLocation = ({
     };
 
     try {
-      const response = await axios.post(`https://places.googleapis.com/v1/places:autocomplete`, inputData, {
-        headers: {
-          "Content-Type": "application/json",
-          "X-Goog-Api-Key": process.env.EXPO_PUBLIC_GOOGLE_MAPS_API,
-          "X-Goog-FieldMask": "*",
-        },
-      });
-
+      const response = await api.post('/api/google/places/autocomplete', inputData);
       const data = response.data;
       setLocationSuggestions(data.suggestions || []);
     } catch (error) {
@@ -50,12 +85,10 @@ export const EditUserLocation = ({
 
   const getLongitudeAndLatitude = async (id: string) => {
     try {
-      const response = await axios.get(`https://places.googleapis.com/v1/places/${id}?fields=location,addressComponents`, {
-        headers: {
-          "Content-Type": "application/json",
-          "X-Goog-Api-Key": process.env.EXPO_PUBLIC_GOOGLE_MAPS_API,
-          "X-Goog-FieldMask": "*",
-        },
+      const response = await api.get(`/api/google/places/${id}`, {
+        params: {
+          fields: 'location,addressComponents'
+        }
       });
 
       const data = response.data as PlaceDetails;
@@ -98,6 +131,10 @@ export const EditUserLocation = ({
     setLocationLongitude(longitude || null);
   };
 
+  const closeDropdown = () => {
+    setLocationSuggestions([]);
+  };
+
   return (
     <View 
       style={{
@@ -112,6 +149,7 @@ export const EditUserLocation = ({
       </View>
       <View style={{ flex: 1 }}>
         <TextInput 
+          ref={inputRef}
           value={locationInput} 
           placeholder={placeholder}
           placeholderTextColor={themeColors.placeholderTextColor}
@@ -123,41 +161,112 @@ export const EditUserLocation = ({
             setLocationInput(text);
             fetchLocationSuggestions(text);
           }}
+          onFocus={() => {
+            measureInputPosition();
+            if (locationInput.trim()) {
+              fetchLocationSuggestions(locationInput);
+            }
+          }}
         />
-        {locationSuggestions.length > 0 && (
-          <ThemedView style={{
-            position: 'absolute',
-            top: '110%',
-            left: 0,
-            width: '100%',
-            backgroundColor: themeColors.inputBackgroundColor,
-            borderRadius: 8,
-            paddingVertical: 5,
-            maxHeight: 250,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.2,
-            shadowRadius: 4,
-            elevation: 3,
-            zIndex: 1000,
-          }}>
-            <ScrollView style={{ maxHeight: 250 }} nestedScrollEnabled={true}>
-              {locationSuggestions.map((suggestion: PlaceSuggestion, index: number) => (
-                <TouchableOpacity
-                  key={index}
-                  style={{
-                    padding: 12,
-                    borderBottomWidth: index !== locationSuggestions.length - 1 ? 1 : 0,
-                    borderBottomColor: themeColors.background,
-                  }}
-                  onPress={() => handleLocationSelect(suggestion.placePrediction.text.text, suggestion.placePrediction.placeId)}
+        
+        <Modal
+          transparent={true}
+          visible={modalVisible}
+          animationType="none"
+          onRequestClose={closeDropdown}
+        >
+          <Pressable
+            style={{
+              flex: 1,
+              backgroundColor: 'transparent',
+            }}
+            onPress={closeDropdown}
+          >
+            <ThemedView 
+              style={{
+                position: 'absolute',
+                top: inputPosition.top,
+                left: inputPosition.left,
+                width: inputPosition.width,
+                backgroundColor: themeColors.inputBackgroundColor,
+                borderWidth: 1,
+                borderColor: themeColors.border,
+                borderRadius: 8,
+                maxHeight: keyboardVisible ? 200 : 300,
+                shadowColor: '#000',
+                shadowOffset: {
+                  width: 0,
+                  height: 4,
+                },
+                shadowOpacity: 0.15,
+                shadowRadius: 8,
+                elevation: 8,
+                zIndex: 1000,
+              }}
+            >
+              <Pressable onPress={(e) => e.stopPropagation()}>
+                <ScrollView 
+                  style={{ maxHeight: keyboardVisible ? 200 : 300 }} 
+                  nestedScrollEnabled={true}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
                 >
-                  <Text style={{ fontWeight: 'bold', color: themeColors.text }}>{suggestion.placePrediction.text.text}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </ThemedView>
-        )}
+                  <View style={{ 
+                    paddingHorizontal: 16, 
+                    paddingVertical: 12, 
+                    borderBottomWidth: 1, 
+                    borderBottomColor: themeColors.border 
+                  }}>
+                    <Text style={{ 
+                      fontWeight: 'bold', 
+                      fontSize: 14, 
+                      color: themeColors.text,
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.5
+                    }}>
+                      Locations
+                    </Text>
+                  </View>
+                  {locationSuggestions.map((suggestion: PlaceSuggestion, index: number) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={{
+                        paddingVertical: 12,
+                        paddingHorizontal: 16,
+                        borderBottomWidth: index !== locationSuggestions.length - 1 ? 1 : 0,
+                        borderBottomColor: themeColors.border,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                      }}
+                      onPress={() => handleLocationSelect(suggestion.placePrediction.text.text, suggestion.placePrediction.placeId)}
+                    >
+                      <Feather 
+                        name="map-pin" 
+                        size={12} 
+                        color={themeColors.text} 
+                        style={{ marginRight: 4 }}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ 
+                          fontWeight: '600', 
+                          fontSize: 12, 
+                          color: themeColors.text 
+                        }}>
+                          {suggestion.placePrediction.text.text}
+                        </Text>
+                      </View>
+                      <Feather 
+                        name="arrow-up-right" 
+                        size={16} 
+                        color={themeColors.placeholderTextColor} 
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </Pressable>
+            </ThemedView>
+          </Pressable>
+        </Modal>
       </View>
     </View>
   );

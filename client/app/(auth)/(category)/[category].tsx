@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { Feather } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Category() {
   const colorScheme = useColorScheme();
@@ -14,6 +15,21 @@ export default function Category() {
   const { category } = useLocalSearchParams();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
+
+  const handleCreateEvent = async () => {
+    // Store the current category in AsyncStorage
+    if (category) {
+      try {
+        await AsyncStorage.setItem('selectedCategory', category as string);
+        console.log('Set category in AsyncStorage:', category);
+      } catch (error) {
+        console.error('Error setting category in AsyncStorage:', error);
+      }
+    }
+    
+    // Navigate to create event screen
+    router.push('/(auth)/(createEvent)/EventDetails');
+  };
 
   return (
     <ThemedView style={{ flex: 1 }}>
@@ -36,7 +52,7 @@ export default function Category() {
           ),
           headerRight: () => (
             <TouchableOpacity
-              onPress={() => router.push('/(auth)/(createEvent)/EventDetails')}
+              onPress={handleCreateEvent}
             >
               <Feather name="plus-circle" size={24} color={themeColors.text} />
             </TouchableOpacity>

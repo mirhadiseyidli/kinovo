@@ -38,13 +38,11 @@ export const useFavoriteActivities = () => {
   };
 
   const removeActivity = async (activity: Activity) => {
-    console.log('removeActivity', activity);
     setLoading(true);
     try {
       const response = await api.delete('/api/users/favorite-activities', { 
         data: { activity } 
       });
-      console.log('response', response);
       setActivities(response.data.favorite_activities as Activity[]);
       return true;
     } catch (error: any) {
