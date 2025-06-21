@@ -22,6 +22,15 @@ const refs = {
 const syncFriendRequest = async (receiverId, requestData) => {
   try {
     const userRef = refs.friendRequests.child(receiverId);
+    
+    // Extract sender data if it exists
+    const sender = requestData.sender ? {
+      _id: requestData.sender._id?.toString(),
+      full_name: requestData.sender.full_name || '',
+      username: requestData.sender.username || '',
+      profile_picture: requestData.sender.profile_picture || ''
+    } : null;
+    
     await userRef.child(requestData._id.toString()).set({
       _id: requestData._id.toString(),
       from: typeof requestData.from === 'object' ? 
@@ -34,9 +43,13 @@ const syncFriendRequest = async (receiverId, requestData) => {
       timestamp: admin.database.ServerValue.TIMESTAMP,
       created_at: requestData.created_at instanceof Date ? 
         requestData.created_at.toISOString() : 
-        requestData.created_at
+        requestData.created_at,
+      // Include sender data for frontend
+      ...(sender && { sender }),
+      // Include mutual friends count if provided
+      ...(requestData.mutualFriendsCount !== undefined && { mutualFriendsCount: requestData.mutualFriendsCount })
     });
-    console.log(`Friend request synced to Firebase for user ${receiverId}`);
+    console.log(`Friend request synced to Firebase for user ${receiverId} with sender: ${sender?.full_name || 'Unknown'}`);
   } catch (error) {
     console.error('Error syncing friend request to Firebase:', error);
   }
@@ -76,19 +89,56 @@ const syncFriendActivity = async (userId, activityData) => {
 const syncNotification = async (userId, notificationData) => {
   try {
     const userRef = refs.notifications.child(userId);
+    
+    // Extract event and sender data if they exist
+    const event = notificationData.event ? {
+      _id: notificationData.event._id?.toString(),
+      title: notificationData.event.title || '',
+      category: notificationData.event.category || ''
+    } : null;
+    
+    const sender = notificationData.sender ? {
+      _id: notificationData.sender._id?.toString(),
+      full_name: notificationData.sender.full_name || '',
+      username: notificationData.sender.username || '',
+      profile_picture: notificationData.sender.profile_picture || ''
+    } : null;
+
+    const friend_request = notificationData.friend_request ? {
+      _id: notificationData.friend_request._id?.toString(),
+      sender: notificationData.friend_request.sender ? {
+        _id: notificationData.friend_request.sender._id?.toString(),
+        full_name: notificationData.friend_request.sender.full_name || '',
+        username: notificationData.friend_request.sender.username || '',
+        profile_picture: notificationData.friend_request.sender.profile_picture || ''
+      } : null
+    } : null;
+
+    // Create a cleaned notification object that matches the frontend expectations
     await userRef.child(notificationData._id.toString()).set({
       _id: notificationData._id.toString(),
-      title: notificationData.title,
-      body: notificationData.body,
-      type: notificationData.type,
-      data: notificationData.data || {},
-      read: notificationData.read || false,
+      type: notificationData.type || 'event_created',
+      title: notificationData.title || '',
+      subtitle: notificationData.subtitle || '',
+      message_body: notificationData.message_body || '',
+      status: notificationData.status || 'unseen',
       is_seen: notificationData.is_seen || false,
       timestamp: admin.database.ServerValue.TIMESTAMP,
       created_at: notificationData.created_at instanceof Date ? 
         notificationData.created_at.toISOString() : 
-        notificationData.created_at
+        notificationData.created_at || new Date().toISOString(),
+      updated_at: notificationData.updated_at instanceof Date ?
+        notificationData.updated_at.toISOString() :
+        notificationData.updated_at || new Date().toISOString(),
+      // Only add if they exist
+      ...(event && { event }),
+      ...(sender && { sender }),
+      ...(friend_request && { friend_request }),
+      data: notificationData.data || {},
+      count: notificationData.count || 0,
+      location: notificationData.location || null
     });
+    
     console.log(`Notification synced to Firebase for user ${userId}`);
   } catch (error) {
     console.error('Error syncing notification to Firebase:', error);
@@ -111,6 +161,63 @@ const markNotificationAsRead = async (userId, notificationId) => {
     console.log(`Notification ${notificationId} marked as read for user ${userId}`);
   } catch (error) {
     console.error('Error marking notification as read in Firebase:', error);
+  }
+};
+
+/**
+ * Remove notification from Firebase (for real-time cleanup)
+ * @param {string} userId - User ID
+ * @param {string} notificationId - Notification ID to remove
+ */
+const removeNotificationFromFirebase = async (userId, notificationId) => {
+  try {
+    const notificationRef = refs.notifications.child(userId).child(notificationId);
+    await notificationRef.remove();
+    console.log(`Notification ${notificationId} removed from Firebase for user ${userId}`);
+  } catch (error) {
+    console.error('Error removing notification from Firebase:', error);
+  }
+};
+
+/**
+ * Update friend request status in Firebase
+ * @param {string} userId - User ID of the request recipient
+ * @param {string} requestId - Request ID
+ * @param {string} status - New status (accepted/rejected)
+ */
+const updateFriendRequestStatus = async (userId, requestId, status) => {
+  try {
+    const requestRef = refs.friendRequests.child(userId).child(requestId);
+    
+    if (status === 'accepted' || status === 'rejected') {
+      // Remove from pending requests when accepted or rejected
+      await requestRef.remove();
+      console.log(`Friend request ${requestId} removed from Firebase for user ${userId} due to status: ${status}`);
+    } else {
+      // Update status for other cases
+      await requestRef.update({ 
+        status,
+        updated_at: admin.database.ServerValue.TIMESTAMP 
+      });
+      console.log(`Friend request ${requestId} updated to status ${status} in Firebase for user ${userId}`);
+    }
+  } catch (error) {
+    console.error('Error updating friend request in Firebase:', error);
+  }
+};
+
+/**
+ * Remove friend request from Firebase (for real-time cleanup)
+ * @param {string} userId - User ID
+ * @param {string} requestId - Friend request ID to remove
+ */
+const removeFriendRequestFromFirebase = async (userId, requestId) => {
+  try {
+    const requestRef = refs.friendRequests.child(userId).child(requestId);
+    await requestRef.remove();
+    console.log(`Friend request ${requestId} removed from Firebase for user ${userId}`);
+  } catch (error) {
+    console.error('Error removing friend request from Firebase:', error);
   }
 };
 
@@ -257,6 +364,9 @@ module.exports = {
   syncFriendActivity,
   syncNotification,
   markNotificationAsRead,
+  removeNotificationFromFirebase,
+  updateFriendRequestStatus,
+  removeFriendRequestFromFirebase,
   syncAISummary,
   updateUserStatus,
   syncAllNotifications,

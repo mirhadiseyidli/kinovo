@@ -5,7 +5,6 @@ import { ThemedText } from '@/components/ThemedText';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import type { FriendProps } from '@/types/allTypes';
-import StoryViewer from '@/components/Story/StoryViewer';
 
 const Friend: React.FC<FriendProps & { refreshing: boolean, onPress?: () => void }> = ({ _id, full_name, profile_picture, eventCount = 0, size, showName, refreshing, activityData, onPress }) => {
   const screenWidth = Dimensions.get('window').width;
@@ -15,7 +14,6 @@ const Friend: React.FC<FriendProps & { refreshing: boolean, onPress?: () => void
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   
-  const [storyViewerVisible, setStoryViewerVisible] = useState(false);
   const [startPosition, setStartPosition] = useState<{ x: number; y: number; width: number; height: number } | undefined>();
   const [loading, setLoading] = useState(false);
   const imageRef = useRef<View>(null);
@@ -34,48 +32,10 @@ const Friend: React.FC<FriendProps & { refreshing: boolean, onPress?: () => void
     return full_name.length > maxLength ? `${full_name.substring(0, maxLength)}...` : full_name;
   };
 
-  const handlePress = () => {
-    if (eventCount === 0 || !mountedRef.current) return;
-    
-    setLoading(true);
-    
-    // Call original onPress first to set Redux data
-    if (onPress) {
-      onPress();
-    }
-
-    // Measure the position of the friend circle
-    imageRef.current?.measure((x, y, width, height, pageX, pageY) => {
-      if (!mountedRef.current) return;
-      
-      setStartPosition({
-        x: pageX,
-        y: pageY,
-        width,
-        height,
-      });
-      
-      // Show story viewer with a small delay to ensure Redux data is set
-      setTimeout(() => {
-        if (mountedRef.current) {
-          setStoryViewerVisible(true);
-        }
-      }, 100);
-    });
-  };
-
-  const handleCloseStoryViewer = () => {
-    if (mountedRef.current) {
-      setStoryViewerVisible(false);
-      setLoading(false);
-    }
-  };
-
   return (
     <>
       <TouchableOpacity 
         style={{ alignItems: 'center' }}
-        onPress={handlePress}
       >
         {/* Friend Image with Event Count Badge */}
         <View
@@ -142,15 +102,6 @@ const Friend: React.FC<FriendProps & { refreshing: boolean, onPress?: () => void
           </ThemedText>
         )}
       </TouchableOpacity>
-
-      {/* Story Viewer Modal */}
-      <StoryViewer
-        visible={storyViewerVisible}
-        friendId={_id || ''}
-        startPosition={startPosition}
-        onClose={handleCloseStoryViewer}
-        loading={loading}
-      />
     </>
   );
 };

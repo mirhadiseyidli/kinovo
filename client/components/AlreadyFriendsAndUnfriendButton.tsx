@@ -8,7 +8,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { Feather, Octicons } from '@expo/vector-icons';
 import { useManageFriends } from '@/hooks/useManageFriends';
 
-const AlreadyFriendsAndUnfriendButton = ({ targetUser, loadingFriendAction, onUnfriend }: ManageFriendButtonProps & { onUnfriend?: () => void }) => {
+const AlreadyFriendsAndUnfriendButton = ({ targetUser, loadingFriendAction, buttonFlex = 1, onUnfriend }: ManageFriendButtonProps & { onUnfriend?: () => void }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { removeFriendFromFriendList } = useManageFriends();
@@ -39,7 +39,7 @@ const AlreadyFriendsAndUnfriendButton = ({ targetUser, loadingFriendAction, onUn
     <TouchableOpacity
       style={{
         marginTop: 16,
-        flex: 1,
+        flex: buttonFlex,
         backgroundColor: themeColors.mountainGreen,
         paddingVertical: 8,
         paddingHorizontal: 16,

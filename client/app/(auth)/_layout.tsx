@@ -2,16 +2,13 @@ import { useAuthSession } from "@/components/Auth/AuthProvider";
 import { Redirect, router, Stack, useNavigation } from 'expo-router';
 import { Alert, Text, TouchableOpacity, View } from 'react-native';
 import { ReactNode } from "react";
-import { LocationProvider } from '@/context/LocationContext'; // ✅ Import LocationProvider
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import { EventCreatedMessageProvider } from "@/context/EventCreatedMessageContext";
-import { EventProvider } from '@/context/EventContext';
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams } from "expo-router";
 import { cancelAnimation } from 'react-native-reanimated';
 import { SharedValue, useSharedValue } from 'react-native-reanimated';
-import { NotificationProvider } from "@/context/NotificationContext";
+import { UserSessionProvider } from '@/context/UserSessionContext';
 import ContextMenuWithTrigger from "@/components/ContextMenuWithTrigger";
 import { useManageFriends } from "@/hooks/useManageFriends";
 import api from "@/utils/api";
@@ -53,6 +50,7 @@ export default function RootLayout(): ReactNode {
   }
 
   return (
+    <UserSessionProvider>
       <Stack
         screenOptions={{
           headerShown: false
@@ -77,6 +75,8 @@ export default function RootLayout(): ReactNode {
           name="(aboutUser)"
           options={{ 
             headerShown: true,
+            gestureEnabled: true,
+            gestureDirection: 'vertical',
             headerStyle: { 
               backgroundColor: themeColors.background
             },
@@ -124,5 +124,6 @@ export default function RootLayout(): ReactNode {
           }}
         />
       </Stack>
+    </UserSessionProvider>
   );
 }

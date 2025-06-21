@@ -14,7 +14,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import axios from 'axios';
-import { useLocation } from '@/context/LocationContext';
+import { useLocation } from '@/context/UserSessionContext';
 import MapViewModal from '../MapViewModal';
 import { Suggestion, Coordinates, GeocodingApiResult, LocationSelectHandler, SelectedLocation, FetchAddressSuggestions } from '@/types/allTypes';
 import { useCreateEventContext } from '@/context/CreateEventContext';

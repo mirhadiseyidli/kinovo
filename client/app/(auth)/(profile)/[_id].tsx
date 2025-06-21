@@ -54,10 +54,10 @@ const ProfilePage = () => {
   const onStartRefresh = async () => {
     setIsRefreshing(true);
     setTimeout(() => {
-      console.log("onStartRefresh");
       setIsRefreshing(false);
     }, 300);
   };
+
   const renderHeader = () => (
     <UserGeneralInfo ref={userInfoRef} _id={Array.isArray(_id) ? _id[0] : _id} />
   );
@@ -92,23 +92,18 @@ const ProfilePage = () => {
   // Custom refresh control renderer
   const renderRefreshControl = useCallback((refreshProps: RefreshControlProps) => {
     return (
-      <View style={{ 
-        justifyContent: 'center', 
-        alignItems: 'center' 
-      }}>
-        <ActivityIndicator 
-          size='small' 
-          color={themeColors.mountainGreen} 
-          style={{ transform: [{ scale: 1.5 }] }}
-        />
-      </View>
+      <RefreshControl 
+        refreshing={isRefreshing} 
+        onRefresh={onStartRefresh}
+        tintColor={themeColors.mountainGreen}
+        colors={[themeColors.mountainGreen]}
+      />
     );
-  }, [themeColors]);
+  }, [isRefreshing, onStartRefresh]);
 
   return (
     <ThemedView style={{ flex: 1 }}>
       <CollapsibleTabView
-        onStartRefresh={onStartRefresh}
         isRefreshing={isRefreshing}
         navigationState={{ index, routes }}
         renderScene={renderScene}

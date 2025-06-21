@@ -3,7 +3,6 @@ import { createMaterialTopTabNavigator } from '@react-navigation/material-top-ta
 import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import FriendsList from '@/app/(auth)/(manageFriends)/YourFriends';
 import FriendRequests from '@/app/(auth)/(manageFriends)/FriendRequests';
 import AddFriends from '@/app/(auth)/(manageFriends)/AddFriends';
@@ -17,7 +16,6 @@ const Tab = createMaterialTopTabNavigator();
 
 export default function ManageFriendsTabs() {
   const colorScheme = useColorScheme();
-  const insets = useSafeAreaInsets();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
   const pathname = usePathname();

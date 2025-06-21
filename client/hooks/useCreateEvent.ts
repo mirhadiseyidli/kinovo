@@ -2,28 +2,55 @@ import { Alert } from 'react-native';
 import { Event } from '@/types/allTypes';
 import api from '@/utils/api';
 
+// Define an interface for the update request data that includes the optional fields
+interface UpdateEventRequestData extends Partial<Event> {
+  occurrenceDate?: Date | string;
+  modifyType?: 'this_only' | 'this_and_future' | 'all_instances';
+}
+
 export const useCreateEvent = () => {
   const postCreateEvent = async (eventData: Partial<Event>) => {
     try {
-      // If we have an _id, this is an update operation
-      if (eventData._id) {
-        // Use the same endpoint as for creating events, but include the event ID in the payload
-        // This works because the server can detect updates based on the presence of an _id
-        const response = await api.post('/api/manageevents/eventslist/create/new/event', eventData);
-        return response.data;
-      } else {
-        // Otherwise it's a create operation
-        const response = await api.post('/api/manageevents/eventslist/create/new/event', eventData);
-        return response.data;
-      }
+      // Always use the create endpoint for new events
+      const response = await api.post('/api/manageevents/eventslist/create/new/event', eventData);
+      return response.data;
     } catch (error: any) {
-      console.error('Failed to save event:', error);
-      Alert.alert('Error', 'Failed to save event');
+      console.error('Failed to create event:', error);
+      Alert.alert('Error', 'Failed to create event');
+      throw error;
+    }
+  };
+
+  const updateEvent = async (
+    eventId: string,
+    eventData: Partial<Event>,
+    options?: {
+      occurrenceDate?: Date | string;
+      modifyType?: 'this_only' | 'this_and_future' | 'all_instances';
+    }
+  ) => {
+    try {
+      let requestData: UpdateEventRequestData = { ...eventData };
+      
+      // Add options if provided
+      if (options?.occurrenceDate) {
+        requestData.occurrenceDate = options.occurrenceDate;
+      }
+      if (options?.modifyType) {
+        requestData.modifyType = options.modifyType;
+      }
+      
+      const response = await api.put(`/api/manageevents/eventslist/update/${eventId}`, requestData);
+      return response.data;
+    } catch (error: any) {
+      console.error('Failed to update event:', error);
+      Alert.alert('Error', 'Failed to update event');
       throw error;
     }
   };
 
   return {
-    postCreateEvent
+    postCreateEvent,
+    updateEvent
   };
 };

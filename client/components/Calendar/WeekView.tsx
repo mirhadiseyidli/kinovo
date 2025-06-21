@@ -11,7 +11,7 @@ import { Colors } from '@/constants/Colors';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { ThemedView } from '../ThemedView';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-import { useEventContext } from '@/context/EventContext';
+import { useEventContext } from '@/context/UserSessionContext';
 
 const HOURS = Array.from({ length: 25 }, (_, i) => i);
 const screenWidth = Dimensions.get('window').width;

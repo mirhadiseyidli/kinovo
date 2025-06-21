@@ -18,7 +18,7 @@ const UserProfileBasicInfo = ({
   const themeColors = Colors[colorScheme ?? 'dark'];
 
   return (
-    <View style={{ flexDirection: 'column', gap: 8, paddingHorizontal: 16 }}>
+    <View style={{ flexDirection: 'column', gap: 8, paddingHorizontal: 16, width: '100%' }}>
       <ThemedText style={{ fontWeight: 'bold', fontSize: 16 }}>{full_name}</ThemedText>
       <ThemedText style={{ fontSize: 14, color: themeColors.placeholderTextColor }}>{username}</ThemedText>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>

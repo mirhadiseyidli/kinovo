@@ -9,36 +9,123 @@ import React, { useState } from 'react';
 import { ScrollView, View, Text, ActivityIndicator, Alert } from 'react-native';
 import type { CreateEventTabParamList } from '@/types/allTypes';
 import { useCreateEventContext } from '@/context/CreateEventContext';
-import { useEventCreatedMessage } from '@/context/EventCreatedMessageContext';
+import { useCreateEvent } from '@/hooks/useCreateEvent';
+import { format } from 'date-fns';
 
 export default React.memo(function EventAttendeesAndOptions() {
   const navigation = useNavigation<NavigationProp<CreateEventTabParamList>>();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [limit, setLimit] = useState<number | null>(null);
+  const { updateEvent } = useCreateEvent();
   const { 
     validationErrors, 
-    loading, 
+    loading,
+    setLoading,
     error, 
+    setError,
     createOrUpdateEvent,
-    isEditMode
+    isEditMode,
+    eventId,
+    title,
+    recurrence,
+    compileEventData,
+    resetEventForm,
+    startTime
   } = useCreateEventContext();
-  const { show } = useEventCreatedMessage();
 
   const handleSaveEvent = async () => {
-    const response = await createOrUpdateEvent();
+    // If we're editing a recurring event, show the alert instead of saving directly
+    if (isEditMode && recurrence?.checked && recurrence.frequency && recurrence.frequency !== 'none') {
+      showRecurringEventAlert();
+    } else {
+      // For non-recurring events or new events, use the normal flow
+      await saveEvent();
+    }
+  };
+
+  const showRecurringEventAlert = () => {
+    if (!startTime) return;
     
-    if (response?.success) {
-      navigation.getParent()?.goBack(); // This will close the modal
-      show(isEditMode ? 'updated' : 'created');
-    } else if (Object.keys(validationErrors).length > 0) {
-      // Show first validation error
-      const firstError = Object.values(validationErrors).find(error => error);
-      if (firstError) {
-        Alert.alert('Validation Error', firstError);
+    const formattedDate = format(startTime, 'MMMM d, yyyy');
+    
+    Alert.alert(
+      'Recurring Event',
+      `"${title}" is a recurring event. Which occurrences would you like to edit?`,
+      [
+        {
+          text: `This Occurrence Only (${formattedDate})`,
+          onPress: () => saveEvent('this_only'),
+          style: 'default',
+        },
+        {
+          text: 'This and Future Occurrences',
+          onPress: () => saveEvent('this_and_future'),
+          style: 'default',
+        },
+        {
+          text: 'All Occurrences',
+          onPress: () => saveEvent('all_instances'),
+          style: 'default',
+        },
+        {
+          text: 'Cancel',
+          style: 'destructive',
+        },
+      ]
+    );
+  };
+
+  const saveEvent = async (recurringOption?: 'this_only' | 'this_and_future' | 'all_instances') => {
+    if (isEditMode && eventId && recurringOption) {
+      // Handle recurring event update with the selected option
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const eventData = compileEventData();
+        const response = await updateEvent(
+          eventId, 
+          eventData, 
+          {
+            occurrenceDate: startTime!,
+            modifyType: recurringOption
+          }
+        );
+        
+        if (response?.success) {
+          resetEventForm();
+          navigation.getParent()?.goBack(); // This will close the modal
+          Alert.alert(
+            'Success', 
+            'Event Changes Saved'
+          );
+        }
+        
+        setLoading(false);
+      } catch (err: any) {
+        setError(err.message || 'Failed to update event');
+        setLoading(false);
       }
-    } else if (error) {
-      Alert.alert('Error', error || 'An unknown error occurred');
+    } else {
+      // Normal flow - create new event or update non-recurring event
+      const response = await createOrUpdateEvent();
+      
+      if (response?.success) {
+        navigation.getParent()?.goBack(); // This will close the modal
+        Alert.alert(
+          'Success', 
+          isEditMode ? 'Event Changes Saved' : 'Event Created!'
+        );
+      } else if (Object.keys(validationErrors).length > 0) {
+        // Show first validation error
+        const firstError = Object.values(validationErrors).find(error => error);
+        if (firstError) {
+          Alert.alert('Validation Error', firstError);
+        }
+      } else if (error) {
+        Alert.alert('Error', error || 'An unknown error occurred');
+      }
     }
   };
 

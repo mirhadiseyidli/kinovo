@@ -59,6 +59,11 @@ const googleAuth = async (req, res) => {
     const accessToken = generateAccessToken({ _id: userDataFromDB._id, email: user.email });
     const refreshToken = generateRefreshToken({ _id: userDataFromDB._id, email: user.email });
     const customToken = await admin.auth().createCustomToken(userDataFromDB._id.toString());
+    console.log('customToken', customToken);
+    const decoded = jwt.decode(customToken);
+    console.log('decoded', decoded);
+    console.log('decoded.iat', new Date(decoded.iat * 1000).toISOString());
+    console.log('decoded.exp', new Date(decoded.exp * 1000).toISOString());
 
     res.json({
       success: true,
@@ -782,10 +787,126 @@ const reactivateAccount = async (req, res) => {
       message: 'Account reactivated successfully'
     });
   } catch (error) {
-    console.error('Account reactivation error:', error);
-    return res.status(500).json({
+    logger.error('Error reactivating account:', error);
+    res.status(500).json({
       success: false,
-      message: 'Failed to reactivate account. Please try again later.'
+      message: 'Failed to reactivate account'
+    });
+  }
+};
+
+// Password Reset Functions
+const resetPasswordRequest = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found with this email address'
+      });
+    }
+
+    // Generate 6-digit verification code
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const resetCodeExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Store reset code in user document
+    user.reset_password_code = resetCode;
+    user.reset_password_expires = resetCodeExpiry;
+    await user.save();
+
+    // Send email with reset code
+    const { sendEmail } = require('../utils/emailService');
+    const { passwordResetEmailTemplate } = require('../utils/emailTemplates');
+    
+    await sendEmail({
+      to: email,
+      subject: 'Password Reset Code - Kinovo',
+      html: passwordResetEmailTemplate(user.first_name || 'User', resetCode)
+    });
+
+    logger.info(`Password reset code sent to: ${email}`);
+    res.json({
+      success: true,
+      message: 'Password reset code sent to your email'
+    });
+  } catch (error) {
+    logger.error('Error sending password reset code:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send password reset code'
+    });
+  }
+};
+
+const verifyResetCode = async (req, res) => {
+  const { email, code } = req.body;
+
+  try {
+    const user = await User.findOne({ 
+      email,
+      reset_password_code: code,
+      reset_password_expires: { $gt: new Date() }
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired verification code'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Verification code is valid'
+    });
+  } catch (error) {
+    logger.error('Error verifying reset code:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to verify reset code'
+    });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  const { email, code, newPassword } = req.body;
+
+  try {
+    const user = await User.findOne({ 
+      email,
+      reset_password_code: code,
+      reset_password_expires: { $gt: new Date() }
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired verification code'
+      });
+    }
+
+    // Hash new password
+    const hashedPassword = await hashPassword(newPassword);
+    
+    // Update password and clear reset fields
+    user.password = hashedPassword;
+    user.reset_password_code = undefined;
+    user.reset_password_expires = undefined;
+    await user.save();
+
+    logger.info(`Password reset completed for user: ${email}`);
+    res.json({
+      success: true,
+      message: 'Password reset successfully'
+    });
+  } catch (error) {
+    logger.error('Error resetting password:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reset password'
     });
   }
 };
@@ -807,5 +928,8 @@ module.exports = {
   changePhone,
   checkPhone,
   changeUsername,
-  reactivateAccount
+  reactivateAccount,
+  resetPasswordRequest,
+  verifyResetCode,
+  resetPassword
 }; 

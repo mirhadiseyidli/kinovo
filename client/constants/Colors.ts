@@ -35,6 +35,7 @@ export const Colors = {
     textThird: '#525252',
     maybeStatusColor: '#FFB347',
     eventCardBackgroundColor: 'rgba(222, 221, 221, 0.51)',
+    card: '#f7f7f7',
   },
   dark: {
     text: '#ECEDEE',
@@ -63,5 +64,6 @@ export const Colors = {
     textThird: '#A1A1AA',
     maybeStatusColor: '#FFB347',
     eventCardBackgroundColor: 'rgba(51, 51, 51, 0.5)',
+    card: '#222527',
   },
 };

@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, Image, Dimensions, TouchableOpacity } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, withRepeat, Easing } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, withRepeat, Easing, cancelAnimation } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { ThemedView } from '@/components/ThemedView';
@@ -13,7 +13,7 @@ import { useRouter } from 'expo-router';
 import { getCategoryImage } from '@/constants/CategoryImages';
 import { BlurView } from 'expo-blur';
 
-const EventView: React.FC<{ event: Event, loading: boolean }> = ({ event, loading }) => {
+const EventView: React.FC<{ event: Event, loading: boolean }> = React.memo(({ event, loading }) => {
   
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
@@ -23,8 +23,12 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = ({ event, loadin
   const today = new Date();
 
   const pulse = useSharedValue(1);
+  const [isVisible, setIsVisible] = useState(true);
+  const mountedRef = useRef(true);
   
   useEffect(() => {
+    // Only start animation if component is visible and mounted
+    if (isVisible && mountedRef.current) {
     pulse.value = withRepeat(
       withTiming(1.5, {
         duration: 800,
@@ -33,13 +37,31 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = ({ event, loadin
       -1,
       true
     );
-  }, [pulse]);
+    } else {
+      // Cancel animation when not visible to save memory
+      cancelAnimation(pulse);
+      pulse.value = 1; // Reset to default state
+    }
+
+    // Cleanup function
+    return () => {
+      cancelAnimation(pulse);
+    };
+  }, [pulse, isVisible]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      cancelAnimation(pulse);
+    };
+  }, []);
   
   const animatedStyle = useAnimatedStyle(() => {
     return {
       transform: [{ scale: pulse.value }],
     };
-  });
+  }, [pulse]);
 
   // Determine styling based on user status
   const userStatus = event.userStatus;
@@ -74,7 +96,7 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = ({ event, loadin
     if (daysDiff === 1) return 'Tomorrow';
     if (daysDiff > 1) return `in ${daysDiff} days`;
   
-    return format(parsedDate, 'PPP');
+    return format(parsedDate, 'MMM d, yyyy');
   };
 
   const formatEventDateTime = (date: string | Date): string => {
@@ -89,15 +111,8 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = ({ event, loadin
       timeZone: localTimeZone,
     });
 
-    if (isToday(parsed)) {
-      return `Today, ${timeString}`;
-    } else if (isTomorrow(parsed)) {
-      return `Tomorrow, ${timeString}`;
-    } else if (isThisWeek(parsed)) {
-      return `${format(parsed, 'EEE')}, ${timeString}`;
-    } else {
-      return `${format(parsed, 'EEE, MMM d')}, ${timeString}`;
-    }
+    // Always display in format: "Sat, Jun 6, 5:20PM"
+    return `${format(parsed, 'EEE, MMM d')}, ${timeString}`;
   };
 
   const handleViewEvent = () => {
@@ -177,7 +192,7 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = ({ event, loadin
         </View>
 
         {/* Event Details */}
-        <View style={{ flex: 1, justifyContent: 'center', position: 'relative' }}>
+        <View style={{ flex: 1, justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
           {/* Friend Info */}
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, justifyContent: 'space-between' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start' }}>
@@ -190,7 +205,7 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = ({ event, loadin
                   style={{ aspectRatio: 1, width: '16%', borderRadius: 50, marginRight: 4 }}
                 />
                 <ThemedText style={{ fontSize: 12, fontWeight: '500' }}>
-                  {truncateName(event?.creator?.full_name || 'Unknown', 15)}
+                  {truncateName(event?.creator?.full_name || 'Unknown', 16)}
                 </ThemedText>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
@@ -200,12 +215,22 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = ({ event, loadin
                       { height: 4, width: 4, borderRadius: 999, marginRight: 8, backgroundColor: themeColors.mountainGreen },
                       animatedStyle
                     ]} />
-                    <ThemedText style={{ fontSize: 12, color: themeColors.tint}}>Live</ThemedText>
+                    <ThemedText 
+                      style={{ fontSize: 12, color: themeColors.tint }}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      Live
+                    </ThemedText>
                   </>
                 ) : (
                   <>
                     <Feather name="clock" size={14} color={themeColors.tint} style={{ marginRight: 4 }} />
-                    <ThemedText style={{ fontSize: 12, color: themeColors.tint }}>
+                    <ThemedText 
+                      style={{ fontSize: 12, color: themeColors.tint }}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
                       {event?.start_time ? getDaysRemainingLabel(event.start_time) : 'Unknown date'}
                     </ThemedText>
                   </>
@@ -281,6 +306,6 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = ({ event, loadin
         </View>
       </TouchableOpacity>
   );
-};
+});
 
 export default EventView;

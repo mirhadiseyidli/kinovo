@@ -10,7 +10,6 @@ import { useGetMyFriends } from '@/hooks/useGetMyFriends';
 import { Friend, FriendEventActivity } from '@/types/allTypes';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDispatch } from 'react-redux';
-import { setEventsForFriend } from '@/store/eventStoriesSlice';
 
 const SeeWhatFriendsAreUpTo: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }> = React.memo(({ refreshing, onFinishRefresh }) => {
   const colorScheme = useColorScheme();
@@ -99,12 +98,6 @@ const SeeWhatFriendsAreUpTo: React.FC<{ refreshing: boolean; onFinishRefresh: ()
       return countB - countA;
     });
 
-  const handleFriendPress = (friend_id: string) => {
-    // Set events for friend in Redux store for the StoryViewer to use
-    const events = friendActivityMap[friend_id]?.activityData || [];
-    dispatch(setEventsForFriend({ friendId: friend_id, events }));
-  };
-
   return (
     <ThemedView style={{ flex: 1, width: '100%' }}>
       {/* Header */}
@@ -142,7 +135,6 @@ const SeeWhatFriendsAreUpTo: React.FC<{ refreshing: boolean; onFinishRefresh: ()
                     refreshing={refreshing || loading}
                     eventCount={friendActivityMap[friend._id]?.eventCount || 0}
                     activityData={friendActivityMap[friend._id]?.activityData || []}
-                    onPress={() => handleFriendPress(friend._id)}
                   />
                 ))}
               </View>

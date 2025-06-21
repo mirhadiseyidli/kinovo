@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Pressable, TextStyle, View, ViewStyle, Text } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -14,18 +14,18 @@ type TintColors = {
   false: string;
 };
 
-type Props = {
+interface Props {
   value: boolean;
-  onValueChange: (val: boolean) => void;
+  onValueChange: (value: boolean) => void;
   onCheckColor?: string;
   tintColors?: TintColors;
   style?: ViewStyle;
   textStyle?: TextStyle;
   topContainerStyle?: ViewStyle;
   label?: string;
-};
+}
 
-const AnimatedCheckBox = ({
+const AnimatedCheckBox = React.memo<Props>(({
   value,
   onValueChange,
   onCheckColor = '#fff', // Default checkmark color
@@ -34,7 +34,7 @@ const AnimatedCheckBox = ({
   textStyle={},
   topContainerStyle,
   label
-}: Props) => {
+}) => {
   // Shared progress: 0 for unchecked, 1 for checked
   const progress = useSharedValue(value ? 1 : 0);
   const [containerHeight, setContainerHeight] = useState(0);
@@ -44,20 +44,20 @@ const AnimatedCheckBox = ({
     progress.value = withTiming(value ? 1 : 0, { duration: 300 });
   }, [value]);
 
-  // Animated style for the container border color
+  // Memoized animated styles to prevent recreation
   const checkBoxAnimationStyle = useAnimatedStyle(() => ({
     borderColor: interpolateColor(
       progress.value,
       [0, 1],
       [tintColors.false, tintColors.true]
     ),
-  }));
+  }), [progress, tintColors.false, tintColors.true]);
 
   // Animated style for checkmark: fade in and scale in when checked
   const checkmarkAnimatedStyle = useAnimatedStyle(() => ({
     opacity: progress.value,
     transform: [{ scale: progress.value }],
-  }));
+  }), [progress]);
 
   const animatedTextStyle = useAnimatedStyle(() => ({
     color: interpolateColor(
@@ -65,7 +65,15 @@ const AnimatedCheckBox = ({
       [0, 1],
       [tintColors.false, tintColors.true] // from inactive to active text color
     )
-  }));
+  }), [progress, tintColors.false, tintColors.true]);
+
+  const handlePress = useCallback(() => {
+    onValueChange(!value);
+  }, [value, onValueChange]);
+
+  const handleLayout = useCallback((e: any) => {
+    setContainerHeight(e.nativeEvent.layout.height);
+  }, []);
 
   return (
     <View 
@@ -79,9 +87,9 @@ const AnimatedCheckBox = ({
         topContainerStyle 
       ]}
     >
-      <Pressable onPress={() => onValueChange(!value)} style={style}>
+      <Pressable onPress={handlePress} style={style}>
         <Animated.View
-          onLayout={(e) => setContainerHeight(e.nativeEvent.layout.height)}
+          onLayout={handleLayout}
           style={[
             {
               borderRadius: 4,
@@ -103,6 +111,6 @@ const AnimatedCheckBox = ({
       </AnimatedThemedText>
     </View>
   );
-};
+});
 
 export default AnimatedCheckBox;

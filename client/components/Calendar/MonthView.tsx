@@ -6,7 +6,7 @@ import { format } from 'date-fns';
 import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
 import WeekDayNames from './CalendarHeader/WeekDayNames';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
-import { useEventContext } from '@/context/EventContext';
+import { useEventContext } from '@/context/UserSessionContext';
 
 const setNewDates = (year: number, month: number) => {
   const prevMonth = month === 0 ? { year: year - 1, month: 11 } : { year, month: month - 1 };

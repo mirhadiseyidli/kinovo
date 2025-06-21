@@ -1,6 +1,8 @@
 const FriendRequest = require('../database/schemas/friendRequestsSchema');
 const Users = require('../database/schemas/usersSchema');
-const { createFriendRequestNotification, updateFriendRequestNotificationStatus, createNotification } = require('./notificationsController');
+const { updateFriendRequestNotificationStatus, createNotification, createFriendRequestNotification, sendFriendRequestPushNotification, sendEventInvitationPushNotification } = require('./notificationsController');
+const { sendEmailNotification } = require('../utils/emailNotificationService');
+const { removeFriendRequestFromFirebase } = require('../services/realtimeSyncService');
 
 // Send friend request
 const sendFriendRequest = async (req, res) => {
@@ -25,6 +27,25 @@ const sendFriendRequest = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    // Check if they are already friends
+    const sender_user = await Users.findById(sender);
+    if (sender_user.friends.includes(receiver)) {
+      return res.status(400).json({ message: 'You are already friends with this user' });
+    }
+
+    // Check if either user has blocked the other
+    const isBlockedByReceiver = receiver_found.blocked_users.some(
+      block => block.user.toString() === sender.toString()
+    );
+    const hasBlockedReceiver = sender_user.blocked_users.some(
+      block => block.user.toString() === receiver.toString()
+    );
+
+    if (isBlockedByReceiver || hasBlockedReceiver) {
+      return res.status(403).json({ message: 'Cannot send friend request to this user' });
+    }
+
+    // Check if there's already a pending request from sender to receiver
     const existingRequest = await FriendRequest.findOne({
       sender: sender,
       receiver: receiver,
@@ -35,6 +56,65 @@ const sendFriendRequest = async (req, res) => {
       return res.status(400).json({ message: 'Friend request already sent' });
     }
 
+    // Check if there's already a pending request from receiver to sender
+    const reverseRequest = await FriendRequest.findOne({
+      sender: receiver,
+      receiver: sender,
+      status: 'pending'
+    });
+
+    if (reverseRequest) {
+      // If receiver already sent a request to sender, automatically accept both
+      // and make them friends instead of creating a duplicate request
+      await FriendRequest.findByIdAndDelete(reverseRequest._id);
+      
+      // Remove from Firebase for both users
+      await removeFriendRequestFromFirebase(sender, reverseRequest._id.toString());
+      await removeFriendRequestFromFirebase(receiver, reverseRequest._id.toString());
+      
+      await Users.findByIdAndUpdate(sender, { $addToSet: { friends: receiver } });
+      await Users.findByIdAndUpdate(receiver, { $addToSet: { friends: sender } });
+      
+      // Create acceptance notification for the original sender (receiver of current request)
+      const senderUser = await Users.findById(sender);
+      const receiverUser = await Users.findById(receiver);
+      
+      if (senderUser && receiverUser) {
+        // Check if receiver wants to receive friend request accepted notifications
+        const { shouldReceiveNotification } = require('./notificationsController');
+        const shouldReceiveInApp = await shouldReceiveNotification(receiver, 'friend_request_accepted', 'inApp');
+        const shouldReceiveEmail = await shouldReceiveNotification(receiver, 'friend_request_accepted', 'email');
+        
+        if (shouldReceiveInApp || shouldReceiveEmail) {
+          // Create in-app notification if enabled
+          if (shouldReceiveInApp) {
+            const notification = await createNotification({
+              recipient: receiver,
+              sender: sender,
+              type: 'friend_request_accepted',
+              title: 'Friend Request Accepted',
+              subtitle: `${senderUser.full_name} accepted your friend request`,
+              status: 'unseen'
+            });
+          }
+
+          // Send email notification if enabled
+          if (shouldReceiveEmail && receiverUser.email) {
+            await sendEmailNotification(receiverUser.email, 'friend_request_accepted', {
+              accepterName: senderUser.full_name,
+              accepterUsername: senderUser.username
+            });
+          }
+        }
+      }
+      
+      return res.status(200).json({ 
+        message: 'Mutual friend requests found - you are now friends!', 
+        friendRequest: reverseRequest,
+        autoAccepted: true 
+      });
+    }
+
     const friendRequest = new FriendRequest({
       sender: sender,
       receiver: receiver,
@@ -43,8 +123,9 @@ const sendFriendRequest = async (req, res) => {
 
     await friendRequest.save();
 
-    // Note: The friend request watcher will automatically send the WebSocket notification
-    // No need to create a separate notification here to avoid duplicates
+    // Don't create notification banners for friend requests - they only show in Friend Requests section
+    await createFriendRequestNotification(friendRequest._id, sender, receiver);
+
 
     res.status(200).json({ message: 'Friend request sent successfully', friendRequest });
   } catch (error) {
@@ -71,20 +152,46 @@ const acceptFriendRequest = async (req, res) => {
       return res.status(404).json({ error: 'Friend request not found or invalid sender/receiver' });
     }
 
+    // Remove from Firebase for both sender and receiver
+    await removeFriendRequestFromFirebase(receiver, friendRequest._id.toString());
+    await removeFriendRequestFromFirebase(sender, friendRequest._id.toString());
+
     await Users.findByIdAndUpdate(receiver, { $addToSet: { friends: sender } });
     await Users.findByIdAndUpdate(sender, { $addToSet: { friends: receiver } });
 
     // Create a notification for the sender that their request was accepted
     const receiverUser = await Users.findById(receiver);
-    if (receiverUser) {
-      const notification = await createNotification({
-        recipient: sender,
-        sender: receiver,
-        type: 'friend_request_accepted',
-        title: 'Friend Request Accepted',
-        subtitle: `${receiverUser.full_name} accepted your friend request`,
-        status: 'unseen'
-      });
+    const senderUser = await Users.findById(sender);
+    
+    if (receiverUser && senderUser) {
+      // Check if sender wants to receive friend request accepted notifications
+      const { shouldReceiveNotification } = require('./notificationsController');
+      const shouldReceiveInApp = await shouldReceiveNotification(sender, 'friend_request_accepted', 'inApp');
+      const shouldReceiveEmail = await shouldReceiveNotification(sender, 'friend_request_accepted', 'email');
+      
+      if (shouldReceiveInApp || shouldReceiveEmail) {
+        // Create in-app notification if enabled
+        if (shouldReceiveInApp) {
+          const notification = await createNotification({
+            recipient: sender,
+            sender: receiver,
+            type: 'friend_request_accepted',
+            title: 'Friend Request Accepted',
+            subtitle: `${receiverUser.full_name} accepted your friend request`,
+            status: 'unseen'
+          });
+        }
+
+        // Send email notification if enabled
+        if (shouldReceiveEmail && senderUser.email) {
+          await sendEmailNotification(senderUser.email, 'friend_request_accepted', {
+            accepterName: receiverUser.full_name,
+            accepterUsername: receiverUser.username
+          });
+        }
+      } else {
+        console.log(`User ${sender} has disabled all friend request accepted notifications`);
+      }
     }
 
     res.status(200).json({ message: 'Friend request accepted', friendRequest });
@@ -112,18 +219,13 @@ const rejectFriendRequest = async (req, res) => {
       return res.status(404).json({ error: 'Friend request not found or invalid sender/receiver' });
     }
 
-    // Create a notification for the sender that their request was rejected
-    const receiverUser = await Users.findById(receiver);
-    if (receiverUser) {
-      const notification = await createNotification({
-        recipient: sender,
-        sender: receiver,
-        type: 'friend_request_rejected',
-        title: 'Friend Request Declined',
-        subtitle: `${receiverUser.full_name} declined your friend request`,
-        status: 'unseen'
-      });
-    }
+    // Remove from Firebase for both sender and receiver
+    await removeFriendRequestFromFirebase(receiver, friendRequest._id.toString());
+    await removeFriendRequestFromFirebase(sender, friendRequest._id.toString());
+
+    // Note: We intentionally do not send a rejection notification to avoid creating
+    // negative feelings. The sender will simply see the request disappear from their
+    // pending requests list.
 
     res.status(200).json({ message: 'Friend request rejected', friendRequest });
   } catch (error) {
@@ -153,8 +255,12 @@ const cancelFriendRequestSender = async (req, res) => {
 
     const friendRequestId = friendRequest._id.toString();
 
-    // Delete the friend request
+    // Delete the friend request from database
     const deletedRequest = await FriendRequest.findByIdAndDelete(friendRequest._id);
+
+    // Remove from Firebase for both sender and receiver
+    await removeFriendRequestFromFirebase(sender, friendRequestId);
+    await removeFriendRequestFromFirebase(receiver, friendRequestId);
 
     // Remove any related notifications for this friend request
     const Notification = require('../database/schemas/notificationsSchema');
@@ -191,8 +297,12 @@ const cancelFriendRequestReceiver = async (req, res) => {
 
     const friendRequestId = friendRequest._id.toString();
 
-    // Delete the friend request
+    // Delete the friend request from database
     await FriendRequest.findByIdAndDelete(friendRequest._id);
+
+    // Remove from Firebase for both sender and receiver
+    await removeFriendRequestFromFirebase(receiver, friendRequestId);
+    await removeFriendRequestFromFirebase(sender, friendRequestId);
 
     // Remove any related notifications for this friend request
     const Notification = require('../database/schemas/notificationsSchema');

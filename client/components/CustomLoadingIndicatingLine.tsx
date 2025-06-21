@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Dimensions } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -13,7 +13,16 @@ import LinearGradient from 'react-native-linear-gradient';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const ReanimatedShimmerLine = ({
+interface ReanimatedShimmerLineProps {
+  height?: number;
+  gradientWidth?: number;
+  colors?: string[];
+  speed?: number;
+  backgroundColor?: string;
+  loading?: boolean;
+}
+
+const ReanimatedShimmerLine = React.memo<ReanimatedShimmerLineProps>(({
   height = 3,
   gradientWidth = 120,
   colors = ['green', 'yellow', 'red'],
@@ -22,6 +31,8 @@ const ReanimatedShimmerLine = ({
   loading = true,
 }) => {
   const translateX = useSharedValue(-gradientWidth);
+  const mountedRef = useRef(true);
+  
   const loadingDerived = useDerivedValue(() => {
     return loading ? 1 : 0;
   }, [loading]);
@@ -29,6 +40,8 @@ const ReanimatedShimmerLine = ({
   useAnimatedReaction(
     () => loadingDerived.value,
     (current, previous) => {
+      if (!mountedRef.current) return; // Don't animate if unmounted
+      
       if (current === 1 && previous !== 1) {
         translateX.value = withRepeat(
           withTiming(SCREEN_WIDTH, { duration: speed }),
@@ -42,9 +55,24 @@ const ReanimatedShimmerLine = ({
     }
   );
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      cancelAnimation(translateX);
+    };
+  }, []);
+
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
-  }));
+  }), [translateX]);
+
+  // Don't render animation elements when not loading to save memory
+  if (!loading) {
+    return (
+      <View style={{ width: '100%', height, backgroundColor }} />
+    );
+  }
 
   return (
     <View style={{ width: '100%', height, overflow: 'hidden', backgroundColor }}>
@@ -67,6 +95,6 @@ const ReanimatedShimmerLine = ({
       </Animated.View>
     </View>
   );
-};
+});
 
 export default ReanimatedShimmerLine;

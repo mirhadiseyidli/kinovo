@@ -616,10 +616,7 @@ const SignUpContent: React.FC = () => {
 
   if (show2FA) {
     return (
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1, backgroundColor: themeColors.background }}
-      >
+      <ThemedView style={{ flex: 1, backgroundColor: themeColors.background }}>
         <ScrollView
           bounces={false}
           keyboardShouldPersistTaps="handled"
@@ -668,7 +665,7 @@ const SignUpContent: React.FC = () => {
             </ThemedView>
           </ThemedView>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </ThemedView>
     );
   }
 
@@ -699,133 +696,121 @@ const SignUpContent: React.FC = () => {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={{ flex: 1, backgroundColor: themeColors.background }}
-    >
+    <ThemedView style={{ flex: 1, backgroundColor: themeColors.background }}>
       <ScrollView
         bounces={false}
         keyboardShouldPersistTaps="handled"
         style={{ flex: 1 }}
         contentContainerStyle={{ 
           flexGrow: 1,
-          justifyContent: 'space-between',
           paddingBottom: insets.bottom,
-          paddingHorizontal: 16
+          paddingHorizontal: 16,
+          justifyContent: 'space-between'
         }}
         showsVerticalScrollIndicator={false}
+        keyboardDismissMode="interactive"
         automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
-        keyboardDismissMode="none"
         scrollEnabled={true}
       >
-        <ThemedView style={{ 
-          flex: 1,
-        }}>
-          {/* Top Section: Logo + Steps */}
-          <ThemedView>
-            {/* Logo and Company Name Section */}
-            <ThemedView style={{ 
-              flexDirection: 'column', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              marginBottom: 32,
-              marginTop: Platform.OS === 'ios' ? 20 : 20
-            }}>
-              <Image
-                source={require('@/assets/logo_2.png')}
-                style={{
-                  width: width * 0.45,
-                  height: width * 0.45,
-                  resizeMode: 'contain',
-                  bottom: 0,
-                }}
-              />
-              <ThemedText style={{ fontSize: 40, fontFamily: 'Helvetica Neue Bold', fontWeight: 'bold', letterSpacing: -1, alignSelf: 'center' }}>Kinovo</ThemedText>
-            </ThemedView>
-
-            {/* Step Indicator */}
-            {renderStepIndicator()}
-
-            {/* Welcome Text Section */}
-            <ThemedView style={{ marginBottom: 16, alignItems: 'center' }}>
-              <ThemedText style={{ fontSize: 24, marginBottom: 8, textAlign: 'center' }}>
-                {getStepTitle()}
-              </ThemedText>
-              <ThemedText style={{ fontSize: 14, color: themeColors.textSecondary, textAlign: 'center' }}>
-                {getStepDescription()}
-              </ThemedText>
-            </ThemedView>
+        {/* Top Section: Logo + Steps */}
+        <ThemedView style={{ paddingTop: Platform.OS === 'ios' ? 20 : 20 }}>
+          {/* Logo and Company Name Section */}
+          <ThemedView style={{ 
+            flexDirection: 'column', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            marginBottom: 32
+          }}>
+            <Image
+              source={require('@/assets/logo_2.png')}
+              style={{
+                width: width * 0.45,
+                height: width * 0.45,
+                resizeMode: 'contain',
+                bottom: 0,
+              }}
+            />
+            <ThemedText style={{ fontSize: 40, fontFamily: 'Helvetica Neue Bold', fontWeight: 'bold', letterSpacing: -1, alignSelf: 'center' }}>Kinovo</ThemedText>
           </ThemedView>
 
-          {/* Bottom Section: Form + Buttons */}
-          <ThemedView>
-            {/* Form Fields */}
-            <ThemedView>
-              {currentStep === 1 && renderStep1()}
-              {currentStep === 2 && renderStep2()}
-              {currentStep === 3 && renderStep3()}
+          {/* Step Indicator */}
+          {renderStepIndicator()}
 
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={currentStep === 3 ? handleSignUp : handleNext}
-                disabled={loading}
-                style={{
-                  alignItems: 'center',
-                  backgroundColor: themeColors.mountainGreen,
-                  paddingVertical: 12,
-                  borderRadius: 8,
-                  opacity: loading ? 0.7 : 1,
-                }}
-              >
-                <ThemedText style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>
-                  {loading ? 'Creating Account...' : currentStep === 3 ? 'Create Account' : 'Next'}
-                </ThemedText>
-              </TouchableOpacity>
-
-              {currentStep !== 1 && (
-                <TouchableOpacity
-                  onPress={handleBack}
-                  style={{
-                    alignItems: 'center',
-                    backgroundColor: 'transparent',
-                    paddingVertical: 12,
-                    borderRadius: 8,
-                    borderWidth: 1,
-                    borderColor: themeColors.textSecondary,
-                    marginTop: 16,
-                  }}
-                >
-                  <ThemedText style={{ color: themeColors.textSecondary, fontSize: 16, fontWeight: '600' }}>
-                    Back
-                  </ThemedText>
-                </TouchableOpacity>
-              )}
-            </ThemedView>
+          {/* Welcome Text Section */}
+          <ThemedView style={{ marginBottom: 32, alignItems: 'center' }}>
+            <ThemedText style={{ fontSize: 24, marginBottom: 8, textAlign: 'center' }}>
+              {getStepTitle()}
+            </ThemedText>
+            <ThemedText style={{ fontSize: 14, color: themeColors.textSecondary, textAlign: 'center' }}>
+              {getStepDescription()}
+            </ThemedText>
           </ThemedView>
         </ThemedView>
 
-        {/* Login Link - Fixed to bottom */}
+        {/* Form Fields Section */}
+        <ThemedView>
+          {currentStep === 1 && renderStep1()}
+          {currentStep === 2 && renderStep2()}
+          {currentStep === 3 && renderStep3()}
+        </ThemedView>
+
+        {/* Bottom Section: Buttons */}
+        <ThemedView style={{ marginBottom: 16 }}>
+          {/* Action Buttons */}
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={currentStep === 3 ? handleSignUp : handleNext}
+            disabled={loading}
+            style={{
+              alignItems: 'center',
+              backgroundColor: themeColors.mountainGreen,
+              paddingVertical: 12,
+              borderRadius: 8,
+              opacity: loading ? 0.7 : 1,
+            }}
+          >
+            <ThemedText style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>
+              {loading ? 'Creating Account...' : currentStep === 3 ? 'Create Account' : 'Next'}
+            </ThemedText>
+          </TouchableOpacity>
+
+          {currentStep !== 1 && (
+            <TouchableOpacity
+              onPress={handleBack}
+              style={{
+                alignItems: 'center',
+                backgroundColor: 'transparent',
+                paddingVertical: 12,
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor: themeColors.textSecondary,
+                marginTop: 16,
+              }}
+            >
+              <ThemedText style={{ color: themeColors.textSecondary, fontSize: 16, fontWeight: '600' }}>
+                Back
+              </ThemedText>
+            </TouchableOpacity>
+          )}
+        </ThemedView>
+        
+        {/* Login Link */}
         {currentStep === 1 && (
-          <View style={{ 
+          <ThemedView style={{ 
             flexDirection: 'row', 
             alignItems: 'center', 
-            justifyContent: 'center'
+            justifyContent: 'center',
           }}>
             <ThemedText>Already have an account?</ThemedText>
             <TouchableOpacity onPress={handleBack}>
-              <ThemedText style={{ 
-                color: themeColors.mountainGreen, 
-                fontWeight: 'bold',
-                textDecorationLine: 'underline',
-                marginLeft: 4
-              }}>
+              <ThemedText style={{ color: themeColors.mountainGreen, fontWeight: '600', textDecorationLine: 'underline', marginLeft: 4 }}>
                 Login
               </ThemedText>
             </TouchableOpacity>
-          </View>
+          </ThemedView>
         )}
       </ScrollView>
-    </KeyboardAvoidingView>
+    </ThemedView>
   );
 };
 

@@ -3,9 +3,10 @@ import * as SecureStore from 'expo-secure-store';
 import { router } from "expo-router";
 import { createContext, RefObject, ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import axios, { AxiosError } from 'axios';
-import { Animated, ActivityIndicator, View } from 'react-native';
+import { View } from 'react-native';
 import { ApiError, AuthContextType, TokenTypes } from '@/types/allTypes';
 import { signInWithFirebaseToken } from '@/config/firebase';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
 
 const AuthContext = createContext<AuthContextType>({
   signIn: () => null,
@@ -17,6 +18,7 @@ const AuthContext = createContext<AuthContextType>({
   refreshAccessToken: async () => {},
   checkAuth: async () => {},
   userId: undefined,
+  isFirebaseAuthenticated: false,
 });
 
 // Access the context as a hook
@@ -30,7 +32,21 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
   const firebaseTokenRef = useRef<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState<string | undefined>(undefined);
-  const fadeAnim = useState(new Animated.Value(1))[0]; // Initial opacity
+  const [isFirebaseAuthenticated, setIsFirebaseAuthenticated] = useState(false);
+  const fadeAnim = useSharedValue(1); // Initial opacity
+
+  // Try to authenticate with Firebase using stored token
+  const authWithFirebase = useCallback(async (token: string) => {
+    try {
+      await signInWithFirebaseToken(token);
+      setIsFirebaseAuthenticated(true);
+      return true;
+    } catch (error: any) {
+      console.error('Firebase authentication failed during auto-login:', error);
+      setIsFirebaseAuthenticated(false);
+      return false;
+    }
+  }, []);
 
   useEffect(() => {
     (async (): Promise<void> => {
@@ -46,6 +62,10 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
 
       if (accessToken) {
         await checkAuth();
+        // If we have a Firebase token, try to authenticate with it
+        if (firebaseToken) {
+          await authWithFirebase(firebaseToken);
+        }
       } else {
         setIsLoading(false);
       }
@@ -53,17 +73,9 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
   }, []);
 
   const fadeTransition = (callback: () => void) => {
-    Animated.timing(fadeAnim, {
-      toValue: 0,
-      duration: 500, // Fade out duration
-      useNativeDriver: true,
-    }).start(() => {
-      callback(); // Perform sign-in or sign-out action
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 500, // Fade in duration
-        useNativeDriver: true,
-      }).start();
+    fadeAnim.value = withTiming(0, { duration: 150 }, () => {
+      runOnJS(callback)(); // Perform sign-in or sign-out action
+      fadeAnim.value = withTiming(1, { duration: 150 });
     });
   };
 
@@ -123,24 +135,39 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
       await SecureStore.setItemAsync('accessToken', accessToken);
       await AsyncStorage.setItem('userId', userId);
       await SecureStore.setItemAsync('refreshToken', refreshToken);
-      await SecureStore.setItemAsync('firebaseToken', firebaseToken || '');
+      
       accessTokenRef.current = accessToken;
       refreshTokenRef.current = refreshToken;
-      firebaseTokenRef.current = firebaseToken || '';
       setUserId(userId);
 
-      // Sign in to Firebase with custom token if provided
+      // Store Firebase token but don't wait for authentication
       if (firebaseToken) {
-        try {
-          await signInWithFirebaseToken(firebaseToken);
-          console.log('Firebase authentication successful with custom token');
-        } catch (error) {
-          console.error('Firebase authentication failed:', error);
-          // Continue with normal auth flow even if Firebase auth fails
-        }
+        console.log('Firebase token received, length:', firebaseToken.length);
+        // Store the token immediately
+        await SecureStore.setItemAsync('firebaseToken', firebaseToken);
+        firebaseTokenRef.current = firebaseToken;
+        
+        // Navigate immediately, then authenticate with Firebase in background
+        router.replace('/');
+        
+        // Firebase authentication happens in background after navigation
+        setTimeout(async () => {
+          try {
+            const result = await signInWithFirebaseToken(firebaseToken);
+            setIsFirebaseAuthenticated(true);
+            console.log('Background Firebase authentication successful');
+          } catch (error: any) {
+            console.error('Background Firebase authentication failed:', error.code, error.message);
+            setIsFirebaseAuthenticated(false);
+          }
+        }, 100); // Small delay to ensure navigation completes first
+      } else {
+        console.log('No Firebase token provided during sign in');
+        firebaseTokenRef.current = '';
+        setIsFirebaseAuthenticated(false);
+        await SecureStore.deleteItemAsync('firebaseToken');
+        router.replace('/');
       }
-
-      router.replace('/');
     });
   }, []);
 
@@ -154,6 +181,7 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
       refreshTokenRef.current = null;
       firebaseTokenRef.current = null;
       setUserId(undefined);
+      setIsFirebaseAuthenticated(false);
       router.replace('/login');
     });
   }, []);
@@ -169,7 +197,8 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
         isLoading,
         refreshAccessToken,
         checkAuth,
-        userId
+        userId,
+        isFirebaseAuthenticated,
       }}
     >
       <View style={{ flex: 1 }}>
@@ -177,4 +206,4 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
       </View>
     </AuthContext.Provider>
   );
-};
+}

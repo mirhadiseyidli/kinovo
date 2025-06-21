@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ActionSheetIOS, Platform, type ViewStyle, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ActionSheetIOS, Platform, type ViewStyle, Alert, InteractionManager } from 'react-native';
 import { format, isSameDay, isTomorrow } from 'date-fns';
 import type { ReportEventButtonProps, Coordinates, EventProp } from '@/types/allTypes';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -16,18 +16,21 @@ import EventRecurrence from './EventRecurrence';
 import EventLocationInfo from './EventLocationInfo';
 import EventVisibilityInfo from './EventVisibilityInfo';
 import { useEventInvitation } from '@/hooks/useEventInvitation';
-import { useEventContext } from '@/context/EventContext';
+import { useEventContext } from '@/context/UserSessionContext';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import AddAttendeesModal from './AddAttendeesModal';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
 import { jwtDecode } from 'jwt-decode';
 import { useCreateEventContext } from '@/context/CreateEventContext';
 import { useEventReport } from '@/hooks/useEventReport';
+import { useViewEventModal } from '../../app/(auth)/(viewEvent)/[event_id]';
 
 const EventDetailsSection: React.FC<EventProp> = ({ event }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [showAddAttendeesModal, setShowAddAttendeesModal] = useState(false);
+  const { showModal } = useViewEventModal();
+
   const { respondToInvitation, joinEvent, markNotInterested, cancelEvent: cancelEventApi } = useEventInvitation();
   const { refreshEvents } = useEventContext();
   const { accessToken } = useAuthSession();
@@ -108,34 +111,15 @@ const EventDetailsSection: React.FC<EventProp> = ({ event }) => {
       return;
     }
 
-    // If this is a recurring event occurrence, show the alert to choose modification type
     if (isRecurringOccurrence) {
-      const statusText = status === 'accepted' ? 'accept' : status === 'maybe' ? 'mark as maybe' : 'decline';
-      Alert.alert(
-        'Recurring Event',
-        `Do you want to ${statusText} this event only or all future events?`,
-        [
-          {
-            text: 'This Event Only',
-            onPress: () => handleInvitationResponse(status, { modifyType: 'this_only' }),
-            style: 'default',
-          },
-          {
-            text: 'All Future Events',
-            onPress: () => handleInvitationResponse(status, { modifyType: 'all_future' }),
-            style: 'default',
-          },
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
-        ]
-      );
+      showModal('status_change_recurring', { 
+        status, 
+        onConfirm: handleInvitationResponse 
+      });
     } else {
-      // For non-recurring events or original recurring events, respond directly
       handleInvitationResponse(status);
     }
-  }, [isRecurringOccurrence, handleInvitationResponse, event.attendees, loggedInUserId, handleJoinEvent]);
+  }, [isRecurringOccurrence, handleInvitationResponse, event.attendees, loggedInUserId, handleJoinEvent, showModal]);
 
   const handleNotInterested = useCallback(async () => {
     if (!event._id) return;
@@ -144,12 +128,12 @@ const EventDetailsSection: React.FC<EventProp> = ({ event }) => {
       await markNotInterested(event._id);
       // Refresh events to update calendar
       await refreshEvents();
-      // Navigate back to previous screen
-      router.back();
+      // Use the centralized navigation system instead of direct router.back()
+      showModal('not_interested_success', { message: 'Event marked as not interested.' });
     } catch (error) {
       console.error('Failed to mark event as not interested:', error);
     }
-  }, [event._id, markNotInterested, refreshEvents, router]);
+  }, [event._id, markNotInterested, refreshEvents, showModal]);
 
   const acceptInvitation = useCallback(() => {
     handleStatusChange('accepted');
@@ -171,10 +155,6 @@ const EventDetailsSection: React.FC<EventProp> = ({ event }) => {
     }
   }, [handleStatusChange, event.attendees, loggedInUserId, handleNotInterested]);
 
-  const handleThisEventOnly = useCallback(() => {}, []);
-  const handleAllFutureEvents = useCallback(() => {}, []);
-  const handleCloseModal = useCallback(() => {}, []);
-
   const editEvent = useCallback(async () => {
     // If there's an event to edit
     if (event) {
@@ -184,14 +164,8 @@ const EventDetailsSection: React.FC<EventProp> = ({ event }) => {
         // Set a flag to indicate edit mode
         await AsyncStorage.setItem('isEditMode', 'true');
         
-        // First go back to close the view event screen
-        router.back();
-        
-        // Then navigate to the create event modal after a short delay
-        // This ensures the view event screen is closed first
-        setTimeout(() => {
-          router.push('/(auth)/(createEvent)/EventDetails');
-        }, 300);
+        // Replace the current screen instead of back + push to avoid modal conflicts
+        router.replace('/(auth)/(createEvent)/EventDetails');
       } catch (error) {
         console.error("Error setting up edit mode:", error);
       }
@@ -214,102 +188,19 @@ const EventDetailsSection: React.FC<EventProp> = ({ event }) => {
     
     try {
       await reportEventApi(event._id, reason as any, details);
-      Alert.alert(
-        'Report Submitted',
-        'Thank you for your report. We will review it as soon as possible.'
-      );
+      showModal('report_success');
     } catch (error) {
       console.error('Failed to report event:', error);
     }
-  }, [event._id, reportEventApi]);
-
-  const showReportReasonAlert = useCallback(() => {
-    Alert.alert(
-      'Report Event',
-      'Please select a reason for reporting this event:',
-      [
-        {
-          text: 'Spam',
-          onPress: () => handleReportEvent('spam'),
-        },
-        {
-          text: 'Inappropriate Content',
-          onPress: () => handleReportEvent('inappropriate'),
-        },
-        {
-          text: 'Abuse',
-          onPress: () => handleReportEvent('abuse'),
-        },
-        {
-          text: 'False Information',
-          onPress: () => handleReportEvent('false_information'),
-        },
-        {
-          text: 'Other',
-          onPress: () => {
-            // Show additional alert for details if "Other" is selected
-            Alert.prompt(
-              'Additional Details',
-              'Please provide more information about why you are reporting this event:',
-              [
-                {
-                  text: 'Cancel',
-                  style: 'cancel'
-                },
-                {
-                  text: 'Submit',
-                  onPress: (details) => handleReportEvent('other', details)
-                }
-              ],
-              'plain-text'
-            );
-          },
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ]
-    );
-  }, [handleReportEvent]);
+  }, [event._id, reportEventApi, showModal]);
 
   const reportEvent = useCallback(() => {
-    Alert.alert(
-      'Report Event',
-      'Are you sure you want to report this event?',
-      [
-        {
-          text: 'Yes',
-          onPress: showReportReasonAlert,
-          style: 'destructive',
-        },
-        {
-          text: 'No',
-          style: 'cancel',
-        },
-      ]
-    );
-  }, [showReportReasonAlert]);
+    showModal('report_confirm', { onReport: handleReportEvent });
+  }, [showModal, handleReportEvent]);
 
   const openActionSheet = () => {
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ['Cancel', 'Report Event'],
-          destructiveButtonIndex: 1,
-          cancelButtonIndex: 0,
-          userInterfaceStyle: 'dark',
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 1) {
-            reportEvent();
-          }
-        }
-      );
-    } else {
-      // For Android, directly show the report alert
-      reportEvent();
-    }
+    // Use the centralized modal system instead of direct ActionSheetIOS
+    reportEvent();
   };
 
   const handleCancelEvent = useCallback(async (
@@ -332,68 +223,27 @@ const EventDetailsSection: React.FC<EventProp> = ({ event }) => {
       // Refresh events to update calendar
       await refreshEvents();
       
-      // Show success message and navigate back
-      Alert.alert(
-        'Event Cancelled',
-        options?.modifyType === 'this_only' 
+      const message = options?.modifyType === 'this_only' 
           ? 'This event occurrence has been cancelled successfully.'
           : options?.modifyType === 'all_future'
           ? 'All future occurrences have been cancelled successfully.'
-          : 'The event has been cancelled successfully.',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.back()
-          }
-        ]
-      );
+          : 'The event has been cancelled successfully.';
+
+      // Show success message and navigate back
+      showModal('cancel_success', { message });
     } catch (error) {
       console.error('Failed to cancel event:', error);
     }
-  }, [event._id, cancelEventApi, refreshEvents, isRecurringOccurrence, occurrence_start, router]);
+  }, [event._id, cancelEventApi, refreshEvents, isRecurringOccurrence, occurrence_start, showModal]);
 
   const cancelEvent = useCallback(() => {
     // If this is a recurring event occurrence, show the alert to choose modification type
     if (isRecurringOccurrence) {
-      Alert.alert(
-        'Recurring Event',
-        'Do you want to cancel this event only or all future events?',
-        [
-          {
-            text: 'This Event Only',
-            onPress: () => handleCancelEvent({ modifyType: 'this_only' }),
-            style: 'default',
-          },
-          {
-            text: 'All Future Events',
-            onPress: () => handleCancelEvent({ modifyType: 'all_future' }),
-            style: 'destructive',
-          },
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
-        ]
-      );
+      showModal('cancel_confirm_recurring', { onConfirm: handleCancelEvent });
     } else {
-      // For non-recurring events or original recurring events, show confirmation alert
-      Alert.alert(
-        'Cancel Event',
-        'Are you sure you want to cancel this event?',
-        [
-          {
-            text: 'Yes',
-            onPress: () => handleCancelEvent(),
-            style: 'destructive',
-          },
-          {
-            text: 'No',
-            style: 'cancel',
-          },
-        ]
-      );
+      showModal('cancel_confirm', { onConfirm: handleCancelEvent });
     }
-  }, [isRecurringOccurrence, handleCancelEvent]);
+  }, [isRecurringOccurrence, handleCancelEvent, showModal]);
 
   return (
     <View style={{ flexDirection: 'column', gap: 16 }}>

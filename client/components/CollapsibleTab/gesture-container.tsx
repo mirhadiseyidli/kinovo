@@ -553,6 +553,9 @@ export const GestureContainer = React.forwardRef<
       "worklet";
       if (prevScrollY === scrollY || !animationHeaderPosition) return;
       
+      // Throttle updates to reduce frequency
+      if (prevScrollY !== null && Math.abs(scrollY - prevScrollY) < 1) return;
+      
       if (isIOS && scrollY < calcHeight) {
         animationHeaderPosition.value = -scrollY;
       }
@@ -560,7 +563,7 @@ export const GestureContainer = React.forwardRef<
     [calcHeight, isIOS, animationHeaderPosition]
   );
 
-  // slide header
+  // slide header - optimized with throttling
   useAnimatedReaction(
     () => {
       "worklet";
@@ -579,6 +582,11 @@ export const GestureContainer = React.forwardRef<
       }
       
       if (current.scrollY === undefined || current.scrollY === current.headerTrans) {
+        return;
+      }
+
+      // Throttle scroll updates to reduce memory pressure
+      if (previous && Math.abs(current.scrollY - (previous.scrollY || 0)) < 2) {
         return;
       }
 

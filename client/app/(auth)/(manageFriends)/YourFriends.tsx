@@ -15,7 +15,7 @@ import type { ApiError, Friend } from '@/types/allTypes';
 import { useGetMyFriends } from '@/hooks/useGetMyFriends';
 import { useFocusEffect } from '@react-navigation/native';
 // import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SearchFriendsBar from '@/components/SearchFriendsBar';
 
 export default function FriendsList() {

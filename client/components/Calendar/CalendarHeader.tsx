@@ -45,7 +45,7 @@ const CalendarHeaderMonthView = forwardRef<CalendarHeaderMonthViewRefProps, Cale
   const listRef = useRef<FlatList<MonthItem>>(null);
   const { view, setView } = useCalendarViewContext();
   const fromChipRef = useRef(false);
-  const { totalNotificationCount } = useNotifications();
+  const { unseenNotificationCount } = useNotifications();
 
   useImperativeHandle(ref, () => ({ // expose both toggle and "select this date" to your parent via ref
     update: (date: Date) => {
@@ -207,7 +207,7 @@ const CalendarHeaderMonthView = forwardRef<CalendarHeaderMonthViewRefProps, Cale
             fromChipRef={fromChipRef}
           />
           <ThemedView style={{ alignItems: 'center' }}>
-            <NotificationsButton refreshing={refreshing} count={totalNotificationCount} />
+            <NotificationsButton refreshing={refreshing} count={unseenNotificationCount} />
           </ThemedView>
         </View>
       </ThemedView>

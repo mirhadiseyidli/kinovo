@@ -10,7 +10,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 const Header: React.FC<{ refreshing?: boolean }> = ({ refreshing }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const { totalNotificationCount } = useNotifications();
+  const { unseenNotificationCount } = useNotifications();
 
   return (
     <ThemedView 
@@ -27,7 +27,7 @@ const Header: React.FC<{ refreshing?: boolean }> = ({ refreshing }) => {
 
       {/* Right - Notifications Button */}
       <ThemedView style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-        <NotificationsButton refreshing={refreshing} count={totalNotificationCount} />
+        <NotificationsButton refreshing={refreshing} count={unseenNotificationCount} />
       </ThemedView>
     </ThemedView>
   );

@@ -1,10 +1,15 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useManageFriends } from '@/hooks/useManageFriends';
 import { FriendRequestNotification, NotificationData } from '@/types/allTypes';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '@/utils/api';
-import { useNotifications as useFirebaseNotificationsHook, useFirebaseUpdate } from '@/hooks/useFirebaseRealtime';
+import { useNotifications as useFirebaseNotificationsHook, useFriendRequests as useFirebaseFriendRequestsHook, useFirebaseUpdate } from '@/hooks/useFirebaseRealtime';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
+import { firebaseAuth, db } from '@/config/firebase';
+import { ref, onValue, update, get, remove } from '@react-native-firebase/database';
+import { Alert } from 'react-native';
+import * as Notifications from 'expo-notifications';
+import { useBadgeManager } from '@/hooks/useBadgeManager';
 
 // Create notification context
 interface NotificationContextType {
@@ -21,28 +26,51 @@ interface NotificationContextType {
   handleDeclineFriendRequest: (senderId: string) => Promise<void>;
   markNotificationAsViewed: (notificationId: string) => Promise<void>;
   markAllNotificationsAsViewed: () => Promise<void>;
+  markFriendRequestsAsViewed: () => Promise<void>;
   refreshData: () => Promise<void>;
-  // Firebase-related additions
-  mergedNotifications: NotificationData[];
+  // Firebase is now the primary source
   firebaseLoading: boolean;
   markFirebaseNotificationAsRead: (notificationId: string) => Promise<boolean>;
+  getFormattedNotificationContent: (notification: NotificationData) => { title: string, subtitle?: string };
 }
 
 const NotificationContext = createContext<NotificationContextType | null>(null);
 
 // Provider component
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { userId } = useAuthSession();
-  const [friendRequests, setFriendRequests] = useState<FriendRequestNotification[]>([]);
-  const [notifications, setNotifications] = useState<NotificationData[]>([]);
+  const { userId, isFirebaseAuthenticated, accessToken } = useAuthSession();
+  const [backendFriendRequests, setBackendFriendRequests] = useState<FriendRequestNotification[]>([]);
   const [viewedNotifications, setViewedNotifications] = useState<Set<string>>(new Set());
+  const [viewedFriendRequests, setViewedFriendRequests] = useState<Set<string>>(new Set());
   const [unseenNotificationCount, setUnseenNotificationCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [mergedNotifications, setMergedNotifications] = useState<NotificationData[]>([]);
+  const [backendNotifications, setBackendNotifications] = useState<NotificationData[]>([]);
+  const [usingBackendFallback, setUsingBackendFallback] = useState(false);
+  const [usingFriendRequestBackendFallback, setUsingFriendRequestBackendFallback] = useState(false);
   
-  // Get Firebase notifications
-  const { notifications: firebaseNotifications, loading: firebaseLoading, markAsRead } = useFirebaseNotificationsHook();
+  // Refs to prevent multiple concurrent cleanup operations
+  const markingAllNotificationsRef = useRef(false);
+  const markingFriendRequestsRef = useRef(false);
+  
+  // Stable function refs to avoid dependency issues
+  const markAllNotificationsAsViewedRef = useRef<() => Promise<void>>(async () => {});
+  const markFriendRequestsAsViewedRef = useRef<() => Promise<void>>(async () => {});
+  
+  // Get Firebase notifications as the primary source
+  const {
+    notifications: firebaseNotifications,
+    loading: firebaseLoading,
+    error: firebaseError,
+    markAsRead
+  } = useFirebaseNotificationsHook();
+
+  // Get Firebase friend requests as the primary source
+  const {
+    data: firebaseFriendRequests,
+    loading: firebaseFriendRequestsLoading,
+    error: firebaseFriendRequestsError
+  } = useFirebaseFriendRequestsHook();
   
   const {
     getReceivedFriendRequests,
@@ -50,185 +78,220 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     rejectFriendRequest
   } = useManageFriends();
 
-  // Helper function to merge notifications from context and Firebase
-  const mergeNotificationsFromSources = useCallback((contextNotifications: NotificationData[], firebaseArray: any[]) => {
-    // Create a map of existing notifications by ID
-    const notificationMap = new Map<string, NotificationData>();
-    
-    // Clean up and validate context notifications before adding to map
-    contextNotifications.forEach(notification => {
-      if (notification && notification._id) {
-        notificationMap.set(notification._id, notification);
-      }
-    });
-    
-    // Add or update with Firebase notifications (they're more up-to-date)
-    firebaseArray.forEach(fbNotification => {
-      if (fbNotification && fbNotification._id) {
-        // Convert Firebase notification to match our NotificationData type
-        const notification = {
-          _id: fbNotification._id.toString(), // Ensure ID is a string
-          type: fbNotification.type || 'event_created',
-          title: fbNotification.title || '',
-          subtitle: fbNotification.subtitle,
-          message_body: fbNotification.message_body,
-          status: fbNotification.status || 'unseen',
-          is_seen: fbNotification.is_seen || false,
-          created_at: fbNotification.timestamp ? new Date(fbNotification.timestamp).toISOString() : new Date().toISOString(),
-          updated_at: fbNotification.updated_at || new Date().toISOString(),
-          recipient: fbNotification.recipient,
-          sender: fbNotification.sender,
-          event: fbNotification.event,
-          friend_request: fbNotification.friend_request,
-          data: fbNotification.data,
-          count: fbNotification.count,
-          location: fbNotification.location
-        };
-        
-        notificationMap.set(notification._id, notification);
-      }
-    });
-    
-    // Convert the map back to an array and sort by timestamp (newest first)
-    return Array.from(notificationMap.values())
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  // Badge manager for app icon badge
+  const { updateBadgeCount, clearBadge } = useBadgeManager();
+
+  // Backend notification fetching as fallback only
+  const fetchNotificationsFromBackend = useCallback(async () => {
+    try {
+      const response = await api.get('/api/notifications');
+      const fetchedNotifications = response.data.notifications || [];
+      setBackendNotifications(fetchedNotifications);
+    } catch (error) {
+      // Silent failure for fallback
+    }
   }, []);
 
-  // Merge Firebase notifications whenever they change
+  // Check if Firebase has failed after 3 retries and switch to backend fallback
   useEffect(() => {
+    if (firebaseError && !firebaseLoading && !usingBackendFallback) {
+      setUsingBackendFallback(true);
+      fetchNotificationsFromBackend();
+    }
+  }, [firebaseError, firebaseLoading, usingBackendFallback, fetchNotificationsFromBackend]);
+
+  // Check if Firebase has recovered when using backend fallback
+  useEffect(() => {
+    if (usingBackendFallback && !firebaseError && !firebaseLoading && firebaseNotifications) {
+      setUsingBackendFallback(false);
+      setBackendNotifications([]);
+    }
+  }, [usingBackendFallback, firebaseError, firebaseLoading, firebaseNotifications]);
+
+  // Combine backend notifications with real-time Firebase updates
+  const notifications = useMemo(() => {
+    if (usingBackendFallback) {
+      return backendNotifications;
+    }
+    
+    // Start with backend notifications as the base
+    let allNotifications = [...backendNotifications];
+    
+    // Process Firebase notifications (these should only be new/unseen ones)
     if (firebaseNotifications) {
       try {
-        // Convert Firebase object to array and filter out invalid entries
-        const firebaseArray = Object.values(firebaseNotifications || {})
-          .filter(item => item && typeof item === 'object');
-        
-        if (firebaseArray.length > 0) {
-          // Merge with existing notifications
-          const merged = mergeNotificationsFromSources(notifications, firebaseArray);
-          
-          // Check for and log any potential duplicate IDs
-          const idCount = new Map<string, number>();
-          merged.forEach(item => {
-            const count = idCount.get(item._id) || 0;
-            idCount.set(item._id, count + 1);
-          });
-          
-          const duplicates = Array.from(idCount.entries())
-            .filter(([_, count]) => count > 1)
-            .map(([id]) => id);
-          
-          if (duplicates.length > 0) {
-            console.warn('Duplicate notification IDs found:', duplicates);
-          }
-          
-          // Update state with merged notifications
-          setMergedNotifications(merged);
-          
-          // Update unseen count
-          const unseenCount = merged.filter(n => !n.is_seen).length;
-          setUnseenNotificationCount(unseenCount);
-        }
-      } catch (error) {
-        console.error('Error merging notifications:', error);
-        // Fallback to using just the API notifications
-        setMergedNotifications(notifications);
-      }
-    } else {
-      // If no Firebase notifications, just use the REST API notifications
-      setMergedNotifications(notifications);
-    }
-  }, [firebaseNotifications, notifications, mergeNotificationsFromSources]);
+        const firebaseNotificationsList = Object.values(firebaseNotifications)
+          .filter(item => item && typeof item === 'object')
+          .map(fbNotification => ({
+            _id: fbNotification._id?.toString() || '',
+            type: fbNotification.type || 'event_created',
+            title: fbNotification.title || '',
+            subtitle: fbNotification.subtitle,
+            message_body: fbNotification.message_body,
+            status: fbNotification.status || 'unseen',
+            is_seen: fbNotification.is_seen || false,
+            created_at: fbNotification.timestamp ? new Date(fbNotification.timestamp).toISOString() : new Date().toISOString(),
+            updated_at: fbNotification.updated_at || new Date().toISOString(),
+            recipient: fbNotification.recipient,
+            sender: fbNotification.sender,
+            event: fbNotification.event,
+            friend_request: fbNotification.friend_request,
+            data: fbNotification.data,
+            count: fbNotification.count,
+            location: fbNotification.location
+          }));
 
-  const fetchFriendRequests = useCallback(async () => {
+        // Add Firebase notifications that don't already exist in backend notifications
+        const existingIds = new Set(backendNotifications.map(n => n._id));
+        const newFirebaseNotifications = firebaseNotificationsList.filter(fn => !existingIds.has(fn._id));
+        
+        // Merge and sort all notifications
+        allNotifications = [...backendNotifications, ...newFirebaseNotifications];
+      } catch (error) {
+        console.error('Error processing Firebase notifications:', error);
+      }
+    }
+    
+    // Sort by creation time (newest first)
+    return allNotifications.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [firebaseNotifications, backendNotifications, usingBackendFallback]);
+
+  // Update unseen count whenever notifications change
+  useEffect(() => {
+    const unseenCount = notifications.filter(n => !n.is_seen).length;
+    setUnseenNotificationCount(unseenCount);
+  }, [notifications]);
+
+  // Fetch friend requests from backend (source of truth)
+  const fetchFriendRequestsFromBackend = useCallback(async () => {
     try {
       const response = await getReceivedFriendRequests();
       const requests = response.data.requests;
-      setFriendRequests(requests);
-    } catch (error) {
-      console.error('Error fetching friend requests:', error);
-    }
-  }, [getReceivedFriendRequests]);
-
-  const fetchNotifications = useCallback(async () => {
-    try {
-      const response = await api.get('/api/notifications');
-
-      if (response.status === 200) {
-        setNotifications(response.data.notifications || []);
-        // Set initial unseen count from server
-        if (typeof response.data.unseenCount === 'number') {
-          setUnseenNotificationCount(response.data.unseenCount);
-        }
+      setBackendFriendRequests(requests);
+      
+      // If Firebase has an error, use backend as fallback
+      if (firebaseFriendRequestsError) {
+        setUsingFriendRequestBackendFallback(true);
+        console.log('Using backend friend requests as fallback due to Firebase error');
       }
     } catch (error) {
-      console.error('Error fetching notifications:', error);
+      console.error('Error fetching friend requests from backend:', error);
+      setBackendFriendRequests([]);
     }
-  }, []);
+  }, [getReceivedFriendRequests, firebaseFriendRequestsError]);
+
+  // Check if Firebase friend requests has failed and switch to backend fallback
+  useEffect(() => {
+    if (firebaseFriendRequestsError && !firebaseFriendRequestsLoading && !usingFriendRequestBackendFallback) {
+      setUsingFriendRequestBackendFallback(true);
+      fetchFriendRequestsFromBackend();
+    }
+  }, [firebaseFriendRequestsError, firebaseFriendRequestsLoading, usingFriendRequestBackendFallback, fetchFriendRequestsFromBackend]);
+
+  // Check if Firebase has recovered when using backend fallback
+  useEffect(() => {
+    if (usingFriendRequestBackendFallback && !firebaseFriendRequestsError && !firebaseFriendRequestsLoading && firebaseFriendRequests) {
+      setUsingFriendRequestBackendFallback(false);
+      setBackendFriendRequests([]);
+    }
+  }, [usingFriendRequestBackendFallback, firebaseFriendRequestsError, firebaseFriendRequestsLoading, firebaseFriendRequests]);
+
+  // Combine backend friend requests with real-time Firebase updates
+  const friendRequests = useMemo(() => {
+    if (usingFriendRequestBackendFallback) {
+      return backendFriendRequests;
+    }
+    
+    // Start with backend friend requests as the base
+    let allFriendRequests = [...backendFriendRequests];
+    
+    // Process Firebase friend requests (these should only be new/unseen ones)
+    if (firebaseFriendRequests) {
+      try {
+        const firebaseFriendRequestsList = Object.values(firebaseFriendRequests)
+          .filter(item => item && typeof item === 'object')
+          .map((fbRequest: any) => ({
+            _id: fbRequest._id?.toString() || '',
+            sender: {
+              _id: fbRequest.from?.toString() || '',
+              full_name: fbRequest.sender?.full_name || '',
+              username: fbRequest.sender?.username || '',
+              profile_picture: fbRequest.sender?.profile_picture || ''
+            },
+            mutualFriendsCount: fbRequest.mutualFriendsCount || 0,
+            created_at: fbRequest.created_at || new Date().toISOString(),
+            status: fbRequest.status || 'pending'
+          }));
+
+        // Add Firebase friend requests that don't already exist in backend friend requests
+        const existingIds = new Set(backendFriendRequests.map(r => r._id));
+        const newFirebaseFriendRequests = firebaseFriendRequestsList.filter(fr => !existingIds.has(fr._id));
+        
+        // Merge all friend requests
+        allFriendRequests = [...backendFriendRequests, ...newFirebaseFriendRequests];
+      } catch (error) {
+        console.error('Error processing Firebase friend requests:', error);
+      }
+    }
+    
+    // Sort by creation time (newest first)
+    return allFriendRequests.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [firebaseFriendRequests, backendFriendRequests, usingFriendRequestBackendFallback]);
 
   const handleAcceptFriendRequest = useCallback(async (senderId: string) => {
     try {
       await acceptFriendRequest(senderId);
-      setFriendRequests(prev => {
-        const requestToRemove = prev.find(req => req.sender._id === senderId);
-        if (requestToRemove) {
-          // Clean up viewed notifications for this request
-          setViewedNotifications(prevViewed => {
-            const newViewed = new Set(prevViewed);
-            newViewed.delete(requestToRemove._id);
-            return newViewed;
-          });
-        }
-        return prev.filter(req => req.sender._id !== senderId);
-      });
+      
+      // Find the request to clean up
+      const requestToRemove = friendRequests.find((req: FriendRequestNotification) => req.sender._id === senderId);
+      if (requestToRemove) {
+        // Clean up viewed notifications for this request
+        setViewedNotifications(prevViewed => {
+          const newViewed = new Set(prevViewed);
+          newViewed.delete(requestToRemove._id);
+          return newViewed;
+        });
+      }
+      
+      // Update backend friend requests state
+      setBackendFriendRequests((prev: FriendRequestNotification[]) => 
+        prev.filter((req: FriendRequestNotification) => req.sender._id !== senderId)
+      );
     } catch (error) {
       console.error('Error accepting friend request:', error);
     }
-  }, [acceptFriendRequest]);
+  }, [acceptFriendRequest, friendRequests]);
 
   const handleDeclineFriendRequest = useCallback(async (senderId: string) => {
     try {
       await rejectFriendRequest(senderId);
-      setFriendRequests(prev => {
-        const requestToRemove = prev.find(req => req.sender._id === senderId);
-        if (requestToRemove) {
-          // Clean up viewed notifications for this request
-          setViewedNotifications(prevViewed => {
-            const newViewed = new Set(prevViewed);
-            newViewed.delete(requestToRemove._id);
-            return newViewed;
-          });
-        }
-        return prev.filter(req => req.sender._id !== senderId);
-      });
+      
+      // Find the request to clean up
+      const requestToRemove = friendRequests.find((req: FriendRequestNotification) => req.sender._id === senderId);
+      if (requestToRemove) {
+        // Clean up viewed notifications for this request
+        setViewedNotifications(prevViewed => {
+          const newViewed = new Set(prevViewed);
+          newViewed.delete(requestToRemove._id);
+          return newViewed;
+        });
+      }
+      
+      // Update backend friend requests state
+      setBackendFriendRequests((prev: FriendRequestNotification[]) => 
+        prev.filter((req: FriendRequestNotification) => req.sender._id !== senderId)
+      );
     } catch (error) {
       console.error('Error declining friend request:', error);
     }
-  }, [rejectFriendRequest]);
+  }, [rejectFriendRequest, friendRequests]);
 
   const markNotificationAsViewed = useCallback(async (notificationId: string) => {
-    // Mark notification as read (seen) but keep it in the list
-    setNotifications(prev => 
-      prev.map(notification => 
-        notification._id === notificationId 
-          ? { ...notification, is_seen: true }
-          : notification
-      )
-    );
-    
-    // Also update merged notifications
-    setMergedNotifications(prev => 
-      prev.map(notification => 
-        notification._id === notificationId 
-          ? { ...notification, is_seen: true }
-          : notification
-      )
-    );
-
     try {
-      // Update both Firebase and backend in parallel
+      // Always update both backend state and Firebase
       const updatePromises = [];
       
-      // Update the backend
+      // Update backend
       updatePromises.push(
         api.put('/api/notifications/mark-seen', {
           notificationIds: [notificationId]
@@ -240,66 +303,134 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         updatePromises.push(markAsRead(notificationId));
       }
 
-      // Wait for both updates to complete
       await Promise.all(updatePromises);
+      
+      // Update local backend notifications state
+      setBackendNotifications(prev => 
+        prev.map(n => n._id === notificationId ? { ...n, is_seen: true } : n)
+      );
     } catch (error) {
-      console.error('Error marking notification as seen:', error);
+      console.error('Error marking notification as viewed:', error);
     }
   }, [markAsRead]);
 
   const markAllNotificationsAsViewed = useCallback(async () => {
-    // Get all notification IDs that are not yet seen
-    const unseenNotificationIds = notifications
-      .filter(notification => !notification.is_seen)
-      .map(notification => notification._id);
+    // Prevent multiple concurrent executions
+    if (markingAllNotificationsRef.current) {
+      console.log('markAllNotificationsAsViewed already running, skipping');
+      return;
+    }
     
-    // If no unseen notifications, nothing to do
-    if (unseenNotificationIds.length === 0) return;
-    
-    // Update local state first
-    setNotifications(prev => 
-      prev.map(notification => ({ ...notification, is_seen: true }))
-    );
-    
-    // Update merged notifications as well
-    setMergedNotifications(prev => 
-      prev.map(notification => ({ ...notification, is_seen: true }))
-    );
-    
-    // Mark all friend requests as viewed locally
-    setViewedNotifications(prev => {
-      const currentFriendRequestIds = friendRequests.map(r => r._id);
-      return new Set([...prev, ...currentFriendRequestIds]);
-    });
-    
-    // Update unseen count
-    setUnseenNotificationCount(0);
+    markingAllNotificationsRef.current = true;
     
     try {
-      // Update backend
+      // Always update both backend and Firebase first
       await api.put('/api/notifications/mark-seen', {});
       
-      // Update Firebase for each notification
+      // Get current state at execution time to avoid stale closure issues
+      const currentNotifications = notifications.filter(notification => !notification.is_seen);
+      const currentFriendRequests = friendRequests.filter((request: FriendRequestNotification) => !viewedFriendRequests.has(request._id));
+      
+      // Only proceed if there are items to mark as viewed
+      if (currentNotifications.length === 0 && currentFriendRequests.length === 0) {
+        return;
+      }
+      
+      const unseenNotificationIds = currentNotifications.map(notification => notification._id);
+      const unseenFriendRequestIds = currentFriendRequests.map((request: FriendRequestNotification) => request._id);
+      
+      // Mark all friend requests as viewed locally
+      if (unseenFriendRequestIds.length > 0) {
+        setViewedFriendRequests(prev => {
+          const newViewed = new Set(prev);
+          unseenFriendRequestIds.forEach(id => newViewed.add(id));
+          return newViewed;
+        });
+      }
+      
+      // Mark all notifications as viewed locally (legacy support)
+      if (friendRequests.length > 0) {
+        setViewedNotifications(prev => {
+          const currentFriendRequestIds = friendRequests.map((r: FriendRequestNotification) => r._id);
+          return new Set([...prev, ...currentFriendRequestIds]);
+        });
+      }
+      
+      // Update unseen count
+      setUnseenNotificationCount(0);
+      
+      // Update Firebase for all unseen notifications
       if (markAsRead && unseenNotificationIds.length > 0) {
-        // Update each notification in Firebase
         const firebaseUpdates = unseenNotificationIds.map(id => markAsRead(id));
         await Promise.all(firebaseUpdates);
       }
+      
+      // Update local backend notifications state
+      setBackendNotifications(prev => 
+        prev.map(n => ({ ...n, is_seen: true }))
+      );
+
+      // Clear the app badge since all notifications are now viewed
+      await clearBadge();
     } catch (error) {
-      console.error('Error marking all notifications as seen:', error);
+      console.error('Error marking all notifications as viewed:', error);
+    } finally {
+      markingAllNotificationsRef.current = false;
     }
-  }, [friendRequests, notifications, markAsRead]);
+  }, [markAsRead, notifications, friendRequests, viewedFriendRequests, clearBadge]);
+
+  // Mark friend requests as viewed
+  const markFriendRequestsAsViewed = useCallback(async () => {
+    // Prevent multiple concurrent executions
+    if (markingFriendRequestsRef.current) {
+      console.log('markFriendRequestsAsViewed already running, skipping');
+      return;
+    }
+    
+    markingFriendRequestsRef.current = true;
+    
+    try {
+      // Get current state at execution time to avoid stale closure issues
+      const currentFriendRequests = friendRequests.filter((request: FriendRequestNotification) => !viewedFriendRequests.has(request._id));
+      
+      if (currentFriendRequests.length === 0) return;
+      
+      const unseenFriendRequestIds = currentFriendRequests.map((request: FriendRequestNotification) => request._id);
+      
+      // Mark all friend requests as viewed locally
+      setViewedFriendRequests(prev => {
+        const newViewed = new Set(prev);
+        unseenFriendRequestIds.forEach(id => newViewed.add(id));
+        return newViewed;
+      });
+      
+      console.log(`Marked ${unseenFriendRequestIds.length} friend requests as viewed`);
+    } catch (error) {
+      console.error('Error marking friend requests as viewed:', error);
+    } finally {
+      markingFriendRequestsRef.current = false;
+    }
+  }, [friendRequests, viewedFriendRequests]);
+
+  // Update refs with current functions
+  markAllNotificationsAsViewedRef.current = markAllNotificationsAsViewed;
+  markFriendRequestsAsViewedRef.current = markFriendRequestsAsViewed;
 
   const refreshData = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([fetchFriendRequests(), fetchNotifications()]);
+      // Always refresh both friend requests and backend notifications
+      // Firebase provides real-time updates, backend provides the complete history
+      await Promise.all([
+        fetchFriendRequestsFromBackend(),
+        fetchNotificationsFromBackend()
+      ]);
     } finally {
       setRefreshing(false);
     }
-  }, [fetchFriendRequests, fetchNotifications]);
+  }, [fetchFriendRequestsFromBackend, fetchNotificationsFromBackend]);
 
-  // Initial data fetch - only when user is logged in
+  // Initial data fetch - load all notifications from backend, Firebase only for real-time updates
   useEffect(() => {
     if (!userId) {
       setLoading(false);
@@ -308,51 +439,101 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const loadData = async () => {
       setLoading(true);
       try {
-        await fetchFriendRequests();
-        await fetchNotifications();
+        // Fetch both friend requests and all existing notifications from backend
+        await Promise.all([
+          fetchFriendRequestsFromBackend(),
+          fetchNotificationsFromBackend()
+        ]);
       } finally {
         setLoading(false);
       }
     };
     loadData();
-  }, [fetchFriendRequests, fetchNotifications, userId]);
+  }, [fetchFriendRequestsFromBackend, fetchNotificationsFromBackend, userId]);
 
-  // Calculate unseen notifications count (use server-provided count when available)
+  // Calculate unseen notifications count
   const unseenNotificationsCount = useMemo(() => {
-    // Use server-provided count if available, otherwise fall back to local calculation
-    if (unseenNotificationCount > 0) {
-      return unseenNotificationCount;
-    }
-    return mergedNotifications.filter(notification => !notification.is_seen).length;
-  }, [mergedNotifications, unseenNotificationCount]);
+    return notifications.filter(notification => !notification.is_seen).length;
+  }, [notifications]);
 
   // Total unseen count includes unseen friend requests + unseen notifications
   const totalUnseenCount = useMemo(() => {
-    const friendRequestCount = friendRequests.filter(request => !viewedNotifications.has(request._id)).length;
+    const friendRequestCount = friendRequests.filter((request: FriendRequestNotification) => !viewedFriendRequests.has(request._id)).length;
     const notificationCount = unseenNotificationsCount;
 
     return friendRequestCount + notificationCount;
-  }, [friendRequests, viewedNotifications, unseenNotificationsCount]);
+  }, [friendRequests, viewedFriendRequests, unseenNotificationsCount]);
+
+  // Update app badge count whenever the total unseen count changes
+  useEffect(() => {
+    updateBadgeCount(totalUnseenCount);
+  }, [totalUnseenCount, updateBadgeCount]);
+
+  // Format notification content for display in banner or notification card
+  const getFormattedNotificationContent = useCallback((notification: NotificationData) => {
+    let title = "";
+    let subtitle = "";
+
+    if (!notification) return { title: "New notification" };
+
+    // Default sender name
+    const senderName = notification.sender?.full_name || "Someone";
+
+    switch (notification.type) {
+      case 'friend_request':
+        title = `${senderName} sent you a friend request`;
+        break;
+      case 'friend_request_accepted':
+        title = `${senderName} accepted your friend request`;
+        break;
+      case 'event_created':
+        title = `${senderName} created a new event`;
+        subtitle = notification.event?.title || 'Check it out!';
+        break;
+      case 'event_updated':
+        title = `Event updated: ${notification.event?.title || 'An event was updated'}`;
+        subtitle = 'Details may have changed';
+        break;
+      case 'event_attendance_confirmed':
+        title = `${senderName} is attending the event`;
+        subtitle = notification.event?.title || 'Check who\'s coming';
+        break;
+      case 'event_reminder':
+        title = `Reminder: ${notification.event?.title || 'Upcoming event'}`;
+        subtitle = 'Your event is coming up soon';
+        break;
+      case 'new_event_nearby':
+        title = `New event nearby you might be interested in`;
+        subtitle = notification.event?.title || 'Check it out!';
+        break;
+      default:
+        title = notification.title || notification.type || "New notification";
+        subtitle = notification.subtitle || '';
+        break;
+    }
+
+    return { title, subtitle };
+  }, []);
 
   const value: NotificationContextType = {
     friendRequests,
     notifications,
     viewedNotifications,
-    unseenNotificationCount,
-    loading,
+    unseenNotificationCount: totalUnseenCount,
+    loading: loading || firebaseLoading,
     refreshing,
-    totalNotificationCount: totalUnseenCount,
+    totalNotificationCount: notifications.length + friendRequests.length,
     unseenNotificationsCount,
-    unseenFriendRequestsCount: friendRequests.filter(request => !viewedNotifications.has(request._id)).length,
+    unseenFriendRequestsCount: friendRequests.filter((request: FriendRequestNotification) => !viewedFriendRequests.has(request._id)).length,
     handleAcceptFriendRequest,
     handleDeclineFriendRequest,
     markNotificationAsViewed,
     markAllNotificationsAsViewed,
+    markFriendRequestsAsViewed,
     refreshData,
-    // Firebase-related additions
-    mergedNotifications,
     firebaseLoading,
-    markFirebaseNotificationAsRead: markAsRead || (async () => false)
+    markFirebaseNotificationAsRead: markAsRead || (async () => false),
+    getFormattedNotificationContent,
   };
 
   return (

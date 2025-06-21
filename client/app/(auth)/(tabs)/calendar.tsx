@@ -3,7 +3,7 @@ import React, { useCallback, useState, useEffect, useRef, useMemo } from 'react'
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import CalendarHeader from '@/components/Calendar/CalendarHeader';
 import { useColorScheme } from '@/hooks/useColorScheme';

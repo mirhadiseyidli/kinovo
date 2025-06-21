@@ -49,7 +49,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         tinted: './assets/ios-icon-tinted.png',
       },
       config: {
-        googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API!,
+        // googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API!,
         usesNonExemptEncryption: false,
       },
       bundleIdentifier: 'com.kinovoapp.kinovo',
@@ -114,6 +114,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       '@react-native-firebase/app',
       '@react-native-firebase/auth',
       '@react-native-firebase/app-check',
+      '@react-native-firebase/messaging',
       'expo-notifications',
       'expo-calendar',
       'expo-apple-authentication',

@@ -5,6 +5,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { ContextMenu, Submenu } from '@expo/ui/swift-ui';
 import { Button } from '@expo/ui/swift-ui';
+import { useViewEventModal } from '../../app/(auth)/(viewEvent)/[event_id]';
 
 type Props = {
   onInvite?: () => void;
@@ -15,20 +16,12 @@ type Props = {
 const EventHostActionButtons: React.FC<Props> = ({ onInvite, onEdit, onCancel }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
+  const { showModal } = useViewEventModal();
 
   const showCancelConfirmation = () => {
-    ActionSheetIOS.showActionSheetWithOptions(
-      {
-        title: 'Are you sure you want to cancel the event?',
-        options: ['No', 'Yes, Cancel'],
-        cancelButtonIndex: 0,
-        destructiveButtonIndex: 1,
-        userInterfaceStyle: colorScheme === 'dark' ? 'dark' : 'light',
-      },
-      (index) => {
-        if (index === 1) onCancel?.();
-      }
-    );
+    showModal('host_cancel_confirm', {
+      onConfirm: onCancel
+    });
   };
 
   return (

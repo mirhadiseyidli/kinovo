@@ -5,7 +5,7 @@ import { Colors } from '@/constants/Colors';
 import { DayCellProps } from '@/types/allTypes';
 import { useRouter } from 'expo-router';
 import { useCalendarViewContext } from '@/context/CalendarViewContext';
-import { useEventContext } from '@/context/EventContext';
+import { useEventContext } from '@/context/UserSessionContext';
 
 const DayCell = React.memo<DayCellProps>(({ date, month, today, cellWidth, cellHeight, handleMonthYearChange }) => {
   const colorScheme = useColorScheme();

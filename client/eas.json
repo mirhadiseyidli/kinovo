@@ -35,7 +35,14 @@
     "production": {
       "ios": {
         "resourceClass": "m-medium",
-        "autoIncrement": true
+        "autoIncrement": true,
+        "buildConfiguration": "Release",
+        "distribution": "store",
+        "credentialsSource": "remote"
+      },
+      "channel": "production",
+      "env": {
+        "GOOGLE_SERVICES_PLIST": "GOOGLE_SERVICES_PLIST"
       }
     }
   },

@@ -1,4 +1,4 @@
-import React, { memo, useEffect } from 'react';
+import React, { memo, useEffect, useCallback } from 'react';
 import { TouchableOpacity, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -18,16 +18,17 @@ const MonthListToggle: React.FC<MonthListToggleProps> = memo(({ title, year, mon
     rotateAnim.value = withTiming(monthListOpen ? 1 : 0, { duration: 250 });
   }, [monthListOpen]);
 
+  // Memoize animated style to prevent recreation
   const animatedRotateStyle = useAnimatedStyle(() => {
     const rotation = interpolate(rotateAnim.value, [0, 1], [0, 90]);
     return {
       transform: [{ rotate: `${rotation}deg` }],
     };
-  });
+  }, [rotateAnim]);
 
-  const toggleMonthList = () => {
+  const toggleMonthList = useCallback(() => {
     setMonthListOpen(!monthListOpen); // animation now handled in useEffect
-  };
+  }, [monthListOpen, setMonthListOpen]);
 
   return (
     <TouchableOpacity onPress={toggleMonthList}>

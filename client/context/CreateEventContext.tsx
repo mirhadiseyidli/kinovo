@@ -25,7 +25,6 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // Event data state
   const [event, setEvent] = useState<Event | null>(null);
   const [title, setTitle] = useState<string>('');
-  const [picture, setPicture] = useState<string | null>(null);
   const [category, setCategory] = useState<string | null>(null);
   const [description, setDescription] = useState<string | null>(null);
   const [location, setLocation] = useState<{
@@ -62,12 +61,11 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [eventId, setEventId] = useState<string | null>(null);
 
   // API hook
-  const { postCreateEvent } = useCreateEvent();
+  const { postCreateEvent, updateEvent } = useCreateEvent();
 
   // Define loadEventForEdit separately first
   const loadEventForEdit = (eventToEdit: Event) => {
     setTitle(eventToEdit.title || '');
-    setPicture(eventToEdit.event_picture || null);
     setCategory(eventToEdit.category || null);
     setDescription(eventToEdit.description || null);
     setLocation(eventToEdit.location || {
@@ -125,8 +123,6 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setValidationErrors(prev => ({ ...prev, title: undefined }));
     }
   };
-  
-  const settingEventPicture = (picture: string | null) => setPicture(picture);
   
   const settingEventCategory = (category: string | null) => {
     setCategory(category);
@@ -230,7 +226,6 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const resetEventForm = () => {
     setEvent(null);
     setTitle('');
-    setPicture(null);
     setCategory(null);
     setDescription(null);
     setLocation({
@@ -259,7 +254,6 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const compileEventData = (): Partial<Event> => {
     const compiledEvent = {
       _id: eventId, // Only used when in edit mode
-      event_picture: picture,
       status: 'upcoming',
       title,
       category,
@@ -288,8 +282,16 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     try {
       const eventData = compileEventData();
+      let response;
+      
       // Call API based on whether we're creating or editing
-      const response = await postCreateEvent(eventData);
+      if (isEditMode && eventId) {
+        // Use the new updateEvent function for editing
+        response = await updateEvent(eventId, eventData);
+      } else {
+        // Create new event
+        response = await postCreateEvent(eventData);
+      }
       
       if (response?.success) {
         resetEventForm();
@@ -307,7 +309,6 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const contextValue = {
     // Form values
     title,
-    picture,
     category,
     description,
     location,
@@ -324,6 +325,8 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
     validationErrors,
     loading,
     error,
+    setLoading,
+    setError,
     
     // Setter functions
     settingEventTitle,
@@ -332,7 +335,6 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
     settingEventDescription,
     settingEventEndTime,
     settingEventLocation,
-    settingEventPicture,
     settingEventRecurrence,
     settingEventStartTime,
     settingEventVisibility,

@@ -7,7 +7,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { Feather, Octicons } from '@expo/vector-icons';
 import { ManageFriendButtonProps } from '@/types/allTypes';
 
-const ShareUserProfileButton = ({ receiver }: ManageFriendButtonProps) => {
+const ShareUserProfileButton = ({ targetUser, buttonFlex = 1 }: ManageFriendButtonProps) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
 
@@ -15,7 +15,7 @@ const ShareUserProfileButton = ({ receiver }: ManageFriendButtonProps) => {
     <TouchableOpacity
       style={{
         marginTop: 16,
-        flex: 1,
+        flex: buttonFlex,
         backgroundColor: themeColors.inputBackgroundColor,
         paddingVertical: 8,
         paddingHorizontal: 16,

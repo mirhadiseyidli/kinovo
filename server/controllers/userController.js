@@ -6,9 +6,34 @@ require('dotenv').config();
 
 const getUserProfile = async (req, res) => {
   try {
-    const found_request = await FriendRequests.findOne({ sender: req.user._id, receiver: res.user._id });
-    res.status(200).json({ user: res.user, friendRequest: found_request });
+    // Check for friend request in both directions
+    const sentRequest = await FriendRequests.findOne({ 
+      sender: req.user._id, 
+      receiver: res.user._id 
+    });
+    
+    const receivedRequest = await FriendRequests.findOne({ 
+      sender: res.user._id, 
+      receiver: req.user._id 
+    });
+
+    // Determine the friend request status
+    let friendRequest = null;
+    if (sentRequest) {
+      friendRequest = {
+        ...sentRequest.toObject(),
+        direction: 'sent' // Current user sent the request
+      };
+    } else if (receivedRequest) {
+      friendRequest = {
+        ...receivedRequest.toObject(),
+        direction: 'received' // Current user received the request
+      };
+    }
+
+    res.status(200).json({ user: res.user, friendRequest });
   } catch (error) {
+    console.error('Error in getUserProfile:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };

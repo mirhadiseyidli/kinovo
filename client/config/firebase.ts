@@ -1,66 +1,48 @@
 import { initializeApp, getApps, getApp } from '@react-native-firebase/app';
-import { getAuth, FirebaseAuthTypes } from '@react-native-firebase/auth';
-import { initializeAppCheck, ReactNativeFirebaseAppCheckProvider } from '@react-native-firebase/app-check';
+import { getAuth, FirebaseAuthTypes, signInWithCustomToken } from '@react-native-firebase/auth';
+import getAppCheck, { getToken, initializeAppCheck, ReactNativeFirebaseAppCheckProvider } from '@react-native-firebase/app-check';
 import { getDatabase } from '@react-native-firebase/database';
+import messaging from '@react-native-firebase/messaging';
 import { jwtDecode } from 'jwt-decode';
 
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || '',
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || '',
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || '',
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || '',
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '',
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || '',
-  clientId: process.env.EXPO_PUBLIC_FIREBASE_IOS_CLIENT_ID || '',
-  databaseURL: process.env.EXPO_PUBLIC_FIREBASE_DATABASE_URL || '',
-};
-
-export const signInWithFirebaseToken = async (customToken: string): Promise<void> => {
-  try {
-    const result = await auth.signInWithCustomToken(customToken);
-    console.log('result', result);
-    console.log('Firebase authentication successful with custom token');
-  } catch (error) {
-    console.error('Error signing in with custom token:', error);
-    throw error;
-  }
-};
-
 // Initialize Firebase if it hasn't been initialized yet
-if (!getApps().length) {
-  console.log('Initializing Firebase with config (redacted)');
-  initializeApp(firebaseConfig);
+let appInitialized = false;
+const firebaseApp = getApps().length ? getApp() : getApp(); // Redundant for clarity
+
+if (getApps().length) {
+  console.log('Firebase initialized');
+  appInitialized = true;
 }
 
 // Retrieve default app
-const firebaseApp = getApp();
-const db = getDatabase(firebaseApp);
+const db = getDatabase(firebaseApp, process.env.EXPO_PUBLIC_FIREBASE_DATABASE_URL);
 
-// Initialize App Check once, on initial load
-let appCheckInitialized = false;
-
-if (!appCheckInitialized) {
+export const initializeAppCheckIfNeeded = async () => {
   const appCheckProvider = new ReactNativeFirebaseAppCheckProvider();
+
   appCheckProvider.configure({
-    android: { provider: __DEV__ ? 'debug' : 'playIntegrity' },
-    apple: { provider: __DEV__ ? 'debug' : 'deviceCheck' },
+    apple: {
+      provider: 'deviceCheck',
+      ...( __DEV__ ? { debugToken: 'DA12D6B7-B95B-4AE1-AA79-DFF64BB42CC6' } : {}),
+    }
   });
 
-  initializeAppCheck(firebaseApp, {
-    provider: appCheckProvider,
-    isTokenAutoRefreshEnabled: true,
-  });
+  try {
+    await initializeAppCheck(getApp(), {
+      provider: appCheckProvider,
+      isTokenAutoRefreshEnabled: true,
+    });
 
-  console.log('App Check initialized');
-  appCheckInitialized = true;
-}
+    console.log('✅ App Check initialized');
 
-// Initialize Realtime Database settings using modular API
-export const initializeFirebaseDatabase = () => {
-  db.setPersistenceEnabled(true);
-  db.setPersistenceCacheSizeBytes(10 * 1024 * 1024);
-  console.log('Firebase Realtime Database initialized with persistence');
+    // ✅ Get the app check instance and pass it to getToken()
+    const appCheckInstance = getAppCheck();
+    const token = await getToken(appCheckInstance);
+    console.log('🔐 App Check Token:', token.token);
+
+  } catch (err) {
+    console.error('❌ App Check failed:', err);
+  }
 };
 
 // Initialize Auth
@@ -103,4 +85,68 @@ export const initiatePhoneAuth = async (phoneNumber: string): Promise<FirebaseAu
   }
 };
 
-export { auth, configurePhoneAuth, db }; 
+export const signInWithFirebaseToken = async (customToken: string) => {
+  await signInWithCustomToken(auth, customToken)
+    .then((result) => {
+      console.log('Firebase auth successful:', result);
+      return result; // You might not need to return here if you handle the result in the .then
+    })
+    .catch((error) => {
+      // This is where you'll see the error!
+      console.error('Firebase auth failed:', error);
+    });
+};
+
+// FCM Functions
+export const requestNotificationPermission = async (): Promise<boolean> => {
+  try {
+    const authStatus = await messaging().requestPermission();
+    const enabled =
+      authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+      authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+
+    if (enabled) {
+      console.log('Notification permission granted:', authStatus);
+      return true;
+    } else {
+      console.log('Notification permission denied:', authStatus);
+      return false;
+    }
+  } catch (error) {
+    console.error('Error requesting notification permission:', error);
+    return false;
+  }
+};
+
+export const getFCMToken = async (): Promise<string | null> => {
+  try {
+    const token = await messaging().getToken();
+    console.log('FCM Token:', token);
+    return token;
+  } catch (error) {
+    console.error('Error getting FCM token:', error);
+    return null;
+  }
+};
+
+export const setupFCMListeners = () => {
+  // Listen for token refresh
+  const unsubscribeTokenRefresh = messaging().onTokenRefresh(token => {
+    console.log('FCM Token refreshed:', token);
+    // You can save the new token to your server here
+  });
+
+  // Handle foreground messages
+  const unsubscribeForeground = messaging().onMessage(async remoteMessage => {
+    console.log('Foreground FCM Message:', remoteMessage);
+    // Handle the message when app is in foreground
+  });
+
+  // Return cleanup function
+  return () => {
+    unsubscribeTokenRefresh();
+    unsubscribeForeground();
+  };
+};
+
+export { auth, configurePhoneAuth, db, messaging }; 

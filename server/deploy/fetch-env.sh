@@ -1,72 +1,89 @@
 #!/bin/bash
 
-# Function to get parameter from Parameter Store
+# Function to get parameter from Parameter Store with error handling
 get_parameter() {
-    aws ssm get-parameter --name "$1" --with-decryption --query Parameter.Value --output text --region us-west-2
+    local param_name=$1
+    local value
+    
+    value=$(aws ssm get-parameter \
+        --name "$param_name" \
+        --with-decryption \
+        --query "Parameter.Value" \
+        --output text \
+        --region us-west-2 2>&1)
+    
+    if [ $? -ne 0 ]; then
+        echo "Error fetching parameter $param_name: $value" >&2
+        return 1
+    fi
+    
+    echo "$value"
 }
 
 # Start with a clean .env file
 > .env
 
-# Write values line by line
+# Write values line by line with error checking
 echo "# Server Configuration" >> .env
 echo "NODE_ENV=production" >> .env
-echo "BACKEND_PORT=$(get_parameter "/kinovo/BACKEND_PORT")" >> .env
+BACKEND_PORT=$(get_parameter "/kinovo/BACKEND_PORT") && echo "BACKEND_PORT=$BACKEND_PORT" >> .env
 
 echo "" >> .env
 echo "# MongoDB Configuration" >> .env
-echo "MONGODB_URI=$(get_parameter "/kinovo/MONGODB_URI")" >> .env
+MONGODB_URI=$(get_parameter "/kinovo/MONGODB_URI") && echo "MONGODB_URI=$MONGODB_URI" >> .env
 
 echo "" >> .env
 echo "# JWT Configuration" >> .env
-echo "JWT_ACCESS_SECRET=$(get_parameter "/kinovo/JWT_ACCESS_SECRET")" >> .env
-echo "JWT_REFRESH_SECRET=$(get_parameter "/kinovo/JWT_REFRESH_SECRET")" >> .env
+JWT_ACCESS_SECRET=$(get_parameter "/kinovo/JWT_ACCESS_SECRET") && echo "JWT_ACCESS_SECRET=$JWT_ACCESS_SECRET" >> .env
+JWT_REFRESH_SECRET=$(get_parameter "/kinovo/JWT_REFRESH_SECRET") && echo "JWT_REFRESH_SECRET=$JWT_REFRESH_SECRET" >> .env
 
 echo "" >> .env
 echo "# Google" >> .env
-echo "GOOGLE_CLIENT_ID=$(get_parameter "/kinovo/GOOGLE_CLIENT_ID")" >> .env
-echo "GOOGLE_MAPS_API_KEY=$(get_parameter "/kinovo/GOOGLE_MAPS_API_KEY")" >> .env
+GOOGLE_CLIENT_ID=$(get_parameter "/kinovo/GOOGLE_CLIENT_ID") && echo "GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID" >> .env
+GOOGLE_MAPS_API_KEY=$(get_parameter "/kinovo/GOOGLE_MAPS_API_KEY") && echo "GOOGLE_MAPS_API_KEY=$GOOGLE_MAPS_API_KEY" >> .env
 
 echo "" >> .env
 echo "# Apple" >> .env
-echo "APPLE_TEAM_ID=$(get_parameter "/kinovo/APPLE_TEAM_ID")" >> .env
-echo "APPLE_WEATHER_KEY_ID=$(get_parameter "/kinovo/APPLE_WEATHER_KEY_ID")" >> .env
-echo "APPLE_BUNDLE_ID=$(get_parameter "/kinovo/APPLE_BUNDLE_ID")" >> .env
-echo "APPLE_WEATHER_PRIVATE_KEY=$(get_parameter "/kinovo/APPLE_WEATHER_PRIVATE_KEY")" >> .env
-echo "APPLE_CLIENT_ID=$(get_parameter "/kinovo/APPLE_CLIENT_ID")" >> .env
+APPLE_TEAM_ID=$(get_parameter "/kinovo/APPLE_TEAM_ID") && echo "APPLE_TEAM_ID=$APPLE_TEAM_ID" >> .env
+APPLE_WEATHER_KEY_ID=$(get_parameter "/kinovo/APPLE_WEATHER_KEY_ID") && echo "APPLE_WEATHER_KEY_ID=$APPLE_WEATHER_KEY_ID" >> .env
+APPLE_BUNDLE_ID=$(get_parameter "/kinovo/APPLE_BUNDLE_ID") && echo "APPLE_BUNDLE_ID=$APPLE_BUNDLE_ID" >> .env
+APPLE_WEATHER_PRIVATE_KEY=$(get_parameter "/kinovo/APPLE_WEATHER_PRIVATE_KEY") && echo "APPLE_WEATHER_PRIVATE_KEY=$APPLE_WEATHER_PRIVATE_KEY" >> .env
+APPLE_CLIENT_ID=$(get_parameter "/kinovo/APPLE_CLIENT_ID") && echo "APPLE_CLIENT_ID=$APPLE_CLIENT_ID" >> .env
 
 echo "" >> .env
 echo "# OpenAI" >> .env
-echo "OPENAI_API_KEY=$(get_parameter "/kinovo/OPENAI_API_KEY")" >> .env
+OPENAI_API_KEY=$(get_parameter "/kinovo/OPENAI_API_KEY") && echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> .env
 
 echo "" >> .env
 echo "# Firebase" >> .env
-echo "FIREBASE_PROJECT_ID=$(get_parameter "/kinovo/FIREBASE_PROJECT_ID")" >> .env
-echo "FIREBASE_PRIVATE_KEY=$(get_parameter "/kinovo/FIREBASE_PRIVATE_KEY")" >> .env
-echo "FIREBASE_CLIENT_EMAIL=$(get_parameter "/kinovo/FIREBASE_CLIENT_EMAIL")" >> .env
-echo "FIREBASE_DATABASE_URL=$(get_parameter "/kinovo/FIREBASE_DATABASE_URL")" >> .env
-echo "FIREBASE_API_KEY=$(get_parameter "/kinovo/FIREBASE_API_KEY")" >> .env
-echo "FIREBASE_STORAGE_BUCKET=$(get_parameter "/kinovo/FIREBASE_STORAGE_BUCKET")" >> .env
-echo "FIREBASE_MESSAGING_SENDER_ID=$(get_parameter "/kinovo/FIREBASE_MESSAGING_SENDER_ID")" >> .env
-echo "FIREBASE_IOS_CLIENT_ID=$(get_parameter "/kinovo/FIREBASE_IOS_CLIENT_ID")" >> .env
-echo "FIREBASE_APP_ID=$(get_parameter "/kinovo/FIREBASE_APP_ID")" >> .env
-echo "FIREBASE_PRIVATE_KEY_ID=$(get_parameter "/kinovo/FIREBASE_PRIVATE_KEY_ID")" >> .env
-echo "FIREBASE_CLIENT_ID=$(get_parameter "/kinovo/FIREBASE_CLIENT_ID")" >> .env
+FIREBASE_PROJECT_ID=$(get_parameter "/kinovo/FIREBASE_PROJECT_ID") && echo "FIREBASE_PROJECT_ID=$FIREBASE_PROJECT_ID" >> .env
+FIREBASE_PRIVATE_KEY=$(get_parameter "/kinovo/FIREBASE_PRIVATE_KEY") && echo "FIREBASE_PRIVATE_KEY=$FIREBASE_PRIVATE_KEY" >> .env
+FIREBASE_CLIENT_EMAIL=$(get_parameter "/kinovo/FIREBASE_CLIENT_EMAIL") && echo "FIREBASE_CLIENT_EMAIL=$FIREBASE_CLIENT_EMAIL" >> .env
+FIREBASE_DATABASE_URL=$(get_parameter "/kinovo/FIREBASE_DATABASE_URL") && echo "FIREBASE_DATABASE_URL=$FIREBASE_DATABASE_URL" >> .env
+FIREBASE_API_KEY=$(get_parameter "/kinovo/FIREBASE_API_KEY") && echo "FIREBASE_API_KEY=$FIREBASE_API_KEY" >> .env
+FIREBASE_STORAGE_BUCKET=$(get_parameter "/kinovo/FIREBASE_STORAGE_BUCKET") && echo "FIREBASE_STORAGE_BUCKET=$FIREBASE_STORAGE_BUCKET" >> .env
+FIREBASE_MESSAGING_SENDER_ID=$(get_parameter "/kinovo/FIREBASE_MESSAGING_SENDER_ID") && echo "FIREBASE_MESSAGING_SENDER_ID=$FIREBASE_MESSAGING_SENDER_ID" >> .env
+FIREBASE_IOS_CLIENT_ID=$(get_parameter "/kinovo/FIREBASE_IOS_CLIENT_ID") && echo "FIREBASE_IOS_CLIENT_ID=$FIREBASE_IOS_CLIENT_ID" >> .env
+FIREBASE_APP_ID=$(get_parameter "/kinovo/FIREBASE_APP_ID") && echo "FIREBASE_APP_ID=$FIREBASE_APP_ID" >> .env
+FIREBASE_PRIVATE_KEY_ID=$(get_parameter "/kinovo/FIREBASE_PRIVATE_KEY_ID") && echo "FIREBASE_PRIVATE_KEY_ID=$FIREBASE_PRIVATE_KEY_ID" >> .env
+FIREBASE_CLIENT_ID=$(get_parameter "/kinovo/FIREBASE_CLIENT_ID") && echo "FIREBASE_CLIENT_ID=$FIREBASE_CLIENT_ID" >> .env
 
 echo "" >> .env
 echo "# SMTP / Email" >> .env
-echo "SMTP_HOST=$(get_parameter "/kinovo/SMTP_HOST")" >> .env
-echo "SMTP_PORT=$(get_parameter "/kinovo/SMTP_PORT")" >> .env
-echo "SMTP_SECURE=$(get_parameter "/kinovo/SMTP_SECURE")" >> .env
-echo "SMTP_USER=$(get_parameter "/kinovo/SMTP_USER")" >> .env
-echo "SMTP_FROM=$(get_parameter "/kinovo/SMTP_FROM")" >> .env
+SMTP_HOST=$(get_parameter "/kinovo/SMTP_HOST") && echo "SMTP_HOST=$SMTP_HOST" >> .env
+SMTP_PORT=$(get_parameter "/kinovo/SMTP_PORT") && echo "SMTP_PORT=$SMTP_PORT" >> .env
+SMTP_SECURE=$(get_parameter "/kinovo/SMTP_SECURE") && echo "SMTP_SECURE=$SMTP_SECURE" >> .env
+SMTP_USER=$(get_parameter "/kinovo/SMTP_USER") && echo "SMTP_USER=$SMTP_USER" >> .env
+SMTP_FROM=$(get_parameter "/kinovo/SMTP_FROM") && echo "SMTP_FROM=$SMTP_FROM" >> .env
 
 echo "" >> .env
 echo "# Gmail OAuth" >> .env
-echo "GMAIL_CLIENT_ID=$(get_parameter "/kinovo/GMAIL_CLIENT_ID")" >> .env
-echo "GMAIL_CLIENT_SECRET=$(get_parameter "/kinovo/GMAIL_CLIENT_SECRET")" >> .env
-echo "GMAIL_REDIRECT_URI=$(get_parameter "/kinovo/GMAIL_REDIRECT_URI")" >> .env
-echo "GMAIL_REFRESH_TOKEN=$(get_parameter "/kinovo/GMAIL_REFRESH_TOKEN")" >> .env
+GMAIL_CLIENT_ID=$(get_parameter "/kinovo/GMAIL_CLIENT_ID") && echo "GMAIL_CLIENT_ID=$GMAIL_CLIENT_ID" >> .env
+GMAIL_CLIENT_SECRET=$(get_parameter "/kinovo/GMAIL_CLIENT_SECRET") && echo "GMAIL_CLIENT_SECRET=$GMAIL_CLIENT_SECRET" >> .env
+GMAIL_REDIRECT_URI=$(get_parameter "/kinovo/GMAIL_REDIRECT_URI") && echo "GMAIL_REDIRECT_URI=$GMAIL_REDIRECT_URI" >> .env
+GMAIL_REFRESH_TOKEN=$(get_parameter "/kinovo/GMAIL_REFRESH_TOKEN") && echo "GMAIL_REFRESH_TOKEN=$GMAIL_REFRESH_TOKEN" >> .env
 
 # Lock down permissions
 chmod 600 .env
+
+echo "Environment variables have been fetched and written to .env"
