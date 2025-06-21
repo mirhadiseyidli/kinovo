@@ -9,7 +9,7 @@ import ResourcesSettings from "@/components/ProfileAndSettings/Settings/Resource
 import LegalAndPrivacySettings from "@/components/ProfileAndSettings/Settings/LegalAndPrivacySettings";
 import SignOutComponent from "@/components/ProfileAndSettings/Settings/SignOutButton";
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Header from "@/components/Header";
 import AppInfoSettings from "@/components/ProfileAndSettings/Settings/AppInfoSettings";
 

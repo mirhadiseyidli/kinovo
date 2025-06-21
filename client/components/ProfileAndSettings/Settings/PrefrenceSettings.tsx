@@ -23,8 +23,8 @@ const PreferenceSettings = () => {
       <SettingComponent 
         icon="bell" 
         title="Notifications" 
-        onPress={handleDisabledInfo} 
-        enabled={false}
+        onPress={() => router.push('/(auth)/(profileSections)/notificationSettings')} 
+        enabled={true}
       />
       {/* <SettingComponent 
         icon="moon" 

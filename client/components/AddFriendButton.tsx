@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { TouchableOpacity, Text, View, ActivityIndicator } from "react-native";
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
@@ -11,16 +11,45 @@ import axios from 'axios';
 import { useAuthSession } from './Auth/AuthProvider';
 import { useManageFriends } from '@/hooks/useManageFriends';
 
-const AddFriendButton = ({ targetUser, loadingFriendAction, onFriendRequestSent }: ManageFriendButtonProps & { onFriendRequestSent?: () => void }) => {
+const AddFriendButton = ({ targetUser, loadingFriendAction, buttonFlex = 1, onFriendRequestSent }: ManageFriendButtonProps & { onFriendRequestSent?: () => void }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { sendFriendRequest } = useManageFriends();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSendFriendRequest = async () => {
+    if (isLoading) return;
+    
+    setIsLoading(true);
+    
+    try {
+      // Optimistically update the parent state immediately
+      if (onFriendRequestSent) {
+        onFriendRequestSent();
+      }
+      
+      // Send the actual request
+      await sendFriendRequest(targetUser);
+      
+      console.log('Friend request sent successfully');
+    } catch (error) {
+      console.error('Failed to send friend request:', error);
+      
+      // If the request failed, we should revert the optimistic update
+      // by triggering a refetch in the parent component
+      if (onFriendRequestSent) {
+        onFriendRequestSent();
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <TouchableOpacity
       style={{
         marginTop: 16,
-        flex: 1,
+        flex: buttonFlex,
         backgroundColor: themeColors.mountainGreen,
         paddingVertical: 8,
         paddingHorizontal: 16,
@@ -29,11 +58,10 @@ const AddFriendButton = ({ targetUser, loadingFriendAction, onFriendRequestSent 
         alignItems: 'center',
         justifyContent: 'center'
       }}
-      onPress={() => sendFriendRequest(targetUser).then(() => {
-        if (onFriendRequestSent) onFriendRequestSent();
-      })}
+      onPress={handleSendFriendRequest}
+      disabled={isLoading}
     >
-      {loadingFriendAction ? (
+      {(loadingFriendAction || isLoading) ? (
         <ActivityIndicator size={'small'}/>
       ) : (
         <View style={{ flexDirection: 'row' }}>

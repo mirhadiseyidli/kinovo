@@ -4,6 +4,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { Feather } from '@expo/vector-icons';
 import { FriendRequestNotification } from '@/types/allTypes';
+import { truncateName } from '@/utils/truncateName';
 
 interface FriendRequestCardProps {
   request: FriendRequestNotification;
@@ -56,35 +57,35 @@ const FriendRequestCard: React.FC<FriendRequestCardProps> = ({
       );
     }
 
-    // Show buttons for pending requests
+    // Show buttons for pending requests - matching Manage Friends style
     return (
       <View style={{ flexDirection: 'row', gap: 8 }}>
         <TouchableOpacity
           style={{
-            width: 40,
-            height: 40,
+            backgroundColor: themeColors.mountainGreen,
             borderRadius: 8,
-            backgroundColor: '#10B981',
-            justifyContent: 'center',
+            padding: 8,
+            flexDirection: 'row',
             alignItems: 'center',
           }}
           onPress={() => onAccept?.(request.sender._id)}
         >
-          <Feather name="check" size={20} color="white" />
+          <Feather name="check" size={12} color={themeColors.text} />
+          <Text style={{ fontSize: 10, fontWeight: 'bold', color: themeColors.text, marginLeft: 4 }}>Accept</Text>
         </TouchableOpacity>
         
         <TouchableOpacity
           style={{
-            width: 40,
-            height: 40,
+            backgroundColor: themeColors.inputBackgroundColor,
             borderRadius: 8,
-            backgroundColor: '#EF4444',
-            justifyContent: 'center',
+            padding: 8,
+            flexDirection: 'row',
             alignItems: 'center',
           }}
           onPress={() => onDecline?.(request.sender._id)}
         >
-          <Feather name="x" size={20} color="white" />
+          <Feather name="x" size={12} color={themeColors.text} />
+          <Text style={{ fontSize: 10, fontWeight: 'bold', color: themeColors.text, marginLeft: 4 }}>Reject</Text>
         </TouchableOpacity>
       </View>
     );
@@ -105,7 +106,6 @@ const FriendRequestCard: React.FC<FriendRequestCardProps> = ({
     <View
       style={{
         padding: 16,
-        marginHorizontal: 16,
         flexDirection: 'row',
         alignItems: 'center',
       }}
@@ -147,30 +147,28 @@ const FriendRequestCard: React.FC<FriendRequestCardProps> = ({
           fontWeight: 'bold',
           marginBottom: 4
         }}>
-          {request.sender.full_name}
+          {truncateName(request.sender.full_name, 16)}
         </Text>
         
         <Text style={{ 
           color: themeColors.placeholderTextColor, 
-          fontSize: 14,
+          fontSize: 12,
           marginBottom: 4
         }}>
-          @{request.sender.username.length > 16 
-                  ? request.sender.username.substring(0, 16) + '...' 
-                  : request.sender.username}
+          {truncateName(request.sender.username, 18)}
         </Text>
         
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
           <Text style={{ 
             color: themeColors.placeholderTextColor, 
-            fontSize: 12 
+            fontSize: 10 
           }}>
             {request.mutualFriendsCount} mutual friends
           </Text>
           <Text style={{ 
             color: themeColors.placeholderTextColor, 
-            fontSize: 12,
-            marginLeft: 8
+            fontSize: 10,
+            marginLeft: 4
           }}>
             • {formatTime(request.created_at)}
           </Text>

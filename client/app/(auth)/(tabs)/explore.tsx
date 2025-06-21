@@ -1,7 +1,7 @@
 import { StyleSheet, Image, StatusBar } from 'react-native';
 import { ThemedView } from '@/components/ThemedView'
 import DiscoverScreen from '@/components/Explore/Discover';
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColorScheme } from '../../../hooks/useColorScheme';
 import React from 'react';
 

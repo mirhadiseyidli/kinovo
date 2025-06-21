@@ -11,6 +11,7 @@ import UserListItem from './UserListItem';
 import type { Friend, Event as EventType } from '@/types/allTypes';
 import api from '@/utils/api';
 import { useGetMyFriends } from '@/hooks/useGetMyFriends';
+import { useViewEventModal } from '../../app/(auth)/(viewEvent)/[event_id]';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -35,6 +36,7 @@ const AddAttendeesModal: React.FC<AddAttendeesModalProps> = ({
   const insets = useSafeAreaInsets();
   const { fetchFriends } = useGetMyFriends();
   const [friendsList, setFriendsList] = useState<Friend[]>([]);
+  const { showModal } = useViewEventModal();
 
   // Fetch friends list when modal opens
   useEffect(() => {
@@ -87,11 +89,7 @@ const AddAttendeesModal: React.FC<AddAttendeesModalProps> = ({
       onClose();
     } catch (error) {
       console.error('Error inviting friends:', error);
-      Alert.alert(
-        'Error',
-        'Failed to invite friends. Please try again.',
-        [{ text: 'OK' }]
-      );
+      showModal('invite_error');
     } finally {
       setLoading(false);
     }
@@ -103,26 +101,9 @@ const AddAttendeesModal: React.FC<AddAttendeesModalProps> = ({
       return;
     }
 
-    Alert.alert(
-      'Recurring Event',
-      'Do you want to invite these friends to all occurrences of this event?',
-      [
-        {
-          text: 'This Event Only',
-          onPress: () => handleInviteFriends(false),
-          style: 'default',
-        },
-        {
-          text: 'All Events',
-          onPress: () => handleInviteFriends(true),
-          style: 'default',
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ]
-    );
+    showModal('invite_recurring_confirm', {
+      onConfirm: handleInviteFriends
+    });
   };
 
   const filteredFriends = friendsList.filter(friend => 

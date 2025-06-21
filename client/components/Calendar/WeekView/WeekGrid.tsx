@@ -3,7 +3,7 @@ import React from 'react';
 import { FlatList, View, Dimensions, Text, TouchableOpacity } from 'react-native';
 import { useColorScheme } from '../../../hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import { useEventContext } from '@/context/EventContext';
+import { useEventContext } from '@/context/UserSessionContext';
 import { format, isSameDay } from 'date-fns';
 import { useRouter } from 'expo-router';
 

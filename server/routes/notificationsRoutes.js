@@ -2,7 +2,10 @@ const express = require('express');
 const {
   getUserNotifications,
   markNotificationsAsSeen,
-  getUnseenNotificationsCount
+  getUnseenNotificationsCount,
+  getUserNotificationPreferences,
+  updateUserNotificationPreferences,
+  saveFCMToken
 } = require('../controllers/notificationsController');
 const { authMiddleware } = require('../utils/authMiddleware');
 
@@ -16,5 +19,14 @@ router.put('/mark-seen', authMiddleware, markNotificationsAsSeen);
 
 // Get unseen notifications count
 router.get('/unseen-count', authMiddleware, getUnseenNotificationsCount);
+
+// Get user notification preferences
+router.get('/preferences', authMiddleware, getUserNotificationPreferences);
+
+// Update user notification preferences
+router.put('/preferences', authMiddleware, updateUserNotificationPreferences);
+
+// FCM token management
+router.post('/fcm-token', saveFCMToken);
 
 module.exports = router; 

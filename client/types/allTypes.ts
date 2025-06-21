@@ -271,6 +271,7 @@ export interface AuthContextType {
   refreshAccessToken: () => Promise<void>;
   checkAuth: () => Promise<void>;
   userId?: string;
+  isFirebaseAuthenticated: boolean;
 }
 
 // =========================
@@ -629,6 +630,7 @@ export interface DeleteAccountProps {
 export interface ManageFriendButtonProps {
   targetUser: string;
   loadingFriendAction: boolean;
+  buttonFlex?: number;
 }
 
 // =========================
@@ -674,14 +676,6 @@ export interface NavigateBackButtonProps {
 // =========================
 
 export interface SavedMessageProps {
-  visible?: boolean;
-}
-
-// =========================
-// Event Created Message Types
-// =========================
-
-export interface EventCreatedProps {
   visible?: boolean;
 }
 
@@ -751,6 +745,7 @@ export interface FriendRequestStatusProps {
   receiver: string;
   status: 'pending' | null;
   created_at: string;
+  direction?: 'sent' | 'received';
 }
 
 // =========================
@@ -847,7 +842,6 @@ export type ValidationErrors = {
 export interface CreateEventContextType {
   // Form values
   title: string;
-  picture: string | null;
   category: string | null;
   description: string | null;
   location: {
@@ -876,6 +870,8 @@ export interface CreateEventContextType {
   validationErrors: ValidationErrors;
   loading: boolean;
   error: string | null;
+  setLoading: (loading: boolean) => void;
+  setError: (error: string | null) => void;
 
   // Setter functions
   settingEventTitle: (name: string) => void;
@@ -884,7 +880,6 @@ export interface CreateEventContextType {
   settingEventDescription: (description: string | null) => void;
   settingEventEndTime: (date: Date | null) => void;
   settingEventLocation: (location: { text: string | null; city: string | null; state: string | null; coordinates: { lat: number | null; lng: number | null }}) => void;
-  settingEventPicture: (picture: string | null) => void;
   settingEventRecurrence: (data: { checked: boolean; frequency: string | null; end_date: Date | null }) => void;
   settingEventStartTime: (date: Date | null) => void;
   settingEventVisibility: (value: string) => void;
@@ -1050,7 +1045,7 @@ export interface NotificationData {
       profile_picture?: string;
     };
   };
-  type: 'friend_request' | 'friend_request_accepted' | 'friend_request_rejected' | 'event_created' | 'event_attendance_confirmed' | 'new_event_nearby' | 'event_reminder' | 'event_updated' | 'event_liked' | 'new_comment' | 'someone_joined';
+  type: 'friend_request' | 'friend_request_accepted' | 'event_created' | 'event_attendance_confirmed' | 'new_event_nearby' | 'event_reminder' | 'event_updated' | 'event_liked' | 'new_comment' | 'someone_joined';
   title: string;
   subtitle?: string;
   message_body?: string;
@@ -1083,6 +1078,7 @@ export interface FriendRequestNotification {
 export interface NotificationCardProps {
   notification: NotificationData;
   onPress?: () => void;
+  isMarking?: boolean;
 }
 
 export interface FriendRequestCardProps {

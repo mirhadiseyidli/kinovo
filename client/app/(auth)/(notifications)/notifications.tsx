@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { View, Text, FlatList, RefreshControl, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -10,11 +10,11 @@ import FriendRequestCard from '@/components/FriendRequestCard';
 import NotificationCard from '@/components/NotificationCard';
 import NavigateBackButton from '@/components/NavigateBackButton';
 import { useNotifications } from '@/context/NotificationContext';
+import { usePaginatedNotifications } from '@/hooks/usePaginatedNotifications';
 import { FriendRequestNotification, NotificationData } from '@/types/allTypes';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import api from '@/utils/api';
 import { useFirebaseUpdate } from '@/hooks/useFirebaseRealtime';
 
 export default function NotificationsPage() {
@@ -23,109 +23,78 @@ export default function NotificationsPage() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   
-  // Pagination state
-  const [page, setPage] = useState(1);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMoreData, setHasMoreData] = useState(true);
-  const [localNotifications, setLocalNotifications] = useState<NotificationData[]>([]);
+  // Local state for tracking mark-as-viewed operations
+  const [markingAsViewed, setMarkingAsViewed] = useState<Record<string, boolean>>({});
   
+  // Stable refs to prevent infinite loops
+  const hasMarkedFriendRequestsRef = useRef(false);
+  
+  // Use NotificationContext for friend requests and overall notifications management
   const {
     friendRequests,
-    mergedNotifications,
-    loading,
-    refreshing,
+    loading: contextLoading,
     firebaseLoading,
     handleAcceptFriendRequest,
     handleDeclineFriendRequest,
-    markNotificationAsViewed,
     markAllNotificationsAsViewed,
+    markFriendRequestsAsViewed,
     markFirebaseNotificationAsRead,
-    refreshData
   } = useNotifications();
 
-  // Update local notifications with merged notifications
-  useEffect(() => {
-    if (page === 1) {
-      setLocalNotifications(mergedNotifications);
-    }
-  }, [mergedNotifications, page]);
+  // Use paginated notifications hook for the main notifications list
+  const {
+    notifications: paginatedNotifications,
+    loading: paginatedLoading,
+    refreshing: paginatedRefreshing,
+    loadingMore,
+    hasMoreData,
+    error,
+    loadInitialNotifications,
+    loadMoreNotifications,
+    refreshNotifications,
+    markNotificationAsRead,
+    markAllNotificationsAsRead: markAllPaginatedAsRead
+  } = usePaginatedNotifications(5);
 
-  // Mark all notifications as viewed when the page loads
+  // Load initial notifications when component mounts
   useEffect(() => {
-    if (!loading && !firebaseLoading) {
-      markAllNotificationsAsViewed();
-    }
-  }, [loading, firebaseLoading, markAllNotificationsAsViewed]);
+    loadInitialNotifications();
+  }, [loadInitialNotifications]);
 
-  // Also mark notifications as viewed when the screen comes into focus
+  // Mark notifications as viewed only when leaving the screen, not when arriving
   useFocusEffect(
     React.useCallback(() => {
-      // This runs when the screen comes into focus
-      if (!loading && !firebaseLoading) {
-        markAllNotificationsAsViewed();
+      // Mark friend requests as viewed when user views this screen (for Firebase cleanup)
+      // Only do this once per screen visit to avoid loops
+      if (!contextLoading && !firebaseLoading && friendRequests.length > 0 && !hasMarkedFriendRequestsRef.current) {
+        hasMarkedFriendRequestsRef.current = true;
+        markFriendRequestsAsViewed();
       }
       
+      // Only mark notifications as viewed when LEAVING the screen
       return () => {
-        // This already runs when the screen loses focus
-        // No need for additional cleanup
+        hasMarkedFriendRequestsRef.current = false; // Reset for next visit
+        if (!contextLoading && !firebaseLoading) {
+          // Mark both context notifications and paginated notifications as read
+          markAllNotificationsAsViewed();
+          markAllPaginatedAsRead();
+        }
       };
-    }, [loading, firebaseLoading, markAllNotificationsAsViewed])
+    }, [contextLoading, firebaseLoading, friendRequests.length, markAllNotificationsAsViewed, markFriendRequestsAsViewed, markAllPaginatedAsRead])
   );
 
-  // Load more notifications
-  const loadMoreNotifications = useCallback(async () => {
-    if (loadingMore || !hasMoreData) return;
-    
-    setLoadingMore(true);
-    try {
-      const response = await api.get(`/api/notifications?page=${page + 1}&limit=20`);
-
-      if (response.status === 200) {
-        const newNotifications = response.data.notifications || [];
-        
-        if (newNotifications.length === 0) {
-          setHasMoreData(false);
-        } else {
-          setLocalNotifications(prev => [...prev, ...newNotifications]);
-          setPage(prev => prev + 1);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading more notifications:', error);
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [page, loadingMore, hasMoreData]);
-
-  // Reset pagination on refresh
-  const handleRefresh = useCallback(async () => {
-    setPage(1);
-    setHasMoreData(true);
-    setLocalNotifications([]);
-    await refreshData();
-  }, [refreshData]);
-
   // Sort notifications: unread first, then read, all sorted by time (newest first)
-  // Exclude pending friend request notifications (they show in Friend Requests section)
+  // Friend request notifications are no longer created - they only exist in Friend Requests section
   const sortedNotifications = useMemo(() => {
     // Filter out invalid notifications first
-    const validNotifications = localNotifications.filter(notification => 
+    const validNotifications = paginatedNotifications.filter(notification => 
       notification && notification._id && typeof notification._id === 'string'
     );
     
-    // Create a map to deduplicate by ID
-    const notificationMap = new Map();
-    validNotifications.forEach(notification => {
-      notificationMap.set(notification._id, notification);
-    });
-    
-    return Array.from(notificationMap.values())
+    return validNotifications
       .filter(notification => {
-        // Exclude pending friend request notifications - they show in Friend Requests section
-        if (notification.type === 'friend_request' && notification.status === 'pending') {
-          return false;
-        }
-        return true;
+        // Exclude any remaining friend_request type notifications (should not exist)
+        return notification.type !== 'friend_request';
       })
       .sort((a, b) => {
         // First sort by read status (unread first)
@@ -135,9 +104,9 @@ export default function NotificationsPage() {
         // Then sort by time (newest first)
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       });
-  }, [localNotifications]);
+  }, [paginatedNotifications]);
 
-  // Separate unread and read notifications (excluding pending friend requests)
+  // Separate unread and read notifications
   const unreadNotifications = useMemo(() => 
     sortedNotifications.filter(n => !n.is_seen), [sortedNotifications]
   );
@@ -146,20 +115,25 @@ export default function NotificationsPage() {
     sortedNotifications.filter(n => n.is_seen), [sortedNotifications]
   );
 
-  const handleNotificationPress = useCallback((notification: NotificationData) => {
-    // Mark as viewed in context (which will also update Firebase)
-    markNotificationAsViewed(notification._id);
+  const handleNotificationPress = useCallback(async (notification: NotificationData) => {
+    if (notification.is_seen || markingAsViewed[notification._id]) return;
+    
+    // Set local loading state
+    setMarkingAsViewed(prev => ({ ...prev, [notification._id]: true }));
+    
+    try {
+      // Mark as viewed in both systems
+      await Promise.all([
+        markNotificationAsRead(notification._id),
+        markFirebaseNotificationAsRead && markFirebaseNotificationAsRead(notification._id)
+      ]);
+    } finally {
+      // Clear loading state
+      setMarkingAsViewed(prev => ({ ...prev, [notification._id]: false }));
+    }
     
     // Navigate to relevant screen based on notification type
-    if (notification.type === 'friend_request') {
-      // Navigate to the sender's profile for new friend request notifications
-      if (notification.sender?._id) {
-        router.push({
-          pathname: "/(auth)/(profile)/[_id]" as const,
-          params: { _id: notification.sender._id }
-        });
-      }
-    } else if (notification.type === 'friend_request_accepted' || notification.type === 'friend_request_rejected') {
+    if (notification.type === 'friend_request_accepted') {
       // Navigate to the sender's profile for friend request notifications
       if (notification.sender?._id) {
         router.push({
@@ -174,7 +148,17 @@ export default function NotificationsPage() {
         params: { event_id: notification.event._id }
       });
     }
-  }, [markNotificationAsViewed, router]);
+  }, [markNotificationAsRead, markFirebaseNotificationAsRead, router, markingAsViewed]);
+
+  const handleRefresh = useCallback(async () => {
+    await refreshNotifications();
+  }, [refreshNotifications]);
+
+  const handleLoadMore = useCallback(() => {
+    if (hasMoreData && !loadingMore && !paginatedLoading) {
+      loadMoreNotifications();
+    }
+  }, [hasMoreData, loadingMore, paginatedLoading, loadMoreNotifications]);
 
   // Render header component
   const renderHeader = () => (
@@ -241,19 +225,36 @@ export default function NotificationsPage() {
           </View>
         ) : (
           <View style={{ 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            paddingVertical: 20,
-            paddingHorizontal: 16
+            backgroundColor: themeColors.background,
+            borderRadius: 12,
+            padding: 16,
+            borderWidth: 2,
+            borderStyle: 'dashed',
+            borderColor: themeColors.border,
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: 120,
+            marginHorizontal: 16
           }}>
-            <Feather name="user-check" size={32} color={themeColors.placeholderTextColor} />
+            <View style={{ marginBottom: 12 }}>
+              <Feather name="user-check" size={32} color={themeColors.placeholderTextColor} />
+            </View>
+            <Text style={{ 
+              color: themeColors.placeholderTextColor,
+              fontSize: 16, 
+              textAlign: 'center',
+              marginBottom: 4,
+              fontWeight: '600'
+            }}>
+              No friend requests
+            </Text>
             <Text style={{ 
               color: themeColors.placeholderTextColor, 
               fontSize: 14, 
-              marginTop: 8,
-              textAlign: 'center'
+              textAlign: 'center',
+              opacity: 0.8
             }}>
-              No new requests
+              No new requests at this time
             </Text>
           </View>
         )}
@@ -282,43 +283,103 @@ export default function NotificationsPage() {
   const renderFooter = () => {
     if (loadingMore) {
       return (
-        <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+        <View style={{ 
+          paddingVertical: 20, 
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
           <ActivityIndicator size="small" color={themeColors.tint} />
+          <Text style={{ 
+            color: themeColors.placeholderTextColor, 
+            marginTop: 8,
+            fontSize: 14
+          }}>
+            Loading more notifications...
+          </Text>
         </View>
       );
     }
+
+    if (!hasMoreData && sortedNotifications.length > 0) {
+      return (
+        <View style={{ 
+          paddingVertical: 20, 
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <Text style={{ 
+            color: themeColors.placeholderTextColor, 
+            fontSize: 14,
+            opacity: 0.7
+          }}>
+            You've reached the end
+          </Text>
+        </View>
+      );
+    }
+
     return null;
   };
 
   // Render empty component
-  const renderEmpty = () => (
-    <View style={{ 
-      alignItems: 'center', 
-      justifyContent: 'center', 
-      paddingVertical: 60 
-    }}>
-      <Feather name="bell" size={64} color={themeColors.placeholderTextColor} />
-      <Text style={{ 
-        color: themeColors.placeholderTextColor, 
-        fontSize: 18, 
-        marginTop: 16,
-        textAlign: 'center',
-        fontWeight: '500'
-      }}>
-        No notifications
-      </Text>
-      <Text style={{ 
-        color: themeColors.placeholderTextColor, 
-        fontSize: 14, 
-        marginTop: 8,
-        textAlign: 'center'
-      }}>
-        You're all caught up!
-      </Text>
-    </View>
-  );
+  const renderEmpty = () => {
+    if (paginatedLoading) {
+      return (
+        <View style={{ 
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: 120,
+          marginHorizontal: 16
+        }}>
+          <ActivityIndicator size="large" color={themeColors.tint} />
+          <Text style={{ 
+            color: themeColors.placeholderTextColor, 
+            marginTop: 16 
+          }}>
+            Loading notifications...
+          </Text>
+        </View>
+      );
+    }
 
-  if (loading || firebaseLoading) {
+    return (
+      <View style={{ 
+        backgroundColor: themeColors.background,
+        borderRadius: 12,
+        padding: 16,
+        borderWidth: 2,
+        borderStyle: 'dashed',
+        borderColor: themeColors.border,
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: 120,
+        marginHorizontal: 16
+      }}>
+        <View style={{ marginBottom: 12 }}>
+          <Feather name="bell" size={32} color={themeColors.placeholderTextColor} />
+        </View>
+        <Text style={{ 
+          color: themeColors.placeholderTextColor,
+          fontSize: 16, 
+          textAlign: 'center',
+          marginBottom: 4,
+          fontWeight: '600'
+        }}>
+          No notifications
+        </Text>
+        <Text style={{ 
+          color: themeColors.placeholderTextColor, 
+          fontSize: 14, 
+          textAlign: 'center',
+          opacity: 0.8
+        }}>
+          You're all caught up!
+        </Text>
+      </View>
+    );
+  };
+
+  if (contextLoading || firebaseLoading) {
     return (
       <ThemedView style={{ flex: 1, backgroundColor: themeColors.background }}>
         <View style={{ 
@@ -345,7 +406,7 @@ export default function NotificationsPage() {
         contentContainerStyle={{ paddingTop: 16, paddingBottom: insets.bottom }}
         refreshControl={
           <RefreshControl 
-            refreshing={refreshing} 
+            refreshing={paginatedRefreshing} 
             onRefresh={handleRefresh}
             tintColor={themeColors.mountainGreen}
             colors={[themeColors.mountainGreen]}
@@ -353,12 +414,18 @@ export default function NotificationsPage() {
         }
         showsVerticalScrollIndicator={false}
         data={sortedNotifications}
+        initialNumToRender={5}
+        maxToRenderPerBatch={5}
+        windowSize={5}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.3}
         keyExtractor={(item, index) => `notification-${item._id}-${index}`}
         renderItem={({ item: notification }) => (
           <View>
             <NotificationCard
               notification={notification}
               onPress={() => handleNotificationPress(notification)}
+              isMarking={!!markingAsViewed[notification._id]}
             />
           </View>
         )}
@@ -371,8 +438,6 @@ export default function NotificationsPage() {
             }}
           />
         )}
-        onEndReached={loadMoreNotifications}
-        onEndReachedThreshold={0.1}
         ListHeaderComponent={renderHeader}
         ListFooterComponent={renderFooter}
         ListEmptyComponent={renderEmpty}

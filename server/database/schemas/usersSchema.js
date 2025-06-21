@@ -345,6 +345,14 @@ const usersSchema = new mongoose.Schema({
   ai_assistant_id: {
     type: String,
     required: false,
+  },
+  reset_password_code: {
+    type: String,
+    required: false,
+  },
+  reset_password_expires: {
+    type: Date,
+    required: false,
   }
 });
 

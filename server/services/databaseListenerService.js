@@ -6,8 +6,9 @@ const Event = require('../database/schemas/eventsSchema');
 const { 
   syncFriendRequest, 
   updateFriendRequestStatus, 
-  syncNotifications, 
-  syncFriendEventActivities
+  syncNotification,
+  syncFriendEventActivities,
+  removeFriendRequestFromFirebase
 } = require('./realtimeSyncService');
 
 // Initialize all change streams
@@ -20,13 +21,38 @@ const initializeChangeStreams = () => {
     try {
       if (change.operationType === 'insert') {
         const newRequest = change.fullDocument;
-        await syncFriendRequest(newRequest.receiver._id.toString(), {
-          _id: newRequest._id,
-          from: newRequest.sender,
-          to: newRequest.receiver,
-          status: newRequest.status,
-          created_at: newRequest.created_at
-        });
+        
+        // Populate the sender data for Firebase
+        const populatedRequest = await FriendRequest.findById(newRequest._id)
+          .populate('sender', 'full_name username profile_picture friends')
+          .populate('receiver', 'full_name username profile_picture friends');
+        
+        if (populatedRequest) {
+          // Calculate mutual friends count
+          const senderFriends = populatedRequest.sender.friends || [];
+          const receiverFriends = populatedRequest.receiver.friends || [];
+          
+          const mutualFriendsCount = senderFriends.filter(senderFriendId => 
+            receiverFriends.some(receiverFriendId => 
+              senderFriendId.toString() === receiverFriendId.toString()
+            )
+          ).length;
+          
+          await syncFriendRequest(populatedRequest.receiver._id.toString(), {
+            _id: populatedRequest._id,
+            from: populatedRequest.sender._id,
+            to: populatedRequest.receiver._id,
+            sender: {
+              _id: populatedRequest.sender._id,
+              full_name: populatedRequest.sender.full_name,
+              username: populatedRequest.sender.username,
+              profile_picture: populatedRequest.sender.profile_picture
+            },
+            status: populatedRequest.status,
+            created_at: populatedRequest.created_at,
+            mutualFriendsCount: mutualFriendsCount
+          });
+        }
       } else if (change.operationType === 'update') {
         const requestId = change.documentKey._id;
         const updatedFields = change.updateDescription.updatedFields;
@@ -47,76 +73,57 @@ const initializeChangeStreams = () => {
     }
   });
   
-  // Notification change stream
+  // Notification change stream - Only sync NEW/UNSEEN notifications to Firebase
   const notificationStream = Notification.watch();
   notificationStream.on('change', async (change) => {
     try {
-      if (change.operationType === 'insert' || change.operationType === 'update') {
-        // For insert or update operations, we have the fullDocument
+      if (change.operationType === 'insert') {
+        // Only sync newly created notifications to Firebase for real-time delivery
         if (change.fullDocument) {
-          // Notifications have recipient field, not user
           const recipientId = change.fullDocument.recipient._id.toString();
-          const notifications = await Notification.find({ recipient: recipientId })
-            .populate('event')
-            .populate('sender')
-            .sort('-created_at');
-          await syncNotifications(recipientId, notifications);
+          // Only sync if the notification is unseen (newly created notifications are always unseen)
+          if (!change.fullDocument.is_seen) {
+            await syncNotification(recipientId, change.fullDocument);
+            console.log(`New unseen notification synced to Firebase for user ${recipientId}`);
+          }
+        }
+      } else if (change.operationType === 'update') {
+        // Handle updates carefully - only sync if becoming unseen again (rare case)
+        if (change.fullDocument && change.updateDescription) {
+          const recipientId = change.fullDocument.recipient._id.toString();
+          const updatedFields = change.updateDescription.updatedFields;
+          
+          // If notification is being marked as seen, do NOT sync to Firebase
+          // If notification is being marked as unseen (rare), sync to Firebase
+          if (updatedFields.hasOwnProperty('is_seen')) {
+            if (!updatedFields.is_seen) {
+              // Notification becoming unseen - sync to Firebase
+              await syncNotification(recipientId, change.fullDocument);
+              console.log(`Notification marked as unseen, synced to Firebase for user ${recipientId}`);
+            } else {
+              // Notification being marked as seen - it should already be cleaned up by markNotificationsAsSeen
+              console.log(`Notification marked as seen for user ${recipientId}, no Firebase sync needed`);
+            }
+          } else {
+            // Other field updates - only sync if notification is still unseen
+            if (!change.fullDocument.is_seen) {
+              await syncNotification(recipientId, change.fullDocument);
+              console.log(`Unseen notification updated and synced to Firebase for user ${recipientId}`);
+            }
+          }
         }
       } else if (change.operationType === 'delete') {
-        // For delete operations, we don't have the fullDocument
-        // We need to retrieve affected users and update all their notifications
+        // For delete operations, remove from Firebase if it exists
+        console.log('Notification delete operation detected:', change.documentKey);
         
-        // Log the operation to help with debugging
-        console.log('Delete operation detected:', change.documentKey);
-        
-        // Since we can't determine the recipient from a deleted notification,
-        // we need to sync notifications for all users to ensure consistency
-        const users = await User.find({});
-        
-        for (const user of users) {
-          const userId = user._id.toString();
-          const notifications = await Notification.find({ recipient: userId }).sort('-created_at');
-          await syncNotifications(userId, notifications);
-        }
+        // Since we can't get recipient from deleted doc, we'll let the cleanup happen naturally
+        // The notification should already be removed from Firebase by our cleanup logic
+        console.log('Notification deleted from database, Firebase cleanup handled by application logic');
       }
     } catch (error) {
       console.error('Error in notification change stream:', error);
     }
   });
-  
-  // Event change stream for friend activity
-  // const eventStream = Event.watch();
-  // eventStream.on('change', async (change) => {
-  //   try {
-  //     if (['insert', 'update'].includes(change.operationType)) {
-  //       if (change.fullDocument) {
-  //         const event = change.fullDocument;
-  //         // Handle both populated and unpopulated creator field
-  //         const creatorId = event.creator && typeof event.creator === 'object' 
-  //           ? event.creator._id.toString() 
-  //           : event.creator.toString();
-          
-  //         // Get all friends of the event creator
-  //         const creator = await User.findById(creatorId);
-  //         if (creator && creator.friends && creator.friends.length > 0) {
-  //           // For each friend, update their activity feed
-  //           for (const friendId of creator.friends) {
-  //             // Handle both populated and unpopulated friend IDs
-  //             const friendIdStr = typeof friendId === 'object' 
-  //               ? friendId._id.toString() 
-  //               : friendId.toString();
-              
-  //             // Get all unseen events for this friend
-  //             const unseenEvents = await getUnseenEventsForUser(friendIdStr);
-  //             await syncFriendEventActivities(friendIdStr, unseenEvents);
-  //           }
-  //         }
-  //       }
-  //     }
-  //   } catch (error) {
-  //     console.error('Error in event change stream:', error);
-  //   }
-  // });
   
   // Error handling for all streams
   [notificationStream, friendRequestStream].forEach(stream => {

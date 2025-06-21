@@ -9,6 +9,7 @@ import { Colors } from '@/constants/Colors';
 import { useFocusEffect } from '@react-navigation/native';
 import type { ApiError, FriendRequest } from '@/types/allTypes';
 import { useManageFriends } from '@/hooks/useManageFriends';
+import { useNotifications } from '@/context/UserSessionContext';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 
 export default function FriendRequests() {
@@ -21,6 +22,8 @@ export default function FriendRequests() {
     acceptFriendRequest,
     rejectFriendRequest
   } = useManageFriends();
+  
+  const { markFriendRequestsAsViewed } = useNotifications();
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -34,10 +37,15 @@ export default function FriendRequests() {
       const fetchFriendRequests = async () => {
           const response = await getReceivedFriendRequests();
           setRequests(response.data.requests);
+          
+          // Mark friend requests as viewed for Firebase cleanup
+          if (response.data.requests.length > 0) {
+            markFriendRequestsAsViewed();
+          }
       };
 
       fetchFriendRequests();
-    }, [])
+    }, [getReceivedFriendRequests, markFriendRequestsAsViewed])
   );
 
   return (

@@ -2,10 +2,9 @@ import { useAuthSession } from "@/components/Auth/AuthProvider";
 import { Redirect, Stack, useRouter } from 'expo-router';
 import { Text, TouchableOpacity } from 'react-native';
 import { ReactNode } from "react";
-import { LocationProvider } from '@/context/LocationContext'; // ✅ Import LocationProvider
+// Location provider is now part of UserSessionProvider
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import { EventCreatedMessageProvider } from "@/context/EventCreatedMessageContext";
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams } from "expo-router";
 import { cancelAnimation } from 'react-native-reanimated';

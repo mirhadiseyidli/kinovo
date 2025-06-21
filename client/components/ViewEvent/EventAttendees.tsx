@@ -13,26 +13,30 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
+import { useViewEventModal } from '../../app/(auth)/(viewEvent)/[event_id]';
 
 type AttendeeAvatarProps = {
   attendee: (NonNullable<Event['attendees']>)[number];
   index: number;
 };
 
-const AttendeeAvatar = React.memo(({ attendee, index }: AttendeeAvatarProps) => {
-  const avatarStyle: ViewStyle = {
-    marginLeft: index === 0 ? 0 : -12,
-    width: 52,
-    height: 52,
-    borderRadius: 30,
-    overflow: 'hidden' as ViewStyle['overflow'],
-  };
+const AttendeeAvatar = React.memo<AttendeeAvatarProps>(({ attendee, index }) => {
+  const colorScheme = useColorScheme();
+  const themeColors = Colors[colorScheme ?? 'dark'];
 
   return (
-    <View key={attendee.user._id} style={avatarStyle}>
+    <View style={{
+      marginLeft: index > 0 ? -12 : 0,
+      width: 52,
+      height: 52,
+      borderRadius: 30,
+      borderColor: themeColors.background,
+      borderWidth: 2,
+      overflow: 'hidden',
+    }}>
       <Image 
         source={attendee.user.profile_picture ? { uri: attendee.user.profile_picture } : require('@/assets/profile-pic-2.jpeg')} 
-        style={{ width: 52, height: 52, borderRadius: 30 }} 
+        style={{ width: '100%', height: '100%' }} 
       />
     </View>
   );
@@ -45,7 +49,7 @@ type AttendeeRowProps = {
   onRemove: (id: string) => void;
 };
 
-const AttendeeRow = React.memo(({ attendee, isCreator, creatorId, onRemove }: AttendeeRowProps) => {
+const AttendeeRow = React.memo<AttendeeRowProps>(({ attendee, isCreator, creatorId, onRemove }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
 
@@ -53,27 +57,28 @@ const AttendeeRow = React.memo(({ attendee, isCreator, creatorId, onRemove }: At
     switch (attendee.status) {
       case 'accepted':
         return {
-          backgroundColor: themeColors.mountainGreen,
-          color: '#FFFFFF'
+          backgroundColor: themeColors.mountainGreen + '20',
+          borderColor: themeColors.mountainGreen,
+          borderWidth: 1,
+          color: themeColors.mountainGreen
         };
       case 'maybe':
         return {
-          backgroundColor:  "#FFB347",
-          borderColor:  "#FFB347",
+          backgroundColor: 'orange' + '20',
+          borderColor: 'orange',
           borderWidth: 1,
-          color: themeColors.text
+          color: 'orange'
         };
       case 'rejected':
         return {
-          backgroundColor: 'transparent',
-          borderColor: themeColors.mountainGreen,
+          backgroundColor: 'red' + '20',
+          borderColor: 'red',
           borderWidth: 1,
-          color: themeColors.text,
-          opacity: 0.7,
+          color: 'red'
         };
       default:
         return {
-          backgroundColor: themeColors.background,
+          backgroundColor: themeColors.mountainGreen + '20',
           borderColor: themeColors.mountainGreen,
           borderWidth: 1,
           color: themeColors.text
@@ -157,8 +162,11 @@ const EventAttendees = ({ userId, event }: { userId: string | null, event: Event
   const expanded = useSharedValue(0); // 0: collapsed, 1: expanded
   const [isExpanded, setIsExpanded] = useState(false);
   const attendeeCount = (event?.attendees ?? []).length || 0;
+  const { showModal } = useViewEventModal();
 
   const handleRemove = useCallback((id: string) => {
+    // This would typically call an API to remove the attendee
+    console.log('Removing attendee:', id);
   }, []);
 
   useAnimatedReaction(
@@ -172,20 +180,11 @@ const EventAttendees = ({ userId, event }: { userId: string | null, event: Event
   );
 
   const confirmRemoveAttendee = useCallback((attendeeId: string) => {
-    ActionSheetIOS.showActionSheetWithOptions(
-      {
-        options: ['Cancel', 'Remove User'],
-        destructiveButtonIndex: 1,
-        cancelButtonIndex: 0,
-        userInterfaceStyle: 'dark',
-      },
-      (buttonIndex) => {
-        if (buttonIndex === 1) {
-          handleRemove(attendeeId);
-        }
-      }
-    );
-  }, [handleRemove]);
+    showModal('attendee_remove_confirm', {
+      attendeeId,
+      onConfirm: handleRemove
+    });
+  }, [handleRemove, showModal]);
 
   const useCollapsedRowStyle = (expanded: SharedValue<number>) =>
     useAnimatedStyle(() => ({

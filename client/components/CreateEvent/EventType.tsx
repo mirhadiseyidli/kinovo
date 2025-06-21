@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, TouchableOpacity, Modal, Alert, Platform, Pressable, Dimensions } from 'react-native';
 import Animated, { 
   FadeIn,
@@ -6,7 +6,8 @@ import Animated, {
   useSharedValue,
   withSpring,
   useAnimatedGestureHandler,
-  runOnJS
+  runOnJS,
+  cancelAnimation
 } from 'react-native-reanimated';
 import { PanGestureHandler } from 'react-native-gesture-handler';
 import { Picker } from '@react-native-picker/picker';
@@ -27,7 +28,7 @@ const SPRING_CONFIG = {
   stiffness: 400
 };
 
-const Category: React.FC<CategoryProps> = ({ onCategorySelect }) => {
+const Category: React.FC<CategoryProps> = React.memo(({ onCategorySelect }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { category, settingEventCategory } = useCreateEventContext();
@@ -35,6 +36,7 @@ const Category: React.FC<CategoryProps> = ({ onCategorySelect }) => {
   const [showPicker, setShowPicker] = useState(false);
   const { categories, fetchCategories, loading } = useCategories();
   const translateY = useSharedValue(SCREEN_HEIGHT);
+  const mountedRef = useRef(true);
 
   // Check for a category in AsyncStorage and context
   useEffect(() => {
@@ -66,28 +68,38 @@ const Category: React.FC<CategoryProps> = ({ onCategorySelect }) => {
   }, [category, onCategorySelect, settingEventCategory]);
 
   useEffect(() => {
-    if (showPicker) {
+    if (showPicker && mountedRef.current) {
       translateY.value = withSpring(0, SPRING_CONFIG);
     } else {
       translateY.value = SCREEN_HEIGHT;
     }
   }, [showPicker]);
 
-  const closeModal = () => {
+  // Cleanup animations on unmount
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      cancelAnimation(translateY);
+    };
+  }, []);
+
+  const closeModal = useCallback(() => {
     setShowPicker(false);
-  };
+  }, []);
 
   const gestureHandler = useAnimatedGestureHandler({
     onStart: (_, ctx: any) => {
       ctx.startY = translateY.value;
     },
     onActive: (event, ctx) => {
+      if (!mountedRef.current) return; // Don't update if unmounted
       const newValue = ctx.startY + event.translationY;
       if (newValue > 0) { // Only allow downward drag
         translateY.value = newValue;
       }
     },
     onEnd: (event) => {
+      if (!mountedRef.current) return; // Don't update if unmounted
       if (event.velocityY > 500 || event.translationY > 100) {
         translateY.value = withSpring(SCREEN_HEIGHT, SPRING_CONFIG);
         runOnJS(closeModal)();
@@ -97,11 +109,12 @@ const Category: React.FC<CategoryProps> = ({ onCategorySelect }) => {
     },
   });
 
+  // Memoize animated style to prevent recreation on every render
   const animatedStyle = useAnimatedStyle(() => {
     return {
       transform: [{ translateY: translateY.value }],
     };
-  });
+  }, [translateY]);
 
   useEffect(() => {
     fetchCategories();
@@ -259,6 +272,6 @@ const Category: React.FC<CategoryProps> = ({ onCategorySelect }) => {
       )}
     </>
   );
-};
+});
 
 export default Category;

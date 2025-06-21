@@ -10,7 +10,7 @@ import { Colors } from '@/constants/Colors';
 import { useFocusEffect } from '@react-navigation/native';
 import { Event } from '@/types/allTypes';
 import { useRouter } from 'expo-router';
-import { useEventContext } from '@/context/EventContext';
+import { useEventContext } from '@/context/UserSessionContext';
 import { UpcomingEventsSkeleton } from '../Skeleton';
 
 const UpcomingEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }> = React.memo(({ refreshing, onFinishRefresh }) => {

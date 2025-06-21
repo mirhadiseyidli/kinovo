@@ -8,7 +8,7 @@ import { format, isToday, parseISO, addMonths, startOfMonth, endOfMonth } from '
 import { Event } from '@/types/allTypes';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { InteractionManager } from 'react-native';
-import { useEventContext } from '@/context/EventContext';
+import { useEventContext } from '@/context/UserSessionContext';
 import { EventOccurrence } from '@/utils/eventUtils';
 
 const groupOccurrencesByDate = (occurrences: EventOccurrence[]) => {

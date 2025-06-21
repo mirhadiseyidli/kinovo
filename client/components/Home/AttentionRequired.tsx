@@ -9,12 +9,13 @@ import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useGetAttentionRequiredEvents } from '@/hooks/useGetAttentionRequiredEvents';
 import { useEventInvitation } from '@/hooks/useEventInvitation';
-import { useEventContext } from '@/context/EventContext';
+import { useEventContext } from '@/context/UserSessionContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { getCategoryImage } from '@/constants/CategoryImages';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { AttentionRequiredSkeleton } from '../Skeleton';
+import { truncateName } from '@/utils/truncateName';
 
 interface AttentionRequiredProps {
   refreshing: boolean;
@@ -207,7 +208,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = ({
               marginBottom: 12,
               color: themeColors.text,
             }}>
-              {event.title}
+              {truncateName(event.title, 20)}
             </ThemedText>
 
             {/* Date/Time */}

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, DimensionValue, ScrollView } from 'react-native';
 import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -14,18 +14,32 @@ import Animated, {
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 
-// Reusable shimmer effect hook
-const useShimmerAnimation = () => {
+// Reusable shimmer effect hook with memory optimization
+const useShimmerAnimation = (shouldAnimate: boolean = true) => {
   const translateX = useSharedValue(-1);
+  const mountedRef = useRef(true);
   
   useEffect(() => {
+    if (shouldAnimate && mountedRef.current) {
     translateX.value = withRepeat(
       withTiming(1, { duration: 1000 }),
       -1,
       false
     );
+    } else {
+      cancelAnimation(translateX);
+      translateX.value = -1; // Reset to initial state
+    }
     
     return () => {
+      cancelAnimation(translateX);
+    };
+  }, [shouldAnimate]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
       cancelAnimation(translateX);
     };
   }, []);
@@ -41,7 +55,7 @@ const useShimmerAnimation = () => {
         ) 
       }
     ],
-  }));
+  }), [translateX]);
 };
 
 // Reusable skeleton box component

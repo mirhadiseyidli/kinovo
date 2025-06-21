@@ -9,6 +9,10 @@ const EventTitleAndCategory: React.FC<EventTitleAndCategoryProps> = React.memo((
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
 
+  const truncateName = (name: string, maxLength: number) => {
+    return name.length > maxLength ? name.slice(0, maxLength) + '...' : name;
+  };
+
   return (
   
   <View style={{ 
@@ -21,13 +25,14 @@ const EventTitleAndCategory: React.FC<EventTitleAndCategoryProps> = React.memo((
     marginTop: 16,
     justifyContent: 'space-between'
   }}>
-    <ThemedText style={{ fontSize: 24, fontWeight: 'bold' }}>{title}</ThemedText>
+    <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>{truncateName(title, 30)}</ThemedText>
     <ThemedText style={{ 
       paddingVertical: 2,
       fontWeight: 'bold',
       backgroundColor: themeColors.mountainGreen, 
       paddingHorizontal: 8, 
       borderRadius: 4,
+      fontSize: 12,
       color: 'white'
     }}>
       {category}

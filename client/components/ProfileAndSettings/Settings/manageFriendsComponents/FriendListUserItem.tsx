@@ -287,9 +287,9 @@ export default function FriendListUserItem({
           />
           <View style={{ flexDirection: 'column'}}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={{ fontWeight: 'bold', color: themeColors.text }}>{truncateName(name, 18)}</Text>
+              <Text style={{ fontWeight: 'bold', color: themeColors.text }}>{truncateName(name, 16)}</Text>
             </View>
-            {subtitle && <Text style={{ color: themeColors.placeholderTextColor, marginTop: 2 }}>{truncateName(subtitle, 18)}</Text>}
+            {subtitle && <Text style={{ color: themeColors.placeholderTextColor, marginTop: 2 }}>{truncateName(subtitle, 16)}</Text>}
           </View>
         </View>
         {renderAction()}
@@ -331,7 +331,7 @@ export default function FriendListUserItem({
               )}
             </View>
             <View style={{ flexDirection: 'column', gap: 2 }}>
-              {subtitle && <Text style={{ color: themeColors.placeholderTextColor }}>{truncateName(subtitle, 18)}</Text>}
+              {subtitle && <Text style={{ color: themeColors.placeholderTextColor }}>{truncateName(subtitle, 16)}</Text>}
               {typeof mutualFriendsCount === 'number' && mutualFriendsCount > 0 && (
                 <Text style={{ color: themeColors.placeholderTextColor, fontSize: 12 }}>
                   {mutualFriendsCount} {mutualFriendsCount === 1 ? 'mutual friend' : 'mutual friends'}

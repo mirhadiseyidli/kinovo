@@ -1,22 +1,24 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { NotificationCardProps } from '@/types/allTypes';
 
-const NotificationCard: React.FC<NotificationCardProps> = ({ notification, onPress }) => {
+const NotificationCard: React.FC<NotificationCardProps> = ({ notification, onPress, isMarking = false }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
 
   const getNotificationIcon = () => {
+    if (isMarking) {
+      return <ActivityIndicator size="small" color="white" />;
+    }
+
     switch (notification.type) {
       case 'friend_request':
         return <Feather name="user-plus" size={20} color="white" />;
       case 'friend_request_accepted':
         return <Feather name="user-check" size={20} color="white" />;
-      case 'friend_request_rejected':
-        return <Feather name="user-x" size={20} color="white" />;
       case 'event_created':
         return <Feather name="plus-circle" size={20} color="white" />;
       case 'event_attendance_confirmed':
@@ -43,13 +45,11 @@ const NotificationCard: React.FC<NotificationCardProps> = ({ notification, onPre
       case 'friend_request':
         return themeColors.tint;
       case 'friend_request_accepted':
-        return '#10B981';
-      case 'friend_request_rejected':
-        return '#EF4444';
+        return themeColors.mountainGreen;
       case 'event_created':
         return '#8B5CF6';
       case 'event_attendance_confirmed':
-        return themeColors.tint;
+        return themeColors.mountainGreen;
       case 'new_event_nearby':
         return themeColors.tint;
       case 'event_reminder':
@@ -80,19 +80,25 @@ const NotificationCard: React.FC<NotificationCardProps> = ({ notification, onPre
 
   const displayTime = notification.time || formatTime(notification.created_at);
 
+  console.log('NotificationCard', {
+    title: notification.title,
+    subtitle: notification.subtitle,
+    type: notification.type,
+  });
+
   return (
     <TouchableOpacity
       style={{
         padding: 16,
-        marginHorizontal: 16,
         flexDirection: 'row',
         alignItems: 'flex-start',
-        opacity: notification.is_seen ? 0.7 : 1.0, // Dim seen notifications
+        opacity: notification.is_seen || isMarking ? 0.7 : 1.0, // Dim seen notifications or marking notifications
         borderLeftWidth: notification.is_seen ? 0 : 3,
         borderLeftColor: notification.is_seen ? 'transparent' : themeColors.tint, // Unseen indicator
       }}
       onPress={onPress}
-      activeOpacity={0.7}
+      activeOpacity={isMarking ? 1 : 0.7} // Prevent touch when marking
+      disabled={isMarking} // Disable when marking
     >
       {/* Icon */}
       <View
@@ -123,7 +129,7 @@ const NotificationCard: React.FC<NotificationCardProps> = ({ notification, onPre
                 {notification.title}
               </Text>
               {/* Unseen dot indicator */}
-              {!notification.is_seen && (
+              {!notification.is_seen && !isMarking && (
                 <View
                   style={{
                     width: 8,
@@ -172,57 +178,6 @@ const NotificationCard: React.FC<NotificationCardProps> = ({ notification, onPre
             >
               <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>
                 {notification.count}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Tags/Chips */}
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {notification.event && (
-            <View
-              style={{
-                backgroundColor: themeColors.mountainGreen,
-                paddingHorizontal: 12,
-                paddingVertical: 4,
-                borderRadius: 16,
-                opacity: notification.is_seen ? 0.7 : 1.0,
-              }}
-            >
-              <Text style={{ color: 'white', fontSize: 12, fontWeight: '500' }}>
-                {notification?.event?.category}
-              </Text>
-            </View>
-          )}
-          {notification.sender && (
-            <View
-              style={{
-                backgroundColor: themeColors.border,
-                paddingHorizontal: 12,
-                paddingVertical: 4,
-                borderRadius: 16,
-                opacity: notification.is_seen ? 0.7 : 1.0,
-              }}
-            >
-              <Text style={{ color: themeColors.text, fontSize: 12, fontWeight: '500' }}>
-                @{notification.sender.username?.length > 16 
-                  ? notification.sender.username.substring(0, 16) + '...' 
-                  : notification.sender.username}
-              </Text>
-            </View>
-          )}
-          {notification.location && (
-            <View
-              style={{
-                backgroundColor: themeColors.border,
-                paddingHorizontal: 12,
-                paddingVertical: 4,
-                borderRadius: 16,
-                opacity: notification.is_seen ? 0.7 : 1.0,
-              }}
-            >
-              <Text style={{ color: themeColors.text, fontSize: 12, fontWeight: '500' }}>
-                {notification.location}
               </Text>
             </View>
           )}

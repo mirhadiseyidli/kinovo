@@ -17,7 +17,10 @@ const {
   changePhone,
   checkPhone,
   changeUsername,
-  reactivateAccount
+  reactivateAccount,
+  resetPasswordRequest,
+  verifyResetCode,
+  resetPassword
 } = require('../controllers/authController');
 const { tokenMiddleware } = require('../utils/tokenMiddleware');
 const router = express.Router();
@@ -33,6 +36,11 @@ router.post('/verify-login', verifyLogin);
 // Public phone verification routes (used during signup)
 router.post('/verify-phone', verifyPhone);
 router.post('/check-phone', checkPhone);
+
+// Password reset routes (public)
+router.post('/reset-password-request', resetPasswordRequest);
+router.post('/verify-reset-code', verifyResetCode);
+router.post('/reset-password', resetPassword);
 
 // Dual-use routes (both public and protected versions)
 router.post('/get-phone', getPhoneNumber); // Public version for login/2FA

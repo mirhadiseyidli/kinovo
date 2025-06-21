@@ -8,7 +8,7 @@ docker rm kinovo-server || true
 docker build -t kinovo-server .
 
 # Fetch environment variables
-./fetch-env.sh
+#./fetch-env.sh
 
 # Run new container
 docker run -d \

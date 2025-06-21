@@ -240,9 +240,18 @@ const EmailLogin: React.FC<EmailLoginProps> = ({ onLoginSuccess }) => {
             topContainerStyle={{ gap: 4 }}
           />
         </ThemedView>
-        <TouchableOpacity>
-          <ThemedText>Forgot Password?</ThemedText>
-        </TouchableOpacity>
+        {/* Forgot Password Link */}
+        <ThemedView style={{ 
+          flexDirection: 'row', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+        }}>
+          <TouchableOpacity onPress={() => router.push('/login/resetPassword')}>
+            <ThemedText style={{ color: themeColors.mountainGreen, fontWeight: '600', textDecorationLine: 'underline' }}>
+              Forgot Password?
+            </ThemedText>
+          </TouchableOpacity>
+        </ThemedView>
       </ThemedView>
 
       <TouchableOpacity

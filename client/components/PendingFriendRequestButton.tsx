@@ -9,7 +9,7 @@ import axios from 'axios';
 import { useAuthSession } from './Auth/AuthProvider';
 import { useManageFriends } from '@/hooks/useManageFriends';
 
-const PendingFriendRequestButton = ({ targetUser, loadingFriendAction, onCancelPendingRequest }: ManageFriendButtonProps & { onCancelPendingRequest?: () => void }) => {
+const PendingFriendRequestButton = ({ targetUser, loadingFriendAction, buttonFlex = 1, onCancelPendingRequest }: ManageFriendButtonProps & { onCancelPendingRequest?: () => void }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { cancelFriendRequestSender } = useManageFriends();
@@ -40,7 +40,7 @@ const PendingFriendRequestButton = ({ targetUser, loadingFriendAction, onCancelP
     <TouchableOpacity
       style={{
         marginTop: 16,
-        flex: 1,
+        flex: buttonFlex,
         backgroundColor: themeColors.mountainGreen,
         paddingVertical: 8,
         paddingHorizontal: 16,

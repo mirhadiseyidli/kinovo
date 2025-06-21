@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, forwardRef, useImperativeHandle, useRef } from 'react';
-import { View, Text, FlatList, RefreshControl } from 'react-native';
+import { View, Text, FlatList, RefreshControl, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -22,6 +22,8 @@ import PendingFriendRequestButton from '@/components/PendingFriendRequestButton'
 import api from '@/utils/api';
 import { ThemedView } from '@/components/ThemedView';
 import { formatDistanceToNow } from 'date-fns';
+import { useManageFriends } from '@/hooks/useManageFriends';
+import { useNotifications } from '@/context/NotificationContext';
 
 type ProfileTabsHandle = {
   onRefresh: () => void;
@@ -35,21 +37,86 @@ const UserGeneralInfo = forwardRef(({ _id }: UserGeneralInfoProps, ref) => {
   const [friendRequestStatus, setFriendRequestStatus] = useState<Partial<FriendRequestStatusProps> | null>(null);
   const [friendshipStatus, setFriendshipStatus] = useState<'pending' | 'friend' | null>(null);
   const { fetchUserData } = useUserData();
+  const { acceptFriendRequest, rejectFriendRequest } = useManageFriends();
+  const { refreshData, friendRequests } = useNotifications();
   const [user, setUser] = useState<User | null>(null);
   const [loadingFriendAction, setLoadingFriendAction] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [optimisticFriendRequestSent, setOptimisticFriendRequestSent] = useState(false);
   const tabRef = useRef<ProfileTabsHandle>(null);
 
   const renderFriendActionButton = (userIdToView: string) => {
     if (userIdToView === user?._id) return null;
 
-    switch (friendshipStatus) {
+    // Calculate button count for dynamic sizing (friend action buttons + share button)
+    const isAcceptDeclineMode = friendRequestStatus?.status === 'pending' && (friendRequestStatus as any)?.direction === 'received';
+    const buttonCount = isAcceptDeclineMode ? 3 : 2; // Accept + Decline + Share = 3, or Friend Action + Share = 2
+    const buttonFlex = 1 / buttonCount;
+
+    // If there's a pending friend request that current user received, show accept/decline options
+    if (isAcceptDeclineMode) {
+      return (
+        <>
+          <TouchableOpacity
+            style={{
+              flex: buttonFlex,
+              backgroundColor: themeColors.mountainGreen,
+              paddingVertical: 8,
+              paddingHorizontal: 16,
+              borderRadius: 8,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginTop: 16
+            }}
+            onPress={() => handleAcceptFriendRequest(userIdToView)}
+          >
+            {loadingFriendAction ? (
+              <ActivityIndicator size={'small'} color={themeColors.text} />
+            ) : (
+              <View style={{ flexDirection: 'row' }}>
+                <Feather name='check' color={themeColors.text} size={16}/>
+                <Text style={{ fontSize: 14, color: themeColors.text, fontWeight: 'bold', marginLeft: 4 }}>Accept</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{
+              flex: buttonFlex,
+              backgroundColor: themeColors.inputBackgroundColor,
+              paddingVertical: 8,
+              paddingHorizontal: 16,
+              borderRadius: 8,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginTop: 16
+            }}
+            onPress={() => handleRejectFriendRequest(userIdToView)}
+          >
+            <View style={{ flexDirection: 'row' }}>
+              <Feather name='x' color={themeColors.text} size={16}/>
+              <Text style={{ fontSize: 14, color: themeColors.text, fontWeight: 'bold', marginLeft: 4 }}>Decline</Text>
+            </View>
+          </TouchableOpacity>
+        </>
+      );
+    }
+
+    // Use optimistic state if we've sent a friend request
+    const effectiveFriendshipStatus = optimisticFriendRequestSent ? 'pending' : friendshipStatus;
+
+    switch (effectiveFriendshipStatus) {
       case 'pending':
         return (
           <PendingFriendRequestButton 
             targetUser={userIdToView}
             loadingFriendAction={loadingFriendAction}
-            onCancelPendingRequest={fetchUser}
+            onCancelPendingRequest={async () => {
+              setOptimisticFriendRequestSent(false);
+              await Promise.all([fetchUser(), refreshData()]);
+            }}
+            buttonFlex={buttonFlex}
           />
         );
       case 'friend':
@@ -57,7 +124,11 @@ const UserGeneralInfo = forwardRef(({ _id }: UserGeneralInfoProps, ref) => {
           <AlreadyFriendsAndUnfriendButton 
             targetUser={userIdToView}
             loadingFriendAction={loadingFriendAction}
-            onUnfriend={fetchUser}
+            onUnfriend={async () => {
+              setOptimisticFriendRequestSent(false);
+              await Promise.all([fetchUser(), refreshData()]);
+            }}
+            buttonFlex={buttonFlex}
           />
         );
       default:
@@ -65,28 +136,88 @@ const UserGeneralInfo = forwardRef(({ _id }: UserGeneralInfoProps, ref) => {
           <AddFriendButton 
             targetUser={userIdToView}
             loadingFriendAction={loadingFriendAction}
-            onFriendRequestSent={fetchUser}
+            onFriendRequestSent={() => {
+              // Optimistically set the state to pending
+              setOptimisticFriendRequestSent(true);
+            }}
+            buttonFlex={buttonFlex}
           />
         );
     }
   };
 
   const fetchUser = useCallback(async () => {
-    const fetchedUser = await fetchUserData();
-    setUser(fetchedUser);
     try {
-      const response = await api.get(`/api/users/user/get/profile?_id=${_id}`);
-      setUserToView(response.data.user);
-      setFriendRequestStatus(response.data.friendRequest);
+      // Fetch both users' fresh data from the server
+      const [currentUserResponse, viewedUserResponse] = await Promise.all([
+        fetchUserData(), // Current user's data
+        api.get(`/api/users/user/get/profile?_id=${_id}`) // Viewed user's profile and friend request status
+      ]);
+
+      setUser(currentUserResponse);
+      setUserToView(viewedUserResponse.data.user);
+      setFriendRequestStatus(viewedUserResponse.data.friendRequest);
+      
+      // Reset optimistic state when we get fresh data from server
+      setOptimisticFriendRequestSent(false);
     } catch (error: any) {
       console.error('Failed to fetch user profile:', error.message);
     }
-  }, [_id]);
+  }, [_id, fetchUserData]);
 
-  const onRefresh = useCallback(() => {
+  const handleAcceptFriendRequest = useCallback(async (userIdToView: string) => {
+    setLoadingFriendAction(true);
+    try {
+      await acceptFriendRequest(userIdToView);
+      
+      // Clear optimistic state and refresh all data
+      setOptimisticFriendRequestSent(false);
+      
+      // Refresh both user data and notification data
+      await Promise.all([
+        fetchUser(),
+        refreshData()
+      ]);
+    } catch (error) {
+      console.error('Error accepting friend request:', error);
+    } finally {
+      setLoadingFriendAction(false);
+    }
+  }, [acceptFriendRequest, fetchUser, refreshData]);
+
+  const handleRejectFriendRequest = useCallback(async (userIdToView: string) => {
+    setLoadingFriendAction(true);
+    try {
+      await rejectFriendRequest(userIdToView);
+      
+      // Clear optimistic state and refresh all data
+      setOptimisticFriendRequestSent(false);
+      
+      // Refresh both user data and notification data
+      await Promise.all([
+        fetchUser(),
+        refreshData()
+      ]);
+    } catch (error) {
+      console.error('Error rejecting friend request:', error);
+    } finally {
+      setLoadingFriendAction(false);
+    }
+  }, [rejectFriendRequest, fetchUser, refreshData]);
+
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    fetchUser().finally(() => setRefreshing(false));
-  }, [fetchUser]);
+    setOptimisticFriendRequestSent(false); // Reset optimistic state on refresh
+    try {
+      // Refresh both user profile data and friend request data
+      await Promise.all([
+        fetchUser(),
+        refreshData() // This will refresh friend requests to detect if someone sent us a request
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchUser, refreshData]);
 
   useImperativeHandle(ref, () => ({
     onRefresh,
@@ -94,14 +225,49 @@ const UserGeneralInfo = forwardRef(({ _id }: UserGeneralInfoProps, ref) => {
   
   useFocusEffect(
     useCallback(() => {
-      if (friendRequestStatus?.status === 'pending') {
-        setFriendshipStatus('pending');
-      } else if (userToView?.friends?.includes(user?._id)) {
+      if (!userToView || !user) return;
+
+      // Reset any optimistic state first
+      setOptimisticFriendRequestSent(false);
+
+      // Check if they are already friends
+      const areFriends = userToView.friends?.includes(user._id) || user.friends?.includes(userToView._id);
+      
+      if (areFriends) {
         setFriendshipStatus('friend');
-      } else {
-        setFriendshipStatus(null);
+        return;
       }
-    }, [friendRequestStatus?.status, user?.friends, userToView?.friends])
+
+      // Check if there's a pending friend request from the profile API
+      if (friendRequestStatus?.status === 'pending') {
+        if ((friendRequestStatus as any)?.direction === 'sent') {
+          // Current user sent the request - show pending button
+          setFriendshipStatus('pending');
+        } else {
+          // Current user received the request - show accept/decline buttons
+          setFriendshipStatus(null);
+        }
+        return;
+      }
+
+      // Also check the NotificationContext friend requests to see if this user sent us a request
+      const pendingFriendRequest = friendRequests.find(
+        (request: any) => request.sender._id === userToView._id
+      );
+      
+      if (pendingFriendRequest) {
+        // We have a pending friend request from this user - show accept/decline buttons
+        setFriendRequestStatus({
+          status: 'pending',
+          direction: 'received'
+        } as any);
+        setFriendshipStatus(null);
+        return;
+      }
+
+      // No friendship or pending requests - show add friend button
+      setFriendshipStatus(null);
+    }, [friendRequestStatus, user, userToView, friendRequests])
   );
 
   useFocusEffect(
@@ -177,10 +343,14 @@ const UserGeneralInfo = forwardRef(({ _id }: UserGeneralInfoProps, ref) => {
           </ThemedText>
         </View>
       </View>
-      <View style={{ flexDirection: 'row', width: '100%', paddingHorizontal: 16, gap: 8 }}>
-        {renderFriendActionButton(userToView._id)}
-        <ShareUserProfileButton targetUser={userToView._id} loadingFriendAction={loadingFriendAction} />
-      </View>
+             <View style={{ flexDirection: 'row', width: '100%', paddingHorizontal: 16, gap: 8 }}>
+         {renderFriendActionButton(userToView._id)}
+         <ShareUserProfileButton 
+           targetUser={userToView._id} 
+           loadingFriendAction={loadingFriendAction}
+           buttonFlex={friendRequestStatus?.status === 'pending' && (friendRequestStatus as any)?.direction === 'received' ? 1/3 : 1/2}
+         />
+       </View>
     </ThemedView>
   );
 });

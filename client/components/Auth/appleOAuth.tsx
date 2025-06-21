@@ -1,11 +1,11 @@
 import React from 'react';
 import { Alert, Platform } from 'react-native';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import axios from 'axios';
 import AuthButton from '@/components/Auth/AuthButton';
 import { AuthLoginProps } from '@/types/allTypes';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import api from '@/utils/api';
 
 const AppleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
   const colorScheme = useColorScheme();
@@ -27,7 +27,6 @@ const AppleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
         return;
       }
 
-      console.log('Starting Apple Sign In...');
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
@@ -36,9 +35,7 @@ const AppleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
       });
 
       // Apple authentication successful
-      console.log('Apple Sign In successful');
       const { identityToken, fullName, email, user: appleUser, realUserStatus, state } = credential;
-      console.log('Apple Sign In successful', fullName, email, appleUser, realUserStatus, state);
 
       if (!identityToken) {
         console.error('No identity token received from Apple');
@@ -46,14 +43,8 @@ const AppleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
         return;
       }
 
-      console.log('Got identity token, length:', identityToken.length);
-      console.log('Email received:', email || 'No email');
-      console.log('Full name received:', fullName ? `${fullName.givenName} ${fullName.familyName}` : 'No name');
-
-      // Send the token to your backend
-      console.log('Sending request to backend...');
-      const backendResponse = await axios.post(
-        `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/auth/apple-auth`,
+      const backendResponse = await api.post(
+        `/api/auth/apple-auth`,
         {
           identityToken,
           user: {
@@ -70,10 +61,8 @@ const AppleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
         }
       );
 
-      console.log('Backend response status:', backendResponse.data);
       
       if (backendResponse.status === 200 && backendResponse.data.success) {
-        console.log('Authentication successful, processing tokens...');
         const { accessToken, refreshToken, user, firebaseToken } = backendResponse.data;
 
         if (!accessToken || !refreshToken) {
@@ -97,28 +86,22 @@ const AppleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
 
       console.error('Apple Sign In error:', error);
 
-      if (axios.isAxiosError(error)) {
-        if (error.response) {
-          console.error('Backend error:', error.response.data);
-          console.error('Status:', error.response.status);
-          Alert.alert('Error', `Authentication failed: ${error.response.data.message || 'Unknown server error'}`);
-        } else if (error.request) {
-          console.error('Network error - no response received');
-          Alert.alert('Error', 'Network error. Please try again.');
-        } else {
-          console.error('Error setting up request:', error.message);
-          Alert.alert('Error', error.message);
-        }
+      if (error.response) {
+        console.error('Backend error:', error.response.data);
+        console.error('Status:', error.response.status);
+        Alert.alert('Error', `Authentication failed: ${error.response.data.message || 'Unknown server error'}`);
+      } else if (error.request) {
+        console.error('Network error - no response received');
+        Alert.alert('Error', 'Network error. Please try again.');
       } else {
-        console.error('Unknown error type:', error);
-        Alert.alert('Error', 'An unknown error occurred.');
+        console.error('Error setting up request:', error.message);
+        Alert.alert('Error', error.message);
       }
     }
   };
 
   // Don't render the button if Apple authentication is not available
   if (!isAppleAuthAvailable && Platform.OS === 'ios') {
-    console.log('Not rendering Apple button because auth is not available');
     return null;
   }
 

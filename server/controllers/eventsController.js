@@ -2,7 +2,12 @@ const User = require('../database/schemas/usersSchema');
 const Events = require('../database/schemas/eventsSchema');
 const EventOccurrence = require('../database/schemas/eventOccurenceSchema');
 const { RRule } = require('rrule');
-const { createEventCreationNotification } = require('./notificationsController');
+const { 
+  createEventCreationNotificationForFriends,
+  createEventUpdateNotification,
+  createEventAttendanceNotification,
+  createNearbyEventNotification
+} = require('./notificationsController');
 
 const createEvent = async (req, res) => {
   try {
@@ -103,12 +108,26 @@ const createEvent = async (req, res) => {
       }
     }
 
-    // Send notifications to friends for public and private events
-    if ((visibility === 'public' || visibility === 'private') && creator.friends.length > 0) {
+    // Send notifications to friends for public events only
+    if (visibility === 'public' && creator.friends.length > 0) {
       try {
-        const notifications = await createEventCreationNotification(event._id, req.user._id, creator.friends);
+        const notifications = await createEventCreationNotificationForFriends(event._id, req.user._id, creator.friends);
       } catch (notificationError) {
         console.error('Error sending event creation notifications:', notificationError);
+        // Don't fail the event creation if notifications fail
+      }
+    }
+
+    // Send nearby event notifications for public events
+    if (visibility === 'public' && location?.coordinates?.lat && location?.coordinates?.lng) {
+      try {
+        // Find users within 50 miles (will implement this function)
+        const nearbyUserIds = await findUsersWithin50Miles(location.coordinates.lat, location.coordinates.lng, req.user._id);
+        if (nearbyUserIds.length > 0) {
+          const nearbyNotifications = await createNearbyEventNotification(event._id, nearbyUserIds);
+        }
+      } catch (notificationError) {
+        console.error('Error sending nearby event notifications:', notificationError);
         // Don't fail the event creation if notifications fail
       }
     }
@@ -947,6 +966,16 @@ const respondToEventInvitation = async (req, res) => {
 
       await user.save();
 
+      // Send notification to event host if user accepted
+      if (status === 'accepted') {
+        try {
+          await createEventAttendanceNotification(eventId, req.user._id, status);
+        } catch (notificationError) {
+          console.error('Error sending attendance notification:', notificationError);
+          // Don't fail the response if notification fails
+        }
+      }
+
       return res.status(200).json({ 
         success: true, 
         message: `Successfully ${status} the event invitation`,
@@ -1718,6 +1747,41 @@ const toRad = (value) => {
   return (value * Math.PI) / 180;
 };
 
+// Find users within 50 miles of a given location
+const findUsersWithin50Miles = async (eventLat, eventLng, excludeUserId) => {
+  try {
+    // Get all users with location data
+    const users = await User.find({
+      _id: { $ne: excludeUserId },
+      'location.coordinates.lat': { $exists: true, $ne: null },
+      'location.coordinates.lng': { $exists: true, $ne: null }
+    }).select('_id location');
+
+    const nearbyUsers = [];
+    
+    for (const user of users) {
+      if (user.location?.coordinates?.lat && user.location?.coordinates?.lng) {
+        const distance = calculateDistance(
+          eventLat,
+          eventLng,
+          user.location.coordinates.lat,
+          user.location.coordinates.lng
+        );
+        
+        // 50 miles threshold
+        if (distance <= 50) {
+          nearbyUsers.push(user._id);
+        }
+      }
+    }
+
+    return nearbyUsers;
+  } catch (error) {
+    console.error('Error finding nearby users:', error);
+    return [];
+  }
+};
+
 /**
  * Generates recurring event dates based on frequency
  * @param {Date} startDate - The start date of the event
@@ -2086,6 +2150,176 @@ const reportEvent = async (req, res) => {
   }
 };
 
+const updateEvent = async (req, res) => {
+  console.log('updateEvent');
+  try {
+    const { eventId } = req.params;
+    const { occurrenceDate, modifyType, ...eventData } = req.body;
+    
+    // Find the event
+    const event = await Events.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    // Check if user is the creator
+    if (event.creator.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Only the event creator can edit the event' });
+    }
+
+    // Find user's current attendance status for this event
+    const userAttendee = event.attendees.find(
+      attendee => attendee.user.toString() === req.user._id.toString()
+    );
+    const userAttendanceStatus = userAttendee ? userAttendee.status : 'accepted';
+
+    // Check if this is a recurring event
+    const isRecurringEvent = event.recurrence?.checked && 
+                            event.recurrence?.frequency && 
+                            event.recurrence?.frequency !== 'none';
+
+    // Handle recurring event modifications
+    if (isRecurringEvent && occurrenceDate && modifyType) {
+      if (modifyType === 'this_only') {
+        // Create a new single event for this occurrence
+        const occurrenceStartDate = new Date(occurrenceDate);
+        const originalStartDate = new Date(event.start_time);
+        const originalEndDate = new Date(event.end_time);
+        
+        // Calculate the duration and apply it to the occurrence
+        const duration = originalEndDate.getTime() - originalStartDate.getTime();
+        const occurrenceEndDate = new Date(occurrenceStartDate.getTime() + duration);
+        
+        // Create a separate event with the updated data - IMPORTANT: Don't include _id
+        const separateEvent = await Events.create({
+          creator: event.creator,
+          event_picture: eventData.event_picture || event.event_picture,
+          title: eventData.title || event.title,
+          category: eventData.category || event.category,
+          description: eventData.description || event.description,
+          location: eventData.location || event.location,
+          start_time: occurrenceStartDate,
+          end_time: occurrenceEndDate,
+          capacity: eventData.capacity !== undefined ? eventData.capacity : event.capacity,
+          recurrence: { checked: false, frequency: null, end_date: null }, // Make it non-recurring
+          attendees: event.attendees,
+          visibility: eventData.visibility || event.visibility,
+          excludedDates: [], // Single events don't need excludedDates
+          status: 'upcoming' // Ensure status is set to upcoming
+        });
+        
+        // Add this date to excludedDates in the original recurring event
+        if (!event.excludedDates.some(date => 
+          new Date(date).toDateString() === occurrenceStartDate.toDateString()
+        )) {
+          event.excludedDates.push(occurrenceStartDate);
+          await event.save();
+        }
+
+        // Add the new event to the user's events list with their original status
+        const user = await User.findById(req.user._id);
+        user.events.push({ event: separateEvent._id, status: userAttendanceStatus });
+        await user.save();
+
+        return res.status(200).json({ 
+          success: true, 
+          message: 'Successfully updated this occurrence',
+          event: separateEvent
+        });
+      } 
+      else if (modifyType === 'this_and_future') {
+        // Update the recurrence end date to be the day before this occurrence
+        const occurrenceStartDate = new Date(occurrenceDate);
+        const dayBefore = new Date(occurrenceStartDate);
+        dayBefore.setDate(dayBefore.getDate() - 1);
+        
+        // Update end date of the original event
+        event.recurrence.end_date = dayBefore;
+        await event.save();
+        
+        // Create a new recurring event for future occurrences with updated data - IMPORTANT: Don't include _id
+        const newRecurringEvent = await Events.create({
+          creator: event.creator,
+          event_picture: eventData.event_picture || event.event_picture,
+          title: eventData.title || event.title,
+          category: eventData.category || event.category,
+          description: eventData.description || event.description,
+          location: eventData.location || event.location,
+          start_time: occurrenceStartDate,
+          end_time: eventData.end_time || event.end_time,
+          capacity: eventData.capacity !== undefined ? eventData.capacity : event.capacity,
+          recurrence: eventData.recurrence || event.recurrence,
+          attendees: event.attendees,
+          visibility: eventData.visibility || event.visibility,
+          excludedDates: event.excludedDates ? [...event.excludedDates] : [],
+          status: 'upcoming' // Ensure status is set to upcoming
+        });
+
+        // Add the new event to the user's events list with their original status
+        const user = await User.findById(req.user._id);
+        user.events.push({ event: newRecurringEvent._id, status: userAttendanceStatus });
+        await user.save();
+        
+        return res.status(200).json({
+          success: true,
+          message: 'Successfully updated this and future occurrences',
+          event: newRecurringEvent
+        });
+      }
+      else if (modifyType === 'all_instances') {
+        // Update the entire recurring event
+        // Don't allow changing of creator, _id fields
+        delete eventData._id;
+        delete eventData.creator;
+        
+        Object.assign(event, eventData);
+        await event.save();
+
+        // Send update notifications to all attendees
+        try {
+          const attendeeIds = event.attendees.map(attendee => attendee.user);
+          await createEventUpdateNotification(eventId, req.user._id, attendeeIds);
+        } catch (notificationError) {
+          console.error('Error sending event update notifications:', notificationError);
+          // Don't fail the update if notification fails
+        }
+        
+        return res.status(200).json({
+          success: true,
+          message: 'Successfully updated all occurrences',
+          event
+        });
+      }
+    }
+    
+    // For non-recurring events, simply update
+    // Don't allow changing of creator, _id fields
+    delete eventData._id;
+    delete eventData.creator;
+    
+    Object.assign(event, eventData);
+    await event.save();
+
+    // Send update notifications to all attendees
+    try {
+      const attendeeIds = event.attendees.map(attendee => attendee.user);
+      await createEventUpdateNotification(eventId, req.user._id, attendeeIds);
+    } catch (notificationError) {
+      console.error('Error sending event update notifications:', notificationError);
+      // Don't fail the update if notification fails
+    }
+    
+    return res.status(200).json({
+      success: true,
+      message: 'Event updated successfully',
+      event
+    });
+  } catch (error) {
+    console.error('Error in updateEvent:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 module.exports = { 
   getMyEvents,
   getUserEvents,
@@ -2107,5 +2341,6 @@ module.exports = {
   getFriendsEvents,
   joinEvent,
   markEventNotInterested,
-  reportEvent
+  reportEvent,
+  updateEvent  // Add updateEvent to exports
 };

@@ -26,9 +26,11 @@ const { shutdownWebSockets } = require('./utils/shutdownUtils');
 const app = express();
 
 // CORS Configuration
-app.use(cors({
-  origin: '*', // Allow all origins for mobile testing; secure this in production
-}));
+const allowedOrigins = process.env.NODE_ENV === 'production'
+  ? ['https://kinovo.app', 'https://www.kinovo.app']
+  : ['http://localhost:3000'];
+
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 
 // Middleware
 app.use(express.json()); // Parse JSON request bodies
@@ -84,10 +86,15 @@ app.use('/api/google', googleApiRoutes);
 
 // Start the cron jobs
 const accountDeletionCron = require('./cron/accountDeletionCron');
+const { startEventReminderCron } = require('./cron/eventReminderCron');
+const { startNearbyEventsCron } = require('./cron/nearbyEventsCron');
+
 accountDeletionCron.start();
+startEventReminderCron();
+startNearbyEventsCron();
 
 // Start Server
 const PORT = process.env.BACKEND_PORT || 5002;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
