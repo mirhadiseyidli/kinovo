@@ -54,5 +54,10 @@
 # Firebase service account
 */firebase-service-account.json
 
-#EAS Build
+# AS Build
 *credentials*
+
+# Nginx
+*nginx.conf
+*/nginx.conf
+*nginx.conf*
