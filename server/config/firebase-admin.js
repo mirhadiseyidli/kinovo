@@ -17,15 +17,6 @@ const serviceAccount = {
   universe_domain: "googleapis.com"
 };
 
-// Log the service account object for verification (with the private key redacted)
-const serviceAccountToLog = { ...serviceAccount };
-serviceAccountToLog.private_key = '[REDACTED FOR SECURITY]';
-console.log('Using Service Account:', JSON.stringify(serviceAccountToLog, null, 2));
-
-// TEMPORARY LOG: Verify the private key's format.
-// The output in your terminal should show a proper multi-line key.
-console.log('Verifying Private Key Format:', serviceAccount.private_key);
-
 try {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
