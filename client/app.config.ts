@@ -12,26 +12,9 @@ const apsEnv =
     ? 'production' // or 'production' depending on your goal for preview
     : 'production';
 
-console.log('🔍 Build profile:', buildProfile);
-console.log('🔍 APS environment:', apsEnv);
-
 const plistPath = './GoogleService-Info.plist';
 
-function ensurePlistFileExists() {
-  if (process.env.GOOGLE_SERVICES_PLIST && !fs.existsSync(plistPath)) {
-    try {
-      const decoded = Buffer.from(process.env.GOOGLE_SERVICES_PLIST, 'base64').toString('utf8');
-      fs.mkdirSync(path.dirname(plistPath), { recursive: true });
-      fs.writeFileSync(plistPath, decoded);
-      console.log('✅ GoogleService-Info.plist written from secret');
-    } catch (err) {
-      console.error('❌ Failed to write plist file from secret:', err);
-    }
-  }
-}
-
 export default ({ config }: ConfigContext): ExpoConfig => {
-  ensurePlistFileExists();
 
   return {
     name: 'Kinovo',
@@ -49,7 +32,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         tinted: './assets/ios-icon-tinted.png',
       },
       config: {
-        // googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API!,
         usesNonExemptEncryption: false,
       },
       bundleIdentifier: 'com.kinovoapp.kinovo',
