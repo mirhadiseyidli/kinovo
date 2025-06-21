@@ -47,10 +47,6 @@
 */key
 */key/*
 
-# Firebase config files
-*/google-services.json
-*/GoogleService-Info.plist
-
 # Firebase service account
 */firebase-service-account.json
 
@@ -61,3 +57,7 @@
 *nginx.conf
 */nginx.conf
 *nginx.conf*
+
+# Test plist
+*test 
+*/testplist.ts
