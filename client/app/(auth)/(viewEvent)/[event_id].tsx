@@ -1,5 +1,5 @@
-import React, { useCallback, createContext, useContext, useState, useEffect } from 'react';
-import { View, Text, ScrollView, Alert, ActionSheetIOS, Platform, InteractionManager } from 'react-native';
+import React, { useCallback, createContext, useContext, useState, useEffect, useRef } from 'react';
+import { View, Text, ScrollView, Alert, ActionSheetIOS, Platform, InteractionManager, NativeScrollEvent, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useFocusEffect, useNavigation } from 'expo-router';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useGetEventById } from '@/hooks/useGetEventById';
@@ -11,6 +11,15 @@ import EventDetailsSection from '@/components/ViewEvent/EventDetails';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useIsFocused } from '@react-navigation/native';
 import { CreateEventProvider } from '@/context/CreateEventContext';
+import { ViewEventSkeleton } from '@/components/Skeleton';
+import Animated, {
+  useAnimatedScrollHandler,
+  useSharedValue,
+  withSpring,
+  runOnJS,
+} from 'react-native-reanimated';
+import { shareContent } from '@/utils/shareUtils';
+import { Feather } from '@expo/vector-icons';
 
 type ViewEventModalType = 
   | 'report_confirm' 
@@ -213,15 +222,101 @@ const ViewEventModalProvider: React.FC<{ children: React.ReactNode; event: any }
   );
 };
 
+const ShareEventButton = ({ event_id }: { event_id: string }) => {
+  const { event, loading, error } = useGetEventById(event_id);
+  const colorScheme = useColorScheme();
+  const themeColors = Colors[colorScheme ?? 'dark'];
+
+  const handleShare = async () => {
+    try {
+      if (!event?._id || !event?.title) {
+        throw new Error('Event data is incomplete');
+      }
+      await shareContent('event', event._id, event.title);
+    } catch (error) {
+      console.error('Error sharing event:', error);
+      Alert.alert('Error', 'Failed to share event. Please try again.');
+    }
+  };
+
+  if (loading) {
+    return <ActivityIndicator size="small" color={themeColors.text} />;
+  }
+
+  if (error || !event) {
+    return null;
+  }
+
+  return (
+    <TouchableOpacity onPress={handleShare}>
+      <Feather name="share-2" color={themeColors.text} size={20} />
+    </TouchableOpacity>
+  );
+};
+
 const ViewEvent = () => {
   const { event_id, occurrence_start, occurrence_end, is_occurrence } = useLocalSearchParams();
   const id = Array.isArray(event_id) ? event_id[0] : event_id;
-  const { event, loading, error } = useGetEventById(id);
+  const { event, loading, error, fetchEventById } = useGetEventById(id);
   const navigation = useNavigation();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
+  const router = useRouter();
+
+  // Animated values for scroll handling
+  const scrollY = useSharedValue(0);
+  const isDismissing = useSharedValue(false);
+  const bounceCompleted = useSharedValue(false);
+  const wasDraggingAtTop = useSharedValue(false);
+
+  const handleDismiss = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+    }
+  }, [router]);
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      if (isDismissing.value) return;
+      
+      const currentY = event.contentOffset.y;
+      scrollY.value = currentY;
+
+      // If bounce is completed and we're pulling down again
+      if (bounceCompleted.value && currentY < -50) {
+        isDismissing.value = true;
+        runOnJS(handleDismiss)();
+      }
+    },
+    onBeginDrag: (event) => {
+      // Reset states if starting drag from below
+      if (event.contentOffset.y > 50) {
+        bounceCompleted.value = false;
+        wasDraggingAtTop.value = false;
+      }
+      // Track if we're dragging from the top
+      wasDraggingAtTop.value = event.contentOffset.y <= 0;
+    },
+    onEndDrag: (event) => {
+      // If we were dragging at the top and ended the drag
+      if (wasDraggingAtTop.value) {
+        bounceCompleted.value = true;
+      }
+    }
+  });
+
+  // Auto-recovery: retry fetching when there's an error
+  useEffect(() => {
+    if (error && !loading) {
+      const retryTimer = setTimeout(() => {
+        fetchEventById();
+      }, 3000); // Retry after 3 seconds
+
+      return () => clearTimeout(retryTimer);
+    }
+  }, [error, loading, fetchEventById]);
 
   // Create modified event for recurring occurrences
   const displayEvent = React.useMemo(() => {
@@ -244,22 +339,25 @@ const ViewEvent = () => {
     return event;
   }, [event, is_occurrence, occurrence_start, occurrence_end]);
 
-  // Show loading state
-  if (loading) {
-    return (
-      <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text style={{ color: themeColors.text }}>Loading...</Text>
-      </ThemedView>
-    );
+  // Set up the share button in the header
+  useEffect(() => {
+    if (id) {
+      navigation.setOptions({
+        headerRight: () => <ShareEventButton event_id={id} />
+      });
+    }
+  }, [navigation, id]);
+
+  // Show skeleton during loading or network errors (backend not responding)
+  if (loading || error) {
+    return <ViewEventSkeleton />;
   }
 
-  // Show error state
-  if (error || !displayEvent) {
+  // Show error state only for cases where event is not found (not network errors)
+  if (!displayEvent) {
     return (
       <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text style={{ color: themeColors.text }}>
-          {error || 'Event not found'}
-        </Text>
+        <Text style={{ color: themeColors.text }}>Event not found</Text>
       </ThemedView>
     );
   }
@@ -268,14 +366,18 @@ const ViewEvent = () => {
   return (
     <CreateEventProvider>
       <ViewEventModalProvider event={displayEvent}>
-        <ThemedView style={{ flex: 1 }}>
-          <ScrollView
+        <ThemedView style={{ flex: 1 }} key={id}>
+          <Animated.ScrollView
             contentContainerStyle={{
               width: '100%',
               paddingBottom: insets.bottom 
             }}
             showsVerticalScrollIndicator={false}
-            removeClippedSubviews={true}  // Optimize memory usage
+            removeClippedSubviews={true}
+            onScroll={scrollHandler}
+            scrollEventThrottle={16}
+            bounces={true}
+            overScrollMode="always"
           >
             <View style={{ width: '100%', paddingTop: 32 }}>
               <View style={{ alignItems: 'center', borderRadius: 16, overflow: 'hidden' }}>
@@ -288,7 +390,7 @@ const ViewEvent = () => {
             <View style={{ paddingVertical: 16, paddingHorizontal: 16 }}>
               <EventDetailsSection event={displayEvent} />
             </View>
-          </ScrollView>
+          </Animated.ScrollView>
         </ThemedView>
       </ViewEventModalProvider>
     </CreateEventProvider>

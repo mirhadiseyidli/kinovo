@@ -3,6 +3,7 @@ require('./database/connection');
 
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
@@ -16,7 +17,8 @@ const weatherRoutes = require('./routes/appleWeatherRoutes');
 const notificationsRoutes = require('./routes/notificationsRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const googleApiRoutes = require('./routes/googleApiRoutes');
-// const storageRoutes = require('./routes/storageRoutes');
+const storageRoutes = require('./routes/storageRoutes');
+const shareRoutes = require('./routes/shareRoutes');
 
 // Firebase and realtime services
 const { configureSecurityRules } = require('./config/firebase-admin');
@@ -24,6 +26,10 @@ const { initializeChangeStreams } = require('./services/databaseListenerService'
 const { shutdownWebSockets } = require('./utils/shutdownUtils');
 
 const app = express();
+
+// Set up EJS as the view engine
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
 
 // CORS Configuration
 const allowedOrigins = process.env.NODE_ENV === 'production'
@@ -82,7 +88,8 @@ app.use('/api/weather', weatherRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api', categoryRoutes);
 app.use('/api/google', googleApiRoutes);
-// app.use('/api/storage', storageRoutes);
+app.use('/api/storage', storageRoutes);
+app.use('/share', shareRoutes); // Share routes don't need /api prefix
 
 // Start the cron jobs
 const accountDeletionCron = require('./cron/accountDeletionCron');

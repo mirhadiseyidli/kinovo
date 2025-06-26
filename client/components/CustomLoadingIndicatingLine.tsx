@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { View, Dimensions } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -6,10 +6,11 @@ import Animated, {
   withRepeat,
   withTiming,
   cancelAnimation,
-  useAnimatedReaction,
-  useDerivedValue,
+  runOnJS,
 } from 'react-native-reanimated';
 import LinearGradient from 'react-native-linear-gradient';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { Colors } from '@/constants/Colors';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -25,47 +26,54 @@ interface ReanimatedShimmerLineProps {
 const ReanimatedShimmerLine = React.memo<ReanimatedShimmerLineProps>(({
   height = 3,
   gradientWidth = 120,
-  colors = ['green', 'yellow', 'red'],
+  colors = [Colors[useColorScheme() ?? 'dark'].background, Colors[useColorScheme() ?? 'dark'].mountainGreen, Colors[useColorScheme() ?? 'dark'].background],
   speed = 1000, // lower is faster
   backgroundColor = 'transparent',
   loading = true,
 }) => {
   const translateX = useSharedValue(-gradientWidth);
-  const mountedRef = useRef(true);
-  
-  const loadingDerived = useDerivedValue(() => {
-    return loading ? 1 : 0;
-  }, [loading]);
+  const isAnimating = useSharedValue(false);
 
-  useAnimatedReaction(
-    () => loadingDerived.value,
-    (current, previous) => {
-      if (!mountedRef.current) return; // Don't animate if unmounted
-      
-      if (current === 1 && previous !== 1) {
-        translateX.value = withRepeat(
-          withTiming(SCREEN_WIDTH, { duration: speed }),
-          -1,
-          false
-        );
-      } else if (current === 0 && previous !== 0) {
-        cancelAnimation(translateX);
-        translateX.value = -gradientWidth;
-      }
+  // Start animation function that runs on the UI thread
+  const startAnimation = () => {
+    'worklet';
+    if (!isAnimating.value) {
+      isAnimating.value = true;
+      translateX.value = withRepeat(
+        withTiming(SCREEN_WIDTH, { duration: speed }),
+        -1,
+        false
+      );
     }
-  );
+  };
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      mountedRef.current = false;
+  // Stop animation function that runs on the UI thread
+  const stopAnimation = () => {
+    'worklet';
+    if (isAnimating.value) {
+      isAnimating.value = false;
       cancelAnimation(translateX);
+      translateX.value = -gradientWidth;
+    }
+  };
+
+  // Handle loading state changes
+  useEffect(() => {
+    if (loading) {
+      startAnimation();
+    } else {
+      stopAnimation();
+    }
+
+    // Cleanup on unmount
+    return () => {
+      stopAnimation();
     };
-  }, []);
+  }, [loading]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
-  }), [translateX]);
+  }));
 
   // Don't render animation elements when not loading to save memory
   if (!loading) {

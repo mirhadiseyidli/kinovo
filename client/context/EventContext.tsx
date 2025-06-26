@@ -41,7 +41,7 @@ interface EventContextType {
   fetchEventsForDateRange: (startDate: Date, endDate: Date) => Promise<void>;
   fetchEventsForMonth: (month: number, year: number) => Promise<void>;
   fetchEventsForWeek: (date: Date) => Promise<void>;
-  refreshEvents: () => Promise<void>;
+  refreshEvents: (date: Date, view: 'Month' | 'Week' | 'Schedule') => Promise<void>;
   
   // Occurrence operations
   getOccurrencesForDate: (date: Date) => EventOccurrence[];
@@ -82,7 +82,46 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [cachedDateRanges, setCachedDateRanges] = useState<{ start: Date; end: Date }[]>([]);
   
+  // Performance optimization: Cache for event occurrences to prevent recalculation
+  const occurrenceCache = React.useRef(new Map<string, EventOccurrence[]>());
+  const lastEventsHash = React.useRef<string>('');
+  
+  // Memory management: Limit cache sizes and implement cleanup
+  const MAX_CACHE_SIZE = 20; // Reduced from 50
+  const MAX_CACHED_RANGES = 3; // Limit cached date ranges
+  const MAX_EVENT_OCCURRENCES = 1000; // Limit total occurrences in memory
+  
   const { refreshAccessToken } = useAuthSession();
+
+  // Memory cleanup effect
+  useEffect(() => {
+    const cleanup = () => {
+      // Clear caches when they get too large
+      if (occurrenceCache.current.size > MAX_CACHE_SIZE) {
+        occurrenceCache.current.clear();
+      }
+      
+      // Limit event occurrences in memory
+      if (eventOccurrences.length > MAX_EVENT_OCCURRENCES) {
+        // Keep only recent occurrences (current month ± 1 month)
+        const now = new Date();
+        const cutoffStart = startOfMonth(subMonths(now, 1));
+        const cutoffEnd = endOfMonth(addMonths(now, 1));
+        
+        setEventOccurrences(prev => 
+          prev.filter(occ => occ.date >= cutoffStart && occ.date <= cutoffEnd)
+        );
+      }
+      
+      // Limit cached date ranges
+      if (cachedDateRanges.length > MAX_CACHED_RANGES) {
+        setCachedDateRanges(prev => prev.slice(-MAX_CACHED_RANGES));
+      }
+    };
+
+    const interval = setInterval(cleanup, 30000); // Run cleanup every 30 seconds
+    return () => clearInterval(interval);
+  }, [eventOccurrences.length, cachedDateRanges.length]);
 
   // Load cached modifications on mount
   useEffect(() => {
@@ -132,6 +171,16 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
   }, [cachedDateRanges]);
 
   const expandEventsToOccurrences = useCallback((events: Event[], startDate: Date, endDate: Date): EventOccurrence[] => {
+    // Performance optimization: Create cache key based on events and date range
+    const eventsHash = events.map(e => `${e._id}-${e.start_time}-${e.recurrence?.frequency || 'none'}`).sort().join('|');
+    const modificationsHash = eventModifications.map(m => `${m.originalEventId}-${m.occurrenceDate.getTime()}`).sort().join('|');
+    const cacheKey = `${eventsHash}-${modificationsHash}-${startDate.getTime()}-${endDate.getTime()}`;
+    
+    // Return cached result if available
+    if (occurrenceCache.current.has(cacheKey)) {
+      return occurrenceCache.current.get(cacheKey)!;
+    }
+    
     const allOccurrences: EventOccurrence[] = [];
     
     events.forEach(event => {
@@ -156,6 +205,14 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
       }
     });
 
+    // Cache management: clear cache if it gets too large
+    if (occurrenceCache.current.size > 50) {
+      occurrenceCache.current.clear();
+    }
+    
+    // Cache the result
+    occurrenceCache.current.set(cacheKey, allOccurrences);
+    
     return allOccurrences;
   }, [eventModifications]);
 
@@ -242,9 +299,9 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
     const startDate = startOfMonth(new Date(year, month));
     const endDate = endOfMonth(new Date(year, month));
     
-    // Extend range to include previous and next month for better UX
-    const extendedStart = startOfMonth(subMonths(startDate, 1));
-    const extendedEnd = endOfMonth(addMonths(endDate, 1));
+    // Reduced range: only extend by current month ± 2 weeks instead of ± 1 month
+    const extendedStart = startOfWeek(subWeeks(startDate, 2));
+    const extendedEnd = endOfWeek(addWeeks(endDate, 2));
     
     await fetchEventsForDateRange(extendedStart, extendedEnd);
   }, [fetchEventsForDateRange]);
@@ -260,21 +317,42 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
     await fetchEventsForDateRange(extendedStart, extendedEnd);
   }, [fetchEventsForDateRange]);
 
-  const refreshEvents = useCallback(async () => {
+  const clearCache = useCallback(() => {
+    setEvents([]);
+    setEventOccurrences([]);
+    setCachedDateRanges([]);
+    // Performance optimization: Clear occurrence cache when clearing main cache
+    occurrenceCache.current.clear();
+    
+    // Force garbage collection hint (if available)
+    if (global.gc) {
+      global.gc();
+    }
+  }, []);
+
+  const refreshEvents = useCallback(async (date: Date, view: 'Month' | 'Week' | 'Schedule') => {
     setRefreshing(true);
     try {
       // Clear cache and refetch
       clearCache();
       
-      // Refetch for current month
-      const now = new Date();
-      await fetchEventsForMonth(now.getMonth(), now.getFullYear());
+      // Refetch based on view type
+      if (view === 'Month') {
+        await fetchEventsForMonth(date.getMonth(), date.getFullYear());
+      } else if (view === 'Week') {
+        await fetchEventsForWeek(date);
+      } else if (view === 'Schedule') {
+        // For schedule view, fetch current month plus/minus one month
+        const startDate = startOfMonth(subMonths(date, 1));
+        const endDate = endOfMonth(addMonths(date, 1));
+        await fetchEventsForDateRange(startDate, endDate);
+      }
     } catch (error) {
       console.error('Error refreshing events:', error);
     } finally {
       setRefreshing(false);
     }
-  }, [fetchEventsForMonth]);
+  }, [fetchEventsForMonth, fetchEventsForWeek, fetchEventsForDateRange, clearCache]);
 
   const getOccurrencesForDateFunc = useCallback((date: Date): EventOccurrence[] => {
     return getOccurrencesForDate(eventOccurrences, date);
@@ -318,12 +396,6 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
       console.error('Error modifying recurring event:', error);
     }
   }, [eventModifications, events, cachedDateRanges, expandEventsToOccurrences]);
-
-  const clearCache = useCallback(() => {
-    setEvents([]);
-    setEventOccurrences([]);
-    setCachedDateRanges([]);
-  }, []);
 
   const value: EventContextType = {
     events,

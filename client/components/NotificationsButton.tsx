@@ -4,10 +4,9 @@ import { Feather } from '@expo/vector-icons';
 import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import { AutoSkeletonView } from 'react-native-auto-skeleton';
 import { useRouter } from 'expo-router';
 
-const NotificationsButton: React.FC<{ refreshing?: boolean; count: number }> = ({ refreshing, count }) => {
+const NotificationsButton: React.FC<{ refreshing?: boolean; count: number }> = React.memo(({ refreshing, count }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
@@ -51,6 +50,8 @@ const NotificationsButton: React.FC<{ refreshing?: boolean; count: number }> = (
       )}
     </TouchableOpacity>
   );
-};
+});
+
+NotificationsButton.displayName = 'NotificationsButton';
 
 export default NotificationsButton;

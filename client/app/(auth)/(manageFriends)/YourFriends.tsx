@@ -72,26 +72,15 @@ export default function FriendsList() {
           }
         >
           <View style={{ flexDirection: 'column', gap: 16, alignItems: 'center' }}>
-            {loading ? (
-              <ThemedText 
-                style={{ 
-                  fontSize: 16, 
-                  color: themeColors.placeholderTextColor, 
-                  marginTop: 32,
-                  textAlign: 'center'
-                }}
-              >
-                Loading...
-              </ThemedText>
-            ) : friendsList.length > 0 ? (
+            <View style={{ width: '100%', marginTop: 16 }}>
+              <SearchFriendsBar
+                placeholder="Search friends..."
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+            </View>
+            {friendsList.length > 0 ? (
               <>
-                <View style={{ width: '100%', marginTop: 16, marginBottom: 16 }}>
-                  <SearchFriendsBar
-                    placeholder="Search friends..."
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                  />
-                </View>
                 {filteredFriends.length > 0 ? (
                   filteredFriends.map((friend) => (
                     <FriendListUserItem
@@ -156,7 +145,7 @@ export default function FriendsList() {
                     opacity: 0.8
                   }}
                 >
-                  Start connecting with others! 👋
+                  Start connecting with others!
                 </ThemedText>
               </View>
             )}

@@ -118,7 +118,7 @@ export default function FriendRequests() {
                 opacity: 0.8
               }}
             >
-              Go make the first move! 🤝
+              Go make the first move!
             </ThemedText>
           </View>
         )}

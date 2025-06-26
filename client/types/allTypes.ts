@@ -228,6 +228,7 @@ export interface FriendProps extends BaseFriend {
   activityData?: FriendEventActivity[];
   size?: number;
   showName?: boolean;
+  displayName?: string;
 }
 
 export interface AttendeeFriend extends BaseFriend {}
@@ -487,13 +488,13 @@ export interface UserCoverPhotoProps {
 // =========================
 
 export interface EditUserProfilePhotosProps {
-  user: {
-    profile_picture?: string;
-  };
+  user: User;
 }
 
 export interface UserProfilePhotoProps {
   profile_picture?: string | null;
+  firstName?: string;
+  lastName?: string;
 }
 
 // =========================
@@ -981,7 +982,7 @@ export interface MonthCalendarProps {
   monthDate: Date;
   refreshing: boolean;
   loading: boolean;
-  handleMonthYearChange: (month: number, year: number, day: number, fromDropdown: boolean) => void;
+  handleMonthYearChange: (month: number, year: number, day: number, fromDropdown?: boolean) => void;
 }
 
 // =========================

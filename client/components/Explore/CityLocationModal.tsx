@@ -53,6 +53,7 @@ const CityLocationModal: React.FC<CityLocationModalProps> = ({
   const [locationSuggestions, setLocationSuggestions] = useState<PlaceSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingCurrentLocation, setIsLoadingCurrentLocation] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const slideAnim = useRef(new Animated.Value(300)).current;
   const insets = useSafeAreaInsets();
 
@@ -73,15 +74,18 @@ const CityLocationModal: React.FC<CityLocationModalProps> = ({
       }).start();
       setSearchQuery('');
       setLocationSuggestions([]);
+      setIsSearching(false);
     }
   }, [visible, slideAnim]);
 
   const fetchLocationSuggestions = async (text: string) => {
     if (!text.trim()) {
       setLocationSuggestions([]);
+      setIsSearching(false);
       return;
     }
 
+    setIsSearching(true);
     setIsLoading(true);
     const inputData = {
       input: text,
@@ -215,34 +219,145 @@ const CityLocationModal: React.FC<CityLocationModalProps> = ({
   return (
     <Modal
       visible={visible}
-      transparent
+      transparent={!isSearching}
       animationType="fade"
       onRequestClose={onClose}
+      presentationStyle={isSearching ? 'fullScreen' : 'overFullScreen'}
     >
-      <TouchableOpacity 
-        style={{ 
-          flex: 1, 
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          justifyContent: 'flex-end'
-        }}
-        activeOpacity={1}
-        onPress={onClose}
-      >
-        <TouchableOpacity 
-          activeOpacity={1} 
-          onPress={(e) => e.stopPropagation()}
-        >
-          <Animated.View
-            style={{
-              transform: [{ translateY: slideAnim }],
-            }}
-          >
-            <ThemedView style={{
-              borderTopLeftRadius: 20,
-              borderTopRightRadius: 20,
-              paddingBottom: insets.bottom + 20,
-              maxHeight: Dimensions.get('window').height * 0.8,
+      {isSearching ? (
+        // Full screen mode when searching
+        <ThemedView style={{
+          flex: 1,
+          paddingTop: insets.top,
+          paddingBottom: insets.bottom,
+        }}>
+          {/* Full screen header */}
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: 16,
+            borderBottomWidth: 1,
+            borderBottomColor: themeColors.border,
+          }}>
+                         <TouchableOpacity onPress={() => {
+               setSearchQuery('');
+               setLocationSuggestions([]);
+               setIsSearching(false);
+             }}>
+               <Feather name="chevron-left" size={24} color={themeColors.text} />
+             </TouchableOpacity>
+            <ThemedText style={{ fontSize: 18, fontWeight: 'bold' }}>Search Cities</ThemedText>
+            <TouchableOpacity onPress={onClose}>
+              <ThemedText style={{ color: themeColors.mountainGreen }}>Done</ThemedText>
+            </TouchableOpacity>
+          </View>
+
+          {/* Search input - full width */}
+          <View style={{
+            padding: 16,
+            borderBottomWidth: 1,
+            borderBottomColor: themeColors.border,
+          }}>
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: themeColors.inputBackgroundColor,
+              borderRadius: 8,
+              paddingHorizontal: 12,
+              height: 44,
             }}>
+              <Feather name="search" size={16} color={themeColors.placeholderTextColor} />
+              <TextInput
+                value={searchQuery}
+                onChangeText={(text) => {
+                  setSearchQuery(text);
+                  fetchLocationSuggestions(text);
+                }}
+                placeholder="Search for a city..."
+                placeholderTextColor={themeColors.placeholderTextColor}
+                style={{
+                  flex: 1,
+                  marginLeft: 8,
+                  fontSize: 16,
+                  color: themeColors.text,
+                }}
+                returnKeyType="search"
+                autoCapitalize="words"
+                autoFocus={true}
+              />
+              {searchQuery !== '' && (
+                <TouchableOpacity onPress={() => {
+                  setSearchQuery('');
+                  setLocationSuggestions([]);
+                  fetchLocationSuggestions('');
+                }}>
+                  <Feather name="x" size={16} color={themeColors.placeholderTextColor} />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
+          {/* Search results - full screen */}
+          <ScrollView style={{ flex: 1 }}>
+            {isLoading && !isLoadingCurrentLocation ? (
+              <View style={{ padding: 16, alignItems: 'center' }}>
+                <ActivityIndicator size="small" color={themeColors.mountainGreen} />
+              </View>
+            ) : locationSuggestions.length > 0 ? (
+              locationSuggestions.map((suggestion: PlaceSuggestion, index: number) => (
+                <TouchableOpacity
+                  key={index}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    padding: 16,
+                    borderBottomWidth: index !== locationSuggestions.length - 1 ? 1 : 0,
+                    borderBottomColor: themeColors.border,
+                  }}
+                  onPress={() => handleLocationSelect(suggestion.placePrediction.text.text, suggestion.placePrediction.placeId)}
+                >
+                  <Feather name="map-pin" size={16} color={themeColors.text} style={{ marginRight: 12 }} />
+                  <ThemedText style={{ fontSize: 16 }}>{suggestion.placePrediction.text.text}</ThemedText>
+                </TouchableOpacity>
+              ))
+            ) : searchQuery !== '' ? (
+              <View style={{ padding: 16, alignItems: 'center' }}>
+                <ThemedText style={{ color: themeColors.textSecondary }}>No cities found</ThemedText>
+              </View>
+            ) : (
+              <View style={{ padding: 16, alignItems: 'center' }}>
+                <ThemedText style={{ color: themeColors.textSecondary }}>Type to search for cities</ThemedText>
+              </View>
+            )}
+          </ScrollView>
+        </ThemedView>
+      ) : (
+        // Original bottom sheet mode when not searching
+        <TouchableOpacity 
+          style={{ 
+            flex: 1, 
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'flex-end'
+          }}
+          activeOpacity={1}
+          onPress={onClose}
+        >
+          <TouchableOpacity 
+            activeOpacity={1} 
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Animated.View
+              style={{
+                transform: [{ translateY: slideAnim }],
+              }}
+            >
+              <ThemedView style={{
+                borderTopLeftRadius: 20,
+                borderTopRightRadius: 20,
+                paddingBottom: insets.bottom + 20,
+                maxHeight: Dimensions.get('window').height * 0.8,
+              }}>
               {/* Drag handle indicator */}
               <View style={{
                 alignSelf: 'center',
@@ -301,6 +416,7 @@ const CityLocationModal: React.FC<CityLocationModalProps> = ({
                     }}
                     returnKeyType="search"
                     autoCapitalize="words"
+                    onFocus={() => setIsSearching(true)}
                   />
                   {searchQuery !== '' && (
                     <TouchableOpacity onPress={() => setSearchQuery('')}>
@@ -361,7 +477,8 @@ const CityLocationModal: React.FC<CityLocationModalProps> = ({
             </ThemedView>
           </Animated.View>
         </TouchableOpacity>
-      </TouchableOpacity>
+        </TouchableOpacity>
+      )}
     </Modal>
   );
 };

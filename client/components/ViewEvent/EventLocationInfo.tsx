@@ -7,7 +7,9 @@ import { Colors } from '@/constants/Colors';
 import { Feather } from '@expo/vector-icons';
 import MapViewModal from '../MapViewModal';
 import OpenMapsAndNavigateButton from '../OpenMapsAndNavigateButton';
-// import { WeatherDisplay } from './EventLocationWeather';
+import { WeatherDisplay } from './EventLocationWeather';
+import MapView, { Marker } from 'react-native-maps';
+import OptimizedMapView from '../OptimizedMapView';
 
 const EventLocationInfo: React.FC<EventLocationInfoProps> = React.memo(({ location }) => {
   const colorScheme = useColorScheme();
@@ -37,47 +39,41 @@ const EventLocationInfo: React.FC<EventLocationInfoProps> = React.memo(({ locati
             </ThemedText>
           </View>
         </View>
-        {/* <View>
+        <View>
           <WeatherDisplay lat={location.coordinates.lat} lon={location.coordinates.lng} size={24} />
-        </View> */}
+        </View>
       </View>
       {location?.coordinates?.lat != null && location?.coordinates?.lng != null && isMapReady && (
-        <View 
-          style={{ 
-            flex: 1, 
-            width: '100%', 
-            height: 150, 
-            borderRadius: 8, 
-            overflow: 'hidden',
-            position: 'relative',
+        <OptimizedMapView
+          coordinates={{
+            latitude: location.coordinates.lat,
+            longitude: location.coordinates.lng,
           }}
-          pointerEvents="none" // Disable all interactions with the map
-        >
-          <MapViewModal
-            coordinates={{
-              latitude: location.coordinates.lat,
-              longitude: location.coordinates.lng,
-            }}
-            selectedLocation={location.text}
-          />
-          <View
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              right: 0,
-              zIndex: 10,
-            }}
-            pointerEvents="auto" // Enable interactions with the button
-          >
-            <OpenMapsAndNavigateButton 
-              selectedLocation={location.text}
-              latitude={location.coordinates.lat}
-              longitude={location.coordinates.lng}
-            />
-          </View>
-        </View>
+          selectedLocation={location.text}
+        />
       )}
+      <View
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          right: 0,
+          width: 60,
+          height: 60,
+          zIndex: 1000,
+          elevation: 10,
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+        pointerEvents="box-none" // Allow children to receive events
+      >
+        <OpenMapsAndNavigateButton 
+          selectedLocation={location.text}
+          latitude={location.coordinates.lat ?? 0}
+          longitude={location.coordinates.lng ?? 0}
+        />
+      </View>
     </View>
-)});
+  );
+});
 
 export default EventLocationInfo;

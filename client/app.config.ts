@@ -42,8 +42,18 @@ export default ({ config }: ConfigContext): ExpoConfig => {
           {
             CFBundleURLSchemes: [
               process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME!,
-              process.env.EXPO_PUBLIC_FIREBASE_IOS_CLIENT_ID!,
+              process.env.EXPO_PUBLIC_FIREBASE_IOS_URL_SCHEME!,
             ],
+          },
+          {
+            CFBundleURLSchemes: [
+              'com.kinovoapp.kinovo',
+            ],
+          },
+          {
+            CFBundleURLSchemes: [
+              'exp+eventsapp',
+            ]
           },
         ],
         NSPhotoLibraryUsageDescription: 'Allow this app to access your photo library.',
@@ -63,6 +73,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
           'location',
           'processing'
         ],
+        BGTaskSchedulerPermittedIdentifiers: [
+          'com.kinovoapp.kinovo.refresh'
+        ],
         FirebaseAppDelegateProxyEnabled: true,
         UNNotificationAlertStyle: 'alert',
         NSNotificationAlertSound: 'default', // or a custom sound file name
@@ -76,6 +89,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         'com.apple.developer.applesignin': ['Default'], // Sign in with Apple
       },
       usesAppleSignIn: true,
+      associatedDomains: ['applinks:kinovo.app', 'applinks:www.kinovo.app'],
     },
     web: {
       bundler: 'metro',

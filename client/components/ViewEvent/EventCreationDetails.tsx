@@ -4,6 +4,7 @@ import { User } from '@/types/allTypes';
 import { ThemedText } from '../ThemedText';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import DefaultProfilePicture from '../DefaultProfilePicture';
 
 const EventCreationDetails = (
   { event_creator, event_creation_time }: 
@@ -28,11 +29,12 @@ const EventCreationDetails = (
           borderRadius: 999,
           borderColor: themeColors.mountainGreen,
           borderWidth: 1,
-          overflow: 'hidden'
         }}>
-          <Image 
-            source={event_creator?.profile_picture ? { uri: event_creator.profile_picture} : require('@/assets/profile-pic-2.jpeg')}
-            style={{ width: '100%', height: '100%', resizeMode: 'cover' }}
+          <DefaultProfilePicture
+            profilePicture={event_creator?.profile_picture}
+            fullName={event_creator?.full_name}
+            size={32}
+            borderRadius={16}
           />
         </View>
         <View style={{ flexDirection: 'column', gap: 4 }}>

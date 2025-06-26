@@ -1,5 +1,5 @@
 import { View, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -7,10 +7,10 @@ import AddFriendsSearchBar from '@/components/AddFriendsSearchBar';
 import FriendListUserItem from '@/components/ProfileAndSettings/Settings/manageFriendsComponents/FriendListUserItem';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import ContactSyncScreen from '@/components/ProfileAndSettings/Settings/manageFriendsComponents/SyncContacts';
+import ContactSyncScreen, { ContactSyncScreenRef } from '@/components/ProfileAndSettings/Settings/manageFriendsComponents/SyncContacts';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import FriendListUserItemCard from '@/components/ProfileAndSettings/Settings/manageFriendsComponents/FriendListUserItemCard';
-import FriendSuggestionsList from '@/components/ProfileAndSettings/Settings/manageFriendsComponents/FriendSuggestionsList';
+import FriendSuggestionsList, { FriendSuggestionsListRef } from '@/components/ProfileAndSettings/Settings/manageFriendsComponents/FriendSuggestionsList';
 import type { ApiError, User } from '@/types/allTypes';
 import api from '@/utils/api';
 
@@ -20,11 +20,32 @@ export default function AddFriends() {
   const [refreshing, setRefreshing] = useState(false);
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
+  
+  // Refs to trigger child component refreshes
+  const friendSuggestionsRef = useRef<FriendSuggestionsListRef>(null);
+  const contactSyncRef = useRef<ContactSyncScreenRef>(null);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
+    
+    // Clear search
     setSearchQuery('');
     setResults([]);
+    
+    // Trigger child component refreshes in parallel
+    const refreshPromises = [];
+    
+    if (friendSuggestionsRef.current) {
+      refreshPromises.push(friendSuggestionsRef.current.refresh());
+    }
+    
+    if (contactSyncRef.current) {
+      refreshPromises.push(contactSyncRef.current.refresh());
+    }
+    
+    // Wait for all child components to finish refreshing
+    await Promise.all(refreshPromises);
+    
     setRefreshing(false);
   }, []);
 
@@ -83,10 +104,16 @@ export default function AddFriends() {
           {searchQuery.trim().length === 0 && (
             <View style={{ flexDirection: 'column', gap: 16 }}>
               <View>
-                <FriendSuggestionsList />
+                <FriendSuggestionsList 
+                  ref={friendSuggestionsRef}
+                  parentRefreshing={refreshing}
+                />
               </View>
               <View>
-                <ContactSyncScreen />
+                <ContactSyncScreen 
+                  ref={contactSyncRef}
+                  parentRefreshing={refreshing}
+                />
               </View>
             </View>
           )}

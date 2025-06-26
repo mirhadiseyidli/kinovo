@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { Feather } from '@expo/vector-icons';
 import { FriendRequestNotification } from '@/types/allTypes';
 import { truncateName } from '@/utils/truncateName';
+import DefaultProfilePicture from './DefaultProfilePicture';
 
 interface FriendRequestCardProps {
   request: FriendRequestNotification;
@@ -12,7 +13,7 @@ interface FriendRequestCardProps {
   onDecline?: (senderId: string) => void;
 }
 
-const FriendRequestCard: React.FC<FriendRequestCardProps> = ({ 
+const FriendRequestCard: React.FC<FriendRequestCardProps> = React.memo(({ 
   request, 
   onAccept, 
   onDecline 
@@ -20,7 +21,7 @@ const FriendRequestCard: React.FC<FriendRequestCardProps> = ({
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
 
-  const getStatusBadge = () => {
+  const getStatusBadge = useMemo(() => {
     if (request.status === 'accepted') {
       return (
         <View style={{
@@ -89,10 +90,10 @@ const FriendRequestCard: React.FC<FriendRequestCardProps> = ({
         </TouchableOpacity>
       </View>
     );
-  };
+  }, [request.status, themeColors.mountainGreen, themeColors.inputBackgroundColor, themeColors.text, onAccept, onDecline, request.sender._id]);
 
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
+  const formattedTime = useMemo(() => {
+    const date = new Date(request.created_at);
     const now = new Date();
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
     
@@ -100,7 +101,7 @@ const FriendRequestCard: React.FC<FriendRequestCardProps> = ({
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
     if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
     return `${Math.floor(diffInMinutes / 1440)}d ago`;
-  };
+  }, [request.created_at]);
 
   return (
     <View
@@ -112,31 +113,12 @@ const FriendRequestCard: React.FC<FriendRequestCardProps> = ({
     >
       {/* User Avatar */}
       <View style={{ marginRight: 12 }}>
-        {request.sender.profile_picture ? (
-          <Image
-            source={{ uri: request.sender.profile_picture }}
-            style={{
-              width: 50,
-              height: 50,
-              borderRadius: 25,
-            }}
-          />
-        ) : (
-          <View
-            style={{
-              width: 50,
-              height: 50,
-              borderRadius: 25,
-              backgroundColor: themeColors.tint,
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
-          >
-            <Text style={{ color: 'white', fontSize: 18, fontWeight: 'bold' }}>
-              {request.sender.full_name.charAt(0).toUpperCase()}
-            </Text>
-          </View>
-        )}
+        <DefaultProfilePicture
+          profilePicture={request.sender.profile_picture}
+          fullName={request.sender.full_name}
+          size={50}
+          borderRadius={25}
+        />
       </View>
 
       {/* User Info */}
@@ -170,15 +152,17 @@ const FriendRequestCard: React.FC<FriendRequestCardProps> = ({
             fontSize: 10,
             marginLeft: 4
           }}>
-            • {formatTime(request.created_at)}
+            • {formattedTime}
           </Text>
         </View>
       </View>
 
       {/* Action Buttons or Status Badge */}
-      {getStatusBadge()}
+      {getStatusBadge}
     </View>
   );
-};
+});
+
+FriendRequestCard.displayName = 'FriendRequestCard';
 
 export default FriendRequestCard; 

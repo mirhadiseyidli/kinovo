@@ -4,7 +4,6 @@ import { Feather } from '@expo/vector-icons';
 import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import { AutoSkeletonView } from 'react-native-auto-skeleton';
 import { ThemedText } from '@/components/ThemedText';
 import ReanimatedShimmerLine from '@/components/CustomLoadingIndicatingLine';
 

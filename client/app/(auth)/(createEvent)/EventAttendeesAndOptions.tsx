@@ -5,19 +5,31 @@ import { ButtonWithLabel } from '@/components/ButtonWithLabel';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import React, { useState } from 'react';
-import { ScrollView, View, Text, ActivityIndicator, Alert } from 'react-native';
-import type { CreateEventTabParamList } from '@/types/allTypes';
+import React, { useState, useRef, useContext } from 'react';
+import { ScrollView, View, Text, ActivityIndicator, Alert, TouchableOpacity, Image, Pressable } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import type { CreateEventTabParamList, AttendeeFriend } from '@/types/allTypes';
 import { useCreateEventContext } from '@/context/CreateEventContext';
 import { useCreateEvent } from '@/hooks/useCreateEvent';
 import { format } from 'date-fns';
+import DefaultProfilePicture from '@/components/DefaultProfilePicture';
+import { CreateEventScrollContext } from './_layout';
+import Animated, { useAnimatedScrollHandler, runOnJS } from 'react-native-reanimated';
+import { useRouter } from 'expo-router';
+
+const AnimatedScrollView = Animated.createAnimatedComponent(Animated.ScrollView);
 
 export default React.memo(function EventAttendeesAndOptions() {
   const navigation = useNavigation<NavigationProp<CreateEventTabParamList>>();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [limit, setLimit] = useState<number | null>(null);
+  const [suggestions, setSuggestions] = useState<AttendeeFriend[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const suggestionSelectRef = useRef<((item: any) => void) | null>(null);
   const { updateEvent } = useCreateEvent();
+  const router = useRouter();
+  const { bounceCompleted, wasDraggingAtTop, isDismissing, handleDismiss } = useContext(CreateEventScrollContext);
   const { 
     validationErrors, 
     loading,
@@ -33,6 +45,35 @@ export default React.memo(function EventAttendeesAndOptions() {
     resetEventForm,
     startTime
   } = useCreateEventContext();
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      if (isDismissing.value) return;
+      
+      const currentY = event.contentOffset.y;
+
+      // If bounce is completed and we're pulling down again
+      if (bounceCompleted.value && currentY < -50) {
+        isDismissing.value = true;
+        runOnJS(handleDismiss)();
+      }
+    },
+    onBeginDrag: (event) => {
+      // Reset states if starting drag from below
+      if (event.contentOffset.y > 50) {
+        bounceCompleted.value = false;
+        wasDraggingAtTop.value = false;
+      }
+      // Track if we're dragging from the top
+      wasDraggingAtTop.value = event.contentOffset.y <= 0;
+    },
+    onEndDrag: (event) => {
+      // If we were dragging at the top and ended the drag
+      if (wasDraggingAtTop.value) {
+        bounceCompleted.value = true;
+      }
+    }
+  });
 
   const handleSaveEvent = async () => {
     // If we're editing a recurring event, show the alert instead of saving directly
@@ -133,16 +174,95 @@ export default React.memo(function EventAttendeesAndOptions() {
     navigation.navigate('Date & Location');
   };
 
+  const handleSuggestionSelect = (item: any) => {
+    // Call the actual suggestion selection logic from the Attendees component
+    if (suggestionSelectRef.current) {
+      suggestionSelectRef.current(item);
+    }
+  };
+
+  const handleBackdropPress = () => {
+    setShowSuggestions(false);
+  };
+
   return (
     <ThemedView style={{ flex: 1, width: '100%', paddingHorizontal: 16 }}>
-      <ScrollView 
+      {/* Backdrop overlay - split to avoid covering input field */}
+      {showSuggestions && (
+        <>
+          {/* Top overlay - above input field */}
+          <Pressable
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 116, // Options component height + gap
+              backgroundColor: 'transparent',
+              zIndex: 999,
+            }}
+            onPress={handleBackdropPress}
+          />
+          {/* Bottom overlay - below dropdown */}
+          <Pressable
+            style={{
+              position: 'absolute',
+              top: 484, // Start after dropdown area
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'transparent',
+              zIndex: 999,
+            }}
+            onPress={handleBackdropPress}
+          />
+          {/* Side overlays - left and right of dropdown */}
+          <Pressable
+            style={{
+              position: 'absolute',
+              top: 116,
+              left: 0,
+              width: 16,
+              height: 368,
+              backgroundColor: 'transparent',
+              zIndex: 999,
+            }}
+            onPress={handleBackdropPress}
+          />
+          <Pressable
+            style={{
+              position: 'absolute',
+              top: 116,
+              right: 0,
+              width: 16,
+              height: 368,
+              backgroundColor: 'transparent',
+              zIndex: 999,
+            }}
+            onPress={handleBackdropPress}
+          />
+        </>
+      )}
+
+      <AnimatedScrollView 
         nestedScrollEnabled={true}
         keyboardShouldPersistTaps={'always'}
         contentContainerStyle={{ gap: 16 }}
+        scrollEnabled={!showSuggestions}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+        bounces={true}
       >
         {/* Step 3: Attendees & Options */}
         <Options setLimit={setLimit}/>
-        <Attendees limit={limit} />
+        <Attendees 
+          limit={limit}
+          suggestions={suggestions}
+          setSuggestions={setSuggestions}
+          showSuggestions={showSuggestions}
+          setShowSuggestions={setShowSuggestions}
+          onSuggestionSelectRef={suggestionSelectRef}
+        />
 
         {/* Error message if any */}
         {error && (
@@ -200,7 +320,83 @@ export default React.memo(function EventAttendeesAndOptions() {
             )}
           </ButtonWithLabel>
         </View>
-      </ScrollView>
+      </AnimatedScrollView>
+
+      {/* Friends Suggestions Dropdown - Rendered outside ScrollView */}
+      {showSuggestions && suggestions.length > 0 && (
+        <ThemedView style={{
+          position: 'absolute',
+          top: 180, // Options (≈60px) + gap (16px) + Attendees input (≈44px) + spacing (4px) + padding
+          left: 16,
+          right: 16,
+          backgroundColor: themeColors.inputBackgroundColor,
+          borderWidth: 1,
+          borderColor: themeColors.border,
+          borderRadius: 8,
+          maxHeight: 300,
+          zIndex: 1000,
+          shadowColor: '#000',
+          shadowOffset: {
+            width: 0,
+            height: 4,
+          },
+          shadowOpacity: 0.15,
+          shadowRadius: 8,
+          elevation: 8,
+        }}>
+          <ScrollView 
+            style={{ maxHeight: 300 }} 
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="none"
+            nestedScrollEnabled={true}
+            showsVerticalScrollIndicator={false}
+          >
+            {suggestions.map((item, index) => (
+              <TouchableOpacity
+                key={item._id}
+                style={{
+                  paddingVertical: 12,
+                  paddingHorizontal: 16,
+                  borderBottomWidth: index !== suggestions.length - 1 ? 1 : 0,
+                  borderBottomColor: themeColors.border,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                }}
+                onPress={() => handleSuggestionSelect(item)}
+              >
+                <View style={{ marginRight: 12 }}>
+                  <DefaultProfilePicture
+                    profilePicture={item.profile_picture}
+                    fullName={item.full_name}
+                    size={40}
+                    borderRadius={20}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ 
+                    fontWeight: '600', 
+                    fontSize: 16, 
+                    color: themeColors.text 
+                  }}>
+                    {item.full_name}
+                  </Text>
+                  <Text style={{ 
+                    fontSize: 14, 
+                    color: themeColors.placeholderTextColor 
+                  }}>
+                    @{item.username}
+                  </Text>
+                </View>
+                <Feather 
+                  name="arrow-up-right" 
+                  size={16} 
+                  color={themeColors.placeholderTextColor} 
+                />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </ThemedView>
+      )}
     </ThemedView>
   );
 })

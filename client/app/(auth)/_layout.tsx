@@ -1,66 +1,43 @@
 import { useAuthSession } from "@/components/Auth/AuthProvider";
-import { Redirect, router, Stack, useNavigation } from 'expo-router';
-import { Alert, Text, TouchableOpacity, View } from 'react-native';
+import { Redirect, Stack, useNavigation } from 'expo-router';
+import { Text } from 'react-native';
 import { ReactNode } from "react";
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams } from "expo-router";
-import { cancelAnimation } from 'react-native-reanimated';
 import { SharedValue, useSharedValue } from 'react-native-reanimated';
 import { UserSessionProvider } from '@/context/UserSessionContext';
-import ContextMenuWithTrigger from "@/components/ContextMenuWithTrigger";
-import { useManageFriends } from "@/hooks/useManageFriends";
-import api from "@/utils/api";
-import { jwtDecode } from "jwt-decode";
-import { CustomJwtPayload } from '@/types/allTypes';
-import { CreateEventProvider } from "@/context/CreateEventContext";
 
 export default function RootLayout(): ReactNode {
   const { accessToken, isLoading } = useAuthSession();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const params = useLocalSearchParams();
-  const profileUserId = typeof params._id === 'string' ? params._id : params._id?.[0];
 
   // Shared values
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const gestureActive = useSharedValue(0);
 
-  const {
-    removeFriendFromFriendList
-  } = useManageFriends();
-  
-
-  if (isLoading) {
-    return <Text>Loading...</Text>;
-  }
 
   if (!accessToken?.current) {
     return <Redirect href="/login" />;
-  }
-
-  const shareEvent = () => {
-    return(
-      <TouchableOpacity>
-        <Feather name="share-2" color={themeColors.text} size={20} />
-      </TouchableOpacity>
-    )
   }
 
   return (
     <UserSessionProvider>
       <Stack
         screenOptions={{
-          headerShown: false
+          headerShown: false,
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen 
           name="(createEvent)"
           options={{ 
-            presentation: 'modal', 
+            gestureEnabled: true,
+            gestureDirection: 'vertical',
+            headerBackVisible: false,
             headerShown: true,
             headerStyle: { 
               backgroundColor: themeColors.background
@@ -76,7 +53,6 @@ export default function RootLayout(): ReactNode {
           options={{ 
             headerShown: true,
             gestureEnabled: true,
-            gestureDirection: 'vertical',
             headerStyle: { 
               backgroundColor: themeColors.background
             },
@@ -90,10 +66,10 @@ export default function RootLayout(): ReactNode {
           name="(viewEvent)/[event_id]"
           options={{ 
             title: 'Event Details',
-            presentation: 'modal',
             gestureEnabled: true,
             gestureDirection: 'vertical',
             headerShown: true,
+            headerBackVisible: false,
             headerStyle: { 
               backgroundColor: themeColors.background
             },
@@ -101,26 +77,21 @@ export default function RootLayout(): ReactNode {
             headerTitleStyle: {
               fontWeight: 'bold'
             },
-            headerRight: () => shareEvent(),
-            animationDuration: 200,  // Speed up the animation
-            animationTypeForReplace: 'pop',  // Better animation for rapid replacements
-            freezeOnBlur: true,  // Prevent state updates when screen is blurred
+            animationTypeForReplace: 'pop',
           }}
           listeners={{
             blur: () => {
               'worklet';
-              // Cleanup on blur
               translateX.value = 0;
               translateY.value = 0;
               gestureActive.value = 0;
             },
             beforeRemove: () => {
               'worklet';
-              // Cleanup before removal
               translateX.value = 0;
               translateY.value = 0;
               gestureActive.value = 0;
-            },
+            }
           }}
         />
       </Stack>

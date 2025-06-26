@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import { View, ScrollView, Dimensions } from 'react-native';
 import City from './City';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -7,23 +7,24 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useRouter } from 'expo-router';
+import { CitiesSkeleton } from '../Skeleton';
+import { useFocusEffect } from '@react-navigation/native';
+import { ALL_CITIES } from '@/constants/Cities';
 
 interface CitiesProps {
   refreshing: boolean;
   onFinishRefresh: () => void;
 }
 
-const cities = [
-  { id: 1, name: 'San Francisco', image: require('@/assets/san-francisco.avif') },
-  { id: 2, name: 'New York', image: require('@/assets/new-york.webp') },
-  { id: 3, name: 'Los Angeles', image: require('@/assets/los-angeles.webp') },
-  { id: 4, name: 'Chicago', image: require('@/assets/chicago.jpg') },
-];
+const CITY_SPACING = 16;
 
 const Cities: React.FC<CitiesProps> = ({ refreshing, onFinishRefresh }) => {
   const screenWidth = Dimensions.get('window').width;
   const colorScheme = useColorScheme();
   const router = useRouter();
+
+  // Get all cities from constants
+  const cities = ALL_CITIES;
 
   useEffect(() => {
     if (refreshing) {
@@ -31,6 +32,16 @@ const Cities: React.FC<CitiesProps> = ({ refreshing, onFinishRefresh }) => {
       onFinishRefresh();
     }
   }, [refreshing]);
+
+  // Auto-recovery when screen comes into focus (for server reconnection scenarios)
+  useFocusEffect(
+    React.useCallback(() => {
+      if (refreshing) {
+        // TODO: Add actual data fetching here
+        onFinishRefresh();
+      }
+    }, [refreshing])
+  );
 
   const handleCityPress = (cityName: string) => {
     router.push(`/(auth)/(city)/${cityName}`);
@@ -53,21 +64,24 @@ const Cities: React.FC<CitiesProps> = ({ refreshing, onFinishRefresh }) => {
 
       {/* Scrollable Cities */}
       <ThemedView style={{ width: screenWidth }}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ width: screenWidth }}
-          contentContainerStyle={{ paddingLeft: 16, paddingRight: screenWidth * 0.04 }}
-        >
-          <ThemedView style={{ flexDirection: 'row', gap: 16 }}>
-            {cities.map((city) => (
-              <ThemedView
+        {refreshing ? (
+          <CitiesSkeleton />
+        ) : (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ width: screenWidth }}
+            contentContainerStyle={{ 
+              paddingHorizontal: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+            }}
+          >
+            {cities.map((city, index) => (
+              <View
                 key={city.id}
                 style={{
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: 16,
-                  borderColor: Colors[colorScheme ?? 'dark'].border,
+                  marginRight: index === cities.length - 1 ? 0 : CITY_SPACING,
                 }}
               >
                 <City 
@@ -75,10 +89,10 @@ const Cities: React.FC<CitiesProps> = ({ refreshing, onFinishRefresh }) => {
                   image={city.image} 
                   onPress={() => handleCityPress(city.name)}
                 />
-              </ThemedView>
+              </View>
             ))}
-          </ThemedView>
-        </ScrollView>
+          </ScrollView>
+        )}
       </ThemedView>
     </ThemedView>
   );

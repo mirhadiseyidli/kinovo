@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, TouchableOpacity, Alert, ImageBackground } from 'react-native';
+import { View, TouchableOpacity, Alert } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
@@ -14,8 +14,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { getCategoryImage } from '@/constants/CategoryImages';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { AttentionRequiredSkeleton } from '../Skeleton';
+import { EventCardSkeleton } from '../Skeleton';
 import { truncateName } from '@/utils/truncateName';
+import { OptimizedImage } from '@/components/OptimizedImage';
 
 interface AttentionRequiredProps {
   refreshing: boolean;
@@ -26,7 +27,7 @@ interface AttentionRequiredProps {
 
 type EventResponseStatus = 'accepted' | 'maybe' | 'rejected';
 
-const AttentionRequired: React.FC<AttentionRequiredProps> = ({ 
+const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({ 
   refreshing, 
   onFinishRefresh, 
   initialEvents,
@@ -35,7 +36,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = ({
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
-  const { fetchAttentionRequiredEvents, loading } = useGetAttentionRequiredEvents();
+  const { fetchAttentionRequiredEvents, loading, clearCache } = useGetAttentionRequiredEvents();
   const { respondToInvitation } = useEventInvitation();
   const { refreshEvents } = useEventContext();
   const [attentionEvents, setAttentionEvents] = useState<Event[]>(initialEvents || []);
@@ -44,15 +45,17 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = ({
   const declinedColor = "transparent"; // iOS red color for declined events
   const pendingColor = "transparent"; // Warm yellow color for pending responses
 
-  const isFutureEvent = (event: Event) => {
-    const now = new Date();
-    const eventStartDate = event.start_time ? new Date(event.start_time) : null;
-    return eventStartDate && now < eventStartDate;
-  };
+  // Memoize expensive event filtering
+  const futureEvents = React.useMemo(() => {
+    return attentionEvents.filter((event) => {
+      const now = new Date();
+      const eventStartDate = event.start_time ? new Date(event.start_time) : null;
+      return eventStartDate && now < eventStartDate;
+    });
+  }, [attentionEvents]);
 
-  const futureEvents = attentionEvents.filter(isFutureEvent);
-
-  const getTimeLeft = (startTime: string | Date | null, endTime: string | Date | null) => {
+  // Memoize time calculation function
+  const getTimeLeft = React.useCallback((startTime: string | Date | null, endTime: string | Date | null) => {
     if (!startTime || !endTime) return { value: 0, unit: 'DAYS' };
     
     const now = new Date();
@@ -77,28 +80,32 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = ({
     } else {
       return { value: diffMins, unit: 'MINUTES' };
     }
-  };
+  }, []);
 
-  const fetchEvents = async () => {
+  const fetchEvents = React.useCallback(async (forceRefresh: boolean = false) => {
     try {
-      const events = await fetchAttentionRequiredEvents();
-      if (events && Array.isArray(events)) {
-        setAttentionEvents(events);
-      }
+      // Backend optimization: Pass fromHomeScreen=true to limit response to first 3 events
+      const events = await fetchAttentionRequiredEvents(true, forceRefresh);
+      setAttentionEvents(events || []);
     } catch (error) {
-      console.error('Failed to fetch attention required events:', error);
+      console.error('Error fetching attention required events:', error);
+      setAttentionEvents([]);
     } finally {
       onFinishRefresh();
     }
-  };
+  }, [fetchAttentionRequiredEvents, onFinishRefresh]);
 
   useEffect(() => {
     if (refreshing && !initialEvents) {
-      fetchEvents();
+      // Force refresh when pull-to-refresh is triggered
+      fetchEvents(true);
+    } else if (!initialEvents) {
+      // Normal fetch (will use cache if available)
+      fetchEvents(false);
     }
-  }, [refreshing]);
+  }, [refreshing, initialEvents, fetchEvents]);
 
-  const handleViewEvent = (event: Event) => {
+  const handleViewEvent = React.useCallback((event: Event) => {
     const eventId = event.originalEventId || event._id;
     if (!eventId) return;
 
@@ -113,9 +120,9 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = ({
       pathname: "/(auth)/(viewEvent)/[event_id]" as const,
       params: params
     });
-  };
+  }, [router]);
 
-  const handleResponse = async (event: Event, status: EventResponseStatus) => {
+  const handleResponse = React.useCallback(async (event: Event, status: EventResponseStatus) => {
     const eventId = event.originalEventId || event._id;
     if (!eventId) return;
 
@@ -159,9 +166,9 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = ({
     } finally {
       setLoadingResponses(prev => ({ ...prev, [eventId]: false }));
     }
-  };
+  }, [respondToInvitation, fetchEvents, refreshEvents]);
 
-  const formatDate = (date: string | Date | null) => {
+  const formatDate = React.useCallback((date: string | Date | null) => {
     if (!date) return '';
     const eventDate = new Date(date);
     return eventDate.toLocaleDateString('en-US', { 
@@ -172,17 +179,16 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = ({
       minute: '2-digit',
       hour12: true
     });
-  };
+  }, []);
 
-  const getDaysUntilResponse = (date: string | Date | null) => {
+  const getDaysUntilResponse = React.useCallback((date: string | Date | null) => {
     if (!date) return 0;
     const eventDate = new Date(date);
     return Math.ceil((eventDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-  };
+  }, []);
 
-  const renderEventCard = (event: Event, isLoading: boolean, isRejected: boolean) => {
+  const renderEventCard = React.useCallback((event: Event, isLoading: boolean, isRejected: boolean, index: number) => {
     const timeLeft = getTimeLeft(event.start_time, event.end_time);
-    const eventImage = event.event_picture ? { uri: event.event_picture } : getCategoryImage(event.category);
 
     // Don't render if the event is in the past or ongoing
     if (timeLeft.value === 0) return null;
@@ -192,7 +198,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = ({
         key={event._id}
         onPress={() => handleViewEvent(event)}
         style={{
-          marginBottom: 16,
+          marginBottom: index === 0 ? 16 : 0,
           borderRadius: 12,
           backgroundColor: themeColors.eventCardBackgroundColor,
           overflow: 'hidden',
@@ -355,41 +361,43 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = ({
               overflow: 'hidden',
               position: 'relative'
             }}>
-              <ImageBackground
-                source={eventImage}
+              <OptimizedImage
+                source={event.event_picture || null}
+                fallbackCategory={event.category}
                 style={{
                   width: '100%',
                   height: '100%',
-                }}
-                imageStyle={{ 
                   opacity: 0.8,
-                  resizeMode: 'cover'
+                }}
+                resizeMode="cover"
+                width={64}
+                height={64}
+                quality={0.8}
+                showLoader={true}
+              />
+              {/* Category with blur overlay */}
+              <BlurView
+                intensity={50}
+                tint={colorScheme === 'dark' ? 'dark' : 'light'}
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  paddingVertical: 4,
+                  backgroundColor: colorScheme === 'dark' ? 'rgba(50, 50, 50, 0.6)' : 'rgba(200, 200, 200, 0.6)',
                 }}
               >
-                {/* Category with blur overlay */}
-                <BlurView
-                  intensity={50}
-                  tint={colorScheme === 'dark' ? 'dark' : 'light'}
-                  style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    paddingVertical: 4,
-                    backgroundColor: colorScheme === 'dark' ? 'rgba(50, 50, 50, 0.6)' : 'rgba(200, 200, 200, 0.6)',
-                  }}
-                >
-                  <ThemedText style={{ 
-                    fontSize: 8,
-                    color: themeColors.text,
-                    fontWeight: 'bold',
-                    textAlign: 'center',
-                    textTransform: 'capitalize',
-                  }}>
-                    {event.category?.toLowerCase() || 'Other'}
-                  </ThemedText>
-                </BlurView>
-              </ImageBackground>
+                <ThemedText style={{ 
+                  fontSize: 8,
+                  color: themeColors.text,
+                  fontWeight: 'bold',
+                  textAlign: 'center',
+                  textTransform: 'capitalize',
+                }}>
+                  {event.category?.toLowerCase() || 'Other'}
+                </ThemedText>
+              </BlurView>
             </View>
           </View>
         </View>
@@ -487,7 +495,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = ({
         </View>
       </TouchableOpacity>
     );
-  };
+  }, [getTimeLeft, themeColors, handleViewEvent, handleResponse, formatDate]);
 
   if (futureEvents.length === 0) {
     return (
@@ -544,10 +552,6 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = ({
     );
   }
 
-  if (loading || refreshing) {
-    return <AttentionRequiredSkeleton />;
-  }
-
   return (
     <ThemedView style={{ width: '100%' }}>
       {showHeader && (
@@ -572,10 +576,16 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = ({
       )}
 
       <ThemedView style={{ paddingHorizontal: showHeader ? 16 : 0 }}>
-        {futureEvents.map((event) => renderEventCard(event, loadingResponses[event._id || ''] || false, event.userStatus === 'rejected'))}
+        {loading || refreshing ? (
+          <EventCardSkeleton count={2} />
+        ) : (
+          futureEvents.map((event, index) => renderEventCard(event, loadingResponses[event._id || ''] || false, event.userStatus === 'rejected', index))
+        )}
       </ThemedView>
     </ThemedView>
   );
-};
+});
+
+AttentionRequired.displayName = 'AttentionRequired';
 
 export default AttentionRequired; 

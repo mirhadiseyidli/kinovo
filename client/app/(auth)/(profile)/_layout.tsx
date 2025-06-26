@@ -6,12 +6,33 @@ import { Colors } from "@/constants/Colors";
 import ContextMenuWithTrigger from "@/components/ContextMenuWithTrigger";
 import api from "@/utils/api";
 import { useManageFriends } from "@/hooks/useManageFriends";
+import { useUserData } from "@/hooks/useUserData";
+import { useEffect, useState } from "react";
+import { User } from "@/types/allTypes";
 
 const ProfileLayout = () => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { _id: profileUserId } = useLocalSearchParams();
   const { removeFriendFromFriendList } = useManageFriends();
+  const { fetchUserData } = useUserData();
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const loadCurrentUser = async () => {
+      try {
+        const userData = await fetchUserData();
+        setCurrentUser(userData);
+      } catch (error) {
+        console.error('Failed to load current user:', error);
+      }
+    };
+    
+    loadCurrentUser();
+  }, [fetchUserData]);
+
+  // Check if viewing own profile
+  const isViewingOwnProfile = currentUser?._id === profileUserId;
 
   const handleBlockUser = async () => {
     try {
@@ -98,10 +119,12 @@ const ProfileLayout = () => {
                 </TouchableOpacity>
                 ),
                 headerRight: () => (
-                <ContextMenuWithTrigger 
-                    onRemove={showRemoveFriendConfirmation}
-                    onBlock={showBlockUserConfirmation}
-                />
+                  !isViewingOwnProfile ? (
+                    <ContextMenuWithTrigger 
+                        onRemove={showRemoveFriendConfirmation}
+                        onBlock={showBlockUserConfirmation}
+                    />
+                  ) : null
                 ),
             }} 
         />

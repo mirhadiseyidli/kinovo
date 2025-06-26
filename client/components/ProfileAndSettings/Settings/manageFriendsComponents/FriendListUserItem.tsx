@@ -11,6 +11,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { ContextMenu } from '@expo/ui/swift-ui';
 import { Button } from '@expo/ui/swift-ui';
 import api from '@/utils/api';
+import DefaultProfilePicture from '../../../DefaultProfilePicture';
 
 export default function FriendListUserItem({
   _id,
@@ -276,15 +277,14 @@ export default function FriendListUserItem({
         }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-          <Image
-            source={avatarUri ? { uri: avatarUri } : require('@/assets/profile-pic-2.jpeg')}
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 24,
-              marginRight: 12,
-            }}
+          <View style={{ marginRight: 12 }}>
+            <DefaultProfilePicture
+              profilePicture={avatarUri}
+              fullName={name}
+              size={48}
+              borderRadius={24}
           />
+          </View>
           <View style={{ flexDirection: 'column'}}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text style={{ fontWeight: 'bold', color: themeColors.text }}>{truncateName(name, 16)}</Text>
@@ -305,15 +305,14 @@ export default function FriendListUserItem({
         }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-          <Image
-            source={avatarUri ? { uri: avatarUri } : require('@/assets/profile-pic-2.jpeg')}
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 24,
-              marginRight: 12,
-            }}
+          <View style={{ marginRight: 12 }}>
+            <DefaultProfilePicture
+              profilePicture={avatarUri}
+              fullName={name}
+              size={48}
+              borderRadius={24}
           />
+          </View>
           <View style={{ flexDirection: 'column'}}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text style={{ fontWeight: 'bold', color: themeColors.text }}>{name}</Text>

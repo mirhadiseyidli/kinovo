@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFirebaseUpdate } from '@/hooks/useFirebaseRealtime';
+import { EventCardSkeleton, SkeletonBox } from '@/components/Skeleton';
 
 export default function NotificationsPage() {
   const colorScheme = useColorScheme();
@@ -116,23 +117,27 @@ export default function NotificationsPage() {
   );
 
   const handleNotificationPress = useCallback(async (notification: NotificationData) => {
-    if (notification.is_seen || markingAsViewed[notification._id]) return;
+    // Prevent multiple simultaneous actions on the same notification
+    if (markingAsViewed[notification._id]) return;
     
-    // Set local loading state
-    setMarkingAsViewed(prev => ({ ...prev, [notification._id]: true }));
-    
-    try {
-      // Mark as viewed in both systems
-      await Promise.all([
-        markNotificationAsRead(notification._id),
-        markFirebaseNotificationAsRead && markFirebaseNotificationAsRead(notification._id)
-      ]);
-    } finally {
-      // Clear loading state
-      setMarkingAsViewed(prev => ({ ...prev, [notification._id]: false }));
+    // Only mark as read if it's currently unread
+    if (!notification.is_seen) {
+      // Set local loading state
+      setMarkingAsViewed(prev => ({ ...prev, [notification._id]: true }));
+      
+      try {
+        // Mark as viewed in both systems
+        await Promise.all([
+          markNotificationAsRead(notification._id),
+          markFirebaseNotificationAsRead && markFirebaseNotificationAsRead(notification._id)
+        ]);
+      } finally {
+        // Clear loading state
+        setMarkingAsViewed(prev => ({ ...prev, [notification._id]: false }));
+      }
     }
     
-    // Navigate to relevant screen based on notification type
+    // Always navigate regardless of read/unread status
     if (notification.type === 'friend_request_accepted') {
       // Navigate to the sender's profile for friend request notifications
       if (notification.sender?._id) {
@@ -160,8 +165,29 @@ export default function NotificationsPage() {
     }
   }, [hasMoreData, loadingMore, paginatedLoading, loadMoreNotifications]);
 
+  // Memoized render functions for better performance
+  const renderNotificationItem = useCallback(({ item: notification }: { item: NotificationData }) => (
+    <NotificationCard
+      notification={notification}
+      onPress={() => handleNotificationPress(notification)}
+      isMarking={!!markingAsViewed[notification._id]}
+    />
+  ), [handleNotificationPress, markingAsViewed]);
+
+  const renderItemSeparator = useCallback(() => (
+    <View
+      style={{
+        height: 0.3,
+        backgroundColor: themeColors.border,
+        marginHorizontal: 16,
+      }}
+    />
+  ), [themeColors.border]);
+
+  const keyExtractor = useCallback((item: NotificationData, index: number) => `notification-${item._id}-${index}`, []);
+
   // Render header component
-  const renderHeader = () => (
+  const renderHeader = useCallback(() => (
     <View>
       {/* Friend Requests Section */}
       <View style={{ marginBottom: 24 }}>
@@ -277,10 +303,10 @@ export default function NotificationsPage() {
           </Text>
         </View>
     </View>
-  );
+  ), [friendRequests.length, handleAcceptFriendRequest, handleDeclineFriendRequest, themeColors.background, themeColors.border, themeColors.text]);
 
   // Render footer component
-  const renderFooter = () => {
+  const renderFooter = useCallback(() => {
     if (loadingMore) {
       return (
         <View style={{ 
@@ -319,10 +345,10 @@ export default function NotificationsPage() {
     }
 
     return null;
-  };
+  }, [loadingMore, hasMoreData, sortedNotifications.length, themeColors.tint, themeColors.placeholderTextColor]);
 
   // Render empty component
-  const renderEmpty = () => {
+  const renderEmpty = useCallback(() => {
     if (paginatedLoading) {
       return (
         <View style={{ 
@@ -377,27 +403,15 @@ export default function NotificationsPage() {
         </Text>
       </View>
     );
-  };
+  }, [paginatedLoading, themeColors.tint, themeColors.placeholderTextColor, themeColors.background, themeColors.border]);
 
-  if (contextLoading || firebaseLoading) {
-    return (
-      <ThemedView style={{ flex: 1, backgroundColor: themeColors.background }}>
-        <View style={{ 
-          flex: 1, 
-          justifyContent: 'center', 
-          alignItems: 'center' 
-        }}>
-          <ActivityIndicator size="large" color={themeColors.tint} />
-          <Text style={{ 
-            color: themeColors.placeholderTextColor, 
-            marginTop: 16 
-          }}>
-            Loading notifications...
-          </Text>
-        </View>
-      </ThemedView>
-    );
-  }
+  // if (contextLoading || firebaseLoading) {
+  //   return (
+  //     <ThemedView style={{ flex: 1, backgroundColor: themeColors.background }}>
+  //       <EventCardSkeleton count={3} />
+  //     </ThemedView>
+  //   );
+  // }
 
   return (
     <ThemedView style={{ flex: 1, backgroundColor: themeColors.background }}>
@@ -419,25 +433,9 @@ export default function NotificationsPage() {
         windowSize={5}
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.3}
-        keyExtractor={(item, index) => `notification-${item._id}-${index}`}
-        renderItem={({ item: notification }) => (
-          <View>
-            <NotificationCard
-              notification={notification}
-              onPress={() => handleNotificationPress(notification)}
-              isMarking={!!markingAsViewed[notification._id]}
-            />
-          </View>
-        )}
-        ItemSeparatorComponent={() => (
-          <View
-            style={{
-              height: 0.3,
-              backgroundColor: themeColors.border,
-              marginHorizontal: 16,
-            }}
-          />
-        )}
+        keyExtractor={keyExtractor}
+        renderItem={renderNotificationItem}
+        ItemSeparatorComponent={renderItemSeparator}
         ListHeaderComponent={renderHeader}
         ListFooterComponent={renderFooter}
         ListEmptyComponent={renderEmpty}

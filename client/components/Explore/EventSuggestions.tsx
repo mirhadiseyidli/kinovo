@@ -9,6 +9,8 @@ import { Colors } from '@/constants/Colors';
 import { useGetRecommendedEvents } from '@/hooks/useGetRecommendedEvents';
 import { Event as EventType } from '@/types/allTypes';
 import { useState } from 'react';
+import { EventCardSkeleton } from '../Skeleton';
+import { useFocusEffect } from '@react-navigation/native';
 
 interface EventSuggestionsProps {
   refreshing: boolean;
@@ -38,6 +40,27 @@ const EventSuggestions: React.FC<EventSuggestionsProps> = ({ refreshing, onFinis
       fetchEvents();
     }
   }, [refreshing]);
+
+  // Auto-recovery when screen comes into focus (for server reconnection scenarios)
+  useFocusEffect(
+    React.useCallback(() => {
+      if (refreshing) {
+        fetchEvents();
+      }
+    }, [refreshing])
+  );
+
+  // Show skeleton during loading or refreshing
+  if (loading || refreshing) {
+    return (
+      <ThemedView style={{ width: '100%' }}>
+        <ThemedText style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 16 }}>
+          Events You Might Like
+        </ThemedText>
+        <EventCardSkeleton count={2} />
+      </ThemedView>
+    );
+  }
 
   if (recommendedEvents.length === 0) {
     return (
@@ -111,22 +134,22 @@ const EventSuggestions: React.FC<EventSuggestionsProps> = ({ refreshing, onFinis
       {/* Event List */}
       <View style={{ flex: 1 }}>
         {recommendedEvents.map((event, index) => (
-          <View key={event._id}>
-            <Event
-              event={event}
-              loading={loading}
-            />
-            {/* Divider Line */}
-            {index < recommendedEvents.length - 1 && (
-              <View
-                style={{
-                  height: 0.3,
-                  backgroundColor: Colors[colorScheme ?? 'dark'].border,
-                  marginVertical: 16,
-                }}
+            <View key={event._id}>
+              <Event
+                event={event}
+                loading={loading}
               />
-            )}
-          </View>
+              {/* Divider Line */}
+              {index < recommendedEvents.length - 1 && (
+                <View
+                  style={{
+                    height: 0.3,
+                    backgroundColor: Colors[colorScheme ?? 'dark'].border,
+                    marginVertical: 16,
+                  }}
+                />
+              )}
+            </View>
         ))}
       </View>
     </ThemedView>

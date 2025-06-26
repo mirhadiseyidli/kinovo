@@ -14,6 +14,7 @@ import useSearchEverythingDiscovery from '@/hooks/useSearchEverythingDiscovery';
 import { User, Event } from '@/types/allTypes';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { SearchBarSkeleton } from '../Skeleton';
 
 const DiscoverScreen = () => {
   const colorScheme = useColorScheme();
@@ -164,33 +165,33 @@ const DiscoverScreen = () => {
 
           <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }}>
             <NearbyEvents 
-              refreshing={refreshingNearbyEvents} 
+              refreshing={refreshing} 
               onFinishRefresh={onFinishRefreshNearbyEvents} 
             />
           </ThemedView>
 
           <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }}>
             <FriendsEvents 
-              refreshing={refreshingFriendsEvents}
+              refreshing={refreshing}
               onFinishRefresh={onFinishRefreshFriendsEvents}
             />
           </ThemedView>
 
           <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <Categories 
-              refreshing={refreshingCategories}
+              refreshing={refreshing}
               onFinishRefresh={onFinishRefreshCategories}
             />
           </ThemedView>
           <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <Cities 
-              refreshing={refreshingCities}
+              refreshing={refreshing}
               onFinishRefresh={onFinishRefreshCities}
             />
           </ThemedView>
           <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }}>
             <EventSuggestions 
-              refreshing={refreshingEventSuggestions}
+              refreshing={refreshing}
               onFinishRefresh={onFinishRefreshEventSuggestions}
             />
           </ThemedView>

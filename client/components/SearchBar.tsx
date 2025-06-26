@@ -5,6 +5,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { SearchBarProps } from '@/types/allTypes';
+import DefaultProfilePicture from './DefaultProfilePicture';
 
 const SearchBar = ({
   inputValue,
@@ -82,15 +83,14 @@ const SearchBar = ({
                     }}
                     onPress={() => handleAdd(user)}
                   >
-                    <Image
-                      source={user.profile_picture ? { uri: user.profile_picture } : require('@/assets/profile-pic-2.jpeg')}
-                      style={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: 24,
-                        marginRight: 12,
-                      }}
+                    <View style={{ marginRight: 12 }}>
+                      <DefaultProfilePicture
+                        profilePicture={user.profile_picture}
+                        fullName={user.full_name}
+                        size={48}
+                        borderRadius={24}
                     />
+                    </View>
                     <View style={{ flexDirection: 'column' }} >
                       <Text style={{ fontWeight: 'bold', color: themeColors.text }}>{user.full_name}</Text>
                       <Text style={{ color: themeColors.placeholderTextColor }}>{user.username}</Text>

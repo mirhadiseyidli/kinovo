@@ -7,7 +7,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { useNotifications } from '@/hooks/useNotifications';
 
-const Header: React.FC<{ refreshing?: boolean }> = ({ refreshing }) => {
+const Header: React.FC<{ refreshing?: boolean }> = React.memo(({ refreshing }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { unseenNotificationCount } = useNotifications();
@@ -31,6 +31,8 @@ const Header: React.FC<{ refreshing?: boolean }> = ({ refreshing }) => {
       </ThemedView>
     </ThemedView>
   );
-};
+});
+
+Header.displayName = 'Header';
 
 export default Header;

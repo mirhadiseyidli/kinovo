@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, Image, TouchableOpacity, ActionSheetIOS, ViewStyle, TextStyle } from 'react-native';
-import { Event } from '@/types/allTypes';
+import { View, Text, Image, TouchableOpacity, ActionSheetIOS, ViewStyle, TextStyle, Alert } from 'react-native';
+import { Event, User } from '@/types/allTypes';
 import { ThemedText } from '../ThemedText';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
@@ -14,6 +14,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import { useViewEventModal } from '../../app/(auth)/(viewEvent)/[event_id]';
+import DefaultProfilePicture from '../DefaultProfilePicture';
+import { useEventInvitation } from '@/hooks/useEventInvitation';
+import { useEventContext } from '@/context/UserSessionContext';
 
 type AttendeeAvatarProps = {
   attendee: (NonNullable<Event['attendees']>)[number];
@@ -27,16 +30,15 @@ const AttendeeAvatar = React.memo<AttendeeAvatarProps>(({ attendee, index }) => 
   return (
     <View style={{
       marginLeft: index > 0 ? -12 : 0,
-      width: 52,
-      height: 52,
-      borderRadius: 30,
       borderColor: themeColors.background,
       borderWidth: 2,
-      overflow: 'hidden',
+      borderRadius: 30,
     }}>
-      <Image 
-        source={attendee.user.profile_picture ? { uri: attendee.user.profile_picture } : require('@/assets/profile-pic-2.jpeg')} 
-        style={{ width: '100%', height: '100%' }} 
+      <DefaultProfilePicture
+        profilePicture={attendee.user.profile_picture}
+        fullName={attendee.user.full_name}
+        size={48}
+        borderRadius={24}
       />
     </View>
   );
@@ -121,10 +123,14 @@ const AttendeeRow = React.memo<AttendeeRowProps>(({ attendee, isCreator, creator
       marginBottom: 12,
     }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-        <Image 
-          source={attendee.user.profile_picture ? { uri: attendee.user.profile_picture } : require('@/assets/profile-pic-2.jpeg')} 
-          style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} 
+        <View style={{ marginRight: 12 }}>
+          <DefaultProfilePicture
+            profilePicture={attendee.user.profile_picture}
+            fullName={attendee.user.full_name}
+            size={40}
+            borderRadius={20}
         />
+        </View>
         <View style={{ flex: 1 }}>
           <ThemedText>{attendee.user.full_name}</ThemedText>
           <View style={{
@@ -163,11 +169,42 @@ const EventAttendees = ({ userId, event }: { userId: string | null, event: Event
   const [isExpanded, setIsExpanded] = useState(false);
   const attendeeCount = (event?.attendees ?? []).length || 0;
   const { showModal } = useViewEventModal();
+  const { removeAttendee } = useEventInvitation();
+  const { refreshEvents } = useEventContext();
 
-  const handleRemove = useCallback((id: string) => {
-    // This would typically call an API to remove the attendee
-    console.log('Removing attendee:', id);
-  }, []);
+  const handleRemove = useCallback(async (id: string) => {
+    const attendee = event.attendees?.find(a => a.user._id === id);
+    if (!attendee) return;
+
+    const attendeeName = attendee.user.first_name && attendee.user.last_name 
+      ? `${attendee.user.first_name} ${attendee.user.last_name}`
+      : attendee.user.username || 'this attendee';
+
+    Alert.alert(
+      'Remove Attendee',
+      `Are you sure you want to remove ${attendeeName} from this event?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await removeAttendee(event._id!, id);
+              // Refresh events to update UI
+              await refreshEvents(event.start_time ? new Date(event.start_time) : new Date(), 'Month');
+              Alert.alert('Success', `${attendeeName} has been removed from the event.`);
+            } catch (error) {
+              console.error('Failed to remove attendee:', error);
+            }
+          }
+        }
+      ]
+    );
+  }, [event._id, event.attendees, removeAttendee, refreshEvents]);
 
   useAnimatedReaction(
     () => expanded.value,

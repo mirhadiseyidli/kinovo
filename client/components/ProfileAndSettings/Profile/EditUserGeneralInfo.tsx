@@ -20,6 +20,8 @@ import { User } from '@/types/allTypes';
 import SettingsPageHeader from '../Settings/SettingsPageHeader';
 import { ThemedView } from '@/components/ThemedView';
 import { LinearGradient } from 'expo-linear-gradient';
+import CDNTestComponent from '@/components/CDNTestComponent';
+import { useDefaultProfilePicture } from '@/hooks/useDefaultProfilePicture';
 
 const EditUserGeneralInfo = () => {
   const scrollViewRef = useRef<ScrollView>(null);
@@ -54,6 +56,8 @@ const EditUserGeneralInfo = () => {
     facebookUsername,
     dateOfBirth
   });
+
+  const { checkAndGenerateDefaultProfilePicture } = useDefaultProfilePicture();
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
@@ -105,6 +109,30 @@ const EditUserGeneralInfo = () => {
     }, [])
   );
 
+  const handleSaveProfile = async () => {
+    // Save the profile first
+    await editMyProfile();
+    
+    // Check if we should generate a default profile picture
+    if (user && !user.profile_picture && (firstName || lastName)) {
+      try {
+        const result = await checkAndGenerateDefaultProfilePicture(
+          !!user.profile_picture,
+          firstName,
+          lastName
+        );
+        
+        if (result?.success) {
+          // Refetch user data to show the new profile picture
+          await refetchUser();
+        }
+      } catch (error) {
+        console.error('Error generating default profile picture:', error);
+        // Don't show error to user as the profile save was successful
+      }
+    }
+  };
+
   if (!user) {
     return <Text>Loading...</Text>;
   }
@@ -142,7 +170,6 @@ const EditUserGeneralInfo = () => {
         <View style={{ alignItems: 'center', marginTop: 32 }}>
           <EditUserProfilePhotos user={user} />
         </View>
-
 
         {/* User Info Inputs */}
           <View style={{ width: '100%', marginTop: 32, paddingHorizontal: 16, paddingBottom: 60 }}>
@@ -206,7 +233,7 @@ const EditUserGeneralInfo = () => {
           />
         </View>
         <View style={{ width: '100%', alignItems: 'center', marginBottom: 20 }}>
-          <SaveUserChangesButton isLoading={isLoading} onPress={editMyProfile}/>
+          <SaveUserChangesButton isLoading={isLoading} onPress={handleSaveProfile}/>
         </View>
       </ScrollView>
     </View>

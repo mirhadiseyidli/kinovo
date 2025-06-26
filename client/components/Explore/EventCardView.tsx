@@ -8,6 +8,7 @@ import { BlurView } from 'expo-blur';
 import { SuggestedEventProps } from '@/types/allTypes';
 import { useRouter } from 'expo-router';
 import { getCategoryImage } from '@/constants/CategoryImages';
+import DefaultProfilePicture from '../DefaultProfilePicture';
 
 const EventCardView: React.FC<SuggestedEventProps> = ({
   event
@@ -118,7 +119,12 @@ const EventCardView: React.FC<SuggestedEventProps> = ({
                 {event?.title || 'Untitled Event'}
               </ThemedText>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-                <Image source={{ uri: event?.creator?.profile_picture || require('@/assets/profile-pic-2.jpeg') }} style={{ width: 16, height: 16, borderRadius: 8 }} />
+                <DefaultProfilePicture
+                  profilePicture={event?.creator?.profile_picture}
+                  fullName={event?.creator?.full_name}
+                  size={16}
+                  borderRadius={8}
+                />
                 <ThemedText style={{ fontSize: 12 }}>
                   {event?.creator?.full_name}
                 </ThemedText>

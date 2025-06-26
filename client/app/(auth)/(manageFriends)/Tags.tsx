@@ -349,7 +349,7 @@ const TagItem: React.FC<TagItemProps> = ({
                         opacity: 0.8
                       }}
                     >
-                      Add friends to this activity tag 👥
+                      Add friends to this activity tag
                     </ThemedText>
                   </View>
                 )}
@@ -513,7 +513,7 @@ const Tags = forwardRef<TagsRef>((_, ref) => {
                   opacity: 0.8
                 }}
               >
-                Tap here to create your first activity tag! 🏷️
+                Tap here to create your first activity tag!
               </ThemedText>
             </TouchableOpacity>
           )}

@@ -4,30 +4,40 @@ import {
   KeyboardAvoidingView,
   Platform,
   TextInput,
-  TouchableOpacity,
-  Text,
   Animated,
-  ScrollView
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import axios from 'axios';
-import { useLocation } from '@/context/UserSessionContext';
-import MapViewModal from '../MapViewModal';
 import { Suggestion, Coordinates, GeocodingApiResult, LocationSelectHandler, SelectedLocation, FetchAddressSuggestions } from '@/types/allTypes';
 import { useCreateEventContext } from '@/context/CreateEventContext';
 import api from '@/utils/api';
+import MapViewModal from '../MapViewModal';
 
-const LocationComponent: React.FC = () => {
+interface LocationComponentProps {
+  suggestions: Suggestion[];
+  setSuggestions: (suggestions: Suggestion[]) => void;
+  showSuggestions: boolean;
+  setShowSuggestions: (show: boolean) => void;
+  onLocationSelect: (text: string, city: string, state: string, location: any) => void;
+  onLocationSelectRef: React.MutableRefObject<((text: string, city: string, state: string, location: any) => void) | null>;
+}
+
+const LocationComponent: React.FC<LocationComponentProps> = ({
+  suggestions,
+  setSuggestions,
+  showSuggestions,
+  setShowSuggestions,
+  onLocationSelect,
+  onLocationSelectRef,
+}) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { location, settingEventLocation } = useCreateEventContext();
   
   const [selectedLocation, setSelectedLocation] = useState<SelectedLocation>(location?.text || null);
   const [mapVisible] = useState(new Animated.Value(location?.coordinates ? 1 : 0)); // Controls slide animation
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [inputText, setInputText] = useState<string>(location?.text || '');
   const [coordinates, setCoordinates] = useState<Coordinates | null>(
     location?.coordinates && location.coordinates.lat && location.coordinates.lng
@@ -60,6 +70,7 @@ const LocationComponent: React.FC = () => {
   const fetchAddressSuggestions: FetchAddressSuggestions = async (text) => {
     if (!text.trim()) { // Ensure empty input fully clears suggestions
       setSuggestions([]);
+      setShowSuggestions(false);
       return;
     }
 
@@ -85,6 +96,7 @@ const LocationComponent: React.FC = () => {
       }
 
       setSuggestions(results);
+      setShowSuggestions(results.length > 0);
     } catch (error) {
       console.error("Error fetching address suggestions:", error);
     }
@@ -94,6 +106,7 @@ const LocationComponent: React.FC = () => {
     setSelectedLocation(text);
     setInputText(text);
     setSuggestions([]);
+    setShowSuggestions(false);
 
     if (!isNaN(location.latitude) && !isNaN(location.longitude)) {
       setCoordinates({ latitude: location.latitude, longitude: location.longitude });
@@ -117,7 +130,15 @@ const LocationComponent: React.FC = () => {
       duration: 500,
       useNativeDriver: false,
     }).start();
+
+    // Call the parent's handler
+    onLocationSelect(text, city, state, location);
   };
+
+  // Expose the internal handler to parent via ref
+  React.useEffect(() => {
+    onLocationSelectRef.current = handleLocationSelect;
+  }, [handleLocationSelect]);
 
   const handleInputChange = (text: string) => {
     if (text.length < inputText.length) { // Detect letter removal
@@ -147,6 +168,14 @@ const LocationComponent: React.FC = () => {
     fetchAddressSuggestions(text);
   };
 
+  const handleInputFocus = () => {
+    if (suggestions.length > 0) {
+      setShowSuggestions(true);
+    }
+  };
+
+
+
   return (
     <ThemedView>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -172,54 +201,16 @@ const LocationComponent: React.FC = () => {
             placeholder="Add location"
             value={inputText}
             onChangeText={handleInputChange}
+            onFocus={handleInputFocus}
           />
         </View>
-
-        {/* Suggestions Dropdown */}
-        {suggestions.length > 0 && (
-          <ThemedView style={{
-            position: 'absolute',
-            top: '110%', // Positions right below the input field
-            left: 0,
-            width: '100%',
-            backgroundColor: themeColors.inputBackgroundColor,
-            borderRadius: 8,
-            paddingVertical: 5,
-            maxHeight: 250, // Ensuring enough space for scrolling
-            borderWidth: 1,
-            borderColor: themeColors.background,
-            zIndex: 1000, // Ensures it overlays other components
-          }}>
-            <ScrollView style={{ maxHeight: 250 }} nestedScrollEnabled={true}>
-              {suggestions.map((item, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={{
-                    padding: 12,
-                    borderBottomWidth: index !== suggestions.length - 1 ? 1 : 0,
-                    borderBottomColor: themeColors.background,
-                  }}
-                  onPress={() => handleLocationSelect(
-                    item?.displayName?.text,
-                    item?.postalAddress.locality,
-                    item?.postalAddress.administrativeArea,
-                    item?.location,
-                  )}
-                >
-                  <Text style={{ fontWeight: 'bold', color: themeColors.text }}>{item['displayName']['text']}</Text>
-                  <Text style={{ color: themeColors.text, fontSize: 12 }}>{item['formattedAddress']}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </ThemedView>
-        )}
 
         {/* Animated Map View */}
         {coordinates && (
           <Animated.View style={{
             marginTop: mapVisible.interpolate({
               inputRange: [0, 1],
-              outputRange: [-150, 24], // Slides down from hidden to visible
+              outputRange: [-150, 16], // Slides down from hidden to visible
             }),
             height: mapVisible.interpolate({
               inputRange: [0, 1],

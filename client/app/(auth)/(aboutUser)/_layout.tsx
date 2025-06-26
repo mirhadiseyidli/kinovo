@@ -19,12 +19,13 @@ const ProfileTabs = forwardRef((props: { user: User }, ref) => {
     <ThemedView style={{ flex: 1 }}>
       <Stack
         screenOptions={{
-          headerShown: false
+          headerShown: false,
+          freezeOnBlur: true
         }}
       >
-        <Stack.Screen name="UserEvents" options={{ headerShown: false }} />
-        <Stack.Screen name="UserFriends" options={{ headerShown: false }} />
-        <Stack.Screen name="UserActivities" options={{ headerShown: false }} />
+        <Stack.Screen name="UserEvents" options={{ headerShown: false, freezeOnBlur: true }} />
+        <Stack.Screen name="UserFriends" options={{ headerShown: false, freezeOnBlur: true }} />
+        <Stack.Screen name="UserActivities" options={{ headerShown: false, freezeOnBlur: true }} />
       </Stack>
     </ThemedView>
   );

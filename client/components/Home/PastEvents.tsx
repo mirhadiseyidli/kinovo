@@ -13,7 +13,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import EventFilters, { FilterType, DateFilter } from './EventFilters';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { PastEventsSkeleton } from '../Skeleton';
+import { EventCardSkeleton } from '../Skeleton';  
 
 const THIS_MONTH = 'This Month';
 const LAST_MONTH = 'Last Month';
@@ -111,31 +111,46 @@ const PastEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }>
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const tabBarHeight = useBottomTabBarHeight();
-  const { fetchMyPastEvents, loading } = useGetMyPastEvents();
+  const { fetchMyPastEvents, loading, clearCache } = useGetMyPastEvents();
   const [myPastEventsList, setMyPastEventsList] = useState<Event[]>([]);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [activeFilter, setActiveFilter] = useState<DateFilter>({ type: 'all', date: null });
   const insets = useSafeAreaInsets();
   
-  const fetchPastEvents = async () => {
-    const myPastEvents = await fetchMyPastEvents();
-    setMyPastEventsList(myPastEvents);
-    onFinishRefresh();
-  }
+  const fetchPastEvents = React.useCallback(async (forceRefresh: boolean = false) => {
+    try {
+      const myPastEvents = await fetchMyPastEvents(forceRefresh);
+      setMyPastEventsList(myPastEvents || []);
+    } catch (error) {
+      console.error('Failed to fetch past events:', error);
+      setMyPastEventsList([]);
+    } finally {
+      onFinishRefresh();
+    }
+  }, [fetchMyPastEvents, onFinishRefresh]);
   
   useFocusEffect(
     React.useCallback(() => {
       if (refreshing) {
-        fetchPastEvents();
+        // Force refresh when pull-to-refresh is triggered
+        fetchPastEvents(true);
+      } else {
+        // Normal fetch (will use cache if available)
+        fetchPastEvents(false);
       }
-    }, [refreshing])
+    }, [refreshing, fetchPastEvents])
   );
 
   const filteredEvents = useMemo(() => {
     return filterEventsByDate(myPastEventsList, activeFilter);
   }, [myPastEventsList, activeFilter]);
 
-  const getFilterLabel = () => {
+  // Memoize the expensive grouping calculation
+  const groupedEvents = useMemo(() => {
+    return groupEventsByYearAndMonth(filteredEvents);
+  }, [filteredEvents]);
+
+  const getFilterLabel = React.useCallback(() => {
     if (activeFilter.type === 'all') return 'All Events';
     if (!activeFilter.date) return 'Filter Events';
     
@@ -148,11 +163,7 @@ const PastEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }>
       default:
         return 'Filter Events';
     }
-  };
-
-  if (loading || refreshing) {
-    return <PastEventsSkeleton />;
-  }
+  }, [activeFilter.type, activeFilter.date]);
 
   return (
     <ThemedView style={{ flex: 1, width: '100%' }}>
@@ -182,105 +193,108 @@ const PastEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }>
       </View>
 
       {/* Events List */}
-      {!myPastEventsList || myPastEventsList.length === 0 ? (
-        <View style={{ paddingTop: 16 }}>
-          <View style={{
-            backgroundColor: themeColors.background,
-            borderRadius: 12,
-            padding: 16,
-            borderWidth: 2,
-            borderStyle: 'dashed',
-            borderColor: themeColors.border,
-            width: '100%',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: 120,
-          }}>
-            <View style={{ marginBottom: 12 }}>
-              <IconSymbol
-                name="clock.fill"
-                size={32}
-                color={themeColors.placeholderTextColor}
-              />
+      {loading || refreshing ? (
+          <EventCardSkeleton count={2} />
+        ) : (!myPastEventsList || myPastEventsList.length === 0 ? (
+          <View>
+            <View style={{
+              backgroundColor: themeColors.background,
+              borderRadius: 12,
+              padding: 16,
+              borderWidth: 2,
+              borderStyle: 'dashed',
+              borderColor: themeColors.border,
+              width: '100%',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 120,
+            }}>
+              <View style={{ marginBottom: 12 }}>
+                <IconSymbol
+                  name="clock.fill"
+                  size={32}
+                  color={themeColors.placeholderTextColor}
+                />
+              </View>
+              <ThemedText 
+                style={{ 
+                  fontSize: 16, 
+                  color: themeColors.placeholderTextColor,
+                  textAlign: 'center',
+                  marginBottom: 4,
+                  fontWeight: '600'
+                }}
+              >
+                Your event history is empty
+              </ThemedText>
+              <ThemedText 
+                style={{ 
+                  fontSize: 14, 
+                  color: themeColors.placeholderTextColor,
+                  textAlign: 'center',
+                  opacity: 0.8
+                }}
+              >
+                Past events will appear here once you attend them 
+              </ThemedText>
             </View>
-            <ThemedText 
-              style={{ 
-                fontSize: 16, 
-                color: themeColors.placeholderTextColor,
-                textAlign: 'center',
-                marginBottom: 4,
-                fontWeight: '600'
-              }}
-            >
-              Your event history is empty
-            </ThemedText>
-            <ThemedText 
-              style={{ 
-                fontSize: 14, 
-                color: themeColors.placeholderTextColor,
-                textAlign: 'center',
-                opacity: 0.8
-              }}
-            >
-              Past events will appear here once you attend them 
-            </ThemedText>
           </View>
-        </View>
-      ) : filteredEvents.length === 0 ? (
-        <ThemedText>No events found for the selected filter</ThemedText>
-      ) : (
-        <View style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {activeFilter.type === 'all' ? (
-            Object.entries(groupEventsByYearAndMonth(filteredEvents))
-              .sort(([yearA], [yearB]) => Number(yearB) - Number(yearA))
-              .map(([year, months]) => (
-                <View key={year} style={{ marginBottom: 16 }}>
-                  {/* Year Header */}
-                  <ThemedText style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8 }}>
-                    {year}
-                  </ThemedText>
-                  
-                  {/* Months */}
-                  {Object.entries(months)
-                    .sort(([monthA], [monthB]) => {
-                      if (monthA === THIS_MONTH) return -1;
-                      if (monthB === THIS_MONTH) return 1;
-                      if (monthA === LAST_MONTH) return -1;
-                      if (monthB === LAST_MONTH) return 1;
-                      return 0;
-                    })
-                    .map(([month, monthEvents], monthIndex, monthsArray) => (
-                      <View key={`${year}-${month}`} style={{ marginBottom: monthIndex === monthsArray.length - 1 ? 0 : 16 }}>
-                        {/* Month Header */}
-                        <ThemedText style={{ fontSize: 14, fontWeight: '600', marginBottom: 12, color: themeColors.tint }}>
-                          {month}
-                        </ThemedText>
-                        
-                        {/* Month Events */}
-                        <View style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingBottom: 8 }}>
-                          {monthEvents.map((event, eventIndex) => (
-                            <PastEvent
-                              key={event._id}
-                              event={event}
-                              loading={refreshing || loading}
-                            />
-                          ))}
+        ) : filteredEvents.length === 0 ? (
+          <ThemedText>No events found for the selected filter</ThemedText>
+        ) : (
+          <View style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {activeFilter.type === 'all' ? (
+              Object.entries(groupedEvents)
+                .sort(([yearA], [yearB]) => Number(yearB) - Number(yearA))
+                .map(([year, months]) => (
+                  <View key={year} style={{ marginBottom: 16 }}>
+                    {/* Year Header */}
+                    <ThemedText style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8 }}>
+                      {year}
+                    </ThemedText>
+                    
+                    {/* Months */}
+                    {Object.entries(months)
+                      .sort(([monthA], [monthB]) => {
+                        if (monthA === THIS_MONTH) return -1;
+                        if (monthB === THIS_MONTH) return 1;
+                        if (monthA === LAST_MONTH) return -1;
+                        if (monthB === LAST_MONTH) return 1;
+                        return 0;
+                      })
+                      .map(([month, monthEvents], monthIndex, monthsArray) => (
+                        <View key={`${year}-${month}`} style={{ marginBottom: monthIndex === monthsArray.length - 1 ? 0 : 16 }}>
+                          {/* Month Header */}
+                          <ThemedText style={{ fontSize: 14, fontWeight: '600', marginBottom: 12, color: themeColors.tint }}>
+                            {month}
+                          </ThemedText>
+                          
+                          {/* Month Events */}
+                          <View style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingBottom: 8 }}>
+                            {monthEvents.map((event, eventIndex) => (
+                              <PastEvent
+                                key={event._id}
+                                event={event}
+                                loading={refreshing || loading}
+                              />
+                            ))}
+                          </View>
                         </View>
-                      </View>
-                    ))}
-                </View>
+                      ))}
+                  </View>
+                ))
+            ) : (
+              filteredEvents.map((event) => (
+                <PastEvent
+                  key={event._id}
+                  event={event}
+                  loading={refreshing || loading}
+                />
               ))
-          ) : (
-            filteredEvents.map((event) => (
-              <PastEvent
-                key={event._id}
-                event={event}
-                loading={refreshing || loading}
-              />
-            ))
-          )}
-        </View>
-      )}
+            )}
+          </View>
+        ))
+      }
 
       <EventFilters
         visible={filterModalVisible}

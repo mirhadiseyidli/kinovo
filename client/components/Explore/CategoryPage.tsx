@@ -12,6 +12,8 @@ import api from '@/utils/api';
 import type { Event as EventType } from '@/types/allTypes';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { EventCardSkeleton } from '@/components/Skeleton';
+import { useFocusEffect } from '@react-navigation/native';
 
 const CategoryPage = () => {
   const { category } = useLocalSearchParams();
@@ -20,6 +22,7 @@ const CategoryPage = () => {
   const [events, setEvents] = useState<EventType[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const router = useRouter();
 
   const fetchEvents = async () => {
@@ -27,9 +30,11 @@ const CategoryPage = () => {
       const response = await api.get(`/api/manageevents/eventslist/category/${encodeURIComponent(category as string)}`);
       if (Array.isArray(response.data)) {
         setEvents(response.data);
+        setHasError(false); // Clear error state on successful fetch
       } else {
         console.error('Unexpected response format:', response.data);
         setEvents([]);
+        setHasError(true);
       }
     } catch (err: any) {
       console.error('Error fetching events:', err);
@@ -37,22 +42,49 @@ const CategoryPage = () => {
         console.error('Error response:', err.response.data);
       }
       setEvents([]);
+      setHasError(true);
+      throw err; // Re-throw to be handled by caller
+    }
+  };
+
+  const loadEvents = async () => {
+    setLoading(true);
+    setHasError(false);
+    try {
+      await fetchEvents();
+      setLoading(false); // Set loading to false on success
+    } catch (error) {
+      // On error, only set loading to false if we have existing data to show
+      if (events.length > 0) {
+        setLoading(false);
+      }
+      // If no existing data, keep loading true to show skeleton
     }
   };
 
   useEffect(() => {
-    const loadEvents = async () => {
-      setLoading(true);
-      await fetchEvents();
-      setLoading(false);
-    };
     loadEvents();
   }, [category]);
 
+  // Auto-recovery when screen comes into focus (for server reconnection scenarios)
+  useFocusEffect(
+    React.useCallback(() => {
+      // Only attempt recovery if we have an error and no data
+      if (hasError && events.length === 0 && !refreshing) {
+        loadEvents();
+      }
+    }, [hasError, events.length, refreshing])
+  );
+
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchEvents();
-    setRefreshing(false);
+    try {
+      await fetchEvents();
+    } catch (error) {
+      // Error handled in fetchEvents
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const navigateToCreateEvent = async () => {
@@ -123,14 +155,14 @@ const CategoryPage = () => {
             Upcoming Events
           </ThemedText>
           <ThemedText style={{ color: themeColors.textSecondary }}>
-            {events.length} events
+            {loading && events.length === 0 ? '...' : `${events.length} events`}
           </ThemedText>
         </ThemedView>
 
         {/* Events List */}
         <ThemedView style={{ gap: 16 }}>
-          {loading ? (
-            <ActivityIndicator size="large" color={themeColors.tint} />
+          {(loading && events.length === 0) || refreshing ? (
+            <EventCardSkeleton count={1} />
           ) : events.length > 0 ? (
             events.map((event) => (
               <Event
@@ -171,7 +203,7 @@ const CategoryPage = () => {
                   fontWeight: '600'
                 }}
               >
-                No events in this category yet
+                {hasError ? 'Unable to load events' : 'No events in this category yet'}
               </ThemedText>
               <ThemedText 
                 style={{ 
@@ -181,7 +213,7 @@ const CategoryPage = () => {
                   opacity: 0.8
                 }}
               >
-                Tap here to create the first {category} event!
+                {hasError ? 'Pull to refresh or check your connection' : `Tap here to create the first ${category} event!`}
               </ThemedText>
             </TouchableOpacity>
           )}

@@ -14,6 +14,7 @@ import { ActivityIndicator } from 'react-native';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
 import { jwtDecode } from 'jwt-decode';
 import Feather from '@expo/vector-icons/Feather';
+import DefaultProfilePicture from '@/components/DefaultProfilePicture';
 
 const FriendsEventsPage = () => {
   const colorScheme = useColorScheme();
@@ -155,9 +156,11 @@ const FriendEventCard: React.FC<FriendEventCardProps> = ({ event, userId }) => {
           marginBottom: 16,
         }}
       >
-        <Image 
-          source={event.creator?.profile_picture ? { uri: event.creator.profile_picture } : require('@/assets/profile-pic-2.jpeg')} 
-          style={{ width: 40, height: 40, borderRadius: 20 }}
+        <DefaultProfilePicture
+          profilePicture={event.creator?.profile_picture}
+          fullName={event.creator?.full_name}
+          size={40}
+          borderRadius={20}
         />
         <View style={{ marginLeft: 12 }}>
           <ThemedText style={{ fontWeight: 'bold' }}>

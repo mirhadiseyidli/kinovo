@@ -22,7 +22,13 @@ const {
   getUserTags,
   getFavoriteActivities,
   addFavoriteActivity,
-  removeFavoriteActivity
+  removeFavoriteActivity,
+  removeProfilePicture,
+  removeCoverPhoto,
+  getUserImages,
+  generateDefaultProfilePicture,
+  updateUserProfile,
+  deleteUserAccount
 } = require('../controllers/userController');
 const { authMiddleware, checkRole } = require('../utils/authMiddleware');
 
@@ -48,6 +54,14 @@ router.post('/unblock', authMiddleware, unblockUser);
 // Account deletion routes
 router.post('/delete-account', authMiddleware, requestAccountDeletion);
 router.post('/cancel-deletion', authMiddleware, cancelAccountDeletion);
+
+// Image management routes
+router.get('/images', authMiddleware, getUserImages);
+router.delete('/profile-picture', authMiddleware, removeProfilePicture);
+router.delete('/cover-photo', authMiddleware, removeCoverPhoto);
+
+// Generate default profile picture
+router.post('/generate-profile-picture', authMiddleware, generateDefaultProfilePicture);
 
 // User profile and management routes
 router.get('/me', authMiddleware, findMe);

@@ -4,6 +4,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
 import { useRouter } from 'expo-router';
+import DefaultProfilePicture from '../DefaultProfilePicture';
 
 interface UserListItemProps {
   _id: string;
@@ -71,15 +72,14 @@ export const UserListItem: React.FC<UserListItemProps> = ({
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-        <Image
-          source={avatarUri ? { uri: avatarUri } : require('@/assets/profile-pic-2.jpeg')}
-          style={{
-            width: avatarSize,
-            height: avatarSize,
-            borderRadius: avatarSize / 2,
-            marginRight: 12,
-          }}
-        />
+        <View style={{ marginRight: 12 }}>
+          <DefaultProfilePicture
+            profilePicture={avatarUri}
+            fullName={name}
+            size={avatarSize}
+            borderRadius={avatarSize / 2}
+          />
+        </View>
         <View style={{ flex: 1 }}>
           <ThemedText 
             style={{ 

@@ -62,7 +62,7 @@ const TabsLayout = React.memo(() => {
         <Tabs
           initialRouteName="index"
           backBehavior="history"
-          detachInactiveScreens={false}
+          detachInactiveScreens={true}
           screenOptions={{
             tabBarButton: HapticTab,
             tabBarActiveTintColor: Colors[colorScheme ?? 'dark'].tint,
@@ -77,7 +77,6 @@ const TabsLayout = React.memo(() => {
           <Tabs.Screen
             name="index"
             options={{
-              lazy: true,
               title: 'Home',
               tabBarIcon: TabBarIcons.home,
             }}
@@ -85,7 +84,6 @@ const TabsLayout = React.memo(() => {
           <Tabs.Screen
             name="explore"
             options={{
-              lazy: true,
               title: 'Explore',
               tabBarIcon: TabBarIcons.search,
             }}
@@ -103,7 +101,6 @@ const TabsLayout = React.memo(() => {
           <Tabs.Screen
             name="calendar"
             options={{
-              lazy: true,
               title: 'Calendar',
               tabBarIcon: TabBarIcons.calendar,
             }}
@@ -111,7 +108,6 @@ const TabsLayout = React.memo(() => {
           <Tabs.Screen
             name="profile"
             options={{
-              lazy: true,
               title: 'Profile',
               tabBarIcon: TabBarIcons.user,
             }}

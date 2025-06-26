@@ -20,9 +20,24 @@ type EventAttendee = {
   status?: AttendeeStatus;
 };
 
-const Attendees: React.FC<{ limit: number | null }> = ({ limit }) => {
+interface AttendeesProps {
+  limit: number | null;
+  suggestions: AttendeeFriend[];
+  setSuggestions: (suggestions: AttendeeFriend[]) => void;
+  showSuggestions: boolean;
+  setShowSuggestions: (show: boolean) => void;
+  onSuggestionSelectRef: React.MutableRefObject<((item: any) => void) | null>;
+}
+
+const Attendees: React.FC<AttendeesProps> = ({ 
+  limit, 
+  suggestions, 
+  setSuggestions, 
+  showSuggestions, 
+  setShowSuggestions,
+  onSuggestionSelectRef 
+}) => {
   const [inputValue, setInputValue] = useState('');
-  const [suggestions, setSuggestions] = useState<AttendeeFriend[]>([]);
   const [showAllAttendees, setShowAllAttendees] = useState(false);
   const [user, setUser] = useState<AttendeeFriend | null>(null);
   const [attendees, setAttendees] = useState<AttendeeFriend[]>([]);
@@ -159,6 +174,7 @@ const Attendees: React.FC<{ limit: number | null }> = ({ limit }) => {
     setAttendees((prev) => [...prev, friend]);
     setInputValue('');
     setSuggestions([]);
+    setShowSuggestions(false);
     Keyboard.dismiss();
   };
 
@@ -184,6 +200,9 @@ const Attendees: React.FC<{ limit: number | null }> = ({ limit }) => {
         suggestions={suggestions}
         handleAdd={handleAdd}
         placeholder="Add People"
+        showSuggestions={showSuggestions}
+        setShowSuggestions={setShowSuggestions}
+        onSuggestionSelectRef={onSuggestionSelectRef}
       />
 
       {/* Attendees List */}
@@ -192,12 +211,13 @@ const Attendees: React.FC<{ limit: number | null }> = ({ limit }) => {
           <View style={{ marginRight: 8, alignItems: 'center', justifyContent: 'center' }} key={friend._id}>
             <Friend 
               _id={friend._id} 
-              full_name={friend._id === user._id ? 'Organizer' : friend.full_name}
+              full_name={friend.full_name}
               username={friend.username}
               profile_picture={friend.profile_picture} 
               size={52}
               showName={true}
               refreshing={refreshing}
+              displayName={friend._id === user._id ? 'Organizer' : undefined}
             />
             {friend._id !== user._id && (
               <TouchableOpacity
@@ -282,12 +302,13 @@ const Attendees: React.FC<{ limit: number | null }> = ({ limit }) => {
                   <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                     <Friend 
                       _id={friend._id}
-                      full_name={friend._id === user._id ? 'Organizer' : friend.full_name}
+                      full_name={friend.full_name}
                       username={friend.username}
                       profile_picture={friend.profile_picture}
                       size={40}
                       showName={true}
                       refreshing={refreshing}
+                      displayName={friend._id === user._id ? 'Organizer' : undefined}
                     />
                   </View>
                   {friend._id !== user._id && (

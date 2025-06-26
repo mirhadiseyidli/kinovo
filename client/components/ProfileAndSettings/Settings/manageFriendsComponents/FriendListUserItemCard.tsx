@@ -5,6 +5,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { Router, useRouter } from 'expo-router';
 import { FriendListUserItemCardProps } from '@/types/allTypes';
+import DefaultProfilePicture from '../../../DefaultProfilePicture';
 
 export default function FriendListUserItemCard({
   _id,
@@ -62,14 +63,11 @@ export default function FriendListUserItemCard({
       ]}
     >
       <View style={{ flexDirection: 'column', alignItems: 'center', flex: 1, gap: 8 }}>
-        <Image
-          source={avatarUri ? { uri: avatarUri } : require('@/assets/profile-pic-2.jpeg')}
-          style={{
-            width: 88,
-            height: 88,
-            borderRadius: 88,
-            backgroundColor: themeColors.background,
-          }}
+        <DefaultProfilePicture
+          profilePicture={avatarUri}
+          fullName={name}
+          size={88}
+          borderRadius={44}
         />
         <View style={{ flexDirection: 'column', gap: 4, alignItems: 'center' }}>
           <Text style={{ fontWeight: 'bold', color: themeColors.text }}>{name}</Text>

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, ActivityIndicator, InteractionManager, Dimensions } from "react-native";
+import { View, InteractionManager, Dimensions, ViewStyle, DimensionValue } from "react-native";
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import { AppleMaps } from 'expo-maps';
-import { AppleMapsMapType } from 'expo-maps/build/apple/AppleMaps.types';
+import { MapSkeleton } from './Skeleton';
+import MapView, { Marker, MapViewProps } from 'react-native-maps';
+import { useLocation } from '@/context/LocationContext';
 
 export interface OptimizedMapViewProps {
   coordinates: {
@@ -12,16 +13,51 @@ export interface OptimizedMapViewProps {
   };
   selectedLocation?: string | null;
   height?: number;
-  width?: number | string;
+  width?: DimensionValue;
   zoom?: number;
   interactive?: boolean;
   showMarker?: boolean;
   lazy?: boolean;
   loadDelay?: number;
-  style?: any;
+  style?: ViewStyle;
 }
 
 const { width: screenWidth } = Dimensions.get('window');
+
+// Create a function for all map settings
+const useMapSettings = (props: {
+  interactive: boolean,
+  locationPermission: boolean,
+  coordinates: { latitude: number, longitude: number }
+}): { uiSettings: Partial<MapViewProps> } => {
+  // UI Settings - match exactly what's being used in MapView
+  const uiSettings = React.useMemo(() => ({
+    loadingEnabled: true,
+    showsUserLocation: Boolean(props.locationPermission),
+    scrollEnabled: false,
+    zoomEnabled: false,
+    pitchEnabled: false,
+    rotateEnabled: false,
+    style: { 
+      width: '100%', 
+      height: '100%',
+    } as ViewStyle,
+    region: {
+      latitude: props.coordinates.latitude,
+      longitude: props.coordinates.longitude,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    }
+  }), [
+    props.locationPermission, 
+    props.coordinates.latitude, 
+    props.coordinates.longitude
+  ]);
+
+  return {
+    uiSettings
+  };
+};
 
 const OptimizedMapView: React.FC<OptimizedMapViewProps> = ({
   coordinates,
@@ -41,6 +77,14 @@ const OptimizedMapView: React.FC<OptimizedMapViewProps> = ({
   const [shouldRender, setShouldRender] = useState(!lazy);
   const mountedRef = useRef(true);
   const interactionTaskRef = useRef<any>(null);
+  const locationPermission = useLocation();
+
+  // Use the settings hook with correct props
+  const { uiSettings } = useMapSettings({
+    interactive,
+    locationPermission: Boolean(locationPermission.locationPermission),
+    coordinates
+  });
 
   useEffect(() => {
     mountedRef.current = true;
@@ -78,65 +122,11 @@ const OptimizedMapView: React.FC<OptimizedMapViewProps> = ({
     };
   }, []);
 
-  // Memoize marker to prevent unnecessary re-renders
-  const marker = React.useMemo(() => {
-    if (!showMarker) return [];
-    
-    return [{
-      coordinates: {
-        latitude: coordinates.latitude,
-        longitude: coordinates.longitude
-      },
-      tintColor: themeColors.mountainGreen,
-      title: selectedLocation || ''
-    }];
-  }, [coordinates.latitude, coordinates.longitude, themeColors.mountainGreen, selectedLocation, showMarker]);
-
-  // Memoize camera position to prevent unnecessary re-renders
-  const cameraPosition = React.useMemo(() => ({
-    coordinates: {
-      latitude: coordinates.latitude,
-      longitude: coordinates.longitude
-    },
-    zoom: zoom
-  }), [coordinates.latitude, coordinates.longitude, zoom]);
-
-  // Memoize UI settings
-  const uiSettings = React.useMemo(() => ({
-    myLocationButtonEnabled: false,
-    togglePitchEnabled: false,
-    rotateGesturesEnabled: interactive,
-    scrollGesturesEnabled: interactive,
-    tiltGesturesEnabled: interactive,
-    zoomGesturesEnabled: interactive,
-  }), [interactive]);
-
   // Don't render anything if not ready
   if (!shouldRender) {
     return (
-      <View 
-        style={[
-          { 
-            height, 
-            width, 
-            backgroundColor: themeColors.inputBackgroundColor,
-            borderRadius: 8,
-            justifyContent: 'center',
-            alignItems: 'center'
-          },
-          style
-        ]}
-      >
-        <View style={{ 
-          width: 40, 
-          height: 40, 
-          borderRadius: 20, 
-          backgroundColor: themeColors.background,
-          justifyContent: 'center',
-          alignItems: 'center'
-        }}>
-          <ActivityIndicator size="small" color={themeColors.mountainGreen} />
-        </View>
+      <View style={style}>
+        <MapSkeleton height={typeof height === 'number' ? height : 150} />
       </View>
     );
   }
@@ -144,50 +134,36 @@ const OptimizedMapView: React.FC<OptimizedMapViewProps> = ({
   // Show loading state while map initializes
   if (!isMapReady) {
     return (
-      <View 
-        style={[
-          { 
-            height, 
-            width, 
-            backgroundColor: themeColors.inputBackgroundColor,
-            borderRadius: 8,
-            justifyContent: 'center',
-            alignItems: 'center'
-          },
-          style
-        ]}
-      >
-        <ActivityIndicator size="small" color={themeColors.mountainGreen} />
+      <View style={style}>
+        <MapSkeleton height={typeof height === 'number' ? height : 150} />
       </View>
     );
   }
 
-  return (
-    <View 
-      style={[
-        { 
-          height, 
-          width, 
-          borderRadius: 8,
-          overflow: 'hidden'
-        },
-        style
-      ]}
-      pointerEvents={interactive ? 'auto' : 'none'}
-    >
-      <AppleMaps.View
-        style={{
-          flex: 1,
-          borderRadius: 8
-        }}
-        properties={{
-          mapType: AppleMapsMapType.STANDARD,
-        }}
-        cameraPosition={cameraPosition}
-        markers={marker}
-        uiSettings={uiSettings}
+  const containerStyle: ViewStyle = {
+    height, 
+    width: width as DimensionValue, 
+    borderRadius: 8,
+    overflow: 'hidden'
+  };
 
-      />
+  // Ensure title is always a string
+  const markerTitle = selectedLocation?.toString() ?? 'Selected Location';
+
+  return (
+    <View style={[containerStyle, style]}>
+      <MapView {...uiSettings} userInterfaceStyle={colorScheme === 'dark' ? 'dark' : 'light'}>
+        {showMarker && (
+          <Marker 
+            coordinate={{
+              latitude: coordinates.latitude,
+              longitude: coordinates.longitude,
+            }} 
+            title={markerTitle}
+            pinColor={themeColors.mountainGreen}
+          />
+        )}
+      </MapView>
     </View>
   );
 };
@@ -222,4 +198,4 @@ export const useMapVisibility = (threshold: number = 100) => {
   };
 };
 
-export default React.memo(OptimizedMapView); 
+export default React.memo(OptimizedMapView);

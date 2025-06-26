@@ -6,6 +6,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { ThemedText } from '@/components/ThemedText';
 import { Feather, Octicons } from '@expo/vector-icons';
 import { ManageFriendButtonProps } from '@/types/allTypes';
+import { shareContent } from '@/utils/shareUtils';
 
 const ShareUserProfileButton = ({ targetUser, buttonFlex = 1 }: ManageFriendButtonProps) => {
   const colorScheme = useColorScheme();
@@ -24,8 +25,8 @@ const ShareUserProfileButton = ({ targetUser, buttonFlex = 1 }: ManageFriendButt
         alignItems: 'center',
         justifyContent: 'center'
       }}
-      onPress={() => {
-        console.log('Sharing')
+      onPress={async () => {
+        await shareContent('profile', targetUser, 'Check out this profile on Kinovo');
       }}
     >
       <Feather name='share-2' color={themeColors.text} size={16}/>

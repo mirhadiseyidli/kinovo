@@ -1,5 +1,5 @@
 import { StyleSheet, Text, RefreshControl, StatusBar, View, Dimensions, ScrollView, InteractionManager } from 'react-native';
-import React, { useCallback, useState, useEffect, useRef, useMemo } from 'react';
+import React, { useCallback, useState, useEffect, useRef, useMemo, Suspense } from 'react';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -9,14 +9,18 @@ import CalendarHeader from '@/components/Calendar/CalendarHeader';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import Dropdown from '@/components/PickerCustom';
-import MonthView from '@/components/Calendar/MonthView';
+// import MonthView from '@/components/Calendar/MonthView'; // Lazy loaded below
 import Animated, { FadeIn, FadeOut, SlideInLeft, SlideOutLeft, SlideInRight, SlideOutRight, runOnJS, LinearTransition, useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
-import WeekView from '@/components/Calendar/WeekView';
-import ThreeDaysView from '@/components/Calendar/ThreeDaysView';
-import DayView from '@/components/Calendar/DayView';
-import ScheduleView from '@/components/Calendar/ScheduleView';
 import { MonthToggleRef } from '@/types/allTypes';
 import { CalendarViewProvider, useCalendarViewContext } from '@/context/CalendarViewContext';
+import WeekView from '@/components/Calendar/WeekView';
+import ScheduleView from '@/components/Calendar/ScheduleView';
+import MonthView from '@/components/Calendar/MonthView';
+
+// Lazy load calendar view components for better performance
+const LazyWeekView = React.memo(WeekView);
+const LazyScheduleView = React.memo(ScheduleView);
+const LazyMonthView = React.memo(MonthView);
 
 export interface WeekViewRef {
   currentDate: Date;
@@ -42,32 +46,34 @@ function RenderedCalendarView({
   onFinishFetching: () => void;
   animateMonthRef: React.RefObject<boolean>;
 }) {
-  const MemoizedMonthView = React.memo(MonthView);
   const { view, setView } = useCalendarViewContext();
 
   return (
     <View style={{ flex: 1 }}>
       {view.toLowerCase() === 'month' ? (
-        <MemoizedMonthView
+        <LazyMonthView
           ref={monthViewRef}
           currentDateRef={currentDateRef}
           handleMonthYearChange={handleMonthYearChange}
+          fromDropdownRef={animateMonthRef}
           refreshing={refreshing}
           onFinishRefresh={onFinishFetching}
-          fromDropdownRef={animateMonthRef}
         />
       ) : view.toLowerCase() === 'week' ? (
         <WeekView
           ref={weekViewRef}
           handleMonthYearChange={handleMonthYearChange}
           fromDropdownRef={animateMonthRef}
+          refreshing={refreshing}
+          onFinishRefresh={onFinishFetching}
         />
-      ) : view.toLowerCase() === 'schedule' ? (
+      ) : (
         <ScheduleView
-          key={`schedule-${currentDateRef.current?.getTime()}`}
           currentDateRef={currentDateRef}
+          refreshing={refreshing}
+          onFinishRefresh={onFinishFetching}
         />
-      ) : null}
+      )}
     </View>
   );
 }

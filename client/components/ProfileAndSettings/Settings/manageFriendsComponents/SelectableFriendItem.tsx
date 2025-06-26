@@ -4,6 +4,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { Feather } from '@expo/vector-icons';
+import DefaultProfilePicture from '../../../DefaultProfilePicture';
 
 interface SelectableFriendItemProps {
   _id: string;
@@ -44,13 +45,11 @@ const SelectableFriendItem: React.FC<SelectableFriendItemProps> = ({
         flexDirection: 'row',
         alignItems: 'center',
       }}>
-        <Image
-          source={avatarUri ? { uri: avatarUri } : require('@/assets/profile-pic-2.jpeg')}
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-          }}
+        <DefaultProfilePicture
+          profilePicture={avatarUri}
+          fullName={name}
+          size={40}
+          borderRadius={20}
         />
         <View style={{
           flex: 1,
