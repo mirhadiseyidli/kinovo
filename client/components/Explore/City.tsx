@@ -1,11 +1,14 @@
 import React from 'react';
-import { View, Text, ImageBackground, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { CityProps } from '@/types/allTypes';
+import { OptimizedImage } from '@/components/OptimizedImage';
+
+const CITY_SIZE = 180;
 
 const City: React.FC<CityProps> = ({ name, image, onPress }) => {
   const colorScheme = useColorScheme();
@@ -18,8 +21,7 @@ const City: React.FC<CityProps> = ({ name, image, onPress }) => {
   return (
     <TouchableOpacity
       style={{
-        flex: 1,
-        width: '100%',
+        width: CITY_SIZE,
         alignItems: 'center',
         justifyContent: 'center',
         borderRadius: 16, // Match the rounded corners of the child
@@ -28,29 +30,37 @@ const City: React.FC<CityProps> = ({ name, image, onPress }) => {
         shadowOpacity: 0.2,
         shadowRadius: 2,
         elevation: 2, // For Android
-        alignSelf: 'center', // Center horizontally
+        backgroundColor: 'transparent',
+        alignSelf: 'stretch',
         marginVertical: 8,
       }}
       onPress={onPress}
     >
       <ThemedView
         style={{
-          flex: 1,
           overflow: 'hidden',
           borderRadius: 16, // Rounded corners
-          aspectRatio: 1,
-          width: '90%',
+          width: CITY_SIZE,
+          height: CITY_SIZE,
         }}
       >
-        <ImageBackground
-          source={image}
-          resizeMode="cover"
-          style={{
-            flex: 1,
-            width: '100%',
-            height: '100%',
-          }}
-        >
+        <View style={{ flex: 1, width: '100%', height: '100%' }}>
+          <OptimizedImage
+            source={null} // Use require() images as fallback
+            style={{
+              width: '100%',
+              height: '100%',
+            }}
+            containerStyle={{
+              flex: 1,
+              width: '100%',
+              height: '100%',
+            }}
+            placeholder={image} // Use the require() image as placeholder
+            resizeMode="cover"
+            showLoader={false} // Don't show loader for instant display
+            quality={0.8}
+          />
           <BlurView
             intensity={50}
             style={{
@@ -66,7 +76,7 @@ const City: React.FC<CityProps> = ({ name, image, onPress }) => {
               {name}
             </ThemedText>
           </BlurView>
-        </ImageBackground>
+        </View>
       </ThemedView>
     </TouchableOpacity>
   );

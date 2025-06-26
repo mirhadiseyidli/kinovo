@@ -30,7 +30,6 @@
 */.DS_Store
 .DS_Store
 */*.pem
-*/*.plist
 
 # local env files
 */.env*.local
@@ -61,3 +60,6 @@
 # Test plist
 *test 
 */testplist.ts
+
+# Build
+*build*

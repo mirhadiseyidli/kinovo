@@ -1,17 +1,24 @@
 import React, { useMemo } from 'react';
-import { Dimensions, View, useWindowDimensions } from 'react-native';
+import { Dimensions, View } from 'react-native';
 import { ThemedView } from '@/components/ThemedView';
-import { ThemedText } from '../../ThemedText';
-import { useColorScheme } from '../../../hooks/useColorScheme';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import ReanimatedShimmerLine from '../../CustomLoadingIndicatingLine';
-import { Event, MonthCalendarProps } from '@/types/allTypes';
+import ReanimatedShimmerLine from '@/components/CustomLoadingIndicatingLine';
+import { MonthCalendarProps } from '@/types/allTypes';
 import { getMonthDays } from '../CalendarUtils';
 import DayCell from './DayCell';
+import StaticGrid from './StaticGrid';
 
 const MemoizedDayCell = React.memo(DayCell);
 
-const MonthCalendar: React.FC<MonthCalendarProps> = ({ monthDate, refreshing, loading, handleMonthYearChange }) => {
+interface MonthCalendarComponentProps {
+  monthDate: Date;
+  refreshing: boolean;
+  loading: boolean;
+  handleMonthYearChange: (month: number, year: number, day: number, fromDropdown: boolean) => void;
+}
+
+const MonthCalendar: React.FC<MonthCalendarComponentProps> = ({ monthDate, refreshing, loading, handleMonthYearChange }) => {
   const month = monthDate.getMonth();
   const year = monthDate.getFullYear();
   const calendarDays = getMonthDays(year, month);
@@ -31,29 +38,54 @@ const MonthCalendar: React.FC<MonthCalendarProps> = ({ monthDate, refreshing, lo
   }, [calendarDays]);
 
   return (
-    <ThemedView style={{ width: '100%' }}>
-      <ThemedView style={{ flexDirection: 'column', width: '100%' }}>
+    <ThemedView style={{ width: '100%', height: cellHeight * 6 }}>
+      {/* Static Grid */}
+      <StaticGrid cellWidth={cellWidth} cellHeight={cellHeight} />
+      
+      {/* Loading Indicator */}
+      {(loading || refreshing) && (
+        <View style={{ 
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 2
+        }}>
+          <ReanimatedShimmerLine />
+        </View>
+      )}
+      
+      {/* Days Overlay */}
+      <View style={{ position: 'relative', width: '100%', height: '100%' }}>
         {weeks.map((week, rowIndex) => (
-          <View key={rowIndex} style={{ flexDirection: 'row' }}>
+          <View key={rowIndex} style={{ 
+            flexDirection: 'row', 
+            position: 'absolute', 
+            top: rowIndex * cellHeight, 
+            left: 0, 
+            right: 0,
+            opacity: loading ? 0.5 : 1
+          }}>
             {week.map((date, idx) => {
               const dateKey = date.toISOString().split('T')[0];
               return (
-                <MemoizedDayCell
-                  key={`${dateKey}-${idx}`}
-                  date={date}
-                  month={month}
-                  today={today}
-                  cellWidth={cellWidth}
-                  cellHeight={cellHeight}
-                  handleMonthYearChange={handleMonthYearChange}
-                />
+                <View key={`${dateKey}-${idx}`} style={{ width: cellWidth, height: cellHeight }}>
+                  <MemoizedDayCell
+                    date={date}
+                    month={month}
+                    today={today}
+                    cellWidth={cellWidth}
+                    cellHeight={cellHeight}
+                    handleMonthYearChange={(day) => handleMonthYearChange(month, year, day, true)}
+                  />
+                </View>
               );
             })}
           </View>
         ))}
-      </ThemedView>
+      </View>
     </ThemedView>
   );
 };
 
-export default MonthCalendar;
+export default React.memo(MonthCalendar);

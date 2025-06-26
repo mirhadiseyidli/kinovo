@@ -26,7 +26,7 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
-const EventFilters: React.FC<EventFiltersProps> = ({
+const EventFilters: React.FC<EventFiltersProps> = React.memo(({
   visible,
   onClose,
   activeFilter,
@@ -277,6 +277,8 @@ const EventFilters: React.FC<EventFiltersProps> = ({
       </TouchableOpacity>
     </Modal>
   );
-};
+});
+
+EventFilters.displayName = 'EventFilters';
 
 export default EventFilters; 

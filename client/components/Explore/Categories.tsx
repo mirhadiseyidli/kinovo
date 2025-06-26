@@ -8,6 +8,8 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useRouter } from 'expo-router';
 import { useCategories } from '@/hooks/useCategories';
 import { Feather } from '@expo/vector-icons';
+import { CategoriesSkeleton } from '../Skeleton';
+import { useFocusEffect } from '@react-navigation/native';
 
 type FeatherIconName = React.ComponentProps<typeof Feather>['name'];
 
@@ -49,6 +51,17 @@ const Categories: React.FC<CategoriesProps> = ({ refreshing, onFinishRefresh }) 
       });
     }
   }, [refreshing]);
+
+  // Auto-recovery when screen comes into focus (for server reconnection scenarios)
+  useFocusEffect(
+    React.useCallback(() => {
+      if (refreshing) {
+        fetchCategories().finally(() => {
+          onFinishRefresh();
+        });
+      }
+    }, [refreshing])
+  );
 
   const handleCategoryPress = (category: string) => {
     router.push(`/(auth)/(category)/${category}`);
@@ -125,32 +138,36 @@ const Categories: React.FC<CategoriesProps> = ({ refreshing, onFinishRefresh }) 
 
       {/* Scrollable Categories */}
       <ThemedView style={{ width: screenWidth }}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ width: screenWidth }}
-          contentContainerStyle={{ 
-            paddingHorizontal: 16,
-            flexDirection: 'row',
-            alignItems: 'center',
-          }}
-        >
-          {categories.map((category, index) => (
-            <View
-              key={category._id}
-              style={{
-                marginRight: index === categories.length - 1 ? 0 : CATEGORY_SPACING,
-              }}
-            >
-              <Category
-                iconName={getIconForCategory(category.name)}
-                label={category.name}
-                iconColor={categoryColors[index % categoryColors.length]}
-                onPress={() => handleCategoryPress(category.name)}
-              />
-            </View>
-          ))}
-        </ScrollView>
+        {loading || refreshing ? (
+          <CategoriesSkeleton />
+        ) : (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ width: screenWidth }}
+            contentContainerStyle={{ 
+              paddingHorizontal: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+            }}
+          >
+            {categories.map((category, index) => (
+              <View
+                key={category._id}
+                style={{
+                  marginRight: index === categories.length - 1 ? 0 : CATEGORY_SPACING,
+                }}
+              >
+                <Category
+                  iconName={getIconForCategory(category.name)}
+                  label={category.name}
+                  iconColor={categoryColors[index % categoryColors.length]}
+                  onPress={() => handleCategoryPress(category.name)}
+                />
+              </View>
+            ))}
+          </ScrollView>
+        )}
       </ThemedView>
     </ThemedView>
   );

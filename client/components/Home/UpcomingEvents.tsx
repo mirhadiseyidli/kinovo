@@ -11,57 +11,67 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Event } from '@/types/allTypes';
 import { useRouter } from 'expo-router';
 import { useEventContext } from '@/context/UserSessionContext';
-import { UpcomingEventsSkeleton } from '../Skeleton';
+import { EventCardSkeleton } from '../Skeleton';
 
 const UpcomingEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }> = React.memo(({ refreshing, onFinishRefresh }) => {
-  const { fetchMyEvents, loading } = useGetMyEvents();
+  const { fetchMyEvents, loading, clearCache, myEventsList } = useGetMyEvents();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const [myEventsList, setMyEventsList] = useState<Event[]>([]);
+  const [localEventsList, setLocalEventsList] = useState<Event[]>(myEventsList || []);
   const router = useRouter();
-  const { events, eventOccurrences, refreshing: contextRefreshing } = useEventContext();
+  const { refreshing: contextRefreshing } = useEventContext();
 
-  if (!myEventsList) {
-    <ThemedText>Could't load events</ThemedText>
-  };
-
-  const navigateToCalendar = () => {
+  const navigateToCalendar = React.useCallback(() => {
     router.push('/(auth)/(tabs)/calendar')
-  }
+  }, [router]);
 
-  const navigateToCreateEvent = () => {
+  const navigateToCreateEvent = React.useCallback(() => {
     router.push('/(auth)/(createEvent)/EventDetails')
-  }
+  }, [router]);
   
-  const fetchEvents = async () => {
-    const upcomingEvents = await fetchMyEvents();
-    if (upcomingEvents && Array.isArray(upcomingEvents)) {
-      setMyEventsList(upcomingEvents);
-    } else {
-      setMyEventsList([]);
+  const fetchEvents = React.useCallback(async (forceRefresh: boolean = false) => {
+    try {
+      // Backend optimization: Pass fromHomeScreen=true to limit response to first 3 events
+      const upcomingEvents = await fetchMyEvents(true, forceRefresh);
+      if (upcomingEvents && Array.isArray(upcomingEvents)) {
+        setLocalEventsList(upcomingEvents);
+      } else {
+        setLocalEventsList([]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch upcoming events:', error);
+      setLocalEventsList([]);
+    } finally {
+      onFinishRefresh();
     }
-    onFinishRefresh();
-  }
+  }, [fetchMyEvents, onFinishRefresh]);
   
   // Fetch events when explicitly refreshing
   useFocusEffect(
     React.useCallback(() => {
       if (refreshing) {
-        fetchEvents();
+        // Force refresh when pull-to-refresh is triggered
+        fetchEvents(true);
+      } else {
+        // Normal fetch (will use cache if available)
+        fetchEvents(false);
       }
-    }, [refreshing])
+    }, [refreshing, fetchEvents])
   );
 
-  // Automatically refresh events when the events context changes
+  // Update local state when hook state changes
   useEffect(() => {
-    if (!refreshing && !contextRefreshing) {
-      fetchEvents();
+    if (myEventsList) {
+      setLocalEventsList(myEventsList);
     }
-  }, [events, eventOccurrences]);
+  }, [myEventsList]);
 
-  if (loading || refreshing) {
-    return <UpcomingEventsSkeleton />;
-  }
+  // Clear cache when context signals a refresh is needed
+  useEffect(() => {
+    if (contextRefreshing) {
+      clearCache();
+    }
+  }, [contextRefreshing, clearCache]);
 
   return (
     <ThemedView style={{ flex: 1, width: '100%' }}>
@@ -84,62 +94,66 @@ const UpcomingEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => voi
       </View>
 
       {/* Event List */}
-      <View style={{ flex: 1 }}>
-        {myEventsList.length > 0 ? (
-          <View style={{ gap: 16 }}>
-            {myEventsList.map((event, index) => (
-              <View key={`${event._id}-${index}`}>
-                <EventComponent event={event} loading={refreshing || loading}/>
-              </View>
-            ))}
-          </View>
-        ) : (
-          <TouchableOpacity
-            onPress={navigateToCreateEvent}
-            style={{
-              backgroundColor: themeColors.background,
-              borderRadius: 12,
-              padding: 16,
-              borderWidth: 2,
-              borderStyle: 'dashed',
-              borderColor: themeColors.border,
-              width: '100%',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minHeight: 120,
-            }}
-          >
-            <View style={{ marginBottom: 12 }}>
-              <IconSymbol
-                name="calendar"
-                size={32}
-                color={themeColors.placeholderTextColor}
-              />
+      {loading || refreshing ? (
+        <EventCardSkeleton count={2} />
+      ) : (
+        <View style={{ flex: 1 }}>
+          {localEventsList.length > 0 ? (
+            <View style={{ gap: 16 }}>
+              {localEventsList.map((event, index) => (
+                <View key={`${event._id}-${index}`}>
+                  <EventComponent event={event} loading={refreshing || loading}/>
+                </View>
+              ))}
             </View>
-            <ThemedText 
-              style={{ 
-                fontSize: 16, 
-                color: themeColors.placeholderTextColor,
-                textAlign: 'center',
-                marginBottom: 4,
-                fontWeight: '600'
+          ) : (
+            <TouchableOpacity
+              onPress={navigateToCreateEvent}
+              style={{
+                backgroundColor: themeColors.background,
+                borderRadius: 12,
+                padding: 16,
+                borderWidth: 2,
+                borderStyle: 'dashed',
+                borderColor: themeColors.border,
+                width: '100%',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: 120,
               }}
             >
-              No upcoming events yet
-            </ThemedText>
-            <ThemedText 
-              style={{ 
-                fontSize: 14, 
-                color: themeColors.placeholderTextColor,
-                textAlign: 'center',
-                opacity: 0.8
-              }}
-            >
-              Tap here to create your first event! 
-            </ThemedText>
-          </TouchableOpacity>
-        )}
-      </View>
+              <View style={{ marginBottom: 12 }}>
+                <IconSymbol
+                  name="calendar"
+                  size={32}
+                  color={themeColors.placeholderTextColor}
+                />
+              </View>
+              <ThemedText 
+                style={{ 
+                  fontSize: 16, 
+                  color: themeColors.placeholderTextColor,
+                  textAlign: 'center',
+                  marginBottom: 4,
+                  fontWeight: '600'
+                }}
+              >
+                No upcoming events yet
+              </ThemedText>
+              <ThemedText 
+                style={{ 
+                  fontSize: 14, 
+                  color: themeColors.placeholderTextColor,
+                  textAlign: 'center',
+                  opacity: 0.8
+                }}
+              >
+                Tap here to create your first event! 
+              </ThemedText>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
     </ThemedView>
   );
 });

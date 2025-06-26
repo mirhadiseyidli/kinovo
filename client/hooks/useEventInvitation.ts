@@ -135,11 +135,34 @@ export const useEventInvitation = () => {
     }
   };
 
+  const removeAttendee = async (eventId: string, attendeeId: string) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await api.post('/api/manageevents/eventslist/remove-attendee', {
+        eventId,
+        attendeeId
+      });
+      
+      return response.data;
+    } catch (error) {
+      const err = error as ApiError;
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to remove attendee';
+      setError(errorMessage);
+      Alert.alert('Error', errorMessage);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     respondToInvitation,
     joinEvent,
     markNotInterested,
     cancelEvent,
+    removeAttendee,
     loading,
     error
   };

@@ -1,15 +1,15 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { NotificationCardProps } from '@/types/allTypes';
 
-const NotificationCard: React.FC<NotificationCardProps> = ({ notification, onPress, isMarking = false }) => {
+const NotificationCard: React.FC<NotificationCardProps> = React.memo(({ notification, onPress, isMarking = false }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
 
-  const getNotificationIcon = () => {
+  const getNotificationIcon = useMemo(() => {
     if (isMarking) {
       return <ActivityIndicator size="small" color="white" />;
     }
@@ -38,9 +38,9 @@ const NotificationCard: React.FC<NotificationCardProps> = ({ notification, onPre
       default:
         return <Feather name="bell" size={20} color="white" />;
     }
-  };
+  }, [notification.type, isMarking]);
 
-  const getIconBackgroundColor = () => {
+  const iconBackgroundColor = useMemo(() => {
     switch (notification.type) {
       case 'friend_request':
         return themeColors.tint;
@@ -65,10 +65,12 @@ const NotificationCard: React.FC<NotificationCardProps> = ({ notification, onPre
       default:
         return themeColors.tint;
     }
-  };
+  }, [notification.type, themeColors.tint, themeColors.mountainGreen]);
 
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
+  const displayTime = useMemo(() => {
+    if (notification.time) return notification.time;
+    
+    const date = new Date(notification.created_at);
     const now = new Date();
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
     
@@ -76,15 +78,7 @@ const NotificationCard: React.FC<NotificationCardProps> = ({ notification, onPre
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
     if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
     return `${Math.floor(diffInMinutes / 1440)}d ago`;
-  };
-
-  const displayTime = notification.time || formatTime(notification.created_at);
-
-  console.log('NotificationCard', {
-    title: notification.title,
-    subtitle: notification.subtitle,
-    type: notification.type,
-  });
+  }, [notification.time, notification.created_at]);
 
   return (
     <TouchableOpacity
@@ -106,13 +100,13 @@ const NotificationCard: React.FC<NotificationCardProps> = ({ notification, onPre
           width: 40,
           height: 40,
           borderRadius: 20,
-          backgroundColor: getIconBackgroundColor(),
+          backgroundColor: iconBackgroundColor,
           justifyContent: 'center',
           alignItems: 'center',
           marginRight: 12,
         }}
       >
-        {getNotificationIcon()}
+        {getNotificationIcon}
       </View>
 
       {/* Content */}
@@ -185,6 +179,8 @@ const NotificationCard: React.FC<NotificationCardProps> = ({ notification, onPre
       </View>
     </TouchableOpacity>
   );
-};
+});
+
+NotificationCard.displayName = 'NotificationCard';
 
 export default NotificationCard; 

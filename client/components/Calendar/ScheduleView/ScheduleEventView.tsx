@@ -199,4 +199,4 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
   );
 };
 
-export default ScheduleEventView;
+export default React.memo(ScheduleEventView);

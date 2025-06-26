@@ -1,5 +1,5 @@
 const express = require('express');
-const { getMyEvents, getUserEvents, createEvent, getMyPastEvents, getMyUpcomingEvents, getMyEventsCalendarMonthView, getMyEventsForDateRange, getEventById, getNearbyEvents, respondToEventInvitation, cancelEvent, deleteRecurringEvents, inviteEventAttendees, getEventsByCategory, getEventsByCity, getAttentionRequiredEvents, getRecommendedEvents, getFriendsEvents, joinEvent, markEventNotInterested, reportEvent, updateEvent } = require('../controllers/eventsController');
+const { getMyEvents, getUserEvents, createEvent, getMyPastEvents, getMyUpcomingEvents, getMyEventsCalendarMonthView, getMyEventsForDateRange, getEventById, getNearbyEvents, respondToEventInvitation, cancelEvent, deleteRecurringEvents, inviteEventAttendees, getEventsByCategory, getEventsByCity, getAttentionRequiredEvents, getRecommendedEvents, getFriendsEvents, joinEvent, markEventNotInterested, reportEvent, updateEvent, removeEventAttendee } = require('../controllers/eventsController');
 const { authMiddleware } = require('../utils/authMiddleware');
 
 const router = express.Router();
@@ -27,5 +27,8 @@ router.get('/eventslist/category/:category', authMiddleware, getEventsByCategory
 router.get('/eventslist/city/:city', authMiddleware, getEventsByCity);
 router.get('/eventslist/friends', authMiddleware, getFriendsEvents);
 // router.get('/eventslist/get/event/categories', authMiddleware, getEventCategories);
+
+// Add remove attendee route
+router.post('/eventslist/remove-attendee', authMiddleware, removeEventAttendee);
 
 module.exports = router;

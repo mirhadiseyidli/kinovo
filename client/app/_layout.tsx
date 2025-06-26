@@ -36,11 +36,11 @@ registerRootComponent(RootLayout);
 export default function RootLayout(): ReactNode {
   return (
     <AuthProvider>
-    <GestureHandlerRootView style={{ flex: 1 }}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
         <KeyboardProvider>
-                  <InnerLayout />
+          <InnerLayout />
         </KeyboardProvider>
-    </GestureHandlerRootView>
+      </GestureHandlerRootView>
     </AuthProvider>
   );
 }

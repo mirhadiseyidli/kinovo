@@ -367,11 +367,17 @@ const syncContacts = async (req, res) => {
       return res.status(400).json({ message: 'Phone numbers are required and should be an array' });
     }
 
-    const users = await Users.find({ 'phone_number.full_num': { $in: phoneNumbers } });
+    const users = await Users.find({ 'phone_number.full_num': { $in: phoneNumbers } })
+      .select('_id full_name username profile_picture phone_number.full_num');
+    
     const existingNumbers = users.map(u => ({
       _id: u._id,
-      phoneNumber: u.phone_number.full_num
+      phoneNumber: u.phone_number.full_num,
+      full_name: u.full_name,
+      username: u.username,
+      profile_picture: u.profile_picture
     }));
+    
     res.status(200).json(existingNumbers);
   } catch (error) {
     res.status(500).json({ error: error.message });

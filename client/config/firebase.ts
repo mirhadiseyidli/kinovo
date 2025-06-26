@@ -8,6 +8,7 @@ import { jwtDecode } from 'jwt-decode';
 // Initialize Firebase if it hasn't been initialized yet
 let appInitialized = false;
 const firebaseApp = getApps().length ? getApp() : getApp(); // Redundant for clarity
+console.log(firebaseApp);
 
 if (getApps().length) {
   console.log('Firebase initialized');
@@ -52,7 +53,7 @@ const auth = getAuth(firebaseApp);
 const configurePhoneAuth = async () => {
   if (__DEV__) {
     // In development, allow test phone numbers
-    auth.settings.appVerificationDisabledForTesting = true;
+    auth.settings.appVerificationDisabledForTesting = false;
     console.log('Development mode: test phone numbers enabled');
   } else {
     // In production, use real phone verification

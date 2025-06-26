@@ -6,8 +6,9 @@ import { Colors } from '@/constants/Colors';
 import { useRouter } from 'expo-router';
 import { Event, User } from '@/types/allTypes';
 import { LinearGradient } from 'expo-linear-gradient';
+import DefaultProfilePicture from '../DefaultProfilePicture';
 
-const PastEvent: React.FC<{ event: Event; loading: boolean }> = ({ event, loading }) => {
+const PastEvent: React.FC<{ event: Event; loading: boolean }> = React.memo(({ event, loading }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
@@ -83,16 +84,19 @@ const PastEvent: React.FC<{ event: Event; loading: boolean }> = ({ event, loadin
           {Array.isArray(event.attendees) && (
             <View style={{ flexDirection: 'row', marginTop: 4 }}>
               {event.attendees.slice(0, 3).map((user, i) => (
-                <Image
+                <View
                   key={user.user?._id}
-                  source={user.user?.profile_picture ? { uri: user.user?.profile_picture } : require('@/assets/profile-pic-2.jpeg')}
                   style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 999,
                     marginLeft: i === 0 ? 0 : -12,
                   }}
-                />
+                >
+                  <DefaultProfilePicture
+                    profilePicture={user.user?.profile_picture}
+                    fullName={user.user?.full_name}
+                    size={36}
+                    borderRadius={18}
+                  />
+                </View>
               ))}
             </View>
           )}
@@ -100,7 +104,9 @@ const PastEvent: React.FC<{ event: Event; loading: boolean }> = ({ event, loadin
       </View>
     </TouchableOpacity>
   );
-};
+});
+
+PastEvent.displayName = 'PastEvent';
 
 export default PastEvent;
 

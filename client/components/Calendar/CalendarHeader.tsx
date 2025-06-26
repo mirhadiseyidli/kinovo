@@ -6,7 +6,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { CalendarHeaderMonthViewRefProps, CalendarHeaderProps, MonthItem } from '@/types/allTypes';
 import { format } from 'date-fns';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, interpolate, Layout, LinearTransition, useDerivedValue, withSpring, FadeIn } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, interpolate, Layout, LinearTransition, useDerivedValue, withSpring, FadeIn, useAnimatedReaction } from 'react-native-reanimated';
 import MonthListToggle from './CalendarHeader/MonthListToggle';
 import CurrentMonthSelector from './CalendarHeader/CurrentMonthSelector';
 import { getSelectedItem, buildWindow, buildYearMonths } from './CalendarHeader/utils';
@@ -19,33 +19,43 @@ import { generateMonthGrid } from './CalendarHeader/utils';
 import { useCalendarViewContext } from '@/context/CalendarViewContext';
 import { useNotifications } from '@/hooks/useNotifications';
 import { Feather } from '@expo/vector-icons';
+import { useEventContext } from '@/context/UserSessionContext';
 
 const CalendarHeaderMonthView = forwardRef<CalendarHeaderMonthViewRefProps, CalendarHeaderProps>(({ currentDateRef, onMonthYearChange, refreshing, fromDropdownRef, onRefresh }, ref) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
+  const { view, setView } = useCalendarViewContext();
   const [monthListOpen, setMonthListOpen] = useState(false);
   const screenWidth = Dimensions.get('window').width;
   const CELL_SIZE = screenWidth / 7;
   const HEADER_HEIGHT = (12 * 2) + 6; // Total non-grid height: vertical padding (16 top + 16 bottom) + label row marginBottom (6)
   const CELL_HEIGHT = CELL_SIZE * 0.75; // Cell height smaller than width for a more compact grid
   const CHIP_WIDTH = 64; // chip width + horizontal margins. Constant for FlatList chip width and recycling buffer
+  const fromChipRef = useRef(false);
+  
   const opacity = useSharedValue(0);
+  const height = useSharedValue(0);
+  const isMonthListOpen = useSharedValue(false);
+  const currentView = useSharedValue(view);
+  const wrapperHeightValue = useSharedValue(0);
+
   const [data, setData] = useState<MonthItem[]>(() =>  // FlatList data and selection state
     buildWindow(currentDateRef.current.getFullYear())
   );
+
+  // Performance optimization: Memoize expensive title calculations
+  const title = React.useMemo(() => format(currentDateRef.current, 'MMM'), [currentDateRef.current?.getTime()]);
+  const month = React.useMemo(() => currentDateRef.current.getMonth(), [currentDateRef.current?.getTime()]);
+  const year = React.useMemo(() => currentDateRef.current.getFullYear(), [currentDateRef.current?.getTime()]);
   const today = new Date();
-  const height = useSharedValue(0);
   const currentSelectorRef  = useRef<React.ComponentRef<typeof CurrentMonthSelector>>(null); // internal refs for child components
   const [selectedKey, setSelectedKey] = useState(() => {
     return `${today.getFullYear()}-${today.getMonth()}`;
   });
-  const title = format(currentDateRef.current, 'MMM');
-  const month = currentDateRef.current.getMonth();
-  const year = currentDateRef.current.getFullYear()
+
   const listRef = useRef<FlatList<MonthItem>>(null);
-  const { view, setView } = useCalendarViewContext();
-  const fromChipRef = useRef(false);
   const { unseenNotificationCount } = useNotifications();
+  const { refreshEvents } = useEventContext();
 
   useImperativeHandle(ref, () => ({ // expose both toggle and "select this date" to your parent via ref
     update: (date: Date) => {
@@ -132,20 +142,37 @@ const CalendarHeaderMonthView = forwardRef<CalendarHeaderMonthViewRefProps, Cale
     [onMonthYearChange, selectedKey]
   );
 
+  // Update shared values without accessing during render
   useEffect(() => {
-    const targetHeight = monthListOpen
-      ? (view === 'Month' ? 42 : (46 + wrapperHeight))
-      : 0;
-    height.value = withTiming(targetHeight, { duration: 200 });
-  }, [wrapperHeight, view, monthListOpen]);
+    isMonthListOpen.value = monthListOpen;
+  }, [monthListOpen]);
 
   useEffect(() => {
-    opacity.value = withTiming(monthListOpen ? 1 : 0, { duration: 200 });
-  }, [monthListOpen]);
+    currentView.value = view;
+  }, [view]);
+
+  useEffect(() => {
+    wrapperHeightValue.value = wrapperHeight;
+  }, [wrapperHeight]);
+
+  // Handle height animation in worklet
+  useAnimatedReaction(
+    () => ({
+      isOpen: isMonthListOpen.value,
+      view: currentView.value,
+      height: wrapperHeightValue.value
+    }),
+    (current) => {
+      const targetHeight = current.isOpen
+        ? (current.view === 'Month' ? 42 : (46 + current.height))
+        : 0;
+      height.value = withTiming(targetHeight, { duration: 200 });
+      opacity.value = withTiming(current.isOpen ? 1 : 0, { duration: 200 });
+    }
+  );
 
   // Prevent initial layout jumps by stabilizing on mount
   useEffect(() => {
-    // Set initial stable state without animation on mount
     height.value = 0;
     opacity.value = 0;
   }, []);
@@ -157,11 +184,13 @@ const CalendarHeaderMonthView = forwardRef<CalendarHeaderMonthViewRefProps, Cale
   }));
 
   // Animated slide-in/out for MonthSmallView
-  const showSmallView = useDerivedValue(() => view !== 'Month' && monthListOpen ? 1 : 0);
+  const showSmallView = useDerivedValue(() => {
+    return currentView.value !== 'Month' && isMonthListOpen.value ? 1 : 0;
+  });
 
   const monthSmallViewStyle = useAnimatedStyle(() => {
     return {
-      height: withSpring(showSmallView.value * wrapperHeight, {
+      height: withSpring(showSmallView.value * wrapperHeightValue.value, {
         damping: 20,
         stiffness: 300,
       }),
@@ -170,8 +199,23 @@ const CalendarHeaderMonthView = forwardRef<CalendarHeaderMonthViewRefProps, Cale
     };
   });
 
-  const handleRefresh = useCallback(() => {
-  }, []);
+  const handleRefresh = useCallback(async () => {
+    if (!refreshing) {
+      try {
+        // Convert view string to the correct type
+        const viewType = view.charAt(0).toUpperCase() + view.slice(1).toLowerCase() as 'Month' | 'Week' | 'Schedule';
+        await refreshEvents(currentDateRef.current, viewType);
+        if (onRefresh) {
+          onRefresh();
+        }
+      } catch (error) {
+        console.error('Error refreshing events:', error);
+        if (onRefresh) {
+          onRefresh(); // Still call onRefresh to reset the refreshing state
+        }
+      }
+    }
+  }, [refreshing, refreshEvents, onRefresh, view, currentDateRef]);
 
   return (
     <ThemedView 
@@ -190,7 +234,7 @@ const CalendarHeaderMonthView = forwardRef<CalendarHeaderMonthViewRefProps, Cale
         />
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <TouchableOpacity 
-            onPress={onRefresh}
+            onPress={handleRefresh}
             disabled={refreshing}
             style={{ 
               opacity: refreshing ? 0.5 : 1,
@@ -242,11 +286,6 @@ const CalendarHeaderMonthView = forwardRef<CalendarHeaderMonthViewRefProps, Cale
       }}>
         <Picker setMonthListOpen={setMonthListOpen} />
       </ThemedView>
-      <ReanimatedShimmerLine
-        colors={[themeColors.background, themeColors.mountainGreen, themeColors.background]}
-        backgroundColor="transparent"
-        loading={refreshing}
-      />
     </ThemedView>
   );
 });

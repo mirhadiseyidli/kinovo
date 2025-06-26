@@ -15,6 +15,8 @@ import { Event } from '@/types/allTypes';
 import { Picker } from '@react-native-picker/picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CityLocationModal from './CityLocationModal';
+import { EventCardSkeleton, SkeletonBox } from '../Skeleton';
+import { useFocusEffect } from '@react-navigation/native';
 
 interface NearbyEventsProps {
   refreshing: boolean;
@@ -201,6 +203,15 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
     }
   }, [refreshing, userLocation]);
 
+  // Auto-recovery when screen comes into focus (for server reconnection scenarios)
+  useFocusEffect(
+    React.useCallback(() => {
+      if (refreshing && userLocation.lat !== null && userLocation.lng !== null) {
+        fetchEvents();
+      }
+    }, [refreshing, userLocation])
+  );
+
   // Initial data fetch when location is available
   useEffect(() => {
     if (userLocation.lat !== null && userLocation.lng !== null) {
@@ -247,16 +258,21 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
 
   const handleSelectLocation = (location: { city: string; state: string; lat: number; lng: number; text: string }) => {
     setUserLocation(location);
+    // Events will be fetched automatically by the useEffect that watches userLocation changes
   };
 
   return (
     <ThemedView style={{ flex: 1, width: screenWidth }}>
       {/* Header */}
       <ThemedView style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, paddingHorizontal: 16 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Feather name="map-pin" size={16} color={Colors[colorScheme ?? 'dark'].tint} />
-          <ThemedText style={{ fontSize: 18, fontWeight: 'bold' }}>{userLocation.city}, {userLocation.state}</ThemedText>
-        </View>
+        {loading || refreshing ? (
+          <SkeletonBox width={140} height={20} borderRadius={4} />
+        ) : (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Feather name="map-pin" size={16} color={Colors[colorScheme ?? 'dark'].tint} />
+            <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>{userLocation.city}, {userLocation.state}</ThemedText>
+          </View>
+        )}
         <TouchableOpacity
           onPress={() => setCityModalVisible(true)}
           style={{
@@ -303,7 +319,12 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
       />
 
       {/* Show placeholder when no events */}
-      {nearbyEvents.length === 0 ? (
+      {loading || refreshing ? (
+        <ThemedView style={{ paddingHorizontal: 16 }}>
+          <SkeletonBox width={'100%'} height={140} borderRadius={16} />
+        </ThemedView>
+      ) : (
+        nearbyEvents.length === 0 ? (
         <ThemedView style={{ width: screenWidth }}>
           <TouchableOpacity 
             style={{ 
@@ -414,7 +435,7 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
             </View>
           )}
         </>
-      }
+      )}
     </ThemedView>
   );
 };

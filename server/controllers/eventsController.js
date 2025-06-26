@@ -400,6 +400,9 @@ const getMyEventsForDateRange = async (req, res) => {
 
 const getMyUpcomingEvents = async (req, res) => {
   try {
+    // Check if request is from home screen to limit results
+    const fromHomeScreen = req.query.from_home_screen === 'true';
+    
     const user = await User.findById(req.user._id)
       .populate({
         path: 'events.event',
@@ -516,14 +519,24 @@ const getMyUpcomingEvents = async (req, res) => {
     // Sort all occurrences by start time
     allUpcomingOccurrences.sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
 
-    // Limit to 3 events for the upcoming events display
-    const limitedEvents = allUpcomingOccurrences.slice(0, 3);
+    // Apply limit if request is from home screen
+    const finalEvents = fromHomeScreen 
+      ? allUpcomingOccurrences.slice(0, 3) 
+      : allUpcomingOccurrences;
 
-    if (limitedEvents.length === 0) {
+    if (finalEvents.length === 0) {
       return res.status(201).json({ message: 'No events found', events: [] });
     }
 
-    res.status(200).json({ events: limitedEvents });
+    res.status(200).json({ 
+      events: finalEvents,
+      // Add metadata to help frontend understand the response
+      metadata: {
+        fromHomeScreen,
+        totalAvailable: allUpcomingOccurrences.length,
+        returned: finalEvents.length
+      }
+    });
   } catch (error) {
     console.error('Error in getMyUpcomingEvents:', error);
     res.status(500).json({ message: 'Server error' });
@@ -1506,6 +1519,9 @@ const getEventsByCity = async (req, res) => {
 
 const getAttentionRequiredEvents = async (req, res) => {
   try {
+    // Check if request is from home screen to limit results
+    const fromHomeScreen = req.query.from_home_screen === 'true';
+    
     const user = await User.findById(req.user._id)
       .populate({
         path: 'events.event',
@@ -1618,7 +1634,20 @@ const getAttentionRequiredEvents = async (req, res) => {
     // Sort by start time
     processedEvents.sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
 
-    res.status(200).json({ events: processedEvents });
+    // Apply limit if request is from home screen
+    const finalEvents = fromHomeScreen 
+      ? processedEvents.slice(0, 3) 
+      : processedEvents;
+
+    res.status(200).json({ 
+      events: finalEvents,
+      // Add metadata to help frontend understand the response
+      metadata: {
+        fromHomeScreen,
+        totalAvailable: processedEvents.length,
+        returned: finalEvents.length
+      }
+    });
   } catch (error) {
     console.error('Error in getAttentionRequiredEvents:', error);
     res.status(500).json({ message: 'Server error' });
@@ -2320,6 +2349,37 @@ const updateEvent = async (req, res) => {
   }
 };
 
+const removeEventAttendee = async (req, res) => {
+  try {
+    const { eventId, attendeeId } = req.body;
+    
+    // Verify the requester is the event creator
+    const event = await Events.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+    
+    if (event.creator.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Only event creator can remove attendees' });
+    }
+
+    // Remove attendee from event
+    await Events.findByIdAndUpdate(eventId, {
+      $pull: { attendees: { user: attendeeId } }
+    });
+
+    // Remove event from user's events list
+    await User.findByIdAndUpdate(attendeeId, {
+      $pull: { events: { event: eventId } }
+    });
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Error in removeEventAttendee:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 module.exports = { 
   getMyEvents,
   getUserEvents,
@@ -2342,5 +2402,6 @@ module.exports = {
   joinEvent,
   markEventNotInterested,
   reportEvent,
-  updateEvent  // Add updateEvent to exports
+  updateEvent,
+  removeEventAttendee
 };

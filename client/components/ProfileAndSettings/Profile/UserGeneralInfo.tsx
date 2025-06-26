@@ -284,7 +284,11 @@ const UserGeneralInfo = forwardRef(({ _id }: UserGeneralInfoProps, ref) => {
     <ThemedView>
       <View style={{ flex: 1, alignItems: 'center', flexDirection: 'row', paddingVertical: 16, width: '100%', paddingHorizontal: 16 }}>
         <View style={{ flex: 1, alignItems: 'flex-start' }}>
-          <UserProfilePhoto profile_picture={userToView.profile_picture}/>
+          <UserProfilePhoto 
+            profile_picture={userToView.profile_picture}
+            firstName={userToView.first_name}
+            lastName={userToView.last_name}
+          />
         </View>
 
         <View style={{ flex: 1.5, alignItems: 'flex-start' }}>
@@ -348,7 +352,7 @@ const UserGeneralInfo = forwardRef(({ _id }: UserGeneralInfoProps, ref) => {
          <ShareUserProfileButton 
            targetUser={userToView._id} 
            loadingFriendAction={loadingFriendAction}
-           buttonFlex={friendRequestStatus?.status === 'pending' && (friendRequestStatus as any)?.direction === 'received' ? 1/3 : 1/2}
+           buttonFlex={userToView._id === user?._id ? 1 : (friendRequestStatus?.status === 'pending' && (friendRequestStatus as any)?.direction === 'received' ? 1/3 : 1/2)}
          />
        </View>
     </ThemedView>

@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, Image, Dimensions, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { View, Text, Image, Dimensions, TouchableOpacity, AppState } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withRepeat, Easing, cancelAnimation } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -12,6 +12,9 @@ import { differenceInCalendarDays, format, isToday, isTomorrow, isThisWeek } fro
 import { useRouter } from 'expo-router';
 import { getCategoryImage } from '@/constants/CategoryImages';
 import { BlurView } from 'expo-blur';
+import DefaultProfilePicture from './DefaultProfilePicture';
+import { OptimizedImage } from '@/components/OptimizedImage';
+import { useFocusEffect } from '@react-navigation/native';
 
 const EventView: React.FC<{ event: Event, loading: boolean }> = React.memo(({ event, loading }) => {
   
@@ -23,22 +26,115 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = React.memo(({ ev
   const today = new Date();
 
   const pulse = useSharedValue(1);
-  const [isVisible, setIsVisible] = useState(true);
+  const [isVisible, setIsVisible] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
   const mountedRef = useRef(true);
-  
+  const containerRef = useRef<View>(null);
+  const visibilityCheckTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Check if event is currently live (happening right now)
+  const isEventLive = useMemo(() => {
+    if (!event.start_time || !event.end_time) return false;
+    
+    const startTime = new Date(event.start_time);
+    const endTime = new Date(event.end_time);
+    
+    return currentTime >= startTime && currentTime <= endTime;
+  }, [event.start_time, event.end_time, currentTime]);
+
+  // Update current time every minute to check if event status changes
   useEffect(() => {
-    // Only start animation if component is visible and mounted
-    if (isVisible && mountedRef.current) {
-    pulse.value = withRepeat(
-      withTiming(1.5, {
-        duration: 800,
-        easing: Easing.inOut(Easing.ease),
-      }),
-      -1,
-      true
-    );
+    const timeInterval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Update every minute
+
+    return () => clearInterval(timeInterval);
+  }, []);
+
+  // Efficient visibility detection - only check when needed
+  const checkVisibility = useCallback(() => {
+    if (!containerRef.current || !mountedRef.current) return;
+
+    containerRef.current.measureInWindow((x, y, width, height) => {
+      const screenHeight = Dimensions.get('window').height;
+      const screenWidth = Dimensions.get('window').width;
+      
+      // Consider component visible if it's at least partially on screen
+      const isInViewport = (
+        x + width > 0 && 
+        x < screenWidth && 
+        y + height > 0 && 
+        y < screenHeight
+      );
+      
+      const wasVisible = isVisible;
+      setIsVisible(isInViewport);
+      
+      // Log visibility changes for debugging
+      if (__DEV__ && wasVisible !== isInViewport) {
+        console.log(`👁️ [Event Visibility] ${event.title}: ${isInViewport ? 'visible' : 'hidden'}`);
+      }
+    });
+  }, [isVisible, event.title]);
+
+  // Debounced visibility check to avoid excessive calls
+  const debouncedVisibilityCheck = useCallback(() => {
+    if (visibilityCheckTimeoutRef.current) {
+      clearTimeout(visibilityCheckTimeoutRef.current);
+    }
+    
+    visibilityCheckTimeoutRef.current = setTimeout(checkVisibility, 100);
+  }, [checkVisibility]);
+
+  // Check visibility when screen gains focus (user returns to app/screen)
+  useFocusEffect(
+    useCallback(() => {
+      debouncedVisibilityCheck();
+    }, [debouncedVisibilityCheck])
+  );
+
+  // Check visibility when app state changes
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: string) => {
+      if (nextAppState === 'active') {
+        debouncedVisibilityCheck();
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription?.remove();
+  }, [debouncedVisibilityCheck]);
+
+  // Initial visibility check on mount
+  useEffect(() => {
+    const timeoutId = setTimeout(debouncedVisibilityCheck, 100);
+    return () => clearTimeout(timeoutId);
+  }, [debouncedVisibilityCheck]);
+
+  // Use onLayout to detect when component position changes
+  const handleLayout = useCallback(() => {
+    debouncedVisibilityCheck();
+  }, [debouncedVisibilityCheck]);
+
+  // Animation logic - only run when visible AND live
+  useEffect(() => {
+    const shouldAnimate = isVisible && isEventLive && mountedRef.current;
+    
+    if (shouldAnimate) {
+      console.log(`🎯 [Event Animation] Starting pulse for live event: ${event.title}`);
+      pulse.value = withRepeat(
+        withTiming(1.5, {
+          duration: 800,
+          easing: Easing.inOut(Easing.ease),
+        }),
+        -1,
+        true
+      );
     } else {
-      // Cancel animation when not visible to save memory
+      // Cancel animation when not visible or not live
+      if (visibilityCheckTimeoutRef.current) {
+        console.log(`⏹️ [Event Animation] Stopping pulse for event: ${event.title} (visible: ${isVisible}, live: ${isEventLive})`);
+      }
       cancelAnimation(pulse);
       pulse.value = 1; // Reset to default state
     }
@@ -47,13 +143,16 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = React.memo(({ ev
     return () => {
       cancelAnimation(pulse);
     };
-  }, [pulse, isVisible]);
+  }, [pulse, isVisible, isEventLive, event.title]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       mountedRef.current = false;
       cancelAnimation(pulse);
+      if (visibilityCheckTimeoutRef.current) {
+        clearTimeout(visibilityCheckTimeoutRef.current);
+      }
     };
   }, []);
   
@@ -148,6 +247,8 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = React.memo(({ ev
 
   return (
       <TouchableOpacity 
+        ref={containerRef}
+        onLayout={handleLayout}
         style={{ 
           flexDirection: 'row', 
           width: '100%', 
@@ -160,16 +261,20 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = React.memo(({ ev
           borderRadius: 12,
           position: 'relative',
           padding: 16,
-          // backgroundColor: 'transparent' 
         }}
         onPress={handleViewEvent}
       >
         {/* Event Image */}
         <View style={{ width: height, height: height, marginRight: 16, borderRadius: 8, overflow: 'hidden' }}>
-          <Image 
-            source={event.event_picture ? { uri: event.event_picture } : getCategoryImage(event.category)}
+          <OptimizedImage
+            source={event.event_picture || null}
+            fallbackCategory={event.category}
             style={{ width: '100%', height: '100%' }}
             resizeMode="cover"
+            width={height}
+            height={height}
+            quality={0.8}
+            showLoader={true}
           />
           {/* Category Overlay */}
           <BlurView
@@ -196,20 +301,20 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = React.memo(({ ev
           {/* Friend Info */}
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, justifyContent: 'space-between' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start' }}>
-                <Image
-                  source={
-                    event.creator?.profile_picture
-                      ? { uri: event.creator.profile_picture }
-                      : require('../assets/event-default.png')
-                  }
-                  style={{ aspectRatio: 1, width: '16%', borderRadius: 50, marginRight: 4 }}
-                />
+                <View style={{ marginRight: 4 }}>
+                  <DefaultProfilePicture
+                    profilePicture={event.creator?.profile_picture}
+                    fullName={event.creator?.full_name}
+                    size={16}
+                    borderRadius={999}
+                  />
+                </View>
                 <ThemedText style={{ fontSize: 12, fontWeight: '500' }}>
                   {truncateName(event?.creator?.full_name || 'Unknown', 16)}
                 </ThemedText>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                {(event?.start_time && event?.end_time && (new Date(event.start_time) <= today && new Date(event.end_time) >= today)) ? (
+                {isEventLive ? (
                   <>
                     <Animated.View style={[
                       { height: 4, width: 4, borderRadius: 999, marginRight: 8, backgroundColor: themeColors.mountainGreen },
@@ -220,20 +325,17 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = React.memo(({ ev
                       numberOfLines={1}
                       ellipsizeMode="tail"
                     >
-                      Live
+                      Live now
                     </ThemedText>
                   </>
                 ) : (
-                  <>
-                    <Feather name="clock" size={14} color={themeColors.tint} style={{ marginRight: 4 }} />
-                    <ThemedText 
-                      style={{ fontSize: 12, color: themeColors.tint }}
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                    >
-                      {event?.start_time ? getDaysRemainingLabel(event.start_time) : 'Unknown date'}
-                    </ThemedText>
-                  </>
+                  <ThemedText 
+                    style={{ fontSize: 12, color: themeColors.textSecondary }}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {getDaysRemainingLabel(event.start_time)}
+                  </ThemedText>
                 )}
               </View>
           </View>

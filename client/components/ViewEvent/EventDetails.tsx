@@ -83,7 +83,7 @@ const EventDetailsSection: React.FC<EventProp> = ({ event }) => {
       
       await respondToInvitation(event._id, status, Object.keys(requestOptions).length > 0 ? requestOptions : undefined);
       // Refresh events to update calendar
-      await refreshEvents();
+      await refreshEvents(event.start_time ? new Date(event.start_time) : new Date(), 'Month');
     } catch (error) {
       console.error('Failed to respond to invitation:', error);
     }
@@ -95,7 +95,7 @@ const EventDetailsSection: React.FC<EventProp> = ({ event }) => {
     try {
       await joinEvent(event._id, status);
       // Refresh events to update calendar
-      await refreshEvents();
+      await refreshEvents(event.start_time ? new Date(event.start_time) : new Date(), 'Month');
     } catch (error) {
       console.error('Failed to join event:', error);
     }
@@ -127,7 +127,7 @@ const EventDetailsSection: React.FC<EventProp> = ({ event }) => {
     try {
       await markNotInterested(event._id);
       // Refresh events to update calendar
-      await refreshEvents();
+      await refreshEvents(event.start_time ? new Date(event.start_time) : new Date(), 'Month');
       // Use the centralized navigation system instead of direct router.back()
       showModal('not_interested_success', { message: 'Event marked as not interested.' });
     } catch (error) {
@@ -179,7 +179,7 @@ const EventDetailsSection: React.FC<EventProp> = ({ event }) => {
   const handleInviteSuccess = useCallback(() => {
     // Refresh event data after successful invite
     if (event._id) {
-      refreshEvents();
+      refreshEvents(event.start_time ? new Date(event.start_time) : new Date(), 'Month');
     }
   }, [event._id, refreshEvents]);
 
@@ -221,7 +221,7 @@ const EventDetailsSection: React.FC<EventProp> = ({ event }) => {
       await cancelEventApi(event._id, Object.keys(requestOptions).length > 0 ? requestOptions : undefined);
       
       // Refresh events to update calendar
-      await refreshEvents();
+      await refreshEvents(event.start_time ? new Date(event.start_time) : new Date(), 'Month');
       
       const message = options?.modifyType === 'this_only' 
           ? 'This event occurrence has been cancelled successfully.'

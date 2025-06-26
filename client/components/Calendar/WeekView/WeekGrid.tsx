@@ -13,22 +13,32 @@ interface WeekGridProps {
   hours: number[];
   weekDates: Date[];
   gridRef: React.RefObject<FlatList<any> | null>;
+  loading?: boolean;
+  refreshing?: boolean;
 }
 
-const WeekGrid: React.FC<WeekGridProps> = ({ hours, weekDates, gridRef }) => {
+const WeekGrid: React.FC<WeekGridProps> = ({ hours, weekDates, gridRef, loading, refreshing }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { getOccurrencesForDate } = useEventContext();
   const router = useRouter();
 
-  const getEventPosition = (startTime: string, endTime: string) => {
+  // Performance optimization: Cache event positions to prevent recalculation
+  const eventPositionCache = React.useRef(new Map<string, { top: number; height: number }>());
+
+  const getEventPosition = React.useCallback((startTime: string, endTime: string) => {
+    // Performance optimization: Create cache key for position calculation
+    const cacheKey = `${startTime}-${endTime}`;
+    
+    if (eventPositionCache.current.has(cacheKey)) {
+      return eventPositionCache.current.get(cacheKey)!;
+    }
+    
     const start = new Date(startTime);
     const end = new Date(endTime);
     
     const startHour = start.getHours() + start.getMinutes() / 60;
     const endHour = end.getHours() + end.getMinutes() / 60;
-    
-
     
     // The layout structure:
     // - HourList has 18px paddingTop
@@ -46,10 +56,16 @@ const WeekGrid: React.FC<WeekGridProps> = ({ hours, weekDates, gridRef }) => {
     const top = (startHour * HOUR_SLOT_HEIGHT) + HOUR_LIST_PADDING_TOP + LABEL_CENTER_OFFSET;
     const height = Math.max((endHour - startHour) * HOUR_SLOT_HEIGHT, 20);
     
-
+    const result = { top, height };
     
-    return { top, height };
-  };
+    // Cache management: clear cache if it gets too large
+    if (eventPositionCache.current.size > 100) {
+      eventPositionCache.current.clear();
+    }
+    
+    eventPositionCache.current.set(cacheKey, result);
+    return result;
+  }, []);
 
   const handleEventPress = (occurrence: any) => {
     if (!occurrence?.event) return;
@@ -74,12 +90,10 @@ const WeekGrid: React.FC<WeekGridProps> = ({ hours, weekDates, gridRef }) => {
     });
   };
 
-  const renderEventChip = (occurrence: any, dayIndex: number, eventIndex: number) => {
-    const { top, height } = getEventPosition(occurrence.event.start_time, occurrence.event.end_time);
-    const dayWidth = (screenWidth - 50) / weekDates.length;
+  // Performance optimization: Memoize style calculations for event status
+  const getEventStyles = React.useCallback((userStatus: string) => {
+    const styleKey = `${userStatus}-${colorScheme}`;
     
-    // Determine styling based on user status
-    const userStatus = occurrence.event.userStatus;
     let backgroundColor = themeColors.mountainGreen;
     let borderColor = themeColors.mountainGreen;
     let borderWidth = 1;
@@ -117,6 +131,16 @@ const WeekGrid: React.FC<WeekGridProps> = ({ hours, weekDates, gridRef }) => {
         color: themeColors.text,
       };
     }
+
+    return { backgroundColor, borderColor, borderWidth, opacity, textStyle };
+  }, [themeColors, colorScheme]);
+
+  const renderEventChip = React.useCallback((occurrence: any, dayIndex: number, eventIndex: number) => {
+    const { top, height } = getEventPosition(occurrence.event.start_time, occurrence.event.end_time);
+    const dayWidth = (screenWidth - 50) / weekDates.length;
+    
+    // Get memoized styles
+    const { backgroundColor, borderColor, borderWidth, opacity, textStyle } = getEventStyles(occurrence.event.userStatus);
     
     return (
       <TouchableOpacity
@@ -147,7 +171,7 @@ const WeekGrid: React.FC<WeekGridProps> = ({ hours, weekDates, gridRef }) => {
         </Text>
       </TouchableOpacity>
     );
-  };
+  }, [getEventPosition, weekDates.length, getEventStyles, handleEventPress]);
 
   return (
     <View style={{ position: 'relative' }}>
@@ -180,7 +204,8 @@ const WeekGrid: React.FC<WeekGridProps> = ({ hours, weekDates, gridRef }) => {
         left: 0, 
         right: 0, 
         height: hours.length * 35,
-        pointerEvents: 'box-none'
+        pointerEvents: 'box-none',
+        opacity: loading || refreshing ? 0.5 : 1
       }}>
         {weekDates.map((date, dayIndex) => {
           const dayOccurrences = getOccurrencesForDate(date);

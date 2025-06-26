@@ -14,10 +14,8 @@ const OpenMapsAndNavigateButton = ({ selectedLocation, latitude, longitude }: Op
 
   return (
     <TouchableOpacity
+      activeOpacity={0.7}
       style={{
-        position: 'absolute',
-        bottom: 10,
-        right: 10,
         backgroundColor: themeColors.background,
         paddingVertical: 10,
         paddingHorizontal: 15,
@@ -26,10 +24,10 @@ const OpenMapsAndNavigateButton = ({ selectedLocation, latitude, longitude }: Op
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.3,
         shadowRadius: 4,
-        elevation: 3,
-        zIndex: 10
+        elevation: 5,
       }}
       onPress={() => {
+        console.log('Button pressed!'); // Debug log
         Alert.alert(
           "Navigate",
           `Do you want to get directions to "${selectedLocation}"?`,

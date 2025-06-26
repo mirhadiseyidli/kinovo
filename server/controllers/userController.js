@@ -1,6 +1,7 @@
 const User = require('../database/schemas/usersSchema');
 const FriendRequests = require('../database/schemas/friendRequestsSchema');
 const { sendEmail } = require('../utils/emailService'); // Make sure this exists
+const { extractS3KeyFromUrl, deleteFromS3, invalidateCloudFront } = require('../utils/cdnUtils');
 
 require('dotenv').config();
 
@@ -769,6 +770,182 @@ const removeFavoriteActivity = async (req, res) => {
   }
 };
 
+// Remove profile picture
+const removeProfilePicture = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    if (!user.profile_picture) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No profile picture to remove' 
+      });
+    }
+
+    // Extract S3 key and delete from CDN
+    const s3Key = extractS3KeyFromUrl(user.profile_picture);
+    if (s3Key) {
+      await deleteFromS3(s3Key);
+      await invalidateCloudFront(s3Key);
+    }
+
+    // Update user record
+    user.profile_picture = null;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile picture removed successfully'
+    });
+
+  } catch (error) {
+    console.error('Error removing profile picture:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error removing profile picture' 
+    });
+  }
+};
+
+// Remove cover photo
+const removeCoverPhoto = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    if (!user.cover_photo) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No cover photo to remove' 
+      });
+    }
+
+    // Extract S3 key and delete from CDN
+    const s3Key = extractS3KeyFromUrl(user.cover_photo);
+    if (s3Key) {
+      await deleteFromS3(s3Key);
+      await invalidateCloudFront(s3Key);
+    }
+
+    // Update user record
+    user.cover_photo = null;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Cover photo removed successfully'
+    });
+
+  } catch (error) {
+    console.error('Error removing cover photo:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error removing cover photo' 
+    });
+  }
+};
+
+// Get user's CDN images info
+const getUserImages = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const user = await User.findById(userId).select('profile_picture cover_photo');
+    
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        profilePicture: user.profile_picture,
+        coverPhoto: user.cover_photo
+      }
+    });
+
+  } catch (error) {
+    console.error('Error getting user images:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error getting user images' 
+    });
+  }
+};
+
+// Generate default profile picture
+const generateDefaultProfilePicture = async (req, res) => {
+  try {
+    const { initials, backgroundColor } = req.body;
+    
+    if (!initials || !backgroundColor) {
+      return res.status(400).json({
+        success: false,
+        message: 'Initials and background color are required'
+      });
+    }
+
+    // Import canvas at the top of the file if needed
+    const { createCanvas } = require('canvas');
+    
+    const size = 400;
+    const fontSize = size * 0.35;
+    
+    // Create canvas
+    const canvas = createCanvas(size, size);
+    const ctx = canvas.getContext('2d');
+    
+    // Draw circle background
+    ctx.fillStyle = backgroundColor;
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, size / 2, 0, 2 * Math.PI);
+    ctx.fill();
+    
+    // Draw initials
+    ctx.fillStyle = 'white';
+    ctx.font = `bold ${fontSize}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(initials, size / 2, size / 2);
+    
+    // Convert to PNG buffer
+    const buffer = canvas.toBuffer('image/png');
+    
+    // Convert to base64 data URI
+    const dataUri = `data:image/png;base64,${buffer.toString('base64')}`;
+    
+    res.status(200).json({
+      success: true,
+      dataUri: dataUri,
+      message: 'Profile picture generated successfully'
+    });
+
+  } catch (error) {
+    console.error('Error generating profile picture:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate profile picture'
+    });
+  }
+};
+
 module.exports = { 
   getUserProfile,
   getUsers,
@@ -793,4 +970,8 @@ module.exports = {
   getFavoriteActivities,
   addFavoriteActivity,
   removeFavoriteActivity,
+  removeProfilePicture,
+  removeCoverPhoto,
+  getUserImages,
+  generateDefaultProfilePicture,
 };

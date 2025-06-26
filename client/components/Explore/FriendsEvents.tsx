@@ -9,6 +9,8 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { Event } from '@/types/allTypes';
 import { useRouter } from 'expo-router';
+import { EventCardSkeleton, SkeletonBox } from '../Skeleton';
+import { useFocusEffect } from '@react-navigation/native';
 
 interface FriendsEventsProps {
   refreshing: boolean;
@@ -42,6 +44,15 @@ const FriendsEvents: React.FC<FriendsEventsProps> = React.memo(({ refreshing, on
     }
   }, [refreshing]);
 
+  // Auto-recovery when screen comes into focus (for server reconnection scenarios)
+  useFocusEffect(
+    React.useCallback(() => {
+      if (refreshing) {
+        fetchEvents();
+      }
+    }, [refreshing])
+  );
+
   // Initial fetch
   useEffect(() => {
     fetchEvents();
@@ -69,7 +80,10 @@ const FriendsEvents: React.FC<FriendsEventsProps> = React.memo(({ refreshing, on
 
       {/* Event List */}
       <View style={{ flex: 1 }}>
-        {friendsEvents.length > 0 ? (
+        {loading || refreshing ? (
+          <SkeletonBox width={'100%'} height={120} borderRadius={16} />
+        ) : (
+          friendsEvents.length > 0 ? (
           <View style={{ gap: 16 }}>
             {friendsEvents.slice(0, 3).map((event, index) => (
                 <View key={`${event._id}-${index}`}>
@@ -77,48 +91,49 @@ const FriendsEvents: React.FC<FriendsEventsProps> = React.memo(({ refreshing, on
                 </View>
             ))}
           </View>
-        ) : (
-          <ThemedView style={{
-            backgroundColor: themeColors.background,
-            borderRadius: 12,
-            padding: 16,
-            borderWidth: 2,
-            borderStyle: 'dashed',
-            borderColor: themeColors.border,
-            width: '100%',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: 120,
-          }}>
-            <View style={{ marginBottom: 12 }}>
-              <IconSymbol
-                name="person.2.fill"
-                size={32}
-                color={themeColors.placeholderTextColor}
-              />
-            </View>
-            <ThemedText 
-              style={{ 
-                fontSize: 16, 
-                color: themeColors.placeholderTextColor,
-                textAlign: 'center',
-                marginBottom: 4,
-                fontWeight: '600'
-              }}
-            >
-              No friends' events found
-            </ThemedText>
-            <ThemedText 
-              style={{ 
-                fontSize: 14, 
-                color: themeColors.placeholderTextColor,
-                textAlign: 'center',
-                opacity: 0.8
-              }}
-            >
-              Your friends haven't created any events yet
-            </ThemedText>
-          </ThemedView>
+          ) : (
+            <ThemedView style={{
+              backgroundColor: themeColors.background,
+              borderRadius: 12,
+              padding: 16,
+              borderWidth: 2,
+              borderStyle: 'dashed',
+              borderColor: themeColors.border,
+              width: '100%',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 120,
+            }}>
+              <View style={{ marginBottom: 12 }}>
+                <IconSymbol
+                  name="person.2.fill"
+                  size={32}
+                  color={themeColors.placeholderTextColor}
+                />
+              </View>
+              <ThemedText 
+                style={{ 
+                  fontSize: 16, 
+                  color: themeColors.placeholderTextColor,
+                  textAlign: 'center',
+                  marginBottom: 4,
+                  fontWeight: '600'
+                }}
+              >
+                No friends' events found
+              </ThemedText>
+              <ThemedText 
+                style={{ 
+                  fontSize: 14, 
+                  color: themeColors.placeholderTextColor,
+                  textAlign: 'center',
+                  opacity: 0.8
+                }}
+              >
+                Your friends haven't created any events yet
+              </ThemedText>
+            </ThemedView>
+          )
         )}
       </View>
     </ThemedView>

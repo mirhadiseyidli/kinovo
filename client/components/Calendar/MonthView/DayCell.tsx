@@ -1,136 +1,173 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
-import { useColorScheme } from '../../../hooks/useColorScheme';
+import React, { useMemo } from 'react';
+import { View, TouchableOpacity, Text } from 'react-native';
+import { ThemedText } from '../../ThemedText';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import { DayCellProps } from '@/types/allTypes';
-import { useRouter } from 'expo-router';
-import { useCalendarViewContext } from '@/context/CalendarViewContext';
+import { format, isSameDay, isToday } from 'date-fns';
 import { useEventContext } from '@/context/UserSessionContext';
+import { Event } from '@/types/allTypes';
+import { useCalendarViewContext } from '@/context/CalendarViewContext';
 
-const DayCell = React.memo<DayCellProps>(({ date, month, today, cellWidth, cellHeight, handleMonthYearChange }) => {
+interface DayCellProps {
+  date: Date;
+  month: number;
+  today: Date;
+  cellWidth: number;
+  cellHeight: number;
+  handleMonthYearChange: (month: number, year: number, day: number, fromDropdown?: boolean) => void;
+}
+
+const MAX_VISIBLE_EVENTS = 3;
+
+const DayCell: React.FC<DayCellProps> = ({
+  date,
+  month,
+  today,
+  cellWidth,
+  cellHeight,
+  handleMonthYearChange,
+}) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const { view, setView } = useCalendarViewContext();
   const { getOccurrencesForDate } = useEventContext();
+  const { setView } = useCalendarViewContext();
   
-  const dayOccurrences = React.useMemo(
-    () => getOccurrencesForDate(date),
-    [getOccurrencesForDate, date]
-  );
-
   const isCurrentMonth = date.getMonth() === month;
-  const isToday = isCurrentMonth && date.toDateString() === today.toDateString();
+  const isCurrentDay = isToday(date);
+  
+  const dayOccurrences = useMemo(() => {
+    const occurrences = getOccurrencesForDate(date);
+    return occurrences.slice(0, MAX_VISIBLE_EVENTS);
+  }, [date, getOccurrencesForDate]);
 
-  const openSchedule = (date: Date) => {
+  const totalEvents = getOccurrencesForDate(date).length;
+
+  const getEventStyle = (status?: string) => {
+    switch (status) {
+      case 'rejected':
+        return {
+          backgroundColor: themeColors.background,
+          borderColor: themeColors.border,
+          color: themeColors.text,
+          textDecoration: 'line-through',
+          opacity: 0.7
+        };
+      case 'maybe':
+        return {
+          backgroundColor: themeColors.maybeStatusColor,
+          borderColor: themeColors.maybeStatusColor,
+          color: 'white'
+        };
+      case 'pending':
+        return {
+          backgroundColor: themeColors.background,
+          borderColor: themeColors.mountainGreen,
+          color: themeColors.text
+        };
+      default:
+        return {
+          backgroundColor: themeColors.mountainGreen,
+          borderColor: themeColors.mountainGreen,
+          color: 'white'
+        };
+    }
+  };
+
+  const openSchedule = () => {
     setView('Schedule');
     handleMonthYearChange(date.getMonth(), date.getFullYear(), date.getDate(), false);
-  }
-  
+  };
+
   return (
     <TouchableOpacity
-      onPress={() => openSchedule(date)}
+      onPress={openSchedule}
       style={{
-        paddingHorizontal: 2,
+        width: '100%',
+        height: '100%',
         justifyContent: 'flex-start',
         alignItems: 'center',
-        width: cellWidth,
-        height: cellHeight,
-        borderWidth: colorScheme === 'dark' ? 0.2 : 0.25,
-        borderColor: themeColors.calendarBorderColor,
+        paddingTop: 4,
+        opacity: isCurrentMonth ? 1 : 0.5,
       }}
     >
       <View style={{
-        width: cellWidth * 0.4,
-        height: cellWidth * 0.4,
-        borderRadius: (cellWidth * 0.6) / 2,
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: isCurrentDay ? themeColors.mountainGreen : 'transparent',
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 2,
-        backgroundColor: isToday ? themeColors.mountainGreen : undefined,
       }}>
-        <Text style={{ color: isToday ? 'white' : themeColors.text, fontSize: 12, opacity: isCurrentMonth ? 1 : 0.5 }}>
-          {date.getDate()}
-        </Text>
+        <ThemedText
+          style={{
+            color: !isCurrentMonth 
+              ? themeColors.placeholderTextColor 
+              : isCurrentDay 
+                ? themeColors.text 
+                : themeColors.text,
+            fontSize: 12,
+            fontWeight: isCurrentDay ? 'bold' : 'normal',
+          }}
+        >
+          {format(date, 'd')}
+        </ThemedText>
       </View>
-
-      {dayOccurrences.slice(0, 3).map(occurrence => {
-        // Determine styling based on user status
-        const userStatus = occurrence.event.userStatus;
-        let backgroundColor = themeColors.mountainGreen;
-        let borderColor = themeColors.mountainGreen;
-        let borderWidth = 1;
-        let opacity = isCurrentMonth ? 1 : 0.5;
-        let textStyle: any = { 
-          color: 'white', 
-          fontSize: 9, 
-          fontWeight: '600' 
-        };
-
-        if (userStatus === 'rejected') {
-          backgroundColor = themeColors.background;
-          borderColor = themeColors.border;
-          borderWidth = 1;
-          textStyle = {
-            ...textStyle,
-            color: themeColors.text,
-            textDecorationLine: 'line-through',
-            opacity: 0.7,
-          };
-        } else if (userStatus === 'maybe') {
-          backgroundColor = themeColors.maybeStatusColor;
-          borderColor = themeColors.maybeStatusColor;
-          borderWidth = 1;
-          textStyle = {
-            ...textStyle,
-          };
-        } else if (userStatus === 'pending') {
-          backgroundColor = themeColors.background;
-          borderColor = themeColors.mountainGreen;
-          borderWidth = 1;
-          textStyle = {
-            ...textStyle,
-            color: themeColors.text,
-          };
-        }
-
-        return (
-          <View
-            key={occurrence.id}
-            style={{ 
-              marginTop: 2, 
-              width: '100%', 
-              borderRadius: 3, 
-              paddingLeft: 4, 
-              paddingVertical: 1, 
-              justifyContent: 'center', 
-              backgroundColor: backgroundColor,
-              borderColor: borderColor,
-              borderWidth: borderWidth,
-              opacity: opacity,
-              overflow: 'hidden',
-              position: 'relative',
-            }}
-          >
-            <Text
-              style={{...textStyle, zIndex: 2, position: 'relative'}}
-              numberOfLines={1}
-              ellipsizeMode="tail"
+      
+      <View style={{ width: '100%', paddingHorizontal: 2 }}>
+        {dayOccurrences.map((occurrence, index) => {
+          const eventStyle = getEventStyle(occurrence.event.userStatus);
+          return (
+            <View
+              key={occurrence.id}
+              style={{
+                width: '100%',
+                height: 14,
+                borderRadius: 3,
+                marginBottom: 1,
+                paddingHorizontal: 4,
+                backgroundColor: eventStyle.backgroundColor,
+                borderColor: eventStyle.borderColor,
+                borderWidth: 1,
+                justifyContent: 'center',
+              }}
             >
-              {occurrence.event.title}
+              <Text
+                numberOfLines={1}
+                style={{
+                  fontSize: 9,
+                  color: eventStyle.color,
+                  textDecorationLine: eventStyle.textDecoration as any,
+                  fontWeight: '600',
+                }}
+              >
+                {occurrence.event.title}
+              </Text>
+            </View>
+          );
+        })}
+        
+        {totalEvents > MAX_VISIBLE_EVENTS && (
+          <View style={{
+            width: '100%',
+            height: 14,
+            borderRadius: 3,
+            backgroundColor: themeColors.mountainGreen,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}>
+            <Text style={{
+              fontSize: 9,
+              color: 'white',
+              fontWeight: '600',
+            }}>
+              +{totalEvents - MAX_VISIBLE_EVENTS} more
             </Text>
           </View>
-        );
-      })}
-
-      {dayOccurrences.length > 3 && (
-        <View style={{ marginTop: 2, width: '100%', borderRadius: 3, paddingLeft: 4, paddingVertical: 1, justifyContent: 'center', backgroundColor: themeColors.mountainGreen, opacity: isCurrentMonth ? 1 : 0.5 }}>
-          <Text style={{ color: 'white', fontSize: 10, fontWeight: '600' }}>
-            +{dayOccurrences.length - 3} more
-          </Text>
-        </View>
-      )}
+        )}
+      </View>
     </TouchableOpacity>
   );
-});
+};
 
-export default DayCell;
+export default React.memo(DayCell);

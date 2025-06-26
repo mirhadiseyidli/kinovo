@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { View, Text, SectionList, Dimensions, ActivityIndicator } from 'react-native';
 import ScheduleEventView from './ScheduleView/ScheduleEventView';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -10,6 +10,9 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { InteractionManager } from 'react-native';
 import { useEventContext } from '@/context/UserSessionContext';
 import { EventOccurrence } from '@/utils/eventUtils';
+import { useCalendarViewContext } from '@/context/CalendarViewContext';
+import ReanimatedShimmerLine from '@/components/CustomLoadingIndicatingLine';
+import { useSharedValue, withTiming, runOnJS } from 'react-native-reanimated';
 
 const groupOccurrencesByDate = (occurrences: EventOccurrence[]) => {
   if (!occurrences || !Array.isArray(occurrences)) {
@@ -28,12 +31,16 @@ const groupOccurrencesByDate = (occurrences: EventOccurrence[]) => {
 
 interface ScheduleViewProps {
   currentDateRef: React.RefObject<Date>;
+  refreshing?: boolean;
+  onFinishRefresh?: () => void;
 }
 
-const ScheduleView: React.FC<ScheduleViewProps> = ({ currentDateRef }) => {
+const ScheduleView: React.FC<ScheduleViewProps> = ({ currentDateRef, refreshing, onFinishRefresh }) => {
   const { eventOccurrences, fetchEventsForDateRange, loading } = useEventContext();
+  const { view } = useCalendarViewContext();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
+  const sectionListRef = useRef<SectionList>(null);
   
   const [selectedDate, setSelectedDate] = useState<Date>(currentDateRef.current || new Date());
   const [currentDateString, setCurrentDateString] = useState<string>(
@@ -41,6 +48,40 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({ currentDateRef }) => {
   );
   const height = Dimensions.get('window').height;
   const tabBarHeight = useBottomTabBarHeight();
+
+  // Create shared values for worklet-safe state
+  const scrollOffset = useSharedValue(0);
+
+  // Worklet-safe scroll handler
+  const scrollToSection = useCallback((offset: number, animated: boolean = true) => {
+    const flatListRef = (sectionListRef.current as any)?._listRef;
+    if (flatListRef) {
+      flatListRef.scrollToOffset({
+        offset,
+        animated,
+      });
+    } else {
+      sectionListRef.current?.scrollToLocation({
+        sectionIndex: Math.floor(offset / 100), // Approximate section index
+        itemIndex: 0,
+        viewPosition: 0,
+        viewOffset: 0,
+        animated,
+      });
+    }
+  }, []);
+
+  // Worklet-safe scroll animation
+  const animateToSection = useCallback((targetOffset: number) => {
+    'worklet';
+    scrollOffset.value = withTiming(targetOffset, {
+      duration: 800,
+    }, (finished) => {
+      if (finished) {
+        runOnJS(scrollToSection)(targetOffset);
+      }
+    });
+  }, [scrollToSection]);
 
   // Update selectedDate when currentDateRef changes (from month view clicks)
   useEffect(() => {
@@ -53,43 +94,39 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({ currentDateRef }) => {
         setCurrentDateString(newDateString);
       }
     }
-  }, [currentDateRef.current?.getTime(), currentDateString]); // Use both getTime and current string
+  }, [currentDateRef.current?.getTime()]); // Only depend on the actual date change
 
-  // Additional monitoring of currentDateRef changes
   useEffect(() => {
-    const checkDateRef = () => {
-      if (currentDateRef.current) {
-        const currentRefString = format(currentDateRef.current, 'yyyy-MM-dd');
-        if (currentRefString !== currentDateString) {
-          const newDate = new Date(currentDateRef.current);
-          setSelectedDate(newDate);
-          setCurrentDateString(currentRefString);
+    // Only fetch events when schedule view is active
+    if (view.toLowerCase() !== 'schedule') return;
+
+    const fetchScheduleEvents = async () => {
+      try {
+        // Fetch events for a broader range - from current month to 6 months ahead
+        const now = new Date();
+        const startDate = startOfMonth(now);
+        const endDate = endOfMonth(addMonths(now, 6)); // 6 months ahead
+        
+        await fetchEventsForDateRange(startDate, endDate);
+        
+        // Call onFinishRefresh if it exists and we're refreshing
+        if (refreshing && onFinishRefresh) {
+          onFinishRefresh();
+        }
+      } catch (error) {
+        console.error('Error fetching schedule events:', error);
+        // Still call onFinishRefresh on error to reset the refresh state
+        if (refreshing && onFinishRefresh) {
+          onFinishRefresh();
         }
       }
     };
 
-    const interval = setInterval(checkDateRef, 100); // Check every 100ms
-    return () => clearInterval(interval);
-  }, [currentDateString]);
-
-  useEffect(() => {
-    // Fetch events for a broader range - from current month to 6 months ahead
-    const fetchScheduleEvents = async () => {
-      const now = new Date();
-      const startDate = startOfMonth(now);
-      const endDate = endOfMonth(addMonths(now, 6)); // 6 months ahead
-      
-      await fetchEventsForDateRange(startDate, endDate);
-    };
-
     fetchScheduleEvents();
-  }, [fetchEventsForDateRange]);
+  }, [fetchEventsForDateRange, view, refreshing, onFinishRefresh]);
 
-  const grouped = useMemo(() => {
-    const result = groupOccurrencesByDate(eventOccurrences);
-    
-    // Filter to show events from a reasonable range
-    // Include selected date and a few days before it, plus all future dates
+  // Memoize expensive date calculations
+  const dateFilters = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
@@ -102,61 +139,74 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({ currentDateRef }) => {
     
     const startDate = threeDaysBeforeSelected < today ? threeDaysBeforeSelected : today;
     
+    return {
+      startDate,
+      startDateISOString: startDate.toISOString().split('T')[0]
+    };
+  }, [selectedDate]);
+
+  const grouped = useMemo(() => {
+    if (!eventOccurrences || eventOccurrences.length === 0) {
+      return {};
+    }
+
+    const result = groupOccurrencesByDate(eventOccurrences);
+    const { startDate } = dateFilters;
+    
     const filteredResult: Record<string, EventOccurrence[]> = {};
     Object.entries(result).forEach(([dateKey, occurrences]) => {
+      // Use cached date parsing where possible
       const eventDate = parseISO(dateKey);
       if (eventDate >= startDate) {
-        filteredResult[dateKey] = occurrences;
+        // Sort events by start time within each day (memoized)
+        filteredResult[dateKey] = (occurrences as EventOccurrence[]).sort((a, b) => {
+          const timeA = a.event.start_time ? new Date(a.event.start_time).getTime() : 0;
+          const timeB = b.event.start_time ? new Date(b.event.start_time).getTime() : 0;
+          return timeA - timeB;
+        });
       }
     });
     
     return filteredResult;
-  }, [eventOccurrences, selectedDate]);
+  }, [eventOccurrences, dateFilters]);
 
   const sections = useMemo(() => {
     if (!grouped || Object.keys(grouped).length === 0) {
       return [];
     }
 
-    const processedSections = Object.entries(grouped)
-      .map(([date, data]) => {
+    // Pre-calculate date objects to avoid repeated parsing
+    const sectionsWithDates = Object.entries(grouped)
+      .map(([dateKey, data]) => {
         if (!data || !Array.isArray(data)) {
           return null;
         }
         
         try {
           // Parse the date key (yyyy-MM-dd format) to create proper Date object
-          const parsedDate = parseISO(date);
+          const parsedDate = parseISO(dateKey);
           
           return {
             title: format(parsedDate, 'EEEE, MMMM d'),
-            date: parsedDate, // Keep the actual date for sorting
-            key: date, // Use yyyy-MM-dd as unique key for scrolling
-            data: data.sort((a, b) => {
-              // Sort events by start time within each day
-              const timeA = a.event.start_time ? new Date(a.event.start_time).getTime() : 0;
-              const timeB = b.event.start_time ? new Date(b.event.start_time).getTime() : 0;
-              return timeA - timeB;
-            }),
+            date: parsedDate,
+            key: dateKey,
+            data, // Data is already sorted from grouped calculation
           };
         } catch (error) {
-          console.error('Error formatting date:', date, error);
+          console.error('Error formatting date:', dateKey, error);
           return null;
         }
       })
-      .filter((section): section is { title: string; date: Date; key: string; data: EventOccurrence[] } => section !== null)
-      .sort((a, b) => {
-        // Sort sections by actual date (chronological order)
-        return a.date.getTime() - b.date.getTime();
-      })
+      .filter((section): section is { title: string; date: Date; key: string; data: EventOccurrence[] } => section !== null);
+
+    // Sort sections by date and return final format
+    return sectionsWithDates
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
       .map(section => ({
-        // Keep the key for scrolling, remove the date property after sorting
         title: section.title,
         key: section.key,
         data: section.data
       }));
-
-    return processedSections;
   }, [grouped]);
 
   // Constants for calculating section sizes
@@ -194,8 +244,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({ currentDateRef }) => {
     }
   }, [sectionHeights, selectedDate, grouped, height, sections]);
 
-  const sectionListRef = useRef<SectionList>(null);
-
   // Scroll to selected date ONLY when sections change AND we have a valid target
   useEffect(() => {
     if (!sections.length) return;
@@ -205,37 +253,11 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({ currentDateRef }) => {
     
     if (sectionIndex >= 0) {
       // Found exact match - scroll to it
-      
-      setTimeout(() => {
-        // Double-check the section index right before scrolling
-        const currentSections = sections;
-        const currentIndex = currentSections.findIndex(section => section.key === targetKey);
-        
-        if (currentIndex >= 0 && currentIndex < currentSections.length) {
-          // Calculate manual offset to the target section
-          let offset = 0;
-          for (let i = 0; i < currentIndex; i++) {
-            offset += sectionHeights[i] || 0;
-          }
-          
-          // Use scrollToOffset for more precise control
-          const flatListRef = (sectionListRef.current as any)?._listRef;
-          if (flatListRef) {
-            flatListRef.scrollToOffset({
-              offset: offset,
-              animated: true,
-            });
-          } else {
-            sectionListRef.current?.scrollToLocation({
-              sectionIndex: currentIndex,
-              itemIndex: 0,
-              viewPosition: 0,
-              viewOffset: 0,
-              animated: true,
-            });
-          }
-        }
-      }, 800); // Even longer delay to ensure stability
+      let offset = 0;
+      for (let i = 0; i < sectionIndex; i++) {
+        offset += sectionHeights[i] || 0;
+      }
+      animateToSection(offset);
     } else {
       // No exact match - find closest future date
       const targetTime = selectedDate.getTime();
@@ -254,83 +276,20 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({ currentDateRef }) => {
       });
       
       if (closestIndex >= 0) {
-        setTimeout(() => {
-          const currentSections = sections;
-          if (closestIndex < currentSections.length) {
-            // Calculate manual offset to the target section
-            let offset = 0;
-            for (let i = 0; i < closestIndex; i++) {
-              offset += sectionHeights[i] || 0;
-            }
-            
-            // Use scrollToOffset for more precise control
-            const flatListRef = (sectionListRef.current as any)?._listRef;
-            if (flatListRef) {
-              flatListRef.scrollToOffset({
-                offset: offset,
-                animated: true,
-              });
-            } else {
-              sectionListRef.current?.scrollToLocation({
-                sectionIndex: closestIndex,
-                itemIndex: 0,
-                viewPosition: 0,
-                viewOffset: 0,
-                animated: true,
-              });
-            }
-          }
-        }, 800);
+        let offset = 0;
+        for (let i = 0; i < closestIndex; i++) {
+          offset += sectionHeights[i] || 0;
+        }
+        animateToSection(offset);
       }
     }
-  }, [sections, format(selectedDate, 'yyyy-MM-dd')]); // Depend on both sections and selected date
+  }, [sections, format(selectedDate, 'yyyy-MM-dd'), sectionHeights, animateToSection]);
 
-  // Show loading state
+  // Remove loading fallback and empty state fallback
   if (loading) {
     return (
-      <View style={{ 
-        flex: 1, 
-        justifyContent: 'center', 
-        alignItems: 'center',
-        paddingBottom: tabBarHeight 
-      }}>
-        <ActivityIndicator size="large" color={themeColors.tint} />
-        <Text style={{ 
-          color: themeColors.placeholderTextColor, 
-          marginTop: 16 
-        }}>
-          Loading events...
-        </Text>
-      </View>
-    );
-  }
-
-  // Show empty state
-  if (sections.length === 0) {
-    return (
-      <View style={{ 
-        flex: 1, 
-        justifyContent: 'center', 
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingBottom: tabBarHeight 
-      }}>
-        <Text style={{ 
-          color: themeColors.placeholderTextColor, 
-          fontSize: 18,
-          fontWeight: '500',
-          textAlign: 'center'
-        }}>
-          No events scheduled
-        </Text>
-        <Text style={{ 
-          color: themeColors.placeholderTextColor, 
-          fontSize: 14,
-          marginTop: 8,
-          textAlign: 'center'
-        }}>
-          Create an event to get started
-        </Text>
+      <View style={{ flex: 1 }}>
+        <ReanimatedShimmerLine />
       </View>
     );
   }
@@ -397,6 +356,42 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({ currentDateRef }) => {
           }, 100);
         }
       }}
+      // Performance optimization props for virtualization
+      removeClippedSubviews={true}
+      maxToRenderPerBatch={8}
+      updateCellsBatchingPeriod={50}
+      initialNumToRender={12}
+      windowSize={8}
+      legacyImplementation={false}
+      disableVirtualization={false}
+      getItemLayout={(data, index) => {
+        // Provide item layout for better scroll performance
+        // This helps with virtualization by giving React Native exact measurements
+        return {
+          length: EVENT_HEIGHT + EVENT_GAP,
+          offset: (EVENT_HEIGHT + EVENT_GAP) * index,
+          index,
+        };
+      }}
+      ListEmptyComponent={() => (
+        <View style={{ 
+          flex: 1, 
+          justifyContent: 'center', 
+          alignItems: 'center',
+          paddingHorizontal: 16,
+          paddingBottom: tabBarHeight,
+          opacity: loading ? 0.5 : 1
+        }}>
+          <Text style={{ 
+            color: themeColors.placeholderTextColor, 
+            fontSize: 18,
+            fontWeight: '500',
+            textAlign: 'center'
+          }}>
+            No events scheduled
+          </Text>
+        </View>
+      )}
     />
   );
 };

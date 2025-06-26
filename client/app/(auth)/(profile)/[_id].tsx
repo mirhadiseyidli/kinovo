@@ -92,18 +92,23 @@ const ProfilePage = () => {
   // Custom refresh control renderer
   const renderRefreshControl = useCallback((refreshProps: RefreshControlProps) => {
     return (
-      <RefreshControl 
-        refreshing={isRefreshing} 
-        onRefresh={onStartRefresh}
-        tintColor={themeColors.mountainGreen}
-        colors={[themeColors.mountainGreen]}
-      />
+      <View style={{ 
+        justifyContent: 'center', 
+        alignItems: 'center' 
+      }}>
+        <ActivityIndicator 
+          size='small' 
+          color={themeColors.mountainGreen} 
+          style={{ transform: [{ scale: 1.5 }] }}
+        />
+      </View>
     );
-  }, [isRefreshing, onStartRefresh]);
+  }, [themeColors]);
 
   return (
     <ThemedView style={{ flex: 1 }}>
       <CollapsibleTabView
+        onStartRefresh={onStartRefresh}
         isRefreshing={isRefreshing}
         navigationState={{ index, routes }}
         renderScene={renderScene}

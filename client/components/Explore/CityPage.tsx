@@ -10,20 +10,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import api from '@/utils/api';
 import type { Event as EventType } from '@/types/allTypes';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-
-const cityImages: { [key: string]: any } = {
-  'San Francisco': require('@/assets/san-francisco.avif'),
-  'New York': require('@/assets/new-york.webp'),
-  'Los Angeles': require('@/assets/los-angeles.webp'),
-  'Chicago': require('@/assets/chicago.jpg'),
-};
-
-const cityDescriptions: { [key: string]: string } = {
-  'San Francisco': 'Discover amazing events in the City by the Bay',
-  'New York': 'Experience the city that never sleeps',
-  'Los Angeles': 'Find exciting events in the City of Angels',
-  'Chicago': 'Explore events in the Windy City',
-};
+import { EventCardSkeleton } from '@/components/Skeleton';
+import { useFocusEffect } from '@react-navigation/native';
+import { getCityByName, getStateByCity, getCityDescription } from '@/constants/Cities';
 
 const CityPage = () => {
   const { city } = useLocalSearchParams();
@@ -32,33 +21,74 @@ const CityPage = () => {
   const [events, setEvents] = useState<EventType[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const router = useRouter();
+
+  // Get city info from constants
+  const cityInfo = getCityByName(city as string);
+  const stateName = getStateByCity(city as string);
+  const cityDescription = getCityDescription(city as string);
 
   const fetchEventsByCity = async () => {
     try {
       const response = await api.get(`/api/manageevents/eventslist/city/${encodeURIComponent(city as string)}`);
-      setEvents(response.data);
+      if (Array.isArray(response.data)) {
+        setEvents(response.data);
+        setHasError(false); // Clear error state on successful fetch
+      } else {
+        console.error('Unexpected response format:', response.data);
+        setEvents([]);
+        setHasError(true);
+      }
     } catch (err: any) {
       console.error('Error fetching events:', err);
       if (err.response) {
         console.error('Error response:', err.response.data);
       }
+      setEvents([]);
+      setHasError(true);
+      throw err; // Re-throw to be handled by caller
+    }
+  };
+
+  const loadEvents = async () => {
+    setLoading(true);
+    setHasError(false);
+    try {
+      await fetchEventsByCity();
+      setLoading(false); // Set loading to false on success
+    } catch (error) {
+      // On error, only set loading to false if we have existing data to show
+      if (events.length > 0) {
+        setLoading(false);
+      }
+      // If no existing data, keep loading true to show skeleton
     }
   };
 
   useEffect(() => {
-    const loadEvents = async () => {
-      setLoading(true);
-      await fetchEventsByCity();
-      setLoading(false);
-    };
     loadEvents();
   }, [city]);
 
+  // Auto-recovery when screen comes into focus (for server reconnection scenarios)
+  useFocusEffect(
+    React.useCallback(() => {
+      // Only attempt recovery if we have an error and no data
+      if (hasError && events.length === 0 && !refreshing) {
+        loadEvents();
+      }
+    }, [hasError, events.length, refreshing])
+  );
+
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchEventsByCity();
-    setRefreshing(false);
+    try {
+      await fetchEventsByCity();
+    } catch (error) {
+      // Error handled in fetchEventsByCity
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   return (
@@ -76,7 +106,7 @@ const CityPage = () => {
       {/* Header Image with Gradient Overlay */}
       <View style={{ height: 300 }}>
         <ImageBackground
-          source={cityImages[city as string] || require('@/assets/event-default.png')}
+          source={cityInfo?.image || require('@/assets/event-default.png')}
           style={{ flex: 1 }}
           resizeMode="cover"
         >
@@ -98,10 +128,10 @@ const CityPage = () => {
               {city}
             </ThemedText>
             <ThemedText style={{ fontSize: 16, color: 'white', marginBottom: 8 }}>
-              California
+              {stateName || 'Unknown State'}
             </ThemedText>
             <ThemedText style={{ fontSize: 14, color: 'white', opacity: 0.9 }}>
-              {cityDescriptions[city as string] || 'Discover amazing events in this city'}
+              {cityDescription}
             </ThemedText>
           </LinearGradient>
         </ImageBackground>
@@ -114,14 +144,14 @@ const CityPage = () => {
             Events in {city}
           </ThemedText>
           <ThemedText style={{ color: themeColors.textSecondary }}>
-            {events.length} events
+            {loading && events.length === 0 ? '...' : `${events.length} events`}
           </ThemedText>
         </ThemedView>
 
         {/* Events List */}
         <ThemedView style={{ gap: 16 }}>
-          {loading ? (
-            <ActivityIndicator size="large" color={themeColors.tint} />
+          {(loading && events.length === 0) || refreshing ? (
+            <EventCardSkeleton count={3} />
           ) : events.length > 0 ? (
             events.map((event) => (
               <Event
@@ -162,7 +192,7 @@ const CityPage = () => {
                   fontWeight: '600'
                 }}
               >
-                No events in {city} yet
+                {hasError ? 'Unable to load events' : `No events in ${city} yet`}
               </ThemedText>
               <ThemedText 
                 style={{ 
@@ -172,7 +202,7 @@ const CityPage = () => {
                   opacity: 0.8
                 }}
               >
-                Tap here to create the first event in {city}!
+                {hasError ? 'Pull to refresh or check your connection' : `Tap here to create the first event in ${city}!`}
               </ThemedText>
             </TouchableOpacity>
           )}

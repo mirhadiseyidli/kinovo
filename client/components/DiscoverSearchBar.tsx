@@ -6,6 +6,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { useRouter } from 'expo-router';
 import { User, Event } from '@/types/allTypes';
+import DefaultProfilePicture from './DefaultProfilePicture';
 
 interface DiscoverSearchBarProps {
   inputValue: string;
@@ -211,15 +212,14 @@ const DiscoverSearchBar: React.FC<DiscoverSearchBarProps> = ({
                       }}
                       onPress={() => handleUserPress(user)}
                     >
-                      <Image
-                        source={user.profile_picture ? { uri: user.profile_picture } : require('@/assets/profile-pic-2.jpeg')}
-                        style={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 20,
-                          marginRight: 12,
-                        }}
-                      />
+                      <View style={{ marginRight: 12 }}>
+                        <DefaultProfilePicture
+                          profilePicture={user.profile_picture}
+                          fullName={user.full_name}
+                          size={40}
+                          borderRadius={20}
+                        />
+                      </View>
                       <View style={{ flex: 1 }}>
                         <Text style={{ 
                           fontWeight: '600', 
