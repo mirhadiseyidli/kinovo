@@ -340,7 +340,17 @@ const SignUpContent: React.FC = () => {
       );
 
       if (response.data.success) {
-        router.replace('/');
+        setLoading(false);
+        Alert.alert(
+          'Sign Up Successful!',
+          'Your account has been created successfully. Please login to continue.',
+          [
+            {
+              text: 'Login',
+              onPress: () => router.replace('/login'),
+            }
+          ]
+        );
       }
     } catch (error: any) {
       console.error('Signup error:', error.response?.data || error.message);

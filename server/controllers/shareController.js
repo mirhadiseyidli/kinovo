@@ -6,8 +6,7 @@ const handleEventShare = async (req, res) => {
   try {
     const { event_id } = req.params;
     const event = await Events.findById(event_id)
-      .populate('creator', 'full_name profile_picture')
-      .populate('attendees.user', 'full_name profile_picture');
+      .populate('creator', 'full_name profile_picture');
 
     if (!event) {
       return res.status(404).json({ error: 'Event not found' });
@@ -23,6 +22,7 @@ const handleEventShare = async (req, res) => {
     if (!isApp) {
       return res.render('eventShare', {
         event: {
+          _id: event._id,
           title: event.title,
           description: event.description,
           start_time: event.start_time,
@@ -30,9 +30,11 @@ const handleEventShare = async (req, res) => {
           location: event.location,
           creator: event.creator,
           category: event.category,
-          attendees: event.attendees
+          event_picture: event.event_picture,
+          visibility: event.visibility
         },
-        appStoreUrl: 'YOUR_APP_STORE_URL'
+        eventId: event._id,
+        appStoreUrl: 'https://apps.apple.com/app/id6746650733'
       });
     }
 
@@ -52,7 +54,7 @@ const handleProfileShare = async (req, res) => {
   try {
     const { user_id } = req.params;
     const user = await Users.findById(user_id)
-      .select('full_name profile_picture bio favorite_activities');
+      .select('full_name profile_picture bio');
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -63,12 +65,13 @@ const handleProfileShare = async (req, res) => {
     if (!isApp) {
       return res.render('profileShare', {
         user: {
+          _id: user._id,
           full_name: user.full_name,
           profile_picture: user.profile_picture,
-          bio: user.bio,
-          favorite_activities: user.favorite_activities
+          bio: user.bio
         },
-        appStoreUrl: 'YOUR_APP_STORE_URL'
+        userId: user._id,
+        appStoreUrl: 'https://apps.apple.com/app/id6746650733'
       });
     }
 

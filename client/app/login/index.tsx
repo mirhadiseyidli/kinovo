@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, Image, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Dimensions } from 'react-native';
 import EmailLogin from '@/components/Auth/emailPasswordLogin';
 import GoogleOAuth from '@/components/Auth/googleOAuth';
 import AppleOAuth from '@/components/Auth/appleOAuth';
 import FacebookOAuth from '@/components/Auth/facebookOAuth';
-import { useRouter } from 'expo-router';
+import LoginLoadingOverlay from '@/components/Auth/LoginLoadingOverlay';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
@@ -21,13 +22,48 @@ export default function Auth() {
   const themeColors = Colors[colorScheme ?? 'dark'];
   const insets = useSafeAreaInsets();
   const { signIn } = useAuthSession();
+  
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+
+  const handleLoginStart = useCallback(() => {
+    setIsLoading(true);
+    setIsSuccess(false);
+  }, []);
+
+  const handleLoginSuccess = useCallback(() => {
+    setIsSuccess(true);
+  }, []);
+
+  const handleLoginComplete = useCallback(() => {
+    setIsLoading(false);
+    setIsSuccess(false);
+  }, []);
+
+  const handleLoginError = useCallback(() => {
+    setIsLoading(false);
+    setIsSuccess(false);
+  }, []);
+
+  // Reset loading state when screen comes back into focus
+  useFocusEffect(
+    useCallback(() => {
+      // Reset loading states when returning to login screen
+      setIsLoading(false);
+      setIsSuccess(false);
+    }, [])
+  );
 
   const handleLogin: TokenTypes = async (accessToken, refreshToken, userId, firebaseToken) => {
     try {
-      // Trigger authentication state update
+      handleLoginSuccess();
+      // Small delay to show success animation before navigation
+      setTimeout(() => {
       signIn(accessToken, refreshToken, userId, firebaseToken);
+      }, 300);
     } catch (error) {
       console.error('Error storing tokens:', error);
+      handleLoginError();
     }
   };
 
@@ -72,7 +108,11 @@ export default function Auth() {
             paddingBottom: Platform.OS === 'ios' ? 40 : 20
           }}>
             <ThemedView style={{ alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-              <EmailLogin onLoginSuccess={handleLogin} />
+              <EmailLogin 
+                onLoginSuccess={handleLogin} 
+                onLoginStart={handleLoginStart}
+                onLoginError={handleLoginError}
+              />
             </ThemedView>
 
             {/* Separator */}
@@ -98,9 +138,17 @@ export default function Auth() {
 
             {/* OAuth Buttons */}
             <ThemedView style={{ flexDirection: 'row', width: '100%', alignItems: 'center', justifyContent: 'space-evenly', paddingHorizontal: 16 }}>
-              <AppleOAuth onLoginSuccess={handleLogin} />
+              <AppleOAuth 
+                onLoginSuccess={handleLogin} 
+                onLoginStart={handleLoginStart}
+                onLoginError={handleLoginError}
+              />
               {/* <FacebookOAuth onLoginSuccess={handleLogin} /> */}
-              <GoogleOAuth onLoginSuccess={handleLogin} />
+              <GoogleOAuth 
+                onLoginSuccess={handleLogin} 
+                onLoginStart={handleLoginStart}
+                onLoginError={handleLoginError}
+              />
             </ThemedView>
           </ThemedView>
         </View>
@@ -119,6 +167,13 @@ export default function Auth() {
           </TouchableOpacity>
         </ThemedView>
       </ScrollView>
+      
+      {/* Loading Overlay */}
+      <LoginLoadingOverlay 
+        visible={isLoading}
+        isSuccess={isSuccess}
+        onAnimationComplete={handleLoginComplete}
+      />
     </KeyboardAvoidingView>
   );
 }

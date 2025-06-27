@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useEffect, useState, useCallback } from 'react';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import TwoFactorAuth from '@/components/Auth/TwoFactorAuth';
+import LoginLoadingOverlay from '@/components/Auth/LoginLoadingOverlay';
 import axios from 'axios';
 import { Alert, Image, Dimensions, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { ThemedView } from '@/components/ThemedView';
@@ -19,6 +20,9 @@ export default function TwoFactorScreen() {
   const themeColors = Colors[colorScheme ?? 'dark'];
   const insets = useSafeAreaInsets();
   const { signIn } = useAuthSession();
+  
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
 
   // Redirect back to login if credentials weren't verified
   useEffect(() => {
@@ -27,6 +31,34 @@ export default function TwoFactorScreen() {
       router.replace('/login');
     }
   }, [verifiedCredentials]);
+
+  // Reset loading state when screen comes back into focus
+  useFocusEffect(
+    useCallback(() => {
+      // Reset loading states when returning to 2FA screen
+      setIsLoading(false);
+      setIsSuccess(false);
+    }, [])
+  );
+
+  const handleVerificationStart = useCallback(() => {
+    setIsLoading(true);
+    setIsSuccess(false);
+  }, []);
+
+  const handleVerificationSuccessAnimation = useCallback(() => {
+    setIsSuccess(true);
+  }, []);
+
+  const handleVerificationError = useCallback(() => {
+    setIsLoading(false);
+    setIsSuccess(false);
+  }, []);
+
+  const handleVerificationComplete = useCallback(() => {
+    setIsLoading(false);
+    setIsSuccess(false);
+  }, []);
 
   const handleVerificationSuccess = async (verificationId: string, verificationCode: string) => {
     try {
@@ -40,12 +72,17 @@ export default function TwoFactorScreen() {
 
       if (response.data.success) {
         const { accessToken, refreshToken, user } = response.data;
+        handleVerificationSuccessAnimation();
+        // Small delay to show success animation before navigation
+        setTimeout(() => {
         signIn(accessToken, refreshToken, user._id);
+        }, 300);
       } else {
         throw new Error(response.data.message || 'Failed to verify login');
       }
     } catch (error: any) {
       console.error('Verification error:', error);
+      handleVerificationError();
       Alert.alert('Error', error.response?.data?.message || 'Failed to complete verification');
     }
   };
@@ -101,11 +138,20 @@ export default function TwoFactorScreen() {
             <TwoFactorAuth
               phoneNumber={phoneNumber as string}
               onVerificationSuccess={handleVerificationSuccess}
+              onVerificationStart={handleVerificationStart}
+              onVerificationError={handleVerificationError}
               onCancel={handleCancel}
             />
           </ThemedView>
         </ThemedView>
       </ScrollView>
+      
+      {/* Loading Overlay */}
+      <LoginLoadingOverlay 
+        visible={isLoading}
+        isSuccess={isSuccess}
+        onAnimationComplete={handleVerificationComplete}
+      />
     </KeyboardAvoidingView>
   );
 } 

@@ -25,6 +25,15 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     icon: './assets/ios-icon-tinted.png',
     userInterfaceStyle: 'automatic',
     newArchEnabled: true,
+    splash: {
+      backgroundColor: '#151718',
+      dark: {
+        backgroundColor: '#151718',
+      },
+      light: {
+        backgroundColor: '#fff',
+      },
+    },
     ios: {
       icon: {
         light: './assets/ios-icon-light.png',

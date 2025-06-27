@@ -247,10 +247,14 @@ export type FriendEventActivity = {
 
 export interface AuthLoginProps {
   onLoginSuccess: (accessToken: string, refreshToken: string, userId: string, firebaseToken?: string) => void;
+  onLoginStart?: () => void;
+  onLoginError?: () => void;
 }
 
 export interface EmailLoginProps {
   onLoginSuccess: (accessToken: string, refreshToken: string, userId: string) => void;
+  onLoginStart?: () => void;
+  onLoginError?: () => void;
 }
 
 export type TokenTypes = (accessToken: string, refreshToken: string, userId: string, firebaseToken?: string) => void;
