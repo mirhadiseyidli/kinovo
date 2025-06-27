@@ -890,7 +890,7 @@ const getUserImages = async (req, res) => {
   }
 };
 
-// Generate default profile picture
+// Generate default profile picture using SVG
 const generateDefaultProfilePicture = async (req, res) => {
   try {
     const { initials, backgroundColor } = req.body;
@@ -902,34 +902,25 @@ const generateDefaultProfilePicture = async (req, res) => {
       });
     }
 
-    // Import canvas at the top of the file if needed
-    const { createCanvas } = require('canvas');
-    
     const size = 400;
     const fontSize = size * 0.35;
     
-    // Create canvas
-    const canvas = createCanvas(size, size);
-    const ctx = canvas.getContext('2d');
+    // Create SVG string
+    const svg = `
+      <svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="${size / 2}" cy="${size / 2}" r="${size / 2}" fill="${backgroundColor}" />
+        <text x="${size / 2}" y="${size / 2}" 
+              font-family="Arial, sans-serif" 
+              font-size="${fontSize}" 
+              font-weight="bold" 
+              fill="white" 
+              text-anchor="middle" 
+              dominant-baseline="central">${initials}</text>
+      </svg>
+    `.trim();
     
-    // Draw circle background
-    ctx.fillStyle = backgroundColor;
-    ctx.beginPath();
-    ctx.arc(size / 2, size / 2, size / 2, 0, 2 * Math.PI);
-    ctx.fill();
-    
-    // Draw initials
-    ctx.fillStyle = 'white';
-    ctx.font = `bold ${fontSize}px Arial`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(initials, size / 2, size / 2);
-    
-    // Convert to PNG buffer
-    const buffer = canvas.toBuffer('image/png');
-    
-    // Convert to base64 data URI
-    const dataUri = `data:image/png;base64,${buffer.toString('base64')}`;
+    // Convert SVG to base64 data URI
+    const dataUri = `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
     
     res.status(200).json({
       success: true,
