@@ -10,7 +10,7 @@ import api from '@/utils/api';
 
 const googleLogo = require('@/assets/google-logo.png');
 
-const GoogleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
+const GoogleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess, onLoginStart, onLoginError }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
 
@@ -24,6 +24,7 @@ const GoogleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
 
       if (!idToken) {
         Alert.alert('Error', 'Failed to retrieve idToken');
+        onLoginError?.();
         return;
       }
 
@@ -46,6 +47,7 @@ const GoogleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
           }
         } catch (error: any) {
           console.error('Google Sign In error:', error);
+          onLoginError?.();
           
           if (error.response) {
             console.error('Backend error:', error.response.data);
@@ -64,8 +66,13 @@ const GoogleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
     }
   }, [response]);
 
+  const handleGoogleSignIn = () => {
+    onLoginStart?.();
+    promptAsync();
+  };
+
   return (
-    <AuthButton onPress={() => promptAsync()} logo='google' disabled={!request} backgroundColor={themeColors.inputBackgroundColor} />
+    <AuthButton onPress={handleGoogleSignIn} logo='google' disabled={!request} backgroundColor={themeColors.inputBackgroundColor} />
   );
 };
 

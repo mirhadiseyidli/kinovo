@@ -14,7 +14,7 @@ import api from '@/utils/api';
 
 const REMEMBERED_EMAIL_KEY = '@kinovo_remembered_email';
 
-const EmailLogin: React.FC<EmailLoginProps> = ({ onLoginSuccess }) => {
+const EmailLogin: React.FC<EmailLoginProps> = ({ onLoginSuccess, onLoginStart, onLoginError }) => {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
@@ -24,6 +24,7 @@ const EmailLogin: React.FC<EmailLoginProps> = ({ onLoginSuccess }) => {
   const [isChecked, setIsChecked] = useState(false);
   const [touched, setTouched] = useState({ email: false, password: false });
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     loadRememberedEmail();
@@ -68,6 +69,7 @@ const EmailLogin: React.FC<EmailLoginProps> = ({ onLoginSuccess }) => {
     }
 
     setLoading(true);
+    onLoginStart?.();
     try {
       // First verify credentials with login endpoint
       const loginResponse = await api.post('/api/auth/login', {
@@ -91,6 +93,7 @@ const EmailLogin: React.FC<EmailLoginProps> = ({ onLoginSuccess }) => {
               style: 'cancel',
               onPress: () => {
                 setLoading(false);
+                onLoginError?.();
                 // Clear password field
                 setPassword('');
               }
@@ -164,6 +167,7 @@ const EmailLogin: React.FC<EmailLoginProps> = ({ onLoginSuccess }) => {
       const errorMessage = error.response?.data?.message || error.message || 'An error occurred during login';
       Alert.alert('Login Error', errorMessage);
       setErrors((prev) => ({ ...prev, password: errorMessage }));
+      onLoginError?.();
     } finally {
       setLoading(false);
     }
@@ -180,7 +184,7 @@ const EmailLogin: React.FC<EmailLoginProps> = ({ onLoginSuccess }) => {
         </ThemedText>
       </ThemedView>
 
-      <ThemedView>
+      <ThemedView style={{ position: 'relative' }}>
         <Input
           value={email}
           onChangeText={handleEmailChange}
@@ -204,11 +208,12 @@ const EmailLogin: React.FC<EmailLoginProps> = ({ onLoginSuccess }) => {
           value={password}
           onChangeText={handlePasswordChange}
           placeholder="Enter your password"
-          secureTextEntry
+          secureTextEntry={!showPassword}
           style={{
             backgroundColor: themeColors.inputBackgroundColor,
             borderRadius: 8,
             paddingHorizontal: 16,
+            paddingRight: 50, // Make room for the eye icon
             height: 44,
             fontSize: 14,
             color: themeColors.text,
@@ -218,6 +223,21 @@ const EmailLogin: React.FC<EmailLoginProps> = ({ onLoginSuccess }) => {
           leftIcon={<Feather name="lock" size={18} color={themeColors.placeholderTextColor} />}
           onFocus={() => setErrors((prev) => ({ ...prev, password: '' }))}
         />
+        <TouchableOpacity
+          onPress={() => setShowPassword(!showPassword)}
+          style={{
+            position: 'absolute',
+            right: 12,
+            bottom: 16,
+            padding: 4,
+          }}
+        >
+          <Feather 
+            name={showPassword ? "eye-off" : "eye"} 
+            size={18} 
+            color={themeColors.placeholderTextColor} 
+          />
+        </TouchableOpacity>
       </ThemedView>
 
       <ThemedView

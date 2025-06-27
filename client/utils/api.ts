@@ -166,9 +166,13 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // Don't retry refresh token requests
-    if (originalRequest.url?.includes('/api/auth/refresh-token')) {
-      console.log('Not retrying refresh token request');
+    // Don't retry refresh token requests or login requests
+    if (originalRequest.url?.includes('/api/auth/refresh-token') || 
+        originalRequest.url?.includes('/api/auth/login') ||
+        originalRequest.url?.includes('/api/auth/signup') ||
+        originalRequest.url?.includes('/api/auth/verify-login') ||
+        originalRequest.url?.includes('/api/auth/get-phone')) {
+      console.log('Not retrying auth-related request');
       return Promise.reject(error);
     }
 

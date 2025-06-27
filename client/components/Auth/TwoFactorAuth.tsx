@@ -10,12 +10,16 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 interface TwoFactorAuthProps {
   phoneNumber: string;
   onVerificationSuccess: (verificationId: string, verificationCode: string) => void;
+  onVerificationStart?: () => void;
+  onVerificationError?: () => void;
   onCancel: () => void;
 }
 
 const TwoFactorAuth: React.FC<TwoFactorAuthProps> = ({
   phoneNumber,
   onVerificationSuccess,
+  onVerificationStart,
+  onVerificationError,
   onCancel
 }) => {
   const [confirmation, setConfirmation] = useState<FirebaseAuthTypes.ConfirmationResult | null>(null);
@@ -105,6 +109,7 @@ const TwoFactorAuth: React.FC<TwoFactorAuthProps> = ({
 
     try {
       setLoading(true);
+      onVerificationStart?.();
       const userCredential = await confirmation.confirm(code);
       
       if (userCredential?.user && confirmation.verificationId) {
@@ -114,6 +119,7 @@ const TwoFactorAuth: React.FC<TwoFactorAuthProps> = ({
       }
     } catch (error: any) {
       console.error('Verification error:', error);
+      onVerificationError?.();
       if (error.response) {
         console.error('Error response data:', error.response.data);
         console.error('Error response status:', error.response.status);

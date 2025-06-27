@@ -7,7 +7,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import api from '@/utils/api';
 
-const AppleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
+const AppleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess, onLoginStart, onLoginError }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [isAppleAuthAvailable, setIsAppleAuthAvailable] = React.useState(false);
@@ -21,6 +21,7 @@ const AppleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
   }, []);
 
   const appleSignIn = async () => {
+    onLoginStart?.();
     try {
       if (Platform.OS !== 'ios') {
         Alert.alert('Not Available', 'Apple Sign In is only available on iOS devices.');
@@ -81,10 +82,12 @@ const AppleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess }) => {
       if (error.code === 'ERR_CANCELED') {
         // User canceled the sign-in
         console.log('User canceled Apple Sign In');
+        onLoginError?.();
         return;
       }
 
       console.error('Apple Sign In error:', error);
+      onLoginError?.();
 
       if (error.response) {
         console.error('Backend error:', error.response.data);
