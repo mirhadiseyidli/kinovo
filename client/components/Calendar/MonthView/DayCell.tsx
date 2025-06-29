@@ -3,10 +3,10 @@ import { View, TouchableOpacity, Text } from 'react-native';
 import { ThemedText } from '../../ThemedText';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import { format, isSameDay, isToday } from 'date-fns';
+import { format, isToday } from 'date-fns';
 import { useEventContext } from '@/context/UserSessionContext';
-import { Event } from '@/types/allTypes';
 import { useCalendarViewContext } from '@/context/CalendarViewContext';
+import { useCalendarContext } from '@/context/CalendarContext';
 
 interface DayCellProps {
   date: Date;
@@ -14,7 +14,6 @@ interface DayCellProps {
   today: Date;
   cellWidth: number;
   cellHeight: number;
-  handleMonthYearChange: (month: number, year: number, day: number, fromDropdown?: boolean) => void;
 }
 
 const MAX_VISIBLE_EVENTS = 3;
@@ -25,12 +24,12 @@ const DayCell: React.FC<DayCellProps> = ({
   today,
   cellWidth,
   cellHeight,
-  handleMonthYearChange,
 }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { getOccurrencesForDate } = useEventContext();
   const { setView } = useCalendarViewContext();
+  const { navigateToDay } = useCalendarContext();
   
   const isCurrentMonth = date.getMonth() === month;
   const isCurrentDay = isToday(date);
@@ -75,7 +74,7 @@ const DayCell: React.FC<DayCellProps> = ({
 
   const openSchedule = () => {
     setView('Schedule');
-    handleMonthYearChange(date.getMonth(), date.getFullYear(), date.getDate(), false);
+    navigateToDay(date);
   };
 
   return (

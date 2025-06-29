@@ -11,13 +11,32 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TabFlashList } from '@/components/CollapsibleTab/tab-flash-list';
 import { Route } from '@/components/CollapsibleTab';
 import { User } from '@/types/allTypes';
+import { SkeletonBox } from '@/components/Skeleton';
+import { Feather } from '@expo/vector-icons';
 
 type UserFriendsProps = {
   userId: string;
   route?: Route;
+  refreshing?: boolean;
 };
 
-export default React.memo(function UserFriends({ userId, route }: UserFriendsProps) {
+const FriendSkeleton = () => {
+  return (
+    <View style={{ 
+      flexDirection: 'row', 
+      alignItems: 'center',
+      borderRadius: 12,
+    }}>
+      <SkeletonBox width={48} height={48} borderRadius={999} marginRight={12} />
+      <View style={{ flex: 1 }}>
+        <SkeletonBox width={120} height={16} marginBottom={4} />
+        <SkeletonBox width={80} height={12} />
+      </View>
+    </View>
+  );
+};
+
+export default React.memo(function UserFriends({ userId, route, refreshing }: UserFriendsProps) {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [searchQuery, setSearchQuery] = useState('');
@@ -29,6 +48,12 @@ export default React.memo(function UserFriends({ userId, route }: UserFriendsPro
       fetchUserToViewFriends();
     }
   }, [fetchUserToViewFriends, userId]);
+
+  useEffect(() => {
+    if (refreshing) {
+      fetchUserToViewFriends();
+    }
+  }, [refreshing, fetchUserToViewFriends]);
 
   const renderItem = ({ item }: { item: User }) => {
     return (
@@ -45,30 +70,59 @@ export default React.memo(function UserFriends({ userId, route }: UserFriendsPro
   };
 
   const ListEmptyComponent = () => (
-    <ThemedText 
-      style={{ 
-        fontSize: 16, 
-        color: themeColors.placeholderTextColor, 
-        marginTop: 32,
-        textAlign: 'center'
-      }}
-    >
-      {`Looks like it\'s just you for now!\nAdd some friends to get started!`}
-    </ThemedText>
+    <View style={{ paddingTop: 16, width: '100%' }}>
+      <View style={{
+        backgroundColor: themeColors.background,
+        borderRadius: 12,
+        padding: 16,
+        borderWidth: 2,
+        borderStyle: 'dashed',
+        borderColor: themeColors.border,
+        width: '100%',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: 120,
+      }}>
+        <View style={{ marginBottom: 12 }}>
+          <Feather
+            name="users"
+            size={32}
+            color={themeColors.placeholderTextColor}
+          />
+        </View>
+        <ThemedText 
+          style={{ 
+            fontSize: 16, 
+            color: themeColors.placeholderTextColor, 
+            textAlign: 'center',
+            marginBottom: 4,
+            fontWeight: '600'
+          }}
+        >
+          No friends yet
+        </ThemedText>
+        <ThemedText 
+          style={{ 
+            fontSize: 14, 
+            color: themeColors.placeholderTextColor,
+            textAlign: 'center',
+            opacity: 0.8
+          }}
+        >
+          This user hasn't added any friends yet
+        </ThemedText>
+      </View>
+    </View>
   );
 
   const ListHeaderComponent = () => (
     loading ? (
-      <ThemedText 
-        style={{ 
-          fontSize: 16, 
-          color: themeColors.placeholderTextColor, 
-          marginTop: 32,
-          textAlign: 'center'
-        }}
-      >
-        Loading...
-      </ThemedText>
+      <View style={{ marginTop: 16, flex: 1, flexDirection: 'column', gap: 16 }}>
+        <SkeletonBox width="100%" height={40} borderRadius={8} />
+        <FriendSkeleton />
+        <FriendSkeleton />
+        <FriendSkeleton />
+      </View>
     ) : friendsList.length > 0 ? (
       <View style={{ marginTop: 16, marginBottom: 16, width: '100%' }}>
         <SearchFriendsBar

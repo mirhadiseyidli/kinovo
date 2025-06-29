@@ -4,15 +4,19 @@ import { ContextMenu, Button } from '@expo/ui/swift-ui';
 import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { router } from 'expo-router';
+import { useAuthSession } from '@/components/Auth/AuthProvider';
 
-interface ContextMenuWithTriggerProps {
-  onRemove?: () => void;
-  onBlock: () => void;
-}
-
-export default function ContextMenuWithTrigger({ onRemove, onBlock }: ContextMenuWithTriggerProps) {
+export default function ProfilePreviewMenu() {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
+  const { userId } = useAuthSession();
+
+  const handlePreviewProfile = () => {
+    if (userId) {
+      router.push(`/(auth)/(profile)/${userId}`);
+    }
+  };
 
   return (
     <ContextMenu 
@@ -24,19 +28,10 @@ export default function ContextMenuWithTrigger({ onRemove, onBlock }: ContextMen
       }}
     >
       <ContextMenu.Items>
-        {onRemove && (
-          <Button 
-            systemImage={"person.badge.minus"} 
-            onPress={onRemove}
-            children='Remove Friend'
-            role='destructive'
-          />
-        )}
         <Button 
-          systemImage={"exclamationmark.triangle"} 
-          onPress={onBlock}
-          children='Block User'
-          role='destructive'
+          systemImage={"eye"} 
+          onPress={handlePreviewProfile}
+          children='Preview Profile'
         />
       </ContextMenu.Items>
 

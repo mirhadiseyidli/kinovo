@@ -8,179 +8,182 @@ export type CategoryImageType = {
   };
 };
 
+const CDN_DOMAIN = 'cdn.kinovo.app';
+const CATEGORY_PATH = 'category';
+
 // Map each category to its corresponding image
 export const CategoryImages: CategoryImageType = {
   'Alpine Ski': {
-    image: require('@/assets/Category/Alpine-Ski.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Alpine-Ski.png` },
     alt: 'Alpine Ski'
   },
   'Backcountry Ski': {
-    image: require('@/assets/Category/Backcountry-Ski.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Backcountry-Ski.png` },
     alt: 'Backcountry Ski'
   },
   'Badminton': {
-    image: require('@/assets/Category/Badminton.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Badminton.png` },
     alt: 'Badminton'
   },
   'Canoeing': {
-    image: require('@/assets/Category/Canoeing.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Canoeing.png` },
     alt: 'Canoeing'
   },
   'Crossfit': {
-    image: require('@/assets/Category/Crossfit.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Crossfit.png` },
     alt: 'Crossfit'
   },
   'E-Bike Ride': {
-    image: require('@/assets/Category/E-Bike-Ride.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/E-Bike-Ride.png` },
     alt: 'E-Bike Ride'
   },
   'Elliptical': {
-    image: require('@/assets/Category/Elliptical.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Elliptical.png` },
     alt: 'Elliptical'
   },
   'E-Mountain Bike Ride': {
-    image: require('@/assets/Category/E-Mountain-Bike-Ride.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/E-Mountain-Bike-Ride.png` },
     alt: 'E-Mountain Bike Ride'
   },
   'Golf': {
-    image: require('@/assets/Category/Golf.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Golf.png` },
     alt: 'Golf'
   },
   'Gravel Ride': {
-    image: require('@/assets/Category/Gravel Ride.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Gravel Ride.png` },
     alt: 'Gravel Ride'
   },
   'Handcycle': {
-    image: require('@/assets/Category/Handcycle.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Handcycle.png` },
     alt: 'Handcycle'
   },
   'High Intensity Interval Training': {
-    image: require('@/assets/Category/High Intensity Interval Training.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/High Intensity Interval Training.png` },
     alt: 'High Intensity Interval Training'
   },
   'Hike': {
-    image: require('@/assets/Category/Hike.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Hike.png` },
     alt: 'Hike'
   },
   'Ice Skate': {
-    image: require('@/assets/Category/Ice Skate.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Ice Skate.png` },
     alt: 'Ice Skate'
   },
   'Inline Skate': {
-    image: require('@/assets/Category/Inline Skate.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Inline Skate.png` },
     alt: 'Inline Skate'
   },
   'Kayaking': {
-    image: require('@/assets/Category/Kayaking.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Kayaking.png` },
     alt: 'Kayaking'
   },
   'Kitesurf': {
-    image: require('@/assets/Category/Kitesurf.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Kitesurf.png` },
     alt: 'Kitesurf'
   },
   'Mountain Bike Ride': {
-    image: require('@/assets/Category/Mountain Bike Ride.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Mountain Bike Ride.png` },
     alt: 'Mountain Bike Ride'
   },
   'Nordic Ski': {
-    image: require('@/assets/Category/Nordic Ski.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Nordic Ski.png` },
     alt: 'Nordic Ski'
   },
   'Pickleball': {
-    image: require('@/assets/Category/Pickleball-change.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Pickleball-change.png` },
     alt: 'Pickleball'
   },
   'Pilates': {
-    image: require('@/assets/Category/Pilates-change.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Pilates-change.png` },
     alt: 'Pilates'
   },
   'Ride': {
-    image: require('@/assets/Category/Ride.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Ride.png` },
     alt: 'Ride'
   },
   'Rock Climbing': {
-    image: require('@/assets/Category/Rock Climbing.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Rock Climbing.png` },
     alt: 'Rock Climbing'
   },
   'Roller Ski': {
-    image: require('@/assets/Category/Roller Ski.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Roller Ski.png` },
     alt: 'Roller Ski'
   },
   'Rowing': {
-    image: require('@/assets/Category/Rowing.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Rowing.png` },
     alt: 'Rowing'
   },
   'Run': {
-    image: require('@/assets/Category/Run.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Run.png` },
     alt: 'Run'
   },
   'Sail': {
-    image: require('@/assets/Category/Sail.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Sail.png` },
     alt: 'Sail'
   },
   'Skateboard': {
-    image: require('@/assets/Category/Skateboard.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Skateboard.png` },
     alt: 'Skateboard'
   },
   'Snowboard': {
-    image: require('@/assets/Category/Snowboard.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Snowboard.png` },
     alt: 'Snowboard'
   },
   'Snowshoe': {
-    image: require('@/assets/Category/Snowshoe.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Snowshoe.png` },
     alt: 'Snowshoe'
   },
   'Soccer': {
-    image: require('@/assets/Category/Soccer.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Soccer.png` },
     alt: 'Soccer'
   },
   'Squash': {
-    image: require('@/assets/Category/Squash.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Squash.png` },
     alt: 'Squash'
   },
   'Stair Stepper': {
-    image: require('@/assets/Category/Stair Stepper.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Stair Stepper.png` },
     alt: 'Stair Stepper'
   },
   'Stand Up Paddling': {
-    image: require('@/assets/Category/Stand Up Paddling.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Stand Up Paddling.png` },
     alt: 'Stand Up Paddling'
   },
   'Surfing': {
-    image: require('@/assets/Category/Surf.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Surf.png` },
     alt: 'Surfing'
   },
   'Swim': {
-    image: require('@/assets/Category/Swim.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Swim.png` },
     alt: 'Swim'
   },
   'Table Tennis': {
-    image: require('@/assets/Category/Table tennis.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Table tennis.png` },
     alt: 'Table Tennis'
   },
   'Tennis': {
-    image: require('@/assets/tennis-court.jpg'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Tennis.png` },
     alt: 'Tennis'
   },
   'Trail Run': {
-    image: require('@/assets/Category/Run.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Run.png` },
     alt: 'Trail Run'
   },
   'Walk': {
-    image: require('@/assets/Category/Run.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Run.png` },
     alt: 'Walk'
   },
   'Weight Training': {
-    image: require('@/assets/Category/Crossfit.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Crossfit.png` },
     alt: 'Weight Training'
   },
   'Yoga': {
-    image: require('@/assets/Category/Pilates-change.png'),
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Pilates-change.png` },
     alt: 'Yoga'
   },
   // Add a default image
   'Default': {
-    image: require('@/assets/event-default.png'),
+    image: { uri: `https://${CDN_DOMAIN}/event-default.png` },
     alt: 'Default Event Image'
   }
 };

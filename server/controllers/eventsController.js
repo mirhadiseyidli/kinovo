@@ -2351,17 +2351,116 @@ const updateEvent = async (req, res) => {
 
 const removeEventAttendee = async (req, res) => {
   try {
-    const { eventId, attendeeId } = req.body;
-    
-    // Verify the requester is the event creator
+    const { eventId, attendeeId, occurrenceDate, modifyType } = req.body;
+
+    // Validate required fields
+    if (!eventId || !attendeeId) {
+      return res.status(400).json({ message: 'Event ID and attendee ID are required' });
+    }
+
+    // Find the event
     const event = await Events.findById(eventId);
     if (!event) {
       return res.status(404).json({ message: 'Event not found' });
     }
-    
+
+    // Verify the requester is the event creator
     if (event.creator.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: 'Only event creator can remove attendees' });
     }
+
+    // Check if the attendee actually exists in the event
+    const attendeeExists = event.attendees.some(att => att.user.toString() === attendeeId);
+    if (!attendeeExists) {
+      return res.status(404).json({ message: 'Attendee not found in this event' });
+    }
+
+    // Determine if this is a recurring event
+    const isRecurringEvent = event.recurrence?.checked &&
+                             event.recurrence?.frequency &&
+                             event.recurrence?.frequency !== 'none';
+
+    /**
+     * HANDLE "THIS OCCURRENCE ONLY" FOR RECURRING EVENTS
+     * ---------------------------------------------------
+     * 1. Create a separate SINGLE (non-recurring) event for this specific occurrence.
+     * 2. Exclude this date from the master recurring event.
+     * 3. Remove attendee from the separate event (they do not attend this occurrence).
+     */
+    if (isRecurringEvent && occurrenceDate && modifyType === 'this_only') {
+      const occurrenceStartDate = new Date(occurrenceDate);
+      const originalStartDate = new Date(event.start_time);
+      const originalEndDate = new Date(event.end_time);
+
+      // Calculate duration to derive occurrence end date
+      const duration = originalEndDate.getTime() - originalStartDate.getTime();
+      const occurrenceEndDate = new Date(occurrenceStartDate.getTime() + duration);
+
+      // Clone attendees but exclude the removed attendee
+      const clonedAttendees = event.attendees
+        .filter(att => att.user.toString() !== attendeeId)
+        .map(att => ({ user: att.user, status: att.status }));
+
+      // Create the new single event (non-recurring)
+      const separateEvent = await Events.create({
+        creator: event.creator,
+        event_picture: event.event_picture,
+        title: event.title,
+        category: event.category,
+        description: event.description,
+        location: event.location,
+        start_time: occurrenceStartDate,
+        end_time: occurrenceEndDate,
+        capacity: event.capacity,
+        recurrence: { checked: false, frequency: null, end_date: null },
+        attendees: clonedAttendees,
+        visibility: event.visibility,
+        excludedDates: [],
+        status: 'upcoming'
+      });
+
+      // Exclude this occurrence from the master event so it won't duplicate
+      if (!event.excludedDates.some(date => new Date(date).toDateString() === occurrenceStartDate.toDateString())) {
+        event.excludedDates.push(occurrenceStartDate);
+        await event.save();
+      }
+
+      // Remove the event from the removed attendee's events list (if present)
+      await User.findByIdAndUpdate(attendeeId, {
+        $pull: { events: { event: eventId } }
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Successfully removed attendee for this specific event occurrence',
+        separateEventId: separateEvent._id,
+        occurrenceDate: occurrenceStartDate,
+      });
+    }
+
+    /**
+     * HANDLE "ALL FUTURE OCCURRENCES" FOR RECURRING EVENTS
+     */
+    if (isRecurringEvent && modifyType === 'all_future') {
+      // Remove attendee from recurring master event
+      await Events.findByIdAndUpdate(eventId, {
+        $pull: { attendees: { user: attendeeId } }
+      });
+
+      // Remove event from user's events list
+      await User.findByIdAndUpdate(attendeeId, {
+        $pull: { events: { event: eventId } }
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Successfully removed attendee from all future occurrences of this event',
+      });
+    }
+
+    /**
+     * DEFAULT BEHAVIOUR (NON-RECURRING EVENTS OR NO MODIFY TYPE SPECIFIED)
+     */
 
     // Remove attendee from event
     await Events.findByIdAndUpdate(eventId, {
@@ -2373,7 +2472,7 @@ const removeEventAttendee = async (req, res) => {
       $pull: { events: { event: eventId } }
     });
 
-    res.status(200).json({ success: true });
+    return res.status(200).json({ success: true, message: 'Successfully removed attendee' });
   } catch (error) {
     console.error('Error in removeEventAttendee:', error);
     res.status(500).json({ message: 'Server error' });

@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { Feather, Octicons } from '@expo/vector-icons';
 import { UserProfilePhotoProps } from '@/types/allTypes';
 import { getInitials, getRandomColor } from '@/utils/profilePictureGenerator';
+import OptimizedImage from '@/components/OptimizedImage';
 
 const UserProfilePhoto = ({ profile_picture, firstName, lastName }: UserProfilePhotoProps) => {
   const colorScheme = useColorScheme();
@@ -42,11 +43,9 @@ const UserProfilePhoto = ({ profile_picture, firstName, lastName }: UserProfileP
   return (
     <View style={{ width: 120, height: 120, borderRadius: 70, borderWidth: 2, borderColor: themeColors.mountainGreen, overflow: 'hidden' }}>
       {profile_picture ? (
-        <Image
-          source={{ uri: profile_picture }}
+        <OptimizedImage
+          source={profile_picture}
           style={{ width: '100%', height: '100%' }}
-          fadeDuration={100}
-          progressiveRenderingEnabled
         />
       ) : (firstName || lastName) ? (
         // Show default profile picture with initials

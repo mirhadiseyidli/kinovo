@@ -10,23 +10,47 @@ import { TabFlashList } from '@/components/CollapsibleTab/tab-flash-list';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGetUserToViewActivities } from '@/hooks/useGetUserToViewActivities';
 import { getCategoryIcon, getCategoryColor } from '@/utils/categoryIcons';
+import { SkeletonBox } from '@/components/Skeleton';
 
 type UserActivitiesProps = {
   userId: string;
   route?: Route;
+  refreshing?: boolean;
 };
 
-export default React.memo(function UserActivities({ userId, route }: UserActivitiesProps) {
+const ActivitySkeleton = () => {
+  return (
+    <View 
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderRadius: 8
+      }}
+    >
+      <SkeletonBox width={'100%'} height={56} borderRadius={8}/>
+    </View>
+  );
+};
+
+export default React.memo(function UserActivities({ userId, route, refreshing }: UserActivitiesProps) {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
+  const [searchQuery, setSearchQuery] = useState('');
+  const { activities, fetchUserToViewActivities, loading } = useGetUserToViewActivities(userId);
   const insets = useSafeAreaInsets();
-  const { activities, loading, fetchUserToViewActivities } = useGetUserToViewActivities(userId);
-  
+
   useEffect(() => {
     if (userId) {
       fetchUserToViewActivities();
     }
   }, [fetchUserToViewActivities, userId]);
+
+  // Add effect to handle refreshing
+  useEffect(() => {
+    if (refreshing) {
+      fetchUserToViewActivities();
+    }
+  }, [refreshing, fetchUserToViewActivities]);
   
   const renderItem = ({ item }: { item: string }) => {
     const iconName = getCategoryIcon(item);
@@ -95,6 +119,16 @@ export default React.memo(function UserActivities({ userId, route }: UserActivit
     </View>
   );
 
+  const ListHeaderComponent = () => (
+    loading ? (
+      <View style={{ gap: 16 }}>
+        <ActivitySkeleton />
+        <ActivitySkeleton />
+        <ActivitySkeleton />
+      </View>
+    ) : null
+  );
+
   return (
     <ThemedView style={{ flex: 1, paddingHorizontal: 16, paddingTop: 16 }}>
       <TabFlashList
@@ -103,6 +137,7 @@ export default React.memo(function UserActivities({ userId, route }: UserActivit
         estimatedItemSize={70}
         renderItem={renderItem}
         ListEmptyComponent={!loading ? ListEmptyComponent : null}
+        ListHeaderComponent={ListHeaderComponent}
         numColumns={1}
         contentContainerStyle={{ 
           paddingBottom: insets.bottom + 20

@@ -1,6 +1,6 @@
 import AuthProvider, { useAuthSession } from "@/components/Auth/AuthProvider";
 import { Slot, useRouter } from "expo-router";
-import { ReactNode, useState, useEffect, useCallback } from "react";
+import { ReactNode, useState, useEffect, useCallback, useRef } from "react";
 import { View, Linking } from "react-native";
 // import * as SplashScreen from "expo-splash-screen";
 import { Colors } from '@/constants/Colors';
@@ -57,69 +57,6 @@ function InnerLayout() {
   
   // Initialize automatic image cache management
   useAutomaticCacheManagement();
-
-  // Handle deep links
-  const handleDeepLink = useCallback((url: string) => {
-    console.log('Deep link received:', url);
-    
-    if (!accessToken?.current) {
-      // User not logged in, store the deep link for later
-      console.log('User not authenticated, storing deep link for later');
-      return;
-    }
-
-    try {
-      // Parse the URL
-      const urlObj = new URL(url);
-      const scheme = urlObj.protocol.replace(':', '');
-      const path = urlObj.pathname;
-
-      if (scheme === 'kinovo') {
-        const pathSegments = path.split('/').filter(Boolean);
-        
-        if (pathSegments.length >= 2) {
-          const [type, id] = pathSegments;
-          
-          if (type === 'event') {
-            console.log('Navigating to event:', id);
-            router.push(`/(auth)/(viewEvent)/${id}`);
-          } else if (type === 'profile') {
-            console.log('Navigating to profile:', id);
-            router.push(`/(auth)/(profile)/${id}`);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error parsing deep link:', error);
-    }
-  }, [accessToken, router]);
-
-  // Set up deep link listeners
-  useEffect(() => {
-    // Handle app opened via deep link when app was closed
-    const getInitialURL = async () => {
-      const initialUrl = await Linking.getInitialURL();
-      if (initialUrl) {
-        console.log('App opened with initial URL:', initialUrl);
-        // Wait for authentication to complete
-        setTimeout(() => {
-          handleDeepLink(initialUrl);
-        }, 2000);
-      }
-    };
-
-    // Handle app opened via deep link when app was in background
-    const subscription = Linking.addEventListener('url', (event) => {
-      console.log('App opened with URL:', event.url);
-      handleDeepLink(event.url);
-    });
-
-    getInitialURL();
-
-    return () => {
-      subscription?.remove();
-    };
-  }, [handleDeepLink]);
 
   useEffect(() => {
     const initializeFirebase = async () => {

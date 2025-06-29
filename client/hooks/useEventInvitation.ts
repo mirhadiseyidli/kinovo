@@ -135,15 +135,32 @@ export const useEventInvitation = () => {
     }
   };
 
-  const removeAttendee = async (eventId: string, attendeeId: string) => {
+  const removeAttendee = async (
+    eventId: string,
+    attendeeId: string,
+    options?: {
+      occurrenceDate?: string;
+      modifyType?: 'this_only' | 'all_future';
+    }
+  ) => {
     setLoading(true);
     setError(null);
     
     try {
-      const response = await api.post('/api/manageevents/eventslist/remove-attendee', {
+      const requestBody: any = {
         eventId,
-        attendeeId
-      });
+        attendeeId,
+      };
+
+      // Add recurring event options if provided
+      if (options?.occurrenceDate) {
+        requestBody.occurrenceDate = options.occurrenceDate;
+      }
+      if (options?.modifyType) {
+        requestBody.modifyType = options.modifyType;
+      }
+
+      const response = await api.post('/api/manageevents/eventslist/remove-attendee', requestBody);
       
       return response.data;
     } catch (error) {

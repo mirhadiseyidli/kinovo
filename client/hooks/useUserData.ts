@@ -10,6 +10,7 @@ export const useUserData = () => {
   const fetchUserData = async () => {
     try {
       const response = await api.get('/api/users/me');
+      console.log('response', response.data);
       return response.data;
     } catch (error: any) {
       console.error('Failed to fetch user data:', error);

@@ -11,13 +11,23 @@ import EventView from '@/components/Event';
 import { Feather } from '@expo/vector-icons';
 import { TabFlashList } from '@/components/CollapsibleTab/tab-flash-list';
 import { Route } from '@/components/CollapsibleTab';
+import { SkeletonBox, EventCardSkeleton } from '@/components/Skeleton';
 
 type UserEventsProps = {
   userId: string;
   route?: Route;
+  refreshing?: boolean;
 };
 
-export default React.memo(function UserEvents({ userId, route }: UserEventsProps) {
+const EventSkeleton = () => {
+  return (
+    <View style={{ marginBottom: 16 }}>
+      <EventCardSkeleton />
+    </View>
+  );
+};
+
+export default React.memo(function UserEvents({ userId, route, refreshing }: UserEventsProps) {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [searchQuery, setSearchQuery] = useState('');
@@ -29,6 +39,12 @@ export default React.memo(function UserEvents({ userId, route }: UserEventsProps
       fetchUserToViewEvents();
     }
   }, [fetchUserToViewEvents, userId]);
+
+  useEffect(() => {
+    if (refreshing) {
+      fetchUserToViewEvents();
+    }
+  }, [refreshing, fetchUserToViewEvents]);
 
   const renderItem = ({ item }: { item: any }) => {
     return (
@@ -86,8 +102,10 @@ export default React.memo(function UserEvents({ userId, route }: UserEventsProps
 
   const ListHeaderComponent = () => (
     loading ? (
-      <View style={{ marginTop: 32, alignItems: 'center' }}>
-        <ActivityIndicator size="large" color={themeColors.mountainGreen} />
+      <View style={{ marginTop: 16, marginBottom: 16 }}>
+        <SkeletonBox width="100%" height={40} borderRadius={8} marginBottom={16} />
+        <EventSkeleton />
+        <EventSkeleton />
       </View>
     ) : eventsList.length > 0 ? (
       <View style={{ marginTop: 16, marginBottom: 16, width: '100%' }}>

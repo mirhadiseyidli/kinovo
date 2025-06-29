@@ -13,6 +13,7 @@ import { EventOccurrence } from '@/utils/eventUtils';
 import { useCalendarViewContext } from '@/context/CalendarViewContext';
 import ReanimatedShimmerLine from '@/components/CustomLoadingIndicatingLine';
 import { useSharedValue, withTiming, runOnJS } from 'react-native-reanimated';
+import { useCalendarContext } from '@/context/CalendarContext';
 
 const groupOccurrencesByDate = (occurrences: EventOccurrence[]) => {
   if (!occurrences || !Array.isArray(occurrences)) {
@@ -30,21 +31,21 @@ const groupOccurrencesByDate = (occurrences: EventOccurrence[]) => {
 };
 
 interface ScheduleViewProps {
-  currentDateRef: React.RefObject<Date>;
   refreshing?: boolean;
   onFinishRefresh?: () => void;
 }
 
-const ScheduleView: React.FC<ScheduleViewProps> = ({ currentDateRef, refreshing, onFinishRefresh }) => {
-  const { eventOccurrences, fetchEventsForDateRange, loading } = useEventContext();
+const ScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFinishRefresh }) => {
+  const { fetchEventsForDateRange, eventOccurrences, loading } = useEventContext();
   const { view } = useCalendarViewContext();
+  const { currentDate } = useCalendarContext();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const sectionListRef = useRef<SectionList>(null);
   
-  const [selectedDate, setSelectedDate] = useState<Date>(currentDateRef.current || new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(currentDate || new Date());
   const [currentDateString, setCurrentDateString] = useState<string>(
-    format(currentDateRef.current || new Date(), 'yyyy-MM-dd')
+    format(currentDate || new Date(), 'yyyy-MM-dd')
   );
   const height = Dimensions.get('window').height;
   const tabBarHeight = useBottomTabBarHeight();
@@ -83,10 +84,10 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({ currentDateRef, refreshing,
     });
   }, [scrollToSection]);
 
-  // Update selectedDate when currentDateRef changes (from month view clicks)
+  // Update selectedDate when currentDate changes (from navigation)
   useEffect(() => {
-    if (currentDateRef.current) {
-      const newDate = new Date(currentDateRef.current);
+    if (currentDate) {
+      const newDate = new Date(currentDate);
       const newDateString = format(newDate, 'yyyy-MM-dd');
       
       if (newDateString !== currentDateString) {
@@ -94,7 +95,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({ currentDateRef, refreshing,
         setCurrentDateString(newDateString);
       }
     }
-  }, [currentDateRef.current?.getTime()]); // Only depend on the actual date change
+  }, [currentDate?.getTime(), currentDateString]);
 
   useEffect(() => {
     // Only fetch events when schedule view is active
