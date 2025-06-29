@@ -1,3 +1,4 @@
+require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
 // const fs = require('fs');
