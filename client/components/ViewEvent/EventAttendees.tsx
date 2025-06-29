@@ -17,7 +17,6 @@ import { useViewEventModal } from '../../app/(auth)/(viewEvent)/[event_id]';
 import DefaultProfilePicture from '../DefaultProfilePicture';
 import { useEventInvitation } from '@/hooks/useEventInvitation';
 import { useEventContext } from '@/context/UserSessionContext';
-import { useLocalSearchParams } from 'expo-router';
 
 type AttendeeAvatarProps = {
   attendee: (NonNullable<Event['attendees']>)[number];
@@ -173,12 +172,7 @@ const EventAttendees = ({ userId, event }: { userId: string | null, event: Event
   const { removeAttendee } = useEventInvitation();
   const { refreshEvents } = useEventContext();
 
-  // Determine if this is an occurrence of a recurring event (not the master event)
-  const { is_occurrence, occurrence_start } = useLocalSearchParams();
-  const isRecurringOccurrence = is_occurrence === 'true' && occurrence_start;
-  const occurrenceStartStr = Array.isArray(occurrence_start) ? occurrence_start?.[0] : occurrence_start;
-
-  const handleRemove = useCallback(async (id: string, options?: { modifyType?: 'this_only' | 'all_future' }) => {
+  const handleRemove = useCallback(async (id: string) => {
     const attendee = event.attendees?.find(a => a.user._id === id);
     if (!attendee) return;
 
@@ -186,23 +180,31 @@ const EventAttendees = ({ userId, event }: { userId: string | null, event: Event
       ? `${attendee.user.first_name} ${attendee.user.last_name}`
       : attendee.user.username || 'this attendee';
 
-    try {
-      const requestOptions: any = {};
-
-      // Include recurrence options if applicable
-      if (isRecurringOccurrence && options?.modifyType && occurrenceStartStr) {
-        requestOptions.modifyType = options.modifyType;
-        requestOptions.occurrenceDate = occurrenceStartStr;
-      }
-
-      await removeAttendee(event._id!, id, Object.keys(requestOptions).length > 0 ? requestOptions : undefined);
-      // Refresh events to update UI
-      await refreshEvents(event.start_time ? new Date(event.start_time) : new Date(), 'Month');
-      Alert.alert('Success', `${attendeeName} has been removed from the event.`);
-    } catch (error) {
-      console.error('Failed to remove attendee:', error);
-    }
-  }, [event._id, event.attendees, removeAttendee, refreshEvents, isRecurringOccurrence, occurrenceStartStr]);
+    Alert.alert(
+      'Remove Attendee',
+      `Are you sure you want to remove ${attendeeName} from this event?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await removeAttendee(event._id!, id);
+              // Refresh events to update UI
+              await refreshEvents(event.start_time ? new Date(event.start_time) : new Date(), 'Month');
+              Alert.alert('Success', `${attendeeName} has been removed from the event.`);
+            } catch (error) {
+              console.error('Failed to remove attendee:', error);
+            }
+          }
+        }
+      ]
+    );
+  }, [event._id, event.attendees, removeAttendee, refreshEvents]);
 
   useAnimatedReaction(
     () => expanded.value,
@@ -215,31 +217,11 @@ const EventAttendees = ({ userId, event }: { userId: string | null, event: Event
   );
 
   const confirmRemoveAttendee = useCallback((attendeeId: string) => {
-    if (isRecurringOccurrence) {
-      // Ask the host whether to remove for this occurrence or all future occurrences
-      Alert.alert(
-        'Recurring Event',
-        'Do you want to remove this attendee from this event only or all future events?',
-        [
-          {
-            text: 'This Event Only',
-            onPress: () => handleRemove(attendeeId, { modifyType: 'this_only' })
-          },
-          {
-            text: 'All Future Events',
-            style: 'destructive',
-            onPress: () => handleRemove(attendeeId, { modifyType: 'all_future' })
-          },
-          { text: 'Cancel', style: 'cancel' }
-        ]
-      );
-    } else {
-      showModal('attendee_remove_confirm', {
-        attendeeId,
-        onConfirm: handleRemove
-      });
-    }
-  }, [handleRemove, showModal, isRecurringOccurrence]);
+    showModal('attendee_remove_confirm', {
+      attendeeId,
+      onConfirm: handleRemove
+    });
+  }, [handleRemove, showModal]);
 
   const useCollapsedRowStyle = (expanded: SharedValue<number>) =>
     useAnimatedStyle(() => ({
