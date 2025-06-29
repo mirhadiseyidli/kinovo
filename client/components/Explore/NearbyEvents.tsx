@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { View, TouchableOpacity, ScrollView, Dimensions, Platform, Modal, Animated } from 'react-native';
 import EventCardView from '@/components/Explore/EventCardView';
 import { ThemedView } from '@/components/ThemedView';
@@ -158,17 +158,36 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
   });
   const [nearbyEvents, setNearbyEvents] = useState<Event[]>([]);
   const { fetchNearByEvents, loading } = useGetNearByEvents();
+  const fetchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isDataReady, setIsDataReady] = useState(false);
 
-  const fetchEvents = async () => {
-    if(userLocation.lat !== null && userLocation.lng !== null) {
-      const fetchedEvents = await fetchNearByEvents(userLocation.lat, userLocation.lng, selectedDistance);
-      setNearbyEvents(fetchedEvents ?? []);
-      onFinishRefresh();
+  const fetchEvents = useCallback(async () => {
+    if (userLocation.lat !== null && userLocation.lng !== null) {
+      try {
+        const fetchedEvents = await fetchNearByEvents(userLocation.lat, userLocation.lng, selectedDistance);
+        setNearbyEvents(fetchedEvents ?? []);
+        setIsDataReady(true);
+      } finally {
+        onFinishRefresh();
+      }
     }
-  }
+  }, [userLocation.lat, userLocation.lng, selectedDistance, fetchNearByEvents, onFinishRefresh]);
+
+  // Debounced fetch function
+  const debouncedFetch = useCallback(() => {
+    if (fetchTimeoutRef.current) {
+      clearTimeout(fetchTimeoutRef.current);
+      setIsDataReady(false);
+    }
+    
+    fetchTimeoutRef.current = setTimeout(() => {
+      fetchEvents();
+    }, 300);
+  }, [fetchEvents]);
 
   // Initial location fetch
   useEffect(() => {
+    setIsDataReady(false);
     (async () => {
       try {
         let { status } = await Location.requestForegroundPermissionsAsync();
@@ -196,35 +215,32 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
     })();
   }, []);
 
-  // Handle refresh
+  // Combined effect for all fetch triggers
   useEffect(() => {
-    if (refreshing && userLocation.lat !== null && userLocation.lng !== null) {
-      fetchEvents();
+    setIsDataReady(false);
+    if (userLocation.lat !== null && userLocation.lng !== null) {
+      debouncedFetch();
     }
-  }, [refreshing, userLocation]);
+    
+    // Cleanup timeout on unmount
+    return () => {
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
+    };
+  }, [userLocation.lat, userLocation.lng, selectedDistance, refreshing]);
 
-  // Auto-recovery when screen comes into focus (for server reconnection scenarios)
+  // Auto-recovery when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
-      if (refreshing && userLocation.lat !== null && userLocation.lng !== null) {
-        fetchEvents();
+      if (userLocation.lat !== null && userLocation.lng !== null) {
+        setIsDataReady(false);
+        debouncedFetch();
       }
-    }, [refreshing, userLocation])
+    }, [debouncedFetch, userLocation])
   );
 
-  // Initial data fetch when location is available
-  useEffect(() => {
-    if (userLocation.lat !== null && userLocation.lng !== null) {
-      fetchEvents();
-    }
-  }, [userLocation.lat, userLocation.lng]);
-
-  // Refresh when distance changes
-  useEffect(() => {
-    if (userLocation.lat !== null && userLocation.lng !== null) {
-      fetchEvents();
-    }
-  }, [selectedDistance]);
+  const shouldShowSkeleton = loading || !isDataReady;
 
   const handleScrollEndDrag = (event: ScrollHandlerEvent) => {
     const offsetX = event.nativeEvent.contentOffset.x;
@@ -265,7 +281,7 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
     <ThemedView style={{ flex: 1, width: screenWidth }}>
       {/* Header */}
       <ThemedView style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, paddingHorizontal: 16 }}>
-        {loading || refreshing ? (
+        {shouldShowSkeleton ? (
           <SkeletonBox width={140} height={20} borderRadius={4} />
         ) : (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -319,7 +335,7 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
       />
 
       {/* Show placeholder when no events */}
-      {loading || refreshing ? (
+      {shouldShowSkeleton ? (
         <ThemedView style={{ paddingHorizontal: 16 }}>
           <SkeletonBox width={'100%'} height={140} borderRadius={16} />
         </ThemedView>

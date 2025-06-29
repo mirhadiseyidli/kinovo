@@ -27,6 +27,7 @@ let waitingRequests: Array<{
 
 // Process waiting requests with new token
 const processWaitingRequests = (token: string | null, error: any = null) => {
+  console.log('token', token);
   waitingRequests.forEach(request => {
     if (error) {
       request.reject(error);

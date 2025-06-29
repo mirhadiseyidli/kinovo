@@ -56,6 +56,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
           },
           {
             CFBundleURLSchemes: [
+              'kinovo',
               'com.kinovoapp.kinovo',
             ],
           },
@@ -98,7 +99,12 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         'com.apple.developer.applesignin': ['Default'], // Sign in with Apple
       },
       usesAppleSignIn: true,
-      associatedDomains: ['applinks:kinovo.app', 'applinks:www.kinovo.app'],
+      associatedDomains: [
+        'applinks:kinovo.app',
+        'applinks:www.kinovo.app',
+        'webcredentials:kinovo.app',
+        'webcredentials:www.kinovo.app'
+      ],
     },
     web: {
       bundler: 'metro',
@@ -134,6 +140,12 @@ export default ({ config }: ConfigContext): ExpoConfig => {
               'com.apple.developer.weatherkit': true,
               'com.apple.developer.usernotifications.time-sensitive': true,
               'com.apple.developer.applesignin': ['Default'], // Sign in with Apple
+              'com.apple.developer.associated-domains': [
+                'applinks:kinovo.app',
+                'applinks:www.kinovo.app',
+                'webcredentials:kinovo.app',
+                'webcredentials:www.kinovo.app'
+              ],
             },
           },
         },

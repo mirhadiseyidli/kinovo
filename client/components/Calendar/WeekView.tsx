@@ -1,5 +1,5 @@
 // components/Calendar/WeekView.tsx
-import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, FlatList, Dimensions, ScrollView, Animated as RNAnimated, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { addDays, startOfWeek } from 'date-fns';
 import HourList from './WeekView/HourList';
@@ -12,6 +12,7 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { ThemedView } from '../ThemedView';
 import Animated, { FadeIn, FadeOut, useSharedValue } from 'react-native-reanimated';
 import { useEventContext } from '@/context/UserSessionContext';
+import { useCalendarContext } from '@/context/CalendarContext';
 import ReanimatedShimmerLine from '@/components/CustomLoadingIndicatingLine';
 
 const HOURS = Array.from({ length: 25 }, (_, i) => i);
@@ -43,46 +44,41 @@ const buildWeekPages = (centerDate: Date) => {
 };
 
 interface WeekViewProps {
-  handleMonthYearChange: (month: number, year: number, day: number, fromDropdown: boolean) => void;
-  fromDropdownRef: React.MutableRefObject<boolean>;
   loading?: boolean;
   refreshing?: boolean;
   onFinishRefresh?: () => void;
 }
 
-const WeekView = forwardRef(({ handleMonthYearChange, fromDropdownRef, loading, refreshing, onFinishRefresh }: WeekViewProps, ref) => {
+const WeekView: React.FC<WeekViewProps> = ({ loading, refreshing, onFinishRefresh }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const hourListRef = useRef<FlatList>(null);
   const pagesListRef = useRef<FlatList>(null);
   const gridListRef = useRef<FlatList>(null);
-  const [selectedDate, setSelectedDate] = useState(new Date());
   const tabBarHeight = useBottomTabBarHeight();
   const sharedX = React.useRef(new RNAnimated.Value(0)).current;
-  const weekPages = React.useMemo(() => buildWeekPages(selectedDate), [selectedDate]);
-  const { fetchEventsForWeek } = useEventContext();
   
-  // Create shared values for worklet-safe state
-  const isFromDropdown = useSharedValue(false);
-
-  // Update shared values without accessing during render
-  useEffect(() => {
-    isFromDropdown.value = fromDropdownRef.current;
-  }, [fromDropdownRef.current]);
-
-  useImperativeHandle(ref, () => ({
-    update: (date: Date) => {
-      if (isFromDropdown.value) {
-        setSelectedDate(date);
-      }
-    }
-  }));
+  // Use CalendarContext for state management
+  const { currentDate, navigateToWeek } = useCalendarContext();
+  const { fetchEventsForWeek, refreshEvents } = useEventContext();
+  
+  const weekPages = React.useMemo(() => buildWeekPages(currentDate), [currentDate]);
 
   useEffect(() => {
-    // Fetch events for the current week when the component mounts, date changes, or refresh is triggered
+    // When the currentDate changes (e.g., from the picker), reset the view to the center page.
+    pagesListRef.current?.scrollToIndex({ index: 1, animated: false });
+  }, [currentDate]);
+
+  useEffect(() => {
+    // Fetch events for the current week when refreshing or date changes
     const fetchEvents = async () => {
       try {
-        await fetchEventsForWeek(selectedDate);
+        console.log('fetching week events', currentDate)
+        if (refreshing) {
+          await refreshEvents(currentDate, 'Week');
+        } else {
+          await fetchEventsForWeek(currentDate);
+        }
         if (refreshing && onFinishRefresh) {
           onFinishRefresh();
         }
@@ -95,15 +91,14 @@ const WeekView = forwardRef(({ handleMonthYearChange, fromDropdownRef, loading, 
     };
 
     fetchEvents();
-  }, [selectedDate, refreshing, fetchEventsForWeek, onFinishRefresh]);
+  }, [refreshing, currentDate, fetchEventsForWeek, refreshEvents, onFinishRefresh]);
 
   const handleMomentumScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { x } = event.nativeEvent.contentOffset;
     const page = Math.round(x / (screenWidth - 50));
     if (page !== 1) {
-      const newDate = addDays(selectedDate, (page - 1) * 7);
-      setSelectedDate(newDate);
-      handleMonthYearChange(newDate.getMonth(), newDate.getFullYear(), newDate.getDay(), false);
+      const newDate = addDays(currentDate, (page - 1) * 7);
+      navigateToWeek(newDate);
       pagesListRef.current?.scrollToIndex({ index: 1, animated: false });
       
       // Fetch events for the new week
@@ -186,6 +181,6 @@ const WeekView = forwardRef(({ handleMonthYearChange, fromDropdownRef, loading, 
       </View>
     </ScrollView>
   );
-});
+};
 
 export default React.memo(WeekView);

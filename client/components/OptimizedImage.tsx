@@ -11,6 +11,7 @@ import {
 import { getCategoryImage } from '@/constants/CategoryImages';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { SkeletonBox } from './Skeleton';
 
 export interface OptimizedImageProps {
   source: string | null;
@@ -112,15 +113,7 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
   }
 
   return (
-    <View style={[containerStyle, shouldShowLoader && { justifyContent: 'center', alignItems: 'center' }]}>
-      {shouldShowLoader && (
-        <ActivityIndicator 
-          size="small" 
-          color={themeColors.tint}
-          style={{ position: 'absolute', zIndex: 1 }}
-        />
-      )}
-      
+    <View style={[containerStyle, { position: 'relative' }]}>
       <Image
         source={imageSource}
         style={[
@@ -142,6 +135,24 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
           onError?.();
         }}
       />
+      
+      {shouldShowLoader && (
+        <View style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}>
+          <SkeletonBox 
+            width="100%" 
+            height="100%" 
+            borderRadius={0}
+          />
+        </View>
+      )}
     </View>
   );
 };

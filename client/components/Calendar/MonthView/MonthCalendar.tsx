@@ -4,7 +4,6 @@ import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import ReanimatedShimmerLine from '@/components/CustomLoadingIndicatingLine';
-import { MonthCalendarProps } from '@/types/allTypes';
 import { getMonthDays } from '../CalendarUtils';
 import DayCell from './DayCell';
 import StaticGrid from './StaticGrid';
@@ -15,10 +14,9 @@ interface MonthCalendarComponentProps {
   monthDate: Date;
   refreshing: boolean;
   loading: boolean;
-  handleMonthYearChange: (month: number, year: number, day: number, fromDropdown: boolean) => void;
 }
 
-const MonthCalendar: React.FC<MonthCalendarComponentProps> = ({ monthDate, refreshing, loading, handleMonthYearChange }) => {
+const MonthCalendar: React.FC<MonthCalendarComponentProps> = ({ monthDate, refreshing, loading }) => {
   const month = monthDate.getMonth();
   const year = monthDate.getFullYear();
   const calendarDays = getMonthDays(year, month);
@@ -76,7 +74,6 @@ const MonthCalendar: React.FC<MonthCalendarComponentProps> = ({ monthDate, refre
                     today={today}
                     cellWidth={cellWidth}
                     cellHeight={cellHeight}
-                    handleMonthYearChange={(day) => handleMonthYearChange(month, year, day, true)}
                   />
                 </View>
               );

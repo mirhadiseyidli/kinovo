@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from "expo-linear-gradient";
 import EditUserGeneralInfo from "@/components/ProfileAndSettings/Profile/EditUserGeneralInfo";
 import { Feather } from '@expo/vector-icons';
+import ProfilePreviewMenu from '@/components/ProfileAndSettings/Settings/ProfilePreviewMenu';
 
 const EditProfile = () => {
   const insets = useSafeAreaInsets();
@@ -34,6 +35,9 @@ const EditProfile = () => {
             >
               <Feather name="chevron-left" size={24} color={themeColors.text} />
             </TouchableOpacity>
+          ),
+          headerRight: () => (
+            <ProfilePreviewMenu />
           ),
         }} 
       />
