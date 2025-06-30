@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, Alert, Linking } from "react-native";
+import { TouchableOpacity, Alert } from "react-native";
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import LinearGradient from 'react-native-linear-gradient';
@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { Feather, Octicons } from '@expo/vector-icons';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { OpenMapsAndNavigateButtonProps } from '@/types/allTypes';
+import * as Linking from 'expo-linking';
 
 const OpenMapsAndNavigateButton = ({ selectedLocation, latitude, longitude }: OpenMapsAndNavigateButtonProps) => {
   const colorScheme = useColorScheme();

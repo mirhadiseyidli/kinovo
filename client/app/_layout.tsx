@@ -1,7 +1,7 @@
 import AuthProvider, { useAuthSession } from "@/components/Auth/AuthProvider";
 import { Slot, useRouter } from "expo-router";
 import { ReactNode, useState, useEffect, useCallback, useRef } from "react";
-import { View, Linking } from "react-native";
+import { View } from "react-native";
 // import * as SplashScreen from "expo-splash-screen";
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -19,6 +19,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 
 // Import background notification handler to register it
 import '@/utils/backgroundNotificationHandler';
 import * as Notifications from 'expo-notifications';
+import * as Linking from 'expo-linking';
 
 // Configure how notifications are handled when the app is in the foreground
 Notifications.setNotificationHandler({

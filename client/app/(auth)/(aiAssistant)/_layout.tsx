@@ -30,12 +30,12 @@ export default function RootLayout(): ReactNode {
     return <Redirect href="/login" />;
   }
 
-  const shareEvent = () => {
-    return(
-      <TouchableOpacity onPress={() => console.log('sharing')}>
-        <Feather name="share-2" color={themeColors.text} size={24} />
-      </TouchableOpacity>
-    )
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/');
+    }
   }
 
   return (
@@ -51,7 +51,7 @@ export default function RootLayout(): ReactNode {
               fontWeight: 'bold'
             },
             headerLeft: () => (
-              <TouchableOpacity onPress={() => router.back()}>
+              <TouchableOpacity onPress={goBack}>
                 <Feather name="chevron-left" size={24} color={themeColors.text} />
               </TouchableOpacity>
             ),

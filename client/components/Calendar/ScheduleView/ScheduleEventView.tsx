@@ -123,7 +123,7 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
     }
 
     router.push({
-      pathname: "/(auth)/(viewEvent)/[event_id]" as const,
+      pathname: "/(auth)/viewEvent/[event_id]" as const,
       params: params
     });
   };

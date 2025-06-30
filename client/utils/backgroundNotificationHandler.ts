@@ -35,7 +35,7 @@ export const handleNotificationNavigation = (remoteMessage: any, navigation: any
     case 'friend_request_accepted':
       if (userId) {
         navigation.navigate('(auth)', {
-          screen: '(profile)',
+          screen: 'profile',
           params: { _id: userId }
         });
       }
@@ -46,7 +46,7 @@ export const handleNotificationNavigation = (remoteMessage: any, navigation: any
     case 'event_reminder':
       if (eventId) {
         navigation.navigate('(auth)', {
-          screen: '(viewEvent)',
+          screen: 'viewEvent',
           params: { event_id: eventId }
         });
       }

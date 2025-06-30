@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TouchableOpacity, ScrollView, Switch, View, Linking, Alert } from 'react-native';
+import { TouchableOpacity, ScrollView, Switch, View, Alert } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
@@ -7,6 +7,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { Feather } from '@expo/vector-icons';
 import * as Calendar from 'expo-calendar';
+import * as Linking from 'expo-linking';
 
 const CalendarPermissions = () => {
   const colorScheme = useColorScheme();
@@ -68,6 +69,14 @@ const CalendarPermissions = () => {
     }
   };
 
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/');
+    }
+  }
+
   return (
     <ThemedView style={{ flex: 1 }}>
       <Stack.Screen 
@@ -82,7 +91,7 @@ const CalendarPermissions = () => {
           headerBackButtonDisplayMode: 'minimal',
           headerLeft: () => (
             <TouchableOpacity 
-              onPress={router.back}
+              onPress={goBack}
             >
               <Feather name="chevron-left" size={24} color={themeColors.text} />
             </TouchableOpacity>

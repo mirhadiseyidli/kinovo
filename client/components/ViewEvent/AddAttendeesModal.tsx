@@ -11,7 +11,8 @@ import UserListItem from './UserListItem';
 import type { Friend, Event as EventType } from '@/types/allTypes';
 import api from '@/utils/api';
 import { useGetMyFriends } from '@/hooks/useGetMyFriends';
-import { useViewEventModal } from '../../app/(auth)/(viewEvent)/[event_id]';
+import { useViewEventModal } from '../../app/(auth)/viewEvent/[event_id]';
+import { useLocalSearchParams } from 'expo-router';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -37,6 +38,10 @@ const AddAttendeesModal: React.FC<AddAttendeesModalProps> = ({
   const { fetchFriends } = useGetMyFriends();
   const [friendsList, setFriendsList] = useState<Friend[]>([]);
   const { showModal } = useViewEventModal();
+  const { occurrence_start, is_occurrence } = useLocalSearchParams();
+  
+  // Check if this is a recurring occurrence
+  const isRecurringOccurrence = is_occurrence === 'true' && occurrence_start;
 
   // Fetch friends list when modal opens
   useEffect(() => {
@@ -75,29 +80,48 @@ const AddAttendeesModal: React.FC<AddAttendeesModalProps> = ({
     });
   };
 
-  const handleInviteFriends = async (inviteToAllOccurrences = false) => {
+  const handleInviteFriends = useCallback(async (
+    options?: { modifyType?: 'this_only' | 'all_future' }
+  ) => {
     if (selectedFriends.size === 0) return;
 
     setLoading(true);
     try {
       const eventId = event.isRecurringOccurrence ? event.originalEventId : event._id;
-      await api.post(`/api/manageevents/eventslist/${eventId}/invite`, {
-        invitees: Array.from(selectedFriends),
-        inviteToAllOccurrences: inviteToAllOccurrences
-      });
+      const requestBody: any = {
+        invitees: Array.from(selectedFriends)
+      };
+
+      // Add recurring event options if provided
+      if (isRecurringOccurrence && options?.modifyType && occurrence_start) {
+        const occurrenceDate = Array.isArray(occurrence_start) ? occurrence_start[0] : occurrence_start;
+        requestBody.occurrenceDate = occurrenceDate;
+        requestBody.modifyType = options.modifyType;
+      }
+
+      await api.post(`/api/manageevents/eventslist/${eventId}/invite`, requestBody);
+      
       onInviteSuccess();
       onClose();
+      
+      const message = options?.modifyType === 'this_only' 
+        ? 'Successfully invited friends to this specific event occurrence.'
+        : options?.modifyType === 'all_future'
+        ? 'Successfully invited friends to all future occurrences of this event.'
+        : 'Successfully invited friends to the event.';
+        
+      Alert.alert('Success', message);
     } catch (error) {
       console.error('Error inviting friends:', error);
       showModal('invite_error');
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedFriends, event, isRecurringOccurrence, occurrence_start, onInviteSuccess, onClose, showModal]);
 
   const showRecurringEventAlert = () => {
-    if (!event.recurrence?.checked) {
-      handleInviteFriends(false);
+    if (!event.recurrence?.checked || !isRecurringOccurrence) {
+      handleInviteFriends();
       return;
     }
 

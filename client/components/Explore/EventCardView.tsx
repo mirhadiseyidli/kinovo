@@ -38,7 +38,7 @@ const EventCardView: React.FC<SuggestedEventProps> = ({
     }
 
     router.push({
-      pathname: "/(auth)/(viewEvent)/[event_id]" as const,
+      pathname: "/(auth)/viewEvent/[event_id]" as const,
       params: params
     });
   }

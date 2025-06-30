@@ -14,7 +14,7 @@ const PastEvent: React.FC<{ event: Event; loading: boolean }> = React.memo(({ ev
   const router = useRouter();
   
   const handleViewEvent = () => {
-    router.push(`/(auth)/(viewEvent)/${event?._id}`);
+    router.push(`/(auth)/viewEvent/${event?._id}`);
   }
 
   // Helper function to truncate text

@@ -275,6 +275,14 @@ const accountSettings = () => {
     }
   };
 
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/');
+    }
+  }
+
   if (show2FA) {
     return (
       <ThemedView style={{ flex: 1, padding: 16 }}>
@@ -301,7 +309,7 @@ const accountSettings = () => {
           headerBackButtonDisplayMode: 'minimal',
           headerLeft: () => (
             <TouchableOpacity 
-              onPress={router.back}
+              onPress={goBack}
             >
               <Feather name="chevron-left" size={24} color={themeColors.text} />
             </TouchableOpacity>

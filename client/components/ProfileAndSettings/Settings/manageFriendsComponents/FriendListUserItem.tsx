@@ -39,7 +39,7 @@ export default function FriendListUserItem({
 
   const openUserProfile = (_id: string) => {
     router.push({
-      pathname: "/(auth)/(profile)/[_id]",
+      pathname: "/(auth)/profile/[_id]",
       params: { _id }
     });
   }

@@ -14,7 +14,7 @@ export default function ProfilePreviewMenu() {
 
   const handlePreviewProfile = () => {
     if (userId) {
-      router.push(`/(auth)/(profile)/${userId}`);
+      router.push(`/(auth)/profile/${userId}`);
     }
   };
 

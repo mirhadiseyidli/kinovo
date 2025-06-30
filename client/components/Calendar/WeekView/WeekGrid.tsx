@@ -85,7 +85,7 @@ const WeekGrid: React.FC<WeekGridProps> = ({ hours, weekDates, gridRef, loading,
     }
 
     router.push({
-      pathname: "/(auth)/(viewEvent)/[event_id]" as const,
+      pathname: "/(auth)/viewEvent/[event_id]" as const,
       params: params
     });
   };

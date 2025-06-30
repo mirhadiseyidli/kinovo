@@ -11,6 +11,14 @@ export default function LoginLayout() {
   const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
 
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/');
+    }
+  }
+
   return (
     <Stack
       screenOptions={{
@@ -36,7 +44,7 @@ export default function LoginLayout() {
           headerBackButtonDisplayMode: 'minimal',
           headerLeft: () => (
             <TouchableOpacity 
-              onPress={() => router.back()}
+              onPress={goBack}
             >
               <Feather name="chevron-left" size={24} color={themeColors.text} />
             </TouchableOpacity>
