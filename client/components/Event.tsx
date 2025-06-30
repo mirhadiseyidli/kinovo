@@ -235,7 +235,7 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = React.memo(({ ev
     // Add a small delay to prevent rapid transitions
     setTimeout(() => {
       router.push({
-        pathname: "/(auth)/(viewEvent)/[event_id]" as const,
+        pathname: "/(auth)/viewEvent/[event_id]" as const,
         params: params
       });
     }, 50);

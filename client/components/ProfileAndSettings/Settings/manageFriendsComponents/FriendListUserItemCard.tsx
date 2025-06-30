@@ -40,7 +40,7 @@ export default function FriendListUserItemCard({
   };
 
   const openUserProfile = (_id: string) => {
-    router.push(`/(auth)/(profile)/${encodeURIComponent(_id)}?modal=true`);
+    router.push(`/(auth)/profile/${encodeURIComponent(_id)}?modal=true`);
   };
 
   return (

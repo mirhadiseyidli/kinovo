@@ -117,6 +117,14 @@ const EditEmail = () => {
     );
   }
 
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/');
+    }
+  }
+
   return (
     <ThemedView style={{ flex: 1 }}>
       <Stack.Screen 
@@ -131,7 +139,7 @@ const EditEmail = () => {
           headerBackButtonDisplayMode: 'minimal',
           headerLeft: () => (
             <TouchableOpacity 
-              onPress={router.back}
+              onPress={goBack}
             >
               <Feather name="chevron-left" size={24} color={themeColors.text} />
             </TouchableOpacity>

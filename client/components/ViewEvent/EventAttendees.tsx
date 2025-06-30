@@ -13,10 +13,11 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
-import { useViewEventModal } from '../../app/(auth)/(viewEvent)/[event_id]';
+import { useViewEventModal } from '../../app/(auth)/viewEvent/[event_id]';
 import DefaultProfilePicture from '../DefaultProfilePicture';
 import { useEventInvitation } from '@/hooks/useEventInvitation';
 import { useEventContext } from '@/context/UserSessionContext';
+import { useLocalSearchParams } from 'expo-router';
 
 type AttendeeAvatarProps = {
   attendee: (NonNullable<Event['attendees']>)[number];
@@ -171,6 +172,47 @@ const EventAttendees = ({ userId, event }: { userId: string | null, event: Event
   const { showModal } = useViewEventModal();
   const { removeAttendee } = useEventInvitation();
   const { refreshEvents } = useEventContext();
+  const { occurrence_start, is_occurrence } = useLocalSearchParams();
+  
+  // Check if this is a recurring occurrence
+  const isRecurringOccurrence = is_occurrence === 'true' && occurrence_start;
+
+  const handleRemoveAttendee = useCallback(async (
+    id: string, 
+    options?: { modifyType?: 'this_only' | 'all_future' }
+  ) => {
+    const attendee = event.attendees?.find(a => a.user._id === id);
+    if (!attendee) return;
+
+    const attendeeName = attendee.user.first_name && attendee.user.last_name 
+      ? `${attendee.user.first_name} ${attendee.user.last_name}`
+      : attendee.user.username || 'this attendee';
+
+    try {
+      const requestOptions: any = {};
+      
+      // If this is a recurring occurrence and we have options, include them
+      if (isRecurringOccurrence && options?.modifyType && occurrence_start) {
+        const occurrenceDate = Array.isArray(occurrence_start) ? occurrence_start[0] : occurrence_start;
+        requestOptions.occurrenceDate = occurrenceDate;
+        requestOptions.modifyType = options.modifyType;
+      }
+      
+      await removeAttendee(event._id!, id, Object.keys(requestOptions).length > 0 ? requestOptions : undefined);
+      // Refresh events to update UI
+      await refreshEvents(event.start_time ? new Date(event.start_time) : new Date(), 'Month');
+      
+      const message = options?.modifyType === 'this_only' 
+        ? `${attendeeName} has been removed from this specific event occurrence.`
+        : options?.modifyType === 'all_future'
+        ? `${attendeeName} has been removed from all future occurrences of this event.`
+        : `${attendeeName} has been removed from the event.`;
+        
+      Alert.alert('Success', message);
+    } catch (error) {
+      console.error('Failed to remove attendee:', error);
+    }
+  }, [event._id, event.attendees, removeAttendee, refreshEvents, isRecurringOccurrence, occurrence_start]);
 
   const handleRemove = useCallback(async (id: string) => {
     const attendee = event.attendees?.find(a => a.user._id === id);
@@ -180,31 +222,20 @@ const EventAttendees = ({ userId, event }: { userId: string | null, event: Event
       ? `${attendee.user.first_name} ${attendee.user.last_name}`
       : attendee.user.username || 'this attendee';
 
-    Alert.alert(
-      'Remove Attendee',
-      `Are you sure you want to remove ${attendeeName} from this event?`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel'
-        },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await removeAttendee(event._id!, id);
-              // Refresh events to update UI
-              await refreshEvents(event.start_time ? new Date(event.start_time) : new Date(), 'Month');
-              Alert.alert('Success', `${attendeeName} has been removed from the event.`);
-            } catch (error) {
-              console.error('Failed to remove attendee:', error);
-            }
-          }
-        }
-      ]
-    );
-  }, [event._id, event.attendees, removeAttendee, refreshEvents]);
+    // Check if this is a recurring event occurrence
+    if (isRecurringOccurrence) {
+      showModal('remove_attendee_recurring', { 
+        attendeeName,
+        onConfirm: handleRemoveAttendee,
+        attendeeId: id
+      });
+    } else {
+      showModal('attendee_remove_confirm', {
+        attendeeId: id,
+        onConfirm: handleRemoveAttendee
+      });
+    }
+  }, [event.attendees, isRecurringOccurrence, handleRemoveAttendee, showModal]);
 
   useAnimatedReaction(
     () => expanded.value,

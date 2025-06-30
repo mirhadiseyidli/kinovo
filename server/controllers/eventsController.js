@@ -1123,7 +1123,7 @@ const inviteEventAttendees = async (req, res) => {
   
   try {
     const { eventId } = req.params;
-    const { invitees, inviteToAllOccurrences } = req.body;
+    const { invitees, occurrenceDate, modifyType, inviteToAllOccurrences } = req.body;
 
     if (!invitees || !Array.isArray(invitees) || invitees.length === 0) {
       return res.status(400).json({ message: 'Invalid invitees list' });
@@ -1145,51 +1145,139 @@ const inviteEventAttendees = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to invite attendees' });
     }
 
-    // Handle recurring events
-    if (inviteToAllOccurrences && event.recurrence?.checked) {
-      // Get all occurrences
-      const occurrences = await EventOccurrence.find({ originalEventId: eventId });
+    // Check if this is a recurring event and we have modification options
+    const isRecurringEvent = event.recurrence?.checked && 
+                            event.recurrence?.frequency && 
+                            event.recurrence?.frequency !== 'none';
+
+    if (isRecurringEvent && occurrenceDate && modifyType === 'this_only') {
+      // Handle "this event only" for recurring events
+      const occurrenceStartDate = new Date(occurrenceDate);
+      const originalStartDate = new Date(event.start_time);
+      const originalEndDate = new Date(event.end_time);
       
-      // Add invitees to all occurrences
-      for (const occurrence of occurrences) {
-        await EventOccurrence.findByIdAndUpdate(occurrence._id, {
+      // Calculate the duration and apply it to the occurrence
+      const duration = originalEndDate.getTime() - originalStartDate.getTime();
+      const occurrenceEndDate = new Date(occurrenceStartDate.getTime() + duration);
+
+      // Create attendees list with existing attendees + new invitees
+      const newInvitees = invitees.map(userId => ({
+        user: userId,
+        status: 'pending'
+      }));
+      
+      const updatedAttendees = [...event.attendees, ...newInvitees];
+
+      // Create a new SINGLE (non-recurring) event for this specific occurrence
+      const separateEvent = await Events.create({
+        creator: event.creator,
+        event_picture: event.event_picture,
+        title: event.title,
+        category: event.category,
+        description: event.description,
+        location: event.location,
+        start_time: occurrenceStartDate,
+        end_time: occurrenceEndDate,
+        capacity: event.capacity,
+        recurrence: { checked: false, frequency: null, end_date: null }, // Make it NON-recurring
+        attendees: updatedAttendees,
+        visibility: event.visibility,
+        excludedDates: [] // Single events don't need excludedDates
+      });
+
+      // Add this date to the master event's excludedDates if not already present
+      if (!event.excludedDates.some(date => 
+        new Date(date).toDateString() === occurrenceStartDate.toDateString()
+      )) {
+        event.excludedDates.push(occurrenceStartDate);
+        await event.save();
+      }
+
+      // Add the new separate event to all attendees' events lists (existing + new)
+      for (const attendee of updatedAttendees) {
+        const user = await User.findById(attendee.user);
+        if (user) {
+          // Add the new separate event with their status
+          user.events.push({ event: separateEvent._id, status: attendee.status });
+          await user.save();
+        }
+      }
+
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Successfully invited attendees to this specific event occurrence',
+        separateEventId: separateEvent._id,
+        occurrenceDate: occurrenceStartDate,
+        attendees: separateEvent.attendees
+      });
+
+    } else if (isRecurringEvent && modifyType === 'all_future') {
+      // Handle "all future events" for recurring events
+      // Add invitees to the master event
+      const updatedEvent = await Events.findByIdAndUpdate(
+        eventId,
+        {
           $addToSet: {
             attendees: {
               $each: invitees.map(userId => ({ user: userId, status: 'pending' }))
             }
           }
-        });
-      }
-    }
+        },
+        { new: true }
+      ).populate('attendees.user');
 
-    // Add invitees to the main event
-    const updatedEvent = await Events.findByIdAndUpdate(
-      eventId,
-      {
-        $addToSet: {
-          attendees: {
-            $each: invitees.map(userId => ({ user: userId, status: 'pending' }))
+      // Add event to new invitees' events list
+      await User.updateMany(
+        { _id: { $in: invitees } },
+        {
+          $addToSet: {
+            events: { event: eventId, status: 'pending' }
           }
         }
-      },
-      { new: true }
-    ).populate('attendees.user');
+      );
 
-    // Add event to invitees' events list
-    await User.updateMany(
-      { _id: { $in: invitees } },
-      {
-        $addToSet: {
-          events: { event: eventId, status: 'pending' }
-        }
+      return res.status(200).json({
+        success: true,
+        message: 'Successfully invited attendees to all future occurrences of this event',
+        attendees: updatedEvent.attendees
+      });
+    } else {
+      // Handle non-recurring events or legacy inviteToAllOccurrences parameter
+      // For backward compatibility, also handle the old inviteToAllOccurrences parameter
+      if (inviteToAllOccurrences && event.recurrence?.checked) {
+        // Legacy behavior - treat as "all future events"
+        console.warn('Using deprecated inviteToAllOccurrences parameter. Please use modifyType instead.');
       }
-    );
 
-    res.status(200).json({
-      success: true,
-      message: 'Invitations sent successfully',
-      attendees: updatedEvent.attendees
-    });
+      // Add invitees to the main event
+      const updatedEvent = await Events.findByIdAndUpdate(
+        eventId,
+        {
+          $addToSet: {
+            attendees: {
+              $each: invitees.map(userId => ({ user: userId, status: 'pending' }))
+            }
+          }
+        },
+        { new: true }
+      ).populate('attendees.user');
+
+      // Add event to invitees' events list
+      await User.updateMany(
+        { _id: { $in: invitees } },
+        {
+          $addToSet: {
+            events: { event: eventId, status: 'pending' }
+          }
+        }
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: 'Invitations sent successfully',
+        attendees: updatedEvent.attendees
+      });
+    }
 
   } catch (error) {
     console.error('Error in inviteEventAttendees:', error);
@@ -2351,29 +2439,143 @@ const updateEvent = async (req, res) => {
 
 const removeEventAttendee = async (req, res) => {
   try {
-    const { eventId, attendeeId } = req.body;
+    const { eventId, attendeeId, occurrenceDate, modifyType } = req.body;
+    console.log('removeEventAttendee', eventId, attendeeId, occurrenceDate, modifyType);
     
-    // Verify the requester is the event creator
+    if (!eventId || !attendeeId) {
+      return res.status(400).json({ message: 'Event ID and attendee ID are required' });
+    }
+
+    // Find the event
     const event = await Events.findById(eventId);
     if (!event) {
       return res.status(404).json({ message: 'Event not found' });
     }
     
+    // Verify the requester is the event creator
     if (event.creator.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: 'Only event creator can remove attendees' });
     }
 
-    // Remove attendee from event
-    await Events.findByIdAndUpdate(eventId, {
-      $pull: { attendees: { user: attendeeId } }
-    });
+    // Check if attendee is in the attendees list
+    const attendeeIndex = event.attendees.findIndex(
+      attendee => attendee.user.toString() === attendeeId.toString()
+    );
 
-    // Remove event from user's events list
-    await User.findByIdAndUpdate(attendeeId, {
-      $pull: { events: { event: eventId } }
-    });
+    if (attendeeIndex === -1) {
+      return res.status(404).json({ message: 'Attendee is not in this event' });
+    }
 
-    res.status(200).json({ success: true });
+    // Check if this is a recurring event and we have modification options
+    const isRecurringEvent = event.recurrence?.checked && 
+                            event.recurrence?.frequency && 
+                            event.recurrence?.frequency !== 'none';
+
+    if (isRecurringEvent && occurrenceDate && modifyType === 'this_only') {
+      // Handle "this event only" for recurring events
+      const occurrenceStartDate = new Date(occurrenceDate);
+      const originalStartDate = new Date(event.start_time);
+      const originalEndDate = new Date(event.end_time);
+      
+      // Calculate the duration and apply it to the occurrence
+      const duration = originalEndDate.getTime() - originalStartDate.getTime();
+      const occurrenceEndDate = new Date(occurrenceStartDate.getTime() + duration);
+
+      // Create attendees list without the removed attendee
+      const updatedAttendees = event.attendees.filter(
+        attendee => attendee.user.toString() !== attendeeId.toString()
+      );
+
+      // Create a new SINGLE (non-recurring) event for this specific occurrence
+      const separateEvent = await Events.create({
+        creator: event.creator,
+        event_picture: event.event_picture,
+        title: event.title,
+        category: event.category,
+        description: event.description,
+        location: event.location,
+        start_time: occurrenceStartDate,
+        end_time: occurrenceEndDate,
+        capacity: event.capacity,
+        recurrence: { checked: false, frequency: null, end_date: null }, // Make it NON-recurring
+        attendees: updatedAttendees,
+        visibility: event.visibility,
+        excludedDates: [] // Single events don't need excludedDates
+      });
+
+      // Add this date to the master event's excludedDates if not already present
+      if (!event.excludedDates.some(date => 
+        new Date(date).toDateString() === occurrenceStartDate.toDateString()
+      )) {
+        event.excludedDates.push(occurrenceStartDate);
+        await event.save();
+      }
+
+      // Add the new separate event to all remaining attendees' events lists
+      for (const attendee of updatedAttendees) {
+        const user = await User.findById(attendee.user);
+        if (user) {
+          // Add the new separate event with their original status
+          user.events.push({ event: separateEvent._id, status: attendee.status });
+          await user.save();
+        }
+      }
+
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Successfully removed attendee from this specific event occurrence',
+        separateEventId: separateEvent._id,
+        occurrenceDate: occurrenceStartDate
+      });
+
+    } else if (isRecurringEvent && modifyType === 'all_future') {
+      // Handle "all future events" for recurring events
+      // Remove attendee from the master event
+      event.attendees.splice(attendeeIndex, 1);
+      await event.save();
+
+      // Remove event from user's events list
+      const user = await User.findById(attendeeId);
+      if (user) {
+        const userEventIndex = user.events.findIndex(
+          userEvent => userEvent.event.toString() === eventId
+        );
+
+        if (userEventIndex !== -1) {
+          user.events.splice(userEventIndex, 1);
+          await user.save();
+        }
+      }
+
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Successfully removed attendee from all future occurrences of this event'
+      });
+    } else {
+      // Handle non-recurring events or regular recurring event removals
+      // Remove attendee from event
+      event.attendees.splice(attendeeIndex, 1);
+      await event.save();
+
+      // Remove event from user's events list
+      const user = await User.findById(attendeeId);
+      if (user) {
+        const userEventIndex = user.events.findIndex(
+          userEvent => userEvent.event.toString() === eventId
+        );
+
+        if (userEventIndex !== -1) {
+          user.events.splice(userEventIndex, 1);
+          await user.save();
+        }
+      }
+
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Successfully removed attendee from the event'
+      });
+    }
+
   } catch (error) {
     console.error('Error in removeEventAttendee:', error);
     res.status(500).json({ message: 'Server error' });

@@ -43,6 +43,14 @@ export default function AttentionRequiredScreen() {
     fetchEvents();
   }, []);
 
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/');
+    }
+  }
+
   return (
     <ThemedView style={{ flex: 1 }}>
       <Stack.Screen
@@ -56,7 +64,7 @@ export default function AttentionRequiredScreen() {
           headerShown: true,
           headerBackButtonDisplayMode: 'minimal',
           headerLeft: () => (
-            <TouchableOpacity onPress={router.back}>
+            <TouchableOpacity onPress={goBack}>
               <Feather name="chevron-left" size={24} color={themeColors.text} />
             </TouchableOpacity>
           ),

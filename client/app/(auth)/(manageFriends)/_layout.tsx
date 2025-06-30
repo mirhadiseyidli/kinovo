@@ -27,6 +27,14 @@ export default function ManageFriendsTabs() {
     return <Tags ref={tagsRef} />;
   }, []);
 
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/');
+    }
+  }
+
   return (
     <ThemedView style={{ flex: 1 }}>
       <Stack.Screen 
@@ -41,7 +49,7 @@ export default function ManageFriendsTabs() {
           headerBackButtonDisplayMode: 'minimal',
           headerLeft: () => (
             <TouchableOpacity 
-              onPress={router.back}
+              onPress={goBack}
             >
               <Feather name="chevron-left" size={24} color={themeColors.text} />
             </TouchableOpacity>

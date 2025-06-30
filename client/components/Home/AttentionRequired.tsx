@@ -117,7 +117,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
     }
 
     router.push({
-      pathname: "/(auth)/(viewEvent)/[event_id]" as const,
+      pathname: "/(auth)/viewEvent/[event_id]" as const,
       params: params
     });
   }, [router]);
@@ -143,11 +143,8 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
         Object.keys(requestOptions).length > 0 ? requestOptions : undefined
       );
 
-      // Refresh both the attention required list and the main events list
-      await Promise.all([
-        fetchEvents(),
-        refreshEvents()
-      ]);
+      // Refresh the attention required events list
+      await fetchEvents();
 
       // Show success message
       const statusMessages: Record<EventResponseStatus, string> = {
@@ -166,7 +163,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
     } finally {
       setLoadingResponses(prev => ({ ...prev, [eventId]: false }));
     }
-  }, [respondToInvitation, fetchEvents, refreshEvents]);
+  }, [respondToInvitation, fetchEvents]);
 
   const formatDate = React.useCallback((date: string | Date | null) => {
     if (!date) return '';

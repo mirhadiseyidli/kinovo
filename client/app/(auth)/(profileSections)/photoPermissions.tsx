@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TouchableOpacity, ScrollView, Switch, View, Linking, Alert } from 'react-native';
+import { TouchableOpacity, ScrollView, Switch, View, Alert } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
@@ -7,6 +7,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as Linking from 'expo-linking';
 
 const PhotoPermissions = () => {
   const colorScheme = useColorScheme();
@@ -18,8 +19,12 @@ const PhotoPermissions = () => {
   }, []);
 
   const checkPermission = async () => {
-    const { status } = await ImagePicker.getMediaLibraryPermissionsAsync();
-    setIsEnabled(status === 'granted');
+    try {
+      const { status } = await ImagePicker.getMediaLibraryPermissionsAsync();
+      setIsEnabled(status === 'granted');
+    } catch (error) {
+      console.error('Error checking photo permission:', error);
+    }
   };
 
   const togglePermission = async () => {
@@ -37,24 +42,40 @@ const PhotoPermissions = () => {
         ]
       );
     } else {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      setIsEnabled(status === 'granted');
-      
-      if (status !== 'granted') {
+      try {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        setIsEnabled(status === 'granted');
+        
+        if (status !== 'granted') {
+          Alert.alert(
+            "Permission Required",
+            "To upload photos, you'll need to enable photo access in your device settings. Would you like to open settings now?",
+            [
+              { text: "Cancel", style: "cancel" },
+              { 
+                text: "Open Settings", 
+                onPress: () => Linking.openSettings()
+              }
+            ]
+          );
+        }
+      } catch (error) {
+        console.error('Error requesting photo permission:', error);
         Alert.alert(
-          "Permission Required",
-          "To use this feature, you'll need to enable photo access in your device settings. Would you like to open settings now?",
-          [
-            { text: "Cancel", style: "cancel" },
-            { 
-              text: "Open Settings", 
-              onPress: () => Linking.openSettings()
-            }
-          ]
+          "Error",
+          "There was an error requesting photo permissions. Please try again."
         );
       }
     }
   };
+
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/');
+    }
+  }
 
   return (
     <ThemedView style={{ flex: 1 }}>
@@ -70,7 +91,7 @@ const PhotoPermissions = () => {
           headerBackButtonDisplayMode: 'minimal',
           headerLeft: () => (
             <TouchableOpacity 
-              onPress={router.back}
+              onPress={goBack}
             >
               <Feather name="chevron-left" size={24} color={themeColors.text} />
             </TouchableOpacity>

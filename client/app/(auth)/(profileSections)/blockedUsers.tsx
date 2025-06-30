@@ -68,6 +68,14 @@ const BlockedUsers = () => {
     return name.length > maxLength ? `${name.substring(0, maxLength)}...` : name;
   };
 
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/');
+    }
+  } 
+
   return (
     <ThemedView style={{ flex: 1 }}>
       <Stack.Screen 
@@ -82,7 +90,7 @@ const BlockedUsers = () => {
           headerBackButtonDisplayMode: 'minimal',
           headerLeft: () => (
             <TouchableOpacity 
-              onPress={router.back}
+              onPress={goBack}
             >
               <Feather name="chevron-left" size={24} color={themeColors.text} />
             </TouchableOpacity>

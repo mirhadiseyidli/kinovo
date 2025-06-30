@@ -43,7 +43,7 @@ const DiscoverSearchBar: React.FC<DiscoverSearchBarProps> = ({
   const handleUserPress = (user: User) => {
     // Navigate to user profile using the correct dynamic route
     router.push({
-      pathname: "/(auth)/(profile)/[_id]" as const,
+      pathname: "/(auth)/profile/[_id]" as const,
       params: { _id: user._id }
     });
     setInputValue(''); // Clear search after selection
@@ -54,7 +54,7 @@ const DiscoverSearchBar: React.FC<DiscoverSearchBarProps> = ({
     // Navigate to event details
     if (event._id) {
       router.push({
-        pathname: "/(auth)/(viewEvent)/[event_id]" as const,
+        pathname: "/(auth)/viewEvent/[event_id]" as const,
         params: { event_id: event._id }
       });
     }

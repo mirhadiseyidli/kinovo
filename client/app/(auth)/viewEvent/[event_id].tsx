@@ -31,6 +31,7 @@ type ViewEventModalType =
   | 'cancel_success'
   | 'status_change_recurring'
   | 'attendee_remove_confirm'
+  | 'remove_attendee_recurring'
   | 'invite_recurring_confirm'
   | 'invite_error'
   | 'host_cancel_confirm'
@@ -183,13 +184,36 @@ const ViewEventModalProvider: React.FC<{ children: React.ReactNode; event: any }
         );
         break;
 
+      case 'remove_attendee_recurring':
+        Alert.alert(
+          'Recurring Event',
+          `Do you want to remove ${data.attendeeName} from this event only or all future events?`,
+          [
+            { 
+              text: 'This Event Only', 
+              onPress: () => { hideModal(); data.onConfirm(data.attendeeId, { modifyType: 'this_only' }); }
+            },
+            { 
+              text: 'All Future Events', 
+              onPress: () => { hideModal(); data.onConfirm(data.attendeeId, { modifyType: 'all_future' }); },
+              style: 'destructive'
+            },
+            { 
+              text: 'Cancel', 
+              style: 'cancel', 
+              onPress: hideModal 
+            },
+          ]
+        );
+        break;
+
       case 'invite_recurring_confirm':
         Alert.alert(
           'Recurring Event',
-          'Do you want to invite these friends to all occurrences of this event?',
+          'Do you want to invite these friends to this event only or all future events?',
           [
-            { text: 'This Event Only', onPress: () => { hideModal(); data.onConfirm(false); }},
-            { text: 'All Events', onPress: () => { hideModal(); data.onConfirm(true); }},
+            { text: 'This Event Only', onPress: () => { hideModal(); data.onConfirm({ modifyType: 'this_only' }); }},
+            { text: 'All Future Events', onPress: () => { hideModal(); data.onConfirm({ modifyType: 'all_future' }); }},
             { text: 'Cancel', style: 'cancel', onPress: hideModal },
           ]
         );

@@ -142,14 +142,14 @@ export default function NotificationsPage() {
       // Navigate to the sender's profile for friend request notifications
       if (notification.sender?._id) {
         router.push({
-          pathname: "/(auth)/(profile)/[_id]" as const,
+          pathname: "/(auth)/profile/[_id]" as const,
           params: { _id: notification.sender._id }
         });
       }
     } else if (notification.event?._id) {
       // Navigate to event for event-related notifications
       router.push({
-        pathname: "/(auth)/(viewEvent)/[event_id]" as const,
+        pathname: "/(auth)/viewEvent/[event_id]" as const,
         params: { event_id: notification.event._id }
       });
     }

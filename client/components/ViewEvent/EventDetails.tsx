@@ -23,7 +23,7 @@ import { useAuthSession } from '@/components/Auth/AuthProvider';
 import { jwtDecode } from 'jwt-decode';
 import { useCreateEventContext } from '@/context/CreateEventContext';
 import { useEventReport } from '@/hooks/useEventReport';
-import { useViewEventModal } from '../../app/(auth)/(viewEvent)/[event_id]';
+import { useViewEventModal } from '../../app/(auth)/viewEvent/[event_id]';
 
 const EventDetailsSection: React.FC<EventProp> = ({ event }) => {
   const colorScheme = useColorScheme();

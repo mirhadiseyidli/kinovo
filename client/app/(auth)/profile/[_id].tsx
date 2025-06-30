@@ -4,7 +4,7 @@ import { useSharedValue } from "react-native-reanimated";
 import { CollapsibleTabView, Route, RefreshControlProps } from "@/components/CollapsibleTab";
 import { TabFlashList } from "@/components/CollapsibleTab/tab-flash-list";
 import UserGeneralInfo from "@/components/ProfileAndSettings/Profile/UserGeneralInfo";
-import { router, useLocalSearchParams, useNavigation } from "expo-router";
+import { useRouter, useLocalSearchParams, useNavigation } from "expo-router";
 import UserEvents from "@/app/(auth)/(aboutUser)/UsersEvents";
 import UserFriends from "@/app/(auth)/(aboutUser)/UsersFriends";
 import UserActivities from "@/app/(auth)/(aboutUser)/UserActivities";
@@ -18,6 +18,8 @@ import { useUserData } from "@/hooks/useUserData";
 import api from "@/utils/api";
 import ContextMenuWithTrigger from "@/components/ContextMenuWithTrigger";
 import { Feather } from "@expo/vector-icons";
+// import { useDeepLinking } from "@/hooks/useDeepLinking";
+import { useAuthSession } from "@/components/Auth/AuthProvider";
 
 type UserGeneralInfoRef = {
   onRefresh: () => void;
@@ -25,6 +27,11 @@ type UserGeneralInfoRef = {
 
 const ProfilePage = () => {
   console.log('ProfilePage');
+  const router = useRouter();
+  const { isLoading, accessToken } = useAuthSession();
+  // Handle deep linking
+  // useDeepLinking({ isLoading, accessToken });
+  
   const { _id } = useLocalSearchParams();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [routes] = useState<Route[]>([
@@ -120,9 +127,17 @@ const ProfilePage = () => {
     );
   }, [isViewingOwnProfile, isFriend, showRemoveFriendConfirmation, showBlockUserConfirmation]);
 
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/');
+    }
+  }
+
   const headerLeft = useCallback(() => (
     <TouchableOpacity 
-      onPress={router.back}
+      onPress={goBack}
       style={{
         alignItems: 'center',
       }}
