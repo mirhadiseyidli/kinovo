@@ -28,7 +28,9 @@ const {
   getUserImages,
   generateDefaultProfilePicture,
   updateUserProfile,
-  deleteUserAccount
+  deleteUserAccount,
+  bypassTwoFactorAuth,
+  getBypassTwoFactorAuth
 } = require('../controllers/userController');
 const { authMiddleware, checkRole } = require('../utils/authMiddleware');
 
@@ -71,6 +73,8 @@ router.get('/me/friends/search/by/email', authMiddleware, getUserFriendByEmailSe
 router.get('/me/friends/search/by/name', authMiddleware, getUserFriendByNameSearch, getUserProfile);
 router.patch('/user/edit/myprofile', authMiddleware, editMyProfile);
 router.post('/user/stories/mark-viewed', authMiddleware, markStoriesViewed);
+router.post('/user/bypass-two-factor-auth', authMiddleware, bypassTwoFactorAuth);
+router.get('/user/bypass-two-factor-auth', authMiddleware, getBypassTwoFactorAuth);
 
 // Generic user routes - keep these last as they have less specific patterns
 router.get('/', authMiddleware, getUsers);

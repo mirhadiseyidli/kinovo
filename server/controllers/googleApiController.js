@@ -6,7 +6,8 @@ const axios = require('axios');
  * @access Private
  */
 const searchPlacesByText = async (req, res) => {
-    console.log('api key', process.env.GOOGLE_MAPS_API_KEY);
+  const { latitude, longitude } = req.body;
+  const radius = 50000;
   try {
     const { textQuery } = req.body;
     
@@ -16,7 +17,17 @@ const searchPlacesByText = async (req, res) => {
 
     const response = await axios.post(
       `https://places.googleapis.com/v1/places:searchText`,
-      { textQuery: textQuery },
+      { textQuery: textQuery,
+        locationBias: {
+          circle: {
+            center: {
+              latitude: latitude,
+              longitude: longitude
+            },
+            radius: radius
+          }
+        }
+      },
       {
         headers: {
           "Content-Type": "application/json",

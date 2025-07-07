@@ -55,14 +55,12 @@ export const useMapMemoryOptimization = (
     
     mapInstances.add(id);
     setCurrentMapInstances(mapInstances.size);
-    console.log(`Map registered: ${id}. Total instances: ${mapInstances.size}`);
   }, [maxMapInstances]);
 
   // Unregister this map instance
   const unregisterMap = useCallback((id: string) => {
     mapInstances.delete(id);
     setCurrentMapInstances(mapInstances.size);
-    console.log(`Map unregistered: ${id}. Total instances: ${mapInstances.size}`);
   }, []);
 
   // Clean up all maps
@@ -70,7 +68,6 @@ export const useMapMemoryOptimization = (
     mapInstances.clear();
     setCurrentMapInstances(0);
     setShouldRenderMap(false);
-    console.log('All maps cleaned up');
   }, []);
 
   // Delay map rendering until interactions are complete
@@ -154,5 +151,4 @@ export const useMapMemoryCheck = () => {
 // Global cleanup function for emergency memory situations
 export const globalMapCleanup = () => {
   mapInstances.clear();
-  console.log('Emergency map cleanup performed');
 }; 

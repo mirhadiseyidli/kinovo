@@ -14,8 +14,6 @@ const api = axios.create({
   timeout: 30000,
 });
 
-console.log('API utility initialized with interceptors');
-
 // Flag to track if we're currently refreshing the token
 let isRefreshing = false;
 // Store of waiting requests
@@ -27,7 +25,6 @@ let waitingRequests: Array<{
 
 // Process waiting requests with new token
 const processWaitingRequests = (token: string | null, error: any = null) => {
-  console.log('token', token);
   waitingRequests.forEach(request => {
     if (error) {
       request.reject(error);
@@ -58,24 +55,12 @@ const handleLogout = async () => {
 
 // Helper function to refresh token
 const refreshAccessToken = async (): Promise<string> => {
-  console.log('--------------------------------');
-  console.log('Refreshing access token');
-  console.log('--------------------------------');
   try {
-    console.log('--------------------------------');
-    console.log('Getting refresh token');
-    console.log('--------------------------------');
     const refreshToken = await SecureStore.getItemAsync('refreshToken');
     if (!refreshToken) {
-      console.log('No refresh token found in secure storage');
       throw new Error('No refresh token available');
     }
-    console.log('--------------------------------');
-    console.log('Refresh token found:', refreshToken.substring(0, 10) + '...');
-    console.log('--------------------------------');
 
-    console.log('Sending refresh token request to:', `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/auth/refresh-token`);
-    
     // Try the call with a timeout to catch network issues
     try {
       const response = await axios({
@@ -87,20 +72,14 @@ const refreshAccessToken = async (): Promise<string> => {
         timeout: 10000 // 10 second timeout
       });
       
-      console.log('Refresh token response received:', response.status);
-      console.log('Response data:', JSON.stringify(response.data));
-
       if (!response.data.accessToken) {
-        console.log('No access token in response');
         throw new Error('Invalid refresh token response');
       }
 
       const newAccessToken = response.data.accessToken;
-      console.log('New access token received:', newAccessToken.substring(0, 10) + '...');
       await SecureStore.setItemAsync('accessToken', newAccessToken);
       return newAccessToken;
     } catch (requestError: any) {
-      console.log('Request error details:');
       if (requestError.response) {
         // The request was made and the server responded with a status code
         // that falls out of the range of 2xx
@@ -145,25 +124,14 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    console.log('--------------------------------');
-    console.log('API Error Interceptor triggered');
-    
     // Check if we have a response object
     if (error.response) {
-      console.log('Error status:', error.response.status);
-      console.log('Error data:', JSON.stringify(error.response.data));
     } else {
-      console.log('No response from server');
-      console.log('Error message:', error.message);
     }
-    
-    console.log('URL:', error.config?.url);
-    console.log('--------------------------------');
     
     const originalRequest = error.config as CustomAxiosRequestConfig;
     
     if (!originalRequest) {
-      console.log('No original request found');
       return Promise.reject(error);
     }
 
@@ -173,7 +141,6 @@ api.interceptors.response.use(
         originalRequest.url?.includes('/api/auth/signup') ||
         originalRequest.url?.includes('/api/auth/verify-login') ||
         originalRequest.url?.includes('/api/auth/get-phone')) {
-      console.log('Not retrying auth-related request');
       return Promise.reject(error);
     }
 
@@ -190,23 +157,18 @@ api.interceptors.response.use(
                           errorMessage.includes('unauthorized') || 
                           errorMessage.includes('Unauthorized')));
     
-    console.log('Is token expired error:', isTokenExpiredError);
-    
     // If we have a 403 error, it means refresh token is invalid
     if (statusCode === 403) {
-      console.log('Got 403 error, logging out (invalid refresh token)');
       await handleLogout();
       return Promise.reject(error);
     }
 
     // If error is 401 or token expired and we haven't retried yet
     if (isTokenExpiredError && !originalRequest._retry) {
-      console.log('Got token expired error, attempting to refresh token');
       originalRequest._retry = true;
 
       // If we're already refreshing, add this request to the waiting list
       if (isRefreshing) {
-        console.log('Token refresh already in progress, adding request to queue');
         try {
           return new Promise((resolve, reject) => {
             waitingRequests.push({
@@ -221,11 +183,9 @@ api.interceptors.response.use(
       }
 
       isRefreshing = true;
-      console.log('Starting token refresh process');
 
       try {
         const newAccessToken = await refreshAccessToken();
-        console.log('Token refresh successful');
         
         // Update the original request with new token
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
@@ -236,7 +196,6 @@ api.interceptors.response.use(
         // Return the original request with new token
         return api(originalRequest);
       } catch (refreshError) {
-        console.log('Token refresh failed:', refreshError);
         // Process waiting requests with error
         processWaitingRequests(null, refreshError);
         

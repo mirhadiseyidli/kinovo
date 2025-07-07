@@ -8,10 +8,8 @@ import { jwtDecode } from 'jwt-decode';
 // Initialize Firebase if it hasn't been initialized yet
 let appInitialized = false;
 const firebaseApp = getApps().length ? getApp() : getApp(); // Redundant for clarity
-console.log(firebaseApp);
 
 if (getApps().length) {
-  console.log('Firebase initialized');
   appInitialized = true;
 }
 
@@ -34,12 +32,9 @@ export const initializeAppCheckIfNeeded = async () => {
       isTokenAutoRefreshEnabled: true,
     });
 
-    console.log('✅ App Check initialized');
-
     // ✅ Get the app check instance and pass it to getToken()
     const appCheckInstance = getAppCheck();
     const token = await getToken(appCheckInstance);
-    console.log('🔐 App Check Token:', token.token);
 
   } catch (err) {
     console.error('❌ App Check failed:', err);
@@ -54,11 +49,9 @@ const configurePhoneAuth = async () => {
   if (__DEV__) {
     // In development, allow test phone numbers
     auth.settings.appVerificationDisabledForTesting = false;
-    console.log('Development mode: test phone numbers enabled');
   } else {
     // In production, use real phone verification
     auth.settings.appVerificationDisabledForTesting = false;
-    console.log('Production mode: using real phone verification');
   }
 };
 
@@ -73,11 +66,6 @@ export const initiatePhoneAuth = async (phoneNumber: string): Promise<FirebaseAu
   try {
     // Make sure the phone number is in E.164 format
     const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
-    console.log('Initiating phone auth for:', formattedPhone);
-    
-    // Log Firebase initialization status
-    console.log('Firebase apps:', getApps().length);
-    console.log('Auth configured:', !!auth);
     
     return await auth.signInWithPhoneNumber(formattedPhone);
   } catch (error) {
@@ -89,7 +77,6 @@ export const initiatePhoneAuth = async (phoneNumber: string): Promise<FirebaseAu
 export const signInWithFirebaseToken = async (customToken: string) => {
   await signInWithCustomToken(auth, customToken)
     .then((result) => {
-      console.log('Firebase auth successful:', result);
       return result; // You might not need to return here if you handle the result in the .then
     })
     .catch((error) => {
@@ -107,10 +94,8 @@ export const requestNotificationPermission = async (): Promise<boolean> => {
       authStatus === messaging.AuthorizationStatus.PROVISIONAL;
 
     if (enabled) {
-      console.log('Notification permission granted:', authStatus);
       return true;
     } else {
-      console.log('Notification permission denied:', authStatus);
       return false;
     }
   } catch (error) {
@@ -122,7 +107,6 @@ export const requestNotificationPermission = async (): Promise<boolean> => {
 export const getFCMToken = async (): Promise<string | null> => {
   try {
     const token = await messaging().getToken();
-    console.log('FCM Token:', token);
     return token;
   } catch (error) {
     console.error('Error getting FCM token:', error);
@@ -133,13 +117,11 @@ export const getFCMToken = async (): Promise<string | null> => {
 export const setupFCMListeners = () => {
   // Listen for token refresh
   const unsubscribeTokenRefresh = messaging().onTokenRefresh(token => {
-    console.log('FCM Token refreshed:', token);
     // You can save the new token to your server here
   });
 
   // Handle foreground messages
   const unsubscribeForeground = messaging().onMessage(async remoteMessage => {
-    console.log('Foreground FCM Message:', remoteMessage);
     // Handle the message when app is in foreground
   });
 

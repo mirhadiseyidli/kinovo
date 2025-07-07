@@ -57,7 +57,6 @@ export const useImageCache = (): ImageCacheHook => {
       );
 
       await Promise.allSettled(prefetchPromises);
-      console.log(`Preloaded ${networkImages.length} images`);
     } catch (error) {
       console.warn('Error preloading images:', error);
     }
@@ -105,7 +104,6 @@ export const useImageCache = (): ImageCacheHook => {
         }
       }
 
-      console.log(`Cleaned ${deletedCount} old cached files`);
     } catch (error) {
       console.warn('Error cleaning old cache:', error);
     }
@@ -117,7 +115,6 @@ export const useImageCache = (): ImageCacheHook => {
       if (dirInfo.exists) {
         await FileSystem.deleteAsync(CACHE_DIR);
         await initializeCacheDir();
-        console.log('Image cache cleared');
       }
     } catch (error) {
       console.warn('Error clearing cache:', error);
@@ -144,14 +141,12 @@ export const useAutomaticCacheManagement = () => {
 
         // If cache exceeds maximum size, clean old files
         if (sizeInMB > MAX_CACHE_SIZE_MB) {
-          console.log(`Cache size (${sizeInMB.toFixed(2)}MB) exceeds limit, cleaning...`);
           await cleanOldCache(24 * 3); // Clean files older than 3 days
           
           // If still too large, clear entire cache
           const newSize = await getCacheSize();
           const newSizeInMB = newSize / (1024 * 1024);
           if (newSizeInMB > MAX_CACHE_SIZE_MB) {
-            console.log('Cache still too large, clearing entire cache');
             await clearCache();
           }
         }

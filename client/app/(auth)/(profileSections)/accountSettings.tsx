@@ -80,7 +80,6 @@ const accountSettings = () => {
   );
 
   const handleChangePassword = () => {
-    console.log(user);
     if (user?.google_id) {
       Alert.alert(
         "Not Available",

@@ -16,7 +16,6 @@ const AppleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess, onLoginStart, on
     // Check if Apple authentication is available
     AppleAuthentication.isAvailableAsync().then(isAvailable => {
       setIsAppleAuthAvailable(isAvailable);
-      console.log('Apple authentication available:', isAvailable);
     });
   }, []);
 
@@ -71,7 +70,6 @@ const AppleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess, onLoginStart, on
           throw new Error('Invalid token response from backend');
         }
 
-        console.log('Calling onLoginSuccess with tokens');
         onLoginSuccess(accessToken, refreshToken, user._id, firebaseToken);
       } else {
         console.error('Authentication failed with status:', backendResponse.status);
@@ -81,7 +79,6 @@ const AppleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess, onLoginStart, on
       // Handle Apple authentication errors
       if (error.code === 'ERR_CANCELED') {
         // User canceled the sign-in
-        console.log('User canceled Apple Sign In');
         onLoginError?.();
         return;
       }

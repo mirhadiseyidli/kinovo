@@ -21,7 +21,6 @@ export default function Category() {
     if (category) {
       try {
         await AsyncStorage.setItem('selectedCategory', category as string);
-        console.log('Set category in AsyncStorage:', category);
       } catch (error) {
         console.error('Error setting category in AsyncStorage:', error);
       }

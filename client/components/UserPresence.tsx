@@ -61,56 +61,42 @@ export function UserPresence() {
   // Initialize FCM token management
   const { fcmToken, permissionGranted, isLoading: fcmLoading } = useFCMTokenManager();
 
-  console.log('UserPresence rendered - userId:', userId, 'isFirebaseReady:', isFirebaseReady, 'fcmToken:', !!fcmToken, 'permissionGranted:', permissionGranted);
-
   // Check if Firebase is authenticated
   useEffect(() => {
-    console.log('Setting up Firebase auth listener');
     const unsubscribe = firebaseAuth.onAuthStateChanged((user) => {
-      console.log('Firebase auth state changed - user:', !!user);
       setIsFirebaseReady(!!user);
     });
     
     return () => {
-      console.log('Cleaning up Firebase auth listener');
       unsubscribe();
     };
   }, []);
 
   useEffect(() => {
-    console.log('UserPresence effect - userId:', userId, 'isFirebaseReady:', isFirebaseReady);
     
     // Only proceed if both userId exists and Firebase is authenticated
     if (!userId || !isFirebaseReady) {
-      console.log('UserPresence: Skipping setup - missing userId or Firebase not ready');
       return;
     }
 
-    console.log('UserPresence: Setting up user status tracking for user:', userId);
     const userStatusRef = ref(db, `user_status/${userId}`);
 
     const setUserOnline = async () => {
       try {
-        console.log('UserPresence: Setting user online for user:', userId);
-        console.log('UserPresence: Firebase database ref:', userStatusRef.toString());
         
         const statusData = {
           online: true,
           lastActive: serverTimestamp(),
         };
         
-        console.log('UserPresence: Attempting to set status data:', statusData);
         await set(userStatusRef, statusData);
-        console.log('UserPresence: Successfully set user online');
 
         // Setup onDisconnect behavior
-        console.log('UserPresence: Setting up onDisconnect behavior');
         const disconnectRef = onDisconnect(userStatusRef);
         await disconnectRef.update({
           online: false,
           lastActive: serverTimestamp(),
         });
-        console.log('UserPresence: onDisconnect behavior set up');
       } catch (error) {
         console.error('UserPresence: Error updating online status:', error);
         console.error('UserPresence: Error details:', error instanceof Error ? error.message : 'Unknown error', (error as any)?.code);
@@ -118,12 +104,9 @@ export function UserPresence() {
     };
 
     const handleAppStateChange = (nextAppState: string) => {
-      console.log('UserPresence: App state changed to:', nextAppState);
       if (nextAppState === 'active') {
-        console.log('UserPresence: App became active, setting user online');
         setUserOnline();
       } else if (nextAppState === 'background' || nextAppState === 'inactive') {
-        console.log('UserPresence: App went to background/inactive, setting user offline');
         update(userStatusRef, {
           online: false,
           lastActive: serverTimestamp(),
@@ -131,14 +114,11 @@ export function UserPresence() {
       }
     };
 
-    console.log('UserPresence: Setting initial online status');
     setUserOnline();
 
-    console.log('UserPresence: Setting up AppState listener');
     const subscription = AppState.addEventListener('change', handleAppStateChange);
 
     return () => {
-      console.log('UserPresence: Cleaning up - setting user offline');
       subscription.remove();
       update(userStatusRef, {
         online: false,

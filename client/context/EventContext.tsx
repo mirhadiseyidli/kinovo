@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode, useRef } from 'react';
 import { Event } from '@/types/allTypes';
 import { 
   EventOccurrence, 
@@ -23,6 +23,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
 import api from '@/utils/api';
+import { cacheManager } from '@/utils/homeScreenCache';
 
 interface EventContextType {
   // Event data
@@ -58,6 +59,15 @@ interface EventContextType {
   // Cache operations
   clearCache: () => void;
   isDateRangeCached: (startDate: Date, endDate: Date) => boolean;
+
+  // New operations for event updates
+  setEvents: React.Dispatch<React.SetStateAction<Event[]>>;
+  setEventOccurrences: React.Dispatch<React.SetStateAction<EventOccurrence[]>>;
+  expandEventsToOccurrences: (events: Event[], startDate: Date, endDate: Date) => EventOccurrence[];
+
+  // Event update subscription
+  subscribeToEventUpdates: (eventId: string) => void;
+  unsubscribeFromEventUpdates: (eventId: string) => void;
 }
 
 const EventContext = createContext<EventContextType | undefined>(undefined);
@@ -81,6 +91,9 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [cachedDateRanges, setCachedDateRanges] = useState<{ start: Date; end: Date }[]>([]);
+  const [subscriptions, setSubscriptions] = useState<Set<string>>(new Set());
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const { userId } = useAuthSession();
   
   // Performance optimization: Cache for event occurrences to prevent recalculation
   const occurrenceCache = React.useRef(new Map<string, EventOccurrence[]>());
@@ -91,7 +104,8 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
   const MAX_CACHED_RANGES = 3; // Limit cached date ranges
   const MAX_EVENT_OCCURRENCES = 1000; // Limit total occurrences in memory
   
-  const { refreshAccessToken } = useAuthSession();
+  // Track which events need updates
+  const [eventsToUpdate, setEventsToUpdate] = useState<Set<string>>(new Set());
 
   // Memory cleanup effect
   useEffect(() => {
@@ -321,6 +335,8 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
     setEvents([]);
     setEventOccurrences([]);
     setCachedDateRanges([]);
+    // Clear stale event update subscriptions
+    setEventsToUpdate(new Set());
     // Performance optimization: Clear occurrence cache when clearing main cache
     occurrenceCache.current.clear();
     
@@ -397,6 +413,117 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
     }
   }, [eventModifications, events, cachedDateRanges, expandEventsToOccurrences]);
 
+  // Helper function to validate if an event ID is a base event ID (not an occurrence ID)
+  const isValidBaseEventId = useCallback((eventId: string): boolean => {
+    // Base event IDs are MongoDB ObjectIds (24 hex characters)
+    // Occurrence IDs have format: "baseId-timestamp" (e.g., "6848bb078579158f6c5b9376-2025-06-10T13:22:00.000Z")
+    const mongoIdPattern = /^[0-9a-fA-F]{24}$/;
+    return mongoIdPattern.test(eventId);
+  }, []);
+
+  // Effect to handle event updates
+  useEffect(() => {
+    if (eventsToUpdate.size === 0) return;
+
+    const updateEvents = async () => {
+      try {
+        // Filter out invalid occurrence IDs before making API calls
+        const validEventIds = Array.from(eventsToUpdate).filter(eventId => {
+          const isValid = isValidBaseEventId(eventId);
+          if (!isValid) {
+            console.warn(`[EventContext] Filtering out invalid occurrence ID: ${eventId}`);
+            // Remove invalid ID from subscriptions
+            setEventsToUpdate(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(eventId);
+              return newSet;
+            });
+          }
+          return isValid;
+        });
+
+        if (validEventIds.length === 0) {
+          return; // No valid event IDs to fetch
+        }
+
+        // Fetch all valid events that need updates
+        const updatePromises = validEventIds.map(async (eventId) => {
+          try {
+            const response = await api.get(`/api/manageevents/eventslist/event/get/event/by/id?_id=${eventId}`);
+            return response.data.found_event;
+          } catch (error) {
+            console.error(`Error fetching event ${eventId}:`, error);
+            // Remove problematic event ID from future updates
+            setEventsToUpdate(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(eventId);
+              return newSet;
+            });
+            return null;
+          }
+        });
+
+        const updatedEvents = await Promise.all(updatePromises);
+        const validUpdatedEvents = updatedEvents.filter(Boolean);
+
+        if (validUpdatedEvents.length > 0) {
+          // Update specific events across all home screen caches
+          validUpdatedEvents.forEach(updatedEvent => {
+            if (updatedEvent?._id && userId) {
+              cacheManager.updateEventAcrossCaches(updatedEvent._id, updatedEvent, userId);
+            }
+          });
+
+          // Update events array
+          setEvents(prevEvents => {
+            const eventMap = new Map(prevEvents.map(event => [event._id, event]));
+            validUpdatedEvents.forEach(updatedEvent => {
+              if (updatedEvent?._id) {
+                eventMap.set(updatedEvent._id, updatedEvent);
+              }
+            });
+            return Array.from(eventMap.values());
+          });
+
+          // Get the full date range from cache
+          const fullStartDate = new Date(Math.min(...cachedDateRanges.map(r => r.start.getTime())));
+          const fullEndDate = new Date(Math.max(...cachedDateRanges.map(r => r.end.getTime())));
+
+          // Re-expand all events
+          const newOccurrences = expandEventsToOccurrences(events, fullStartDate, fullEndDate);
+          setEventOccurrences(newOccurrences);
+        }
+      } catch (error) {
+        console.error('Error updating events:', error);
+      }
+    };
+
+    // Update every 30 seconds if there are events to update
+    const intervalId = setInterval(updateEvents, 30000);
+    
+    // Initial update
+    updateEvents();
+
+    return () => clearInterval(intervalId);
+  }, [eventsToUpdate, cachedDateRanges, expandEventsToOccurrences, isValidBaseEventId]);
+
+  const subscribeToEventUpdates = useCallback((eventId: string) => {
+    // Only subscribe to valid base event IDs
+    if (isValidBaseEventId(eventId)) {
+      setEventsToUpdate(prev => new Set([...prev, eventId]));
+    } else {
+      console.warn(`[EventContext] Attempted to subscribe to invalid occurrence ID: ${eventId}`);
+    }
+  }, [isValidBaseEventId]);
+
+  const unsubscribeFromEventUpdates = useCallback((eventId: string) => {
+    setEventsToUpdate(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(eventId);
+      return newSet;
+    });
+  }, []);
+
   const value: EventContextType = {
     events,
     eventOccurrences,
@@ -412,7 +539,12 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
     getOccurrencesForDateRange: getOccurrencesForDateRangeFunc,
     modifyRecurringEvent,
     clearCache,
-    isDateRangeCached
+    isDateRangeCached,
+    setEvents,
+    setEventOccurrences,
+    expandEventsToOccurrences,
+    subscribeToEventUpdates,
+    unsubscribeFromEventUpdates,
   };
 
   return (

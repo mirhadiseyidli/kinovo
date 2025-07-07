@@ -172,7 +172,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       // If Firebase has an error, use backend as fallback
       if (firebaseFriendRequestsError) {
         setUsingFriendRequestBackendFallback(true);
-        console.log('Using backend friend requests as fallback due to Firebase error');
       }
     } catch (error) {
       console.error('Error fetching friend requests from backend:', error);
@@ -317,7 +316,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const markAllNotificationsAsViewed = useCallback(async () => {
     // Prevent multiple concurrent executions
     if (markingAllNotificationsRef.current) {
-      console.log('markAllNotificationsAsViewed already running, skipping');
       return;
     }
     
@@ -383,7 +381,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const markFriendRequestsAsViewed = useCallback(async () => {
     // Prevent multiple concurrent executions
     if (markingFriendRequestsRef.current) {
-      console.log('markFriendRequestsAsViewed already running, skipping');
       return;
     }
     
@@ -404,7 +401,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return newViewed;
       });
       
-      console.log(`Marked ${unseenFriendRequestIds.length} friend requests as viewed`);
     } catch (error) {
       console.error('Error marking friend requests as viewed:', error);
     } finally {

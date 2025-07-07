@@ -79,7 +79,6 @@ export function useFirebaseRealtimeData<T>(path: string, maxRetries = 3) {
             // Don't retry for permission denied errors
             const errorMessage = err?.message || '';
             if (errorMessage.includes('permission-denied')) {
-              console.log(`Not retrying due to permission denied error for ${fullPath}`);
               return;
             }
             
@@ -89,8 +88,6 @@ export function useFirebaseRealtimeData<T>(path: string, maxRetries = 3) {
             if (currentRetryCount < maxRetries) {
               const nextRetry = currentRetryCount + 1;
               const backoffTime = Math.min(1000 * (2 ** currentRetryCount), 30000); // Max 30 seconds
-              
-              console.log(`Retrying Firebase connection in ${backoffTime}ms (attempt ${nextRetry}/${maxRetries})`);
               
               // Clear previous timeout if exists
               if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -195,7 +192,6 @@ export function useNotifications() {
         
         // Request a refresh from the server immediately
         await notificationsRef.keepSynced(true);
-        console.log('Forcing notification data refresh from Firebase');
       } catch (error) {
         console.error('Error forcing notification refresh:', error);
       }

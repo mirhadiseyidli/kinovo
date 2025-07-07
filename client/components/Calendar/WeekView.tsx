@@ -49,7 +49,7 @@ interface WeekViewProps {
   onFinishRefresh?: () => void;
 }
 
-const WeekView: React.FC<WeekViewProps> = ({ loading, refreshing, onFinishRefresh }) => {
+const WeekView: React.FC<WeekViewProps> = ({ refreshing, onFinishRefresh }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const hourListRef = useRef<FlatList>(null);
@@ -60,7 +60,7 @@ const WeekView: React.FC<WeekViewProps> = ({ loading, refreshing, onFinishRefres
   
   // Use CalendarContext for state management
   const { currentDate, navigateToWeek } = useCalendarContext();
-  const { fetchEventsForWeek, refreshEvents } = useEventContext();
+  const { fetchEventsForWeek, refreshEvents, loading } = useEventContext();
   
   const weekPages = React.useMemo(() => buildWeekPages(currentDate), [currentDate]);
 
@@ -73,7 +73,6 @@ const WeekView: React.FC<WeekViewProps> = ({ loading, refreshing, onFinishRefres
     // Fetch events for the current week when refreshing or date changes
     const fetchEvents = async () => {
       try {
-        console.log('fetching week events', currentDate)
         if (refreshing) {
           await refreshEvents(currentDate, 'Week');
         } else {
@@ -117,17 +116,6 @@ const WeekView: React.FC<WeekViewProps> = ({ loading, refreshing, onFinishRefres
     >
       <View style={{ width: screenWidth, overflow: 'hidden', paddingBottom: 12, backgroundColor: themeColors.background }}>
         <ThemedView style={{ position: 'absolute', top: 0, width: 50, height: 50, zIndex: 999 }}/>
-        {(loading || refreshing) && (
-          <View style={{ 
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            zIndex: 2
-          }}>
-            <ReanimatedShimmerLine />
-          </View>
-        )}
         <RNAnimated.View
           style={{
             paddingLeft: 50,
@@ -144,6 +132,17 @@ const WeekView: React.FC<WeekViewProps> = ({ loading, refreshing, onFinishRefres
         </RNAnimated.View>
       </View>
       <View style={{ flexDirection: 'row' }}>
+        {(loading || refreshing) && (
+          <View style={{ 
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 2
+          }}>
+            <ReanimatedShimmerLine />
+          </View>
+        )}
         <HourList hours={HOURS} scrollRef={hourListRef} />
         <RNAnimated.FlatList
           ref={pagesListRef}

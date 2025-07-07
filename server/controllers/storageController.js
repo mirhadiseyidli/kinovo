@@ -18,7 +18,6 @@ const User = require('../database/schemas/usersSchema');
  * @access Private
  */
 const uploadProfilePicture = async (req, res) => {
-  console.log('uploadProfilePicture');
   try {
     if (!req.file) {
       return res.status(400).json({ 

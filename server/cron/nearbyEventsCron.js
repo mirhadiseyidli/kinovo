@@ -62,7 +62,6 @@ const findUsersWithin50Miles = async (eventLat, eventLng, excludeUserId, eventCr
 const startNearbyEventsCron = () => {
   // Run every 6 hours (at 00:00, 06:00, 12:00, 18:00)
   cron.schedule('0 */6 * * *', async () => {
-    console.log('Running nearby events cron job...');
     
     try {
       const now = new Date();
@@ -80,7 +79,6 @@ const startNearbyEventsCron = () => {
         'location.coordinates.lng': { $exists: true, $ne: null }
       }).populate('creator', '_id').select('_id title start_time location creator attendees');
 
-      console.log(`Found ${upcomingPublicEvents.length} upcoming public events with locations`);
 
       // Randomly select up to 3 events to promote each run
       const eventsToPromote = upcomingPublicEvents
@@ -113,7 +111,6 @@ const startNearbyEventsCron = () => {
               .slice(0, 10);
 
             await createNearbyEventNotification(event._id, usersToNotify);
-            console.log(`Sent nearby event notifications for "${event.title}" to ${usersToNotify.length} users`);
           } else {
             console.log(`No eligible users found for event "${event.title}"`);
           }
@@ -122,13 +119,11 @@ const startNearbyEventsCron = () => {
         }
       }
 
-      console.log('Nearby events cron job completed');
     } catch (error) {
       console.error('Error in nearby events cron job:', error);
     }
   });
 
-  console.log('Nearby events cron job scheduled to run every 6 hours');
 };
 
 module.exports = {

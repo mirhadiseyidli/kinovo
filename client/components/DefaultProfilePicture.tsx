@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, Image } from 'react-native';
+import { View, Text } from 'react-native';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { Feather } from '@expo/vector-icons';
 import { getInitials, getRandomColor } from '@/utils/profilePictureGenerator';
+import { OptimizedCDNImage } from '@/components/OptimizedCDNImage';
 
 interface DefaultProfilePictureProps {
   profilePicture?: string | null;
@@ -95,12 +96,18 @@ const DefaultProfilePicture: React.FC<DefaultProfilePictureProps> = React.memo((
       borderWidth: showBorder ? 2 : 0,
       borderColor: borderColor || themeColors.mountainGreen,
     }}>
-      <Image
-        source={{ uri: profilePicture || '' }}
+      <OptimizedCDNImage
+        source={profilePicture || null}
+        fallbackCategory="profile"
         style={{
           width: '100%',
           height: '100%',
         }}
+        width={size}
+        height={size}
+        quality={85}
+        priority="normal"
+        enableBlurUp={true}
         resizeMode="cover"
       />
     </View>

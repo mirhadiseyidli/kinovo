@@ -31,7 +31,7 @@ export default React.memo(function UserEvents({ userId, route, refreshing }: Use
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [searchQuery, setSearchQuery] = useState('');
-  const { eventsList, fetchUserToViewEvents, loading } = useGetUserToViewEvents(userId);
+  const { eventsList, fetchUserToViewEvents, loading, isFirstFetch } = useGetUserToViewEvents(userId);
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
@@ -101,7 +101,7 @@ export default React.memo(function UserEvents({ userId, route, refreshing }: Use
   );
 
   const ListHeaderComponent = () => (
-    loading ? (
+    isFirstFetch ? (
       <View style={{ marginTop: 16, marginBottom: 16 }}>
         <SkeletonBox width="100%" height={40} borderRadius={8} marginBottom={16} />
         <EventSkeleton />
@@ -130,10 +130,10 @@ export default React.memo(function UserEvents({ userId, route, refreshing }: Use
     <ThemedView style={{ flex: 1, paddingHorizontal: 16 }}>
       <TabFlashList
         index={route?.index || 0}
-        data={loading ? [] : filteredEvents}
+        data={isFirstFetch ? [] : filteredEvents}
         estimatedItemSize={200}
         renderItem={renderItem}
-        ListEmptyComponent={!loading ? ListEmptyComponent : null}
+        ListEmptyComponent={!isFirstFetch ? ListEmptyComponent : null}
         ListHeaderComponent={ListHeaderComponent}
         contentContainerStyle={{ 
           paddingBottom: insets.bottom + 20

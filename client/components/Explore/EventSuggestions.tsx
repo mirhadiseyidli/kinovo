@@ -20,7 +20,7 @@ interface EventSuggestionsProps {
 const EventSuggestions: React.FC<EventSuggestionsProps> = ({ refreshing, onFinishRefresh }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const { fetchRecommendedEvents, loading } = useGetRecommendedEvents();
+  const { fetchRecommendedEvents, loading, isFirstFetch } = useGetRecommendedEvents();
   const [recommendedEvents, setRecommendedEvents] = useState<EventType[]>([]);
 
   const fetchEvents = async () => {
@@ -50,8 +50,10 @@ const EventSuggestions: React.FC<EventSuggestionsProps> = ({ refreshing, onFinis
     }, [refreshing])
   );
 
-  // Show skeleton during loading or refreshing
-  if (loading || refreshing) {
+  // Show skeleton only on first fetch, not on refreshes
+  const showSkeleton = isFirstFetch && loading;
+
+  if (showSkeleton) {
     return (
       <ThemedView style={{ width: '100%' }}>
         <ThemedText style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 16 }}>

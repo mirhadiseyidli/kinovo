@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Alert } from 'react-native';
 import { ApiError, Event } from '@/types/allTypes';
 import api from '@/utils/api';
@@ -7,6 +7,8 @@ import { useAuthSession } from '@/components/Auth/AuthProvider';
 
 export const useGetMyPastEvents = () => {
   const [loading, setLoading] = useState(false);
+  const [isFirstFetch, setIsFirstFetch] = useState(true);
+  const [hasDataBeenFetched, setHasDataBeenFetched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { userId } = useAuthSession();
 
@@ -20,23 +22,29 @@ export const useGetMyPastEvents = () => {
     if (!forceRefresh) {
       const cachedEvents = pastEventsCache.get(userId);
       if (cachedEvents) {
-        console.log('📦 [Cache Hit] Past events loaded from cache');
+        setIsFirstFetch(false); // We have data, so no longer first fetch
+        setHasDataBeenFetched(true);
         return cachedEvents;
       }
+    }
+
+    // If we have fetched data before, this is not a first fetch
+    if (hasDataBeenFetched) {
+      setIsFirstFetch(false);
     }
 
     setLoading(true);
     setError(null);
     try {
-      console.log('🌐 [API Call] Fetching past events from server');
       const response = await api.get('/api/manageevents/eventslist/get/my/past/events');
       
       const events = response.data.past_events || [];
       
       // Cache the results
       pastEventsCache.set(userId, events);
-      console.log(`💾 [Cache Set] Cached ${events.length} past events`);
       
+      setIsFirstFetch(false); // First fetch completed
+      setHasDataBeenFetched(true);
       return events;
     } catch (error) {
       const err = error as ApiError;
@@ -46,19 +54,27 @@ export const useGetMyPastEvents = () => {
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, hasDataBeenFetched]);
 
   // Clear cache for this user
   const clearCache = useCallback(() => {
     if (userId) {
       pastEventsCache.clear(userId);
-      console.log('🗑️ [Cache Clear] Past events cache cleared');
+    }
+  }, [userId]);
+
+  // Reset first fetch state when user changes
+  useEffect(() => {
+    if (userId) {
+      setIsFirstFetch(true);
+      setHasDataBeenFetched(false);
     }
   }, [userId]);
 
   return { 
     fetchMyPastEvents, 
     loading, 
+    isFirstFetch,
     error, 
     clearCache 
   };

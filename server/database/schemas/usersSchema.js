@@ -353,6 +353,10 @@ const usersSchema = new mongoose.Schema({
   reset_password_expires: {
     type: Date,
     required: false,
+  },
+  bypass_two_factor_auth: {
+    type: Boolean,
+    default: false,
   }
 });
 

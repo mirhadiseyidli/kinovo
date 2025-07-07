@@ -73,27 +73,14 @@ const HomeScreen = React.memo(() => {
 
   // Initialize cache manager
   useEffect(() => {
-    console.log('🔧 [Cache Manager] Starting cleanup service');
     cacheManager.startCleanup();
     
     return () => {
-      console.log('🔧 [Cache Manager] Stopping cleanup service');
       cacheManager.stopCleanup();
     };
   }, []);
 
-  // Log cache stats when focused (for debugging)
-  useFocusEffect(
-    React.useCallback(() => {
-      if (__DEV__) {
-        const stats = cacheManager.getAllStats();
-        console.log('📊 [Cache Stats]', JSON.stringify(stats, null, 2));
-      }
-    }, [])
-  );
-
   const onRefresh = useCallback(() => {
-    console.log('🔄 [Home Screen] Pull-to-refresh triggered, clearing all caches');
     // Clear all caches on manual refresh to ensure fresh data
     cacheManager.clearAll();
     

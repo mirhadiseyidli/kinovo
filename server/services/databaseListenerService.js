@@ -13,7 +13,6 @@ const {
 
 // Initialize all change streams
 const initializeChangeStreams = () => {
-  console.log('Initializing database change streams...');
   
   // Friend Request change stream
   const friendRequestStream = FriendRequest.watch();
@@ -84,7 +83,6 @@ const initializeChangeStreams = () => {
           // Only sync if the notification is unseen (newly created notifications are always unseen)
           if (!change.fullDocument.is_seen) {
             await syncNotification(recipientId, change.fullDocument);
-            console.log(`New unseen notification synced to Firebase for user ${recipientId}`);
           }
         }
       } else if (change.operationType === 'update') {
@@ -99,26 +97,14 @@ const initializeChangeStreams = () => {
             if (!updatedFields.is_seen) {
               // Notification becoming unseen - sync to Firebase
               await syncNotification(recipientId, change.fullDocument);
-              console.log(`Notification marked as unseen, synced to Firebase for user ${recipientId}`);
-            } else {
-              // Notification being marked as seen - it should already be cleaned up by markNotificationsAsSeen
-              console.log(`Notification marked as seen for user ${recipientId}, no Firebase sync needed`);
             }
           } else {
             // Other field updates - only sync if notification is still unseen
             if (!change.fullDocument.is_seen) {
               await syncNotification(recipientId, change.fullDocument);
-              console.log(`Unseen notification updated and synced to Firebase for user ${recipientId}`);
             }
           }
         }
-      } else if (change.operationType === 'delete') {
-        // For delete operations, remove from Firebase if it exists
-        console.log('Notification delete operation detected:', change.documentKey);
-        
-        // Since we can't get recipient from deleted doc, we'll let the cleanup happen naturally
-        // The notification should already be removed from Firebase by our cleanup logic
-        console.log('Notification deleted from database, Firebase cleanup handled by application logic');
       }
     } catch (error) {
       console.error('Error in notification change stream:', error);

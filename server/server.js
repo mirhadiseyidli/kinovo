@@ -23,7 +23,6 @@ const shareRoutes = require('./routes/shareRoutes');
 // Firebase and realtime services
 const { configureSecurityRules } = require('./config/firebase-admin');
 const { initializeChangeStreams } = require('./services/databaseListenerService');
-const { shutdownWebSockets } = require('./utils/shutdownUtils');
 
 const app = express();
 

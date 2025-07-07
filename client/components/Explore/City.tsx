@@ -6,7 +6,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { CityProps } from '@/types/allTypes';
-import { OptimizedImage } from '@/components/OptimizedImage';
+import { OptimizedCDNImage } from '@/components/OptimizedCDNImage';
 
 const CITY_SIZE = 180;
 
@@ -45,8 +45,8 @@ const City: React.FC<CityProps> = ({ name, image, onPress }) => {
         }}
       >
         <View style={{ flex: 1, width: '100%', height: '100%' }}>
-          <OptimizedImage
-            source={null} // Use require() images as fallback
+          <OptimizedCDNImage
+            source={image?.uri || image} // Support both CDN URLs and require() images
             style={{
               width: '100%',
               height: '100%',
@@ -56,10 +56,10 @@ const City: React.FC<CityProps> = ({ name, image, onPress }) => {
               width: '100%',
               height: '100%',
             }}
-            placeholder={image} // Use the require() image as placeholder
             resizeMode="cover"
-            showLoader={false} // Don't show loader for instant display
-            quality={0.8}
+            quality={80}
+            width={CITY_SIZE}
+            height={CITY_SIZE}
           />
           <BlurView
             intensity={50}

@@ -9,6 +9,7 @@ import { Feather } from '@expo/vector-icons';
 import { useAuthSession } from "@/components/Auth/AuthProvider";
 import { User } from '@/types/allTypes';
 import { getInitials, getRandomColor } from '@/utils/profilePictureGenerator';
+import { OptimizedCDNImage } from '@/components/OptimizedCDNImage';
 import api from '@/utils/api';
 import { ProfilePreviewSkeleton } from '@/components/Skeleton';
 import { useFocusEffect } from '@react-navigation/native';
@@ -109,11 +110,25 @@ const UserProfilePreview: React.FC = () => {
 
   return (
     <View style={{ padding: 16, alignItems: 'center', justifyContent: 'center' }}>
-      <View style={{ width: 140, height: 140, borderRadius: 70, marginBottom: 16, borderWidth: 2, borderColor: themeColors.mountainGreen, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+      <View style={{ 
+        width: 140, 
+        height: 140, 
+        borderRadius: 70, 
+        marginBottom: 16, 
+        borderWidth: 2, 
+        borderColor: themeColors.mountainGreen, 
+        overflow: 'hidden' 
+      }}>
         {user.profile_picture ? (
-          <Image
-            source={{ uri: user.profile_picture }}
+          <OptimizedCDNImage
+            source={user.profile_picture}
+            fallbackCategory="profile"
             style={{ width: '100%', height: '100%' }}
+            width={140}
+            height={140}
+            quality={85}
+            priority="normal"
+            enableBlurUp={true}
           />
         ) : (user.first_name || user.last_name) ? (
           // Show default profile picture with initials

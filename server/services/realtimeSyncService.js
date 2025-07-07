@@ -49,7 +49,6 @@ const syncFriendRequest = async (receiverId, requestData) => {
       // Include mutual friends count if provided
       ...(requestData.mutualFriendsCount !== undefined && { mutualFriendsCount: requestData.mutualFriendsCount })
     });
-    console.log(`Friend request synced to Firebase for user ${receiverId} with sender: ${sender?.full_name || 'Unknown'}`);
   } catch (error) {
     console.error('Error syncing friend request to Firebase:', error);
   }
@@ -75,7 +74,6 @@ const syncFriendActivity = async (userId, activityData) => {
         activityData.created_at.toISOString() : 
         activityData.created_at
     });
-    console.log(`Friend activity synced to Firebase for user ${userId}`);
   } catch (error) {
     console.error('Error syncing friend activity to Firebase:', error);
   }
@@ -139,7 +137,6 @@ const syncNotification = async (userId, notificationData) => {
       location: notificationData.location || null
     });
     
-    console.log(`Notification synced to Firebase for user ${userId}`);
   } catch (error) {
     console.error('Error syncing notification to Firebase:', error);
   }
@@ -158,7 +155,6 @@ const markNotificationAsRead = async (userId, notificationId) => {
       is_seen: true,
       read_at: admin.database.ServerValue.TIMESTAMP
     });
-    console.log(`Notification ${notificationId} marked as read for user ${userId}`);
   } catch (error) {
     console.error('Error marking notification as read in Firebase:', error);
   }
@@ -173,7 +169,6 @@ const removeNotificationFromFirebase = async (userId, notificationId) => {
   try {
     const notificationRef = refs.notifications.child(userId).child(notificationId);
     await notificationRef.remove();
-    console.log(`Notification ${notificationId} removed from Firebase for user ${userId}`);
   } catch (error) {
     console.error('Error removing notification from Firebase:', error);
   }
@@ -192,14 +187,12 @@ const updateFriendRequestStatus = async (userId, requestId, status) => {
     if (status === 'accepted' || status === 'rejected') {
       // Remove from pending requests when accepted or rejected
       await requestRef.remove();
-      console.log(`Friend request ${requestId} removed from Firebase for user ${userId} due to status: ${status}`);
     } else {
       // Update status for other cases
       await requestRef.update({ 
         status,
         updated_at: admin.database.ServerValue.TIMESTAMP 
       });
-      console.log(`Friend request ${requestId} updated to status ${status} in Firebase for user ${userId}`);
     }
   } catch (error) {
     console.error('Error updating friend request in Firebase:', error);
@@ -215,7 +208,6 @@ const removeFriendRequestFromFirebase = async (userId, requestId) => {
   try {
     const requestRef = refs.friendRequests.child(userId).child(requestId);
     await requestRef.remove();
-    console.log(`Friend request ${requestId} removed from Firebase for user ${userId}`);
   } catch (error) {
     console.error('Error removing friend request from Firebase:', error);
   }
@@ -236,7 +228,6 @@ const syncAISummary = async (userId, summaryData) => {
         summaryData.generated_at.toISOString() : 
         summaryData.generated_at
     });
-    console.log(`AI summary synced to Firebase for user ${userId}`);
   } catch (error) {
     console.error('Error syncing AI summary to Firebase:', error);
   }
@@ -254,7 +245,6 @@ const updateUserStatus = async (userId, isOnline) => {
       online: isOnline,
       lastActive: admin.database.ServerValue.TIMESTAMP
     });
-    console.log(`User status updated for user ${userId}: online=${isOnline}`);
   } catch (error) {
     console.error('Error updating user status in Firebase:', error);
   }
@@ -269,7 +259,6 @@ const syncAllNotifications = async (userId) => {
     const notifications = await Notification.find({ user: userId });
     
     if (!notifications.length) {
-      console.log(`No notifications found for user ${userId}`);
       return;
     }
     
@@ -300,7 +289,6 @@ const syncAllNotifications = async (userId) => {
     
     // Perform the update
     await notificationsRef.update(updates);
-    console.log(`Synced ${notifications.length} notifications for user ${userId}`);
   } catch (error) {
     console.error('Error bulk syncing notifications to Firebase:', error);
   }
@@ -330,8 +318,6 @@ const syncFriendRequestStatusUpdate = async (requestId, status) => {
     // Update in receiver's requests
     const receiverRef = refs.friendRequests.child(receiverId).child(requestId);
     await receiverRef.update({ status, updated_at: admin.database.ServerValue.TIMESTAMP });
-    
-    console.log(`Friend request ${requestId} updated to ${status}`);
     
     // If accepted, create friend activities for both users
     if (status === 'accepted') {

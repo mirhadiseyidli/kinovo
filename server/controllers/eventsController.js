@@ -653,9 +653,10 @@ const getUserEvents = async (req, res) => {
 const getEventById = async (req, res) => {
   try {
     // First check if the event is in the user's reported events or not interested events
-    const user = await User.findById(req.user._id).select('reported_events not_interested_events');
+    const user = await User.findById(req.user._id).select('reported_events not_interested_events friends');
     const reportedEventIds = (user?.reported_events || []).map(event => event.toString());
     const notInterestedEventIds = (user?.not_interested_events || []).map(item => item.event.toString());
+    const friends = user.friends || [];
     
     // If the requested event is in reported events or not interested events, don't return it
     if (reportedEventIds.includes(req.query._id) || notInterestedEventIds.includes(req.query._id)) {
@@ -675,9 +676,27 @@ const getEventById = async (req, res) => {
 
     if (!found_event) {
       return res.status(404).json({ message: 'No event with that id was found'});
+    }
+
+    // Add user-specific fields to the event (following pattern from other controllers)
+    const userAttendee = found_event.attendees?.find(att => 
+      att.user._id.toString() === req.user._id.toString()
+    );
+    const isCreator = found_event.creator._id.toString() === req.user._id.toString();
+    const isFriendEvent = friends.some(friendId => 
+      friendId.toString() === found_event.creator._id.toString()
+    );
+
+    const eventWithUserStatus = {
+      ...found_event.toObject(),
+      isUserAttending: !!userAttendee,
+      isUserInvited: !!userAttendee,
+      isUserCreator: isCreator,
+      isFriendEvent: isFriendEvent,
+      userStatus: userAttendee?.status || null
     };
 
-    res.status(201).json({ found_event: found_event });
+    res.status(201).json({ found_event: eventWithUserStatus });
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
@@ -2268,7 +2287,6 @@ const reportEvent = async (req, res) => {
 };
 
 const updateEvent = async (req, res) => {
-  console.log('updateEvent');
   try {
     const { eventId } = req.params;
     const { occurrenceDate, modifyType, ...eventData } = req.body;
@@ -2440,7 +2458,6 @@ const updateEvent = async (req, res) => {
 const removeEventAttendee = async (req, res) => {
   try {
     const { eventId, attendeeId, occurrenceDate, modifyType } = req.body;
-    console.log('removeEventAttendee', eventId, attendeeId, occurrenceDate, modifyType);
     
     if (!eventId || !attendeeId) {
       return res.status(400).json({ message: 'Event ID and attendee ID are required' });

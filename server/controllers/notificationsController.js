@@ -37,7 +37,6 @@ const createFriendRequestNotification = async (friendRequestId, senderId, recipi
     const shouldReceivePush = await shouldReceiveNotification(recipientId, 'friend_request', 'push');
     
     if (!shouldReceiveInApp && !shouldReceiveEmail) {
-      console.log(`User ${recipientId} has disabled all friend request notifications`);
       return null;
     }
 
@@ -239,7 +238,6 @@ const markNotificationsAsSeen = async (req, res) => {
         const { admin, db } = require('../config/firebase-admin');
         const userNotificationsRef = db.ref(`notifications/${userId}`);
         await userNotificationsRef.remove();
-        console.log(`All notifications cleaned up from Firebase for user ${userId}`);
       } catch (firebaseError) {
         console.error('Error cleaning up all notifications from Firebase:', firebaseError);
       }
@@ -289,13 +287,11 @@ const createEventCreationNotification = async (eventId, creatorId, friendIds) =>
         const shouldReceiveEmail = await shouldReceiveNotification(friendId, 'event_created', 'email');
         
         if (!shouldReceiveInApp && !shouldReceiveEmail) {
-          console.log(`User ${friendId} has disabled all event creation notifications`);
           return null;
         }
 
         const friend = await Users.findById(friendId);
         if (!friend) {
-          console.log(`Friend ${friendId} not found`);
           return null;
         }
 
@@ -372,13 +368,11 @@ const createEventUpdateNotification = async (eventId, updaterId, attendeeIds) =>
           const shouldReceiveEmail = await shouldReceiveNotification(attendeeId, 'event_updated', 'email');
           
           if (!shouldReceiveInApp && !shouldReceiveEmail) {
-            console.log(`User ${attendeeId} has disabled all event update notifications`);
             return null;
           }
 
           const attendee = await Users.findById(attendeeId);
           if (!attendee) {
-            console.log(`Attendee ${attendeeId} not found`);
             return null;
           }
 
@@ -442,13 +436,11 @@ const createEventAttendanceNotification = async (eventId, attendeeId, status) =>
     const shouldReceiveEmail = await shouldReceiveNotification(event.creator, 'event_attendance_confirmed', 'email');
     
     if (!shouldReceiveInApp && !shouldReceiveEmail) {
-      console.log(`User ${event.creator} has disabled all event attendance notifications`);
       return null;
     }
 
     const creator = await Users.findById(event.creator);
     if (!creator) {
-      console.log(`Event creator ${event.creator} not found`);
       return null;
     }
 
@@ -511,15 +503,14 @@ const createEventReminderNotification = async (eventId) => {
         // Check if attendee wants to receive event reminder notifications
         const shouldReceiveInApp = await shouldReceiveNotification(attendee._id, 'event_reminder', 'inApp');
         const shouldReceiveEmail = await shouldReceiveNotification(attendee._id, 'event_reminder', 'email');
+        const shouldReceivePush = await shouldReceiveNotification(attendee._id, 'event_reminder', 'push');
         
-        if (!shouldReceiveInApp && !shouldReceiveEmail) {
-          console.log(`User ${attendee._id} has disabled all event reminder notifications`);
+        if (!shouldReceiveInApp && !shouldReceiveEmail && !shouldReceivePush) {
           return null;
         }
 
         const attendeeUser = await Users.findById(attendee._id);
         if (!attendeeUser) {
-          console.log(`Attendee user ${attendee._id} not found`);
           return null;
         }
 
@@ -540,6 +531,16 @@ const createEventReminderNotification = async (eventId) => {
               eventStartTime: event.start_time,
               reminderType: '1_hour_before'
             }
+          });
+        }
+
+        // Send push notification if enabled
+        if (shouldReceivePush) {
+          sendPushNotification([attendee._id], 'event_reminder', {
+            eventTitle: event.title,
+            eventId: eventId
+          }).catch(error => {
+            console.error('Push notification failed for event reminder:', error);
           });
         }
 
@@ -595,13 +596,11 @@ const createNearbyEventNotification = async (eventId, userIds) => {
         const shouldReceiveEmail = await shouldReceiveNotification(userId, 'new_event_nearby', 'email');
         
         if (!shouldReceiveInApp && !shouldReceiveEmail) {
-          console.log(`User ${userId} has disabled all nearby event notifications`);
           return null;
         }
 
         const user = await Users.findById(userId);
         if (!user) {
-          console.log(`User ${userId} not found`);
           return null;
         }
 
@@ -803,7 +802,6 @@ const getUserNotificationPreferences = async (req, res) => {
 
 // Update user notification preferences
 const updateUserNotificationPreferences = async (req, res) => {
-  console.log('updateUserNotificationPreferences', req.body);
   try {
     if (!req.user) {
       return res.status(401).json({ message: 'Unauthorized: User not logged in' });
@@ -933,10 +931,8 @@ const sendPushNotification = async (userIds, notificationType, payload) => {
         usersWhoWantPush.push(userId);
       }
     }
-    console.log('usersWhoWantPush', usersWhoWantPush);
 
     if (usersWhoWantPush.length === 0) {
-      console.log('No users want to receive push notifications for type:', notificationType);
       return { success: true, message: 'No users want push notifications' };
     }
 
@@ -945,7 +941,6 @@ const sendPushNotification = async (userIds, notificationType, payload) => {
     const tokens = fcmTokenDocs.map(doc => doc.token);
     
     if (tokens.length === 0) {
-      console.log('No active FCM tokens found for users:', usersWhoWantPush);
       return { success: false, message: 'No active FCM tokens found' };
     }
 
@@ -957,7 +952,6 @@ const sendPushNotification = async (userIds, notificationType, payload) => {
       await Promise.all(
         result.invalidTokens.map(token => FCMToken.deactivateToken(token))
       );
-      console.log(`Deactivated ${result.invalidTokens.length} invalid FCM tokens`);
     }
 
     return result;
@@ -977,8 +971,6 @@ const sendFriendRequestPushNotification = async (senderId, recipientId) => {
       senderName: sender.full_name,
       senderId: senderId
     });
-
-    console.log('Friend request push notification result:', result);
   } catch (error) {
     console.error('Error sending friend request push notification:', error);
   }
@@ -995,8 +987,6 @@ const sendEventInvitationPushNotification = async (eventId, inviteeIds) => {
       eventTitle: event.title,
       eventId: eventId
     });
-
-    console.log('Event invitation push notification result:', result);
   } catch (error) {
     console.error('Error sending event invitation push notification:', error);
   }

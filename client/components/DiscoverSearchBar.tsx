@@ -74,7 +74,6 @@ const DiscoverSearchBar: React.FC<DiscoverSearchBarProps> = ({
   };
 
   const handleBackdropPress = () => {
-    console.log('handleBackdropPress');
     setShowSuggestions(false);
     setIsSearchFocused(false);
     onSearchActiveChange?.(false);
@@ -280,7 +279,7 @@ const DiscoverSearchBar: React.FC<DiscoverSearchBarProps> = ({
                         width: 40,
                         height: 40,
                         borderRadius: 8,
-                        backgroundColor: themeColors.tint,
+                        backgroundColor: themeColors.background,
                         justifyContent: 'center',
                         alignItems: 'center',
                         marginRight: 12,
@@ -288,7 +287,7 @@ const DiscoverSearchBar: React.FC<DiscoverSearchBarProps> = ({
                         <Feather 
                           name="calendar" 
                           size={20} 
-                          color={themeColors.background} 
+                          color={themeColors.text} 
                         />
                       </View>
                       <View style={{ flex: 1 }}>

@@ -120,15 +120,24 @@ const EmailLogin: React.FC<EmailLoginProps> = ({ onLoginSuccess, onLoginStart, o
                     await AsyncStorage.removeItem(REMEMBERED_EMAIL_KEY);
                   }
 
-                  // Navigate to 2FA screen
-                  router.push({
-                    pathname: '/login/two-factor',
+                  // Bypass two-factor authentication
+                  const shouldBypass = await api.get('/api/user/bypass-two-factor-auth', {
                     params: {
-                      email,
-                      phoneNumber: phoneResponse.data.phoneNumber,
-                      verifiedCredentials: 'true'
+                      email
                     }
                   });
+                  
+                  if (!shouldBypass.data.bypass_two_factor_auth) {
+                      // Navigate to 2FA screen
+                    router.push({
+                      pathname: '/login/two-factor',
+                      params: {
+                        email,
+                        phoneNumber: phoneResponse.data.phoneNumber,
+                        verifiedCredentials: 'true'
+                      }
+                    });
+                  }
                 } catch (error: any) {
                   const errorMessage = error.response?.data?.message || error.message || 'Failed to reactivate account';
                   Alert.alert('Error', errorMessage);

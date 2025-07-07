@@ -243,7 +243,7 @@ export default React.memo(function EventDateAndLocation() {
                   width: 40,
                   height: 40,
                   borderRadius: 8,
-                  backgroundColor: themeColors.tint,
+                  backgroundColor: themeColors.background,
                   justifyContent: 'center',
                   alignItems: 'center',
                   marginRight: 12,
@@ -251,7 +251,7 @@ export default React.memo(function EventDateAndLocation() {
                   <Feather 
                     name="map-pin" 
                     size={20} 
-                    color={themeColors.background} 
+                    color={themeColors.text} 
                   />
                 </View>
                 <View style={{ flex: 1 }}>

@@ -183,7 +183,7 @@ export const CategoryImages: CategoryImageType = {
   },
   // Add a default image
   'Default': {
-    image: { uri: `https://${CDN_DOMAIN}/event-default.png` },
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/event-default.png` },
     alt: 'Default Event Image'
   }
 };

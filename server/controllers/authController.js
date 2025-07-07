@@ -59,11 +59,6 @@ const googleAuth = async (req, res) => {
     const accessToken = generateAccessToken({ _id: userDataFromDB._id, email: user.email });
     const refreshToken = generateRefreshToken({ _id: userDataFromDB._id, email: user.email });
     const customToken = await admin.auth().createCustomToken(userDataFromDB._id.toString());
-    console.log('customToken', customToken);
-    const decoded = jwt.decode(customToken);
-    console.log('decoded', decoded);
-    console.log('decoded.iat', new Date(decoded.iat * 1000).toISOString());
-    console.log('decoded.exp', new Date(decoded.exp * 1000).toISOString());
 
     res.json({
       success: true,
@@ -88,17 +83,13 @@ const googleAuth = async (req, res) => {
 // Add this controller function
 const appleAuth = async (req, res) => {
   const { identityToken, user } = req.body;
-  console.log('user', user);
-  console.log('identityToken', identityToken);
 
   if (!identityToken) {
     return res.status(400).json({ success: false, message: 'No token provided' });
   }
 
   try {
-    console.log('Processing Apple auth with token', identityToken.substring(0, 20) + '...');
     const { userId, email, email_verified, payload } = await verifyIdentityToken(identityToken);
-    console.log('Apple Token Verified for user ID:', userId);
     logger.info(`Apple Token Verified for user ID: ${userId}`);
 
     // Apple might not return these details every time, so we need to handle that
@@ -119,24 +110,20 @@ const appleAuth = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Email is required for account creation' });
     }
 
-    console.log('Checking for existing user with apple_id:', userId);
     let existingUser = await User.findOne({ apple_id: userId });
     
     // If no user with apple_id, check if email exists
     if (!existingUser && userEmail) {
-      console.log('No user found with apple_id, checking email:', userEmail);
       existingUser = await User.findOne({ email: userEmail });
       
       // If user exists with this email but no apple_id, link the accounts
       if (existingUser) {
-        console.log('Found user with matching email, linking Apple ID');
         existingUser.apple_id = userId;
         await existingUser.save();
       }
     }
 
     if (!existingUser) {
-      console.log('Creating new user for Apple ID:', userId);
       logger.info(`Creating new user for Apple ID: ${userId}`);
       
       // For testing purpose, use default values if needed
@@ -153,7 +140,6 @@ const appleAuth = async (req, res) => {
       });
     }
 
-    console.log('Generating tokens for user:', existingUser._id);
     const accessToken = generateAccessToken({ _id: existingUser._id, email: existingUser.email });
     const refreshToken = generateRefreshToken({ _id: existingUser._id, email: existingUser.email });
     const customToken = await admin.auth().createCustomToken(existingUser._id.toString());

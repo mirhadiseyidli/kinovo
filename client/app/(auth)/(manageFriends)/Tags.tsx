@@ -179,7 +179,6 @@ const TagItem: React.FC<TagItemProps> = ({
   });
 
   useEffect(() => {
-    console.log('isExpanded', isExpanded);
     if (isExpanded) {
       contentHeight.value = withTiming(tag.friends.length > 0 ? tag.friends.length * 70 : 180, {
         duration: 500,

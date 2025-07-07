@@ -28,7 +28,6 @@ const OpenMapsAndNavigateButton = ({ selectedLocation, latitude, longitude }: Op
         elevation: 5,
       }}
       onPress={() => {
-        console.log('Button pressed!'); // Debug log
         Alert.alert(
           "Navigate",
           `Do you want to get directions to "${selectedLocation}"?`,

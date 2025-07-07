@@ -142,7 +142,6 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
 
       // Store Firebase token but don't wait for authentication
       if (firebaseToken) {
-        console.log('Firebase token received, length:', firebaseToken.length);
         // Store the token immediately
         await SecureStore.setItemAsync('firebaseToken', firebaseToken);
         firebaseTokenRef.current = firebaseToken;
@@ -155,14 +154,12 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
           try {
             const result = await signInWithFirebaseToken(firebaseToken);
             setIsFirebaseAuthenticated(true);
-            console.log('Background Firebase authentication successful');
           } catch (error: any) {
             console.error('Background Firebase authentication failed:', error.code, error.message);
             setIsFirebaseAuthenticated(false);
           }
         }, 100); // Small delay to ensure navigation completes first
       } else {
-        console.log('No Firebase token provided during sign in');
         firebaseTokenRef.current = '';
         setIsFirebaseAuthenticated(false);
         await SecureStore.deleteItemAsync('firebaseToken');

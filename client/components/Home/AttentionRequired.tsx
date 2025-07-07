@@ -17,6 +17,9 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { EventCardSkeleton } from '../Skeleton';
 import { truncateName } from '@/utils/truncateName';
 import { OptimizedImage } from '@/components/OptimizedImage';
+import { useFocusEffect } from '@react-navigation/native';
+import { cacheManager } from '@/utils/homeScreenCache';
+import { useAuthSession } from '@/components/Auth/AuthProvider';
 
 interface AttentionRequiredProps {
   refreshing: boolean;
@@ -36,10 +39,11 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
-  const { fetchAttentionRequiredEvents, loading, clearCache } = useGetAttentionRequiredEvents();
+  const { fetchAttentionRequiredEvents, loading, isFirstFetch, clearCache, attentionEventsList } = useGetAttentionRequiredEvents();
   const { respondToInvitation } = useEventInvitation();
-  const { refreshEvents } = useEventContext();
-  const [attentionEvents, setAttentionEvents] = useState<Event[]>(initialEvents || []);
+  const { refreshing: contextRefreshing } = useEventContext();
+  const { userId } = useAuthSession();
+  const [localEventsList, setLocalEventsList] = useState<Event[]>(initialEvents || []);
   const [loadingResponses, setLoadingResponses] = useState<{ [key: string]: boolean }>({});
 
   const declinedColor = "transparent"; // iOS red color for declined events
@@ -47,12 +51,12 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
 
   // Memoize expensive event filtering
   const futureEvents = React.useMemo(() => {
-    return attentionEvents.filter((event) => {
+    return localEventsList.filter((event) => {
       const now = new Date();
       const eventStartDate = event.start_time ? new Date(event.start_time) : null;
       return eventStartDate && now < eventStartDate;
     });
-  }, [attentionEvents]);
+  }, [localEventsList]);
 
   // Memoize time calculation function
   const getTimeLeft = React.useCallback((startTime: string | Date | null, endTime: string | Date | null) => {
@@ -86,24 +90,45 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
     try {
       // Backend optimization: Pass fromHomeScreen=true to limit response to first 3 events
       const events = await fetchAttentionRequiredEvents(true, forceRefresh);
-      setAttentionEvents(events || []);
+      if (events && Array.isArray(events)) {
+        setLocalEventsList(events);
+      } else {
+        setLocalEventsList([]);
+      }
     } catch (error) {
       console.error('Error fetching attention required events:', error);
-      setAttentionEvents([]);
+      setLocalEventsList([]);
     } finally {
       onFinishRefresh();
     }
   }, [fetchAttentionRequiredEvents, onFinishRefresh]);
 
+  // Fetch events when explicitly refreshing
+  useFocusEffect(
+    React.useCallback(() => {
+      if (refreshing) {
+        // Force refresh when pull-to-refresh is triggered
+        fetchEvents(true);
+      } else {
+        // Normal fetch (will use cache if available)
+        fetchEvents(false);
+      }
+    }, [refreshing, fetchEvents])
+  );
+
+  // Update local state when hook state changes
   useEffect(() => {
-    if (refreshing && !initialEvents) {
-      // Force refresh when pull-to-refresh is triggered
-      fetchEvents(true);
-    } else if (!initialEvents) {
-      // Normal fetch (will use cache if available)
-      fetchEvents(false);
+    if (attentionEventsList) {
+      setLocalEventsList(attentionEventsList);
     }
-  }, [refreshing, initialEvents, fetchEvents]);
+  }, [attentionEventsList]);
+
+  // Clear cache when context signals a refresh is needed
+  useEffect(() => {
+    if (contextRefreshing) {
+      clearCache();
+    }
+  }, [contextRefreshing, clearCache]);
 
   const handleViewEvent = React.useCallback((event: Event) => {
     const eventId = event.originalEventId || event._id;
@@ -143,8 +168,18 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
         Object.keys(requestOptions).length > 0 ? requestOptions : undefined
       );
 
-      // Refresh the attention required events list
-      await fetchEvents();
+      // Update the event with new status and update across caches
+      const updatedEvent = localEventsList.find(event => 
+        event._id === eventId || event.originalEventId === eventId
+      );
+      
+      if (updatedEvent && userId) {
+        const eventWithNewStatus = {
+          ...updatedEvent,
+          userStatus: status
+        };
+        cacheManager.updateEventAcrossCaches(eventId, eventWithNewStatus, userId);
+      }
 
       // Show success message
       const statusMessages: Record<EventResponseStatus, string> = {
@@ -163,7 +198,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
     } finally {
       setLoadingResponses(prev => ({ ...prev, [eventId]: false }));
     }
-  }, [respondToInvitation, fetchEvents]);
+  }, [respondToInvitation, localEventsList, userId]);
 
   const formatDate = React.useCallback((date: string | Date | null) => {
     if (!date) return '';
@@ -177,6 +212,9 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
       hour12: true
     });
   }, []);
+
+  // Show skeleton only on first fetch, not on refreshes
+  const showSkeleton = isFirstFetch && loading;
 
   const getDaysUntilResponse = React.useCallback((date: string | Date | null) => {
     if (!date) return 0;
@@ -573,7 +611,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
       )}
 
       <ThemedView style={{ paddingHorizontal: showHeader ? 16 : 0 }}>
-        {loading || refreshing ? (
+        {showSkeleton ? (
           <EventCardSkeleton count={2} />
         ) : (
           futureEvents.map((event, index) => renderEventCard(event, loadingResponses[event._id || ''] || false, event.userStatus === 'rejected', index))

@@ -937,6 +937,35 @@ const generateDefaultProfilePicture = async (req, res) => {
   }
 };
 
+const bypassTwoFactorAuth = async (req, res) => {
+  const email = req.body.email;
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.bypass_two_factor_auth = true;
+    await user.save();
+
+    res.status(200).json({ message: 'Two-factor authentication bypassed successfully' });
+  } catch (error) {
+    console.error('Error bypassing two-factor authentication:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
+const getBypassTwoFactorAuth = async (req, res) => {
+  const email = req.query.email;
+  try {
+    const user = await User.findOne({ email });
+    res.status(200).json({ bypass_two_factor_auth: user.bypass_two_factor_auth });
+  } catch (error) {
+    console.error('Error getting bypass two-factor authentication:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
 module.exports = { 
   getUserProfile,
   getUsers,
@@ -965,4 +994,6 @@ module.exports = {
   removeCoverPhoto,
   getUserImages,
   generateDefaultProfilePicture,
+  bypassTwoFactorAuth,
+  getBypassTwoFactorAuth
 };
