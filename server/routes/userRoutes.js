@@ -74,7 +74,7 @@ router.get('/me/friends/search/by/name', authMiddleware, getUserFriendByNameSear
 router.patch('/user/edit/myprofile', authMiddleware, editMyProfile);
 router.post('/user/stories/mark-viewed', authMiddleware, markStoriesViewed);
 router.post('/user/bypass-two-factor-auth', authMiddleware, bypassTwoFactorAuth);
-router.get('/user/bypass-two-factor-auth', authMiddleware, getBypassTwoFactorAuth);
+router.get('/user/bypass-two-factor-auth', getBypassTwoFactorAuth);
 
 // Generic user routes - keep these last as they have less specific patterns
 router.get('/', authMiddleware, getUsers);

@@ -140,7 +140,8 @@ api.interceptors.response.use(
         originalRequest.url?.includes('/api/auth/login') ||
         originalRequest.url?.includes('/api/auth/signup') ||
         originalRequest.url?.includes('/api/auth/verify-login') ||
-        originalRequest.url?.includes('/api/auth/get-phone')) {
+        originalRequest.url?.includes('/api/auth/get-phone') ||
+        originalRequest.url?.includes('/api/users/user/bypass-two-factor-auth')) {
       return Promise.reject(error);
     }
 
