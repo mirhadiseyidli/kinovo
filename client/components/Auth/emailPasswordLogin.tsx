@@ -11,6 +11,7 @@ import AnimatedCheckBox from '../AnimatedCheckBox';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import api from '@/utils/api';
+import { useAuthSession } from './AuthProvider';
 
 const REMEMBERED_EMAIL_KEY = '@kinovo_remembered_email';
 
@@ -25,6 +26,7 @@ const EmailLogin: React.FC<EmailLoginProps> = ({ onLoginSuccess, onLoginStart, o
   const [touched, setTouched] = useState({ email: false, password: false });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const { signIn } = useAuthSession();
 
   useEffect(() => {
     loadRememberedEmail();
@@ -121,7 +123,7 @@ const EmailLogin: React.FC<EmailLoginProps> = ({ onLoginSuccess, onLoginStart, o
                   }
 
                   // Bypass two-factor authentication
-                  const shouldBypass = await api.get('/api/user/bypass-two-factor-auth', {
+                  const shouldBypass = await api.get('/api/users/user/bypass-two-factor-auth', {
                     params: {
                       email
                     }
@@ -163,15 +165,39 @@ const EmailLogin: React.FC<EmailLoginProps> = ({ onLoginSuccess, onLoginStart, o
         await AsyncStorage.removeItem(REMEMBERED_EMAIL_KEY);
       }
 
-      // Navigate to 2FA screen with email and phone number
-      router.push({
-        pathname: '/login/two-factor',
+      // Bypass two-factor authentication
+      const shouldBypass = await api.get('/api/users/user/bypass-two-factor-auth', {
         params: {
-          email,
-          phoneNumber: phoneResponse.data.phoneNumber,
-          verifiedCredentials: 'true'
+          email: email
         }
       });
+
+      if (!shouldBypass.data.bypass_two_factor_auth) {
+          // Navigate to 2FA screen
+        router.push({
+          pathname: '/login/two-factor',
+          params: {
+            email,
+            phoneNumber: phoneResponse.data.phoneNumber,
+            verifiedCredentials: 'true'
+          }
+        });
+      } else {
+        const response = await api.post('/api/auth/login', {
+          email,
+          password
+        });
+
+        console.log('response', response);
+
+        if (response.data.success) {
+          const { accessToken, refreshToken, user } = response.data;
+          // Small delay to show success animation before navigation
+          setTimeout(() => {
+          signIn(accessToken, refreshToken, user._id);
+          }, 300);
+        }
+      }
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.message || 'An error occurred during login';
       Alert.alert('Login Error', errorMessage);
