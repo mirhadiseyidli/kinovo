@@ -68,7 +68,6 @@ export default function TwoFactorScreen() {
         verificationId,
         verificationCode
       });
-      console.log("Response:", response.data);
 
       if (response.data.success) {
         const { accessToken, refreshToken, user } = response.data;

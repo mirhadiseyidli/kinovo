@@ -15,12 +15,13 @@ import { useAuthSession } from '@/components/Auth/AuthProvider';
 import { jwtDecode } from 'jwt-decode';
 import Feather from '@expo/vector-icons/Feather';
 import DefaultProfilePicture from '@/components/DefaultProfilePicture';
+import { SkeletonBox, EventCardSkeleton } from '@/components/Skeleton';
 
 const FriendsEventsPage = () => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
-  const { fetchFriendsEvents, loading } = useGetFriendsEvents();
+  const { fetchFriendsEvents, loading, isFirstFetch } = useGetFriendsEvents();
   const [events, setEvents] = useState<Event[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const { accessToken } = useAuthSession();
@@ -82,9 +83,67 @@ const FriendsEventsPage = () => {
           />
         }
       >
+        {/* Header Card */}
+        <ThemedView 
+          style={{ 
+            backgroundColor: themeColors.mountainGreen,
+            padding: 16,
+            borderRadius: 24,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginHorizontal: 16,
+            marginTop: 16,
+            marginBottom: 16
+          }}
+        >
+          <View style={{ alignItems: 'center', marginVertical: 8 }}>
+            <View style={{ marginBottom: 8 }}>
+              <IconSymbol 
+                name="person.2.fill" 
+                size={48} 
+                color="white"
+              />
+            </View>
+            <ThemedText style={{ 
+              fontSize: 24, 
+              fontWeight: 'bold', 
+              color: 'white', 
+              marginBottom: 4,
+              textAlign: 'center'
+            }}>
+              Friends' Events
+            </ThemedText>
+            <ThemedText style={{ 
+              fontSize: 16, 
+              color: 'white', 
+              textAlign: 'center',
+              opacity: 0.9
+            }}>
+              Stay updated with your friends' latest events
+            </ThemedText>
+          </View>
+        </ThemedView>
+
+        {/* Section Header */}
+        <ThemedView
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingHorizontal: 16
+          }}
+        >
+          <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>Friends' Events</ThemedText>
+          <ThemedText style={{ color: themeColors.textSecondary }}>
+            {isFirstFetch ? '...' : `${events.length} events`}
+          </ThemedText>
+        </ThemedView>
+
         <ThemedView style={{ padding: 16 }}>
-          {loading && !refreshing ? (
-            <ActivityIndicator size="large" color={themeColors.tint} style={{ marginTop: 32 }} />
+          {isFirstFetch ? (
+            <View style={{ gap: 16 }}>
+              <EventCardSkeleton count={1}/>
+            </View>
           ) : events.length > 0 ? (
             <View style={{ gap: 24 }}>
               {events.map((event) => (
@@ -105,7 +164,7 @@ const FriendsEventsPage = () => {
               alignItems: 'center',
               justifyContent: 'center',
               minHeight: 120,
-              marginTop: 32,
+              marginTop: 8,
             }}>
               <View style={{ marginBottom: 12 }}>
                 <IconSymbol

@@ -332,8 +332,6 @@ const SignUpContent: React.FC = () => {
         username: email.trim().toLowerCase(),
       };
 
-      console.log('Sending signup data:', signupData);
-
       const response = await axios.post(
         `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/auth/signup`,
         signupData

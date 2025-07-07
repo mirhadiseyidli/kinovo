@@ -5,15 +5,12 @@ const { sendEmail } = require('../utils/emailService');
 // Run every day at midnight
 const accountDeletionCron = cron.schedule('0 0 * * *', async () => {
   try {
-    console.log('Running account deletion cron job...');
 
     // Find all users whose deletion date has passed
     const usersToDelete = await User.find({
       delete_requested: true,
       deleted_at: { $lt: new Date() }
     });
-
-    console.log(`Found ${usersToDelete.length} users to delete`);
 
     for (const user of usersToDelete) {
       try {
@@ -32,7 +29,6 @@ const accountDeletionCron = cron.schedule('0 0 * * *', async () => {
 
         // Permanently delete the user
         await User.deleteOne({ _id: user._id });
-        console.log(`Successfully deleted user: ${user._id}`);
       } catch (error) {
         console.error(`Error processing deletion for user ${user._id}:`, error);
       }

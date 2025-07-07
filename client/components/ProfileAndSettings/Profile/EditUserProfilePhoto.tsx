@@ -10,6 +10,7 @@ import { useCDNImageUpload } from '@/hooks/useCDNImageUpload';
 import { useUserData } from '@/hooks/useUserData';
 import { useDefaultProfilePicture } from '@/hooks/useDefaultProfilePicture';
 import { getInitials, getRandomColor } from '@/utils/profilePictureGenerator';
+import { OptimizedCDNImage } from '@/components/OptimizedCDNImage';
 
 const EditUserProfilePhotos = ({ user }: EditUserProfilePhotosProps) => {
   const colorScheme = useColorScheme();
@@ -233,14 +234,19 @@ const EditUserProfilePhotos = ({ user }: EditUserProfilePhotosProps) => {
             )}
           </View>
         ) : currentProfilePicture ? (
-          <Image
-            source={{ uri: currentProfilePicture }}
+          <OptimizedCDNImage
+            source={currentProfilePicture}
             style={{ 
               width: '100%', 
               height: '100%',
               borderRadius: 70 
             }}
             resizeMode="cover"
+            width={140}
+            height={140}
+            quality={85}
+            priority="normal"
+            enableBlurUp={true}
           />
         ) : (user.first_name || user.last_name) ? (
           // Show default profile picture with initials

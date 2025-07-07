@@ -258,7 +258,6 @@ const assistantRun = async (toolName, args, ws) => {
 
     while (attempts < maxAttempts) {
       runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
-      console.log(runStatus.status, runStatus.id)
       if (runStatus.status === 'completed') break;
 
       if (runStatus.status === 'requires_action') {

@@ -18,7 +18,6 @@ const {
 const sendEmailNotification = async (recipientEmail, notificationType, data) => {
   try {
     if (!recipientEmail) {
-      console.log('No recipient email provided, skipping email notification');
       return;
     }
 
@@ -92,7 +91,6 @@ const sendEmailNotification = async (recipientEmail, notificationType, data) => 
         break;
 
       default:
-        console.log(`Unknown notification type for email: ${notificationType}`);
         return;
     }
 
@@ -103,7 +101,6 @@ const sendEmailNotification = async (recipientEmail, notificationType, data) => 
       html: htmlContent
     });
 
-    console.log(`Email notification sent successfully to ${recipientEmail} for ${notificationType}`);
   } catch (error) {
     console.error(`Error sending email notification to ${recipientEmail}:`, error);
     // Don't throw error - email failures shouldn't break the main notification flow

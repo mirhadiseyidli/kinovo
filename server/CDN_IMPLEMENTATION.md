@@ -226,9 +226,6 @@ const uploadProfilePicture = async (imageUri) => {
     });
 
     const result = await response.json();
-    if (result.success) {
-      console.log('Profile picture uploaded:', result.data.url);
-    }
   } catch (error) {
     console.error('Upload failed:', error);
   }

@@ -14,6 +14,8 @@ import { Suggestion, Coordinates, GeocodingApiResult, LocationSelectHandler, Sel
 import { useCreateEventContext } from '@/context/CreateEventContext';
 import api from '@/utils/api';
 import MapViewModal from '../MapViewModal';
+import { useLocation } from '@/context/LocationContext';
+import * as Location from 'expo-location';
 
 interface LocationComponentProps {
   suggestions: Suggestion[];
@@ -35,6 +37,8 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { location, settingEventLocation } = useCreateEventContext();
+  const userLocation = useLocation();
+  const [userCoordinates, setUserCoordinates] = useState<Coordinates | null>(null);
   
   const [selectedLocation, setSelectedLocation] = useState<SelectedLocation>(location?.text || null);
   const [mapVisible] = useState(new Animated.Value(location?.coordinates ? 1 : 0)); // Controls slide animation
@@ -44,6 +48,23 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
       ? { latitude: location.coordinates.lat, longitude: location.coordinates.lng } 
       : null
   );
+
+  const getUserLocation = async () => {
+    if (!userLocation) return;
+    const userCoordinates = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.High,
+      timeInterval: 1000,
+      distanceInterval: 10
+    });
+    setUserCoordinates({
+      latitude: userCoordinates.coords.latitude,
+      longitude: userCoordinates.coords.longitude
+    });
+  }
+
+  useEffect(() => {
+    getUserLocation();
+  }, [userLocation]);
 
   // Update local state when context changes
   useEffect(() => {
@@ -76,7 +97,7 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
 
     try {
       // Use our backend API instead of direct Google API call
-      let response = await api.post('/api/google/places/search', { textQuery: text });
+      let response = await api.post('/api/google/places/search', { textQuery: text, latitude: userCoordinates?.latitude, longitude: userCoordinates?.longitude });
       let results = response.data.places || [];
 
       // If no results AND input is not empty, use Geocoding API through our backend

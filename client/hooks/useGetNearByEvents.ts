@@ -6,10 +6,16 @@ import api from '@/utils/api';
 export const useGetNearByEvents = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isFirstFetch, setIsFirstFetch] = useState(true);
+  const [hasDataBeenFetched, setHasDataBeenFetched] = useState(false);
 
   const fetchNearByEvents = useCallback(async (lat: number | null, lng: number | null, distance: number = 50) => {
     if (!lat || !lng) return [];
+    
+    // If we have fetched data before, this is not a first fetch
+    if (hasDataBeenFetched) {
+      setIsFirstFetch(false);
+    }
     
     setLoading(true);
     setError(null);
@@ -20,9 +26,8 @@ export const useGetNearByEvents = () => {
       // Ensure data is processed before setting loading to false
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      if (isInitialLoad) {
-        setIsInitialLoad(false);
-      }
+      setIsFirstFetch(false); // First fetch completed
+      setHasDataBeenFetched(true);
       return events;
     } catch (error) {
       const err = error as ApiError;
@@ -32,7 +37,13 @@ export const useGetNearByEvents = () => {
     } finally {
       setLoading(false);
     }
-  }, [isInitialLoad]);
+  }, [hasDataBeenFetched]);
 
-  return { fetchNearByEvents, refetchNearByEvents: fetchNearByEvents, loading: loading || isInitialLoad, error };
+  return { 
+    fetchNearByEvents, 
+    refetchNearByEvents: fetchNearByEvents, 
+    loading, 
+    isFirstFetch,
+    error 
+  };
 };

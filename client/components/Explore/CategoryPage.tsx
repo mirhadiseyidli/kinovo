@@ -21,6 +21,8 @@ const CategoryPage = () => {
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [events, setEvents] = useState<EventType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isFirstFetch, setIsFirstFetch] = useState(true);
+  const [hasDataBeenFetched, setHasDataBeenFetched] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [hasError, setHasError] = useState(false);
   const router = useRouter();
@@ -48,17 +50,25 @@ const CategoryPage = () => {
   };
 
   const loadEvents = async () => {
+    // If we have fetched data before, this is not a first fetch
+    if (hasDataBeenFetched) {
+      setIsFirstFetch(false);
+    }
+
     setLoading(true);
     setHasError(false);
     try {
       await fetchEvents();
-      setLoading(false); // Set loading to false on success
+      setIsFirstFetch(false); // First fetch completed
+      setHasDataBeenFetched(true);
     } catch (error) {
       // On error, only set loading to false if we have existing data to show
       if (events.length > 0) {
         setLoading(false);
       }
       // If no existing data, keep loading true to show skeleton
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -121,7 +131,8 @@ const CategoryPage = () => {
           padding: 16,
           borderRadius: 24,
           alignItems: 'center',
-          justifyContent: 'center'
+          justifyContent: 'center',
+          marginBottom: 16
         }}
       >
         <View style={{ alignItems: 'center', marginVertical: 8 }}>
@@ -155,13 +166,13 @@ const CategoryPage = () => {
             Upcoming Events
           </ThemedText>
           <ThemedText style={{ color: themeColors.textSecondary }}>
-            {loading && events.length === 0 ? '...' : `${events.length} events`}
+            {isFirstFetch ? '...' : `${events.length} events`}
           </ThemedText>
         </ThemedView>
 
         {/* Events List */}
         <ThemedView style={{ gap: 16 }}>
-          {(loading && events.length === 0) || refreshing ? (
+          {isFirstFetch ? (
             <EventCardSkeleton count={1} />
           ) : events.length > 0 ? (
             events.map((event) => (
@@ -171,7 +182,7 @@ const CategoryPage = () => {
                 loading={false}
               />
             ))
-          ) : (
+          ) :
             <TouchableOpacity
               onPress={navigateToCreateEvent}
               style={{
@@ -185,6 +196,7 @@ const CategoryPage = () => {
                 alignItems: 'center',
                 justifyContent: 'center',
                 minHeight: 120,
+                marginTop: 8,
               }}
             >
               <View style={{ marginBottom: 12 }}>
@@ -216,7 +228,7 @@ const CategoryPage = () => {
                 {hasError ? 'Pull to refresh or check your connection' : `Tap here to create the first ${category} event!`}
               </ThemedText>
             </TouchableOpacity>
-          )}
+          }
         </ThemedView>
       </ThemedView>
     </ScrollView>

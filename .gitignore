@@ -63,3 +63,6 @@
 
 # Build
 *build*
+
+# Cursor Rules
+*.cursor*

@@ -36,7 +36,7 @@ export default React.memo(function UserActivities({ userId, route, refreshing }:
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [searchQuery, setSearchQuery] = useState('');
-  const { activities, fetchUserToViewActivities, loading } = useGetUserToViewActivities(userId);
+  const { activities, fetchUserToViewActivities, loading, isFirstFetch } = useGetUserToViewActivities(userId);
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
@@ -120,7 +120,7 @@ export default React.memo(function UserActivities({ userId, route, refreshing }:
   );
 
   const ListHeaderComponent = () => (
-    loading ? (
+    isFirstFetch ? (
       <View style={{ gap: 16 }}>
         <ActivitySkeleton />
         <ActivitySkeleton />
@@ -133,10 +133,10 @@ export default React.memo(function UserActivities({ userId, route, refreshing }:
     <ThemedView style={{ flex: 1, paddingHorizontal: 16, paddingTop: 16 }}>
       <TabFlashList
         index={route?.index || 0}
-        data={activities}
+        data={isFirstFetch ? [] : activities}
         estimatedItemSize={70}
         renderItem={renderItem}
-        ListEmptyComponent={!loading ? ListEmptyComponent : null}
+        ListEmptyComponent={!isFirstFetch ? ListEmptyComponent : null}
         ListHeaderComponent={ListHeaderComponent}
         numColumns={1}
         contentContainerStyle={{ 

@@ -14,7 +14,7 @@ import { useEventContext } from '@/context/UserSessionContext';
 import { EventCardSkeleton } from '../Skeleton';
 
 const UpcomingEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }> = React.memo(({ refreshing, onFinishRefresh }) => {
-  const { fetchMyEvents, loading, clearCache, myEventsList } = useGetMyEvents();
+  const { fetchMyEvents, loading, isFirstFetch, clearCache, myEventsList } = useGetMyEvents();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [localEventsList, setLocalEventsList] = useState<Event[]>(myEventsList || []);
@@ -73,6 +73,9 @@ const UpcomingEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => voi
     }
   }, [contextRefreshing, clearCache]);
 
+  // Show skeleton only on first fetch, not on refreshes
+  const showSkeleton = isFirstFetch && loading;
+
   return (
     <ThemedView style={{ flex: 1, width: '100%' }}>
       {/* Header */}
@@ -94,7 +97,7 @@ const UpcomingEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => voi
       </View>
 
       {/* Event List */}
-      {loading || refreshing ? (
+      {showSkeleton ? (
         <EventCardSkeleton count={2} />
       ) : (
         <View style={{ flex: 1 }}>

@@ -55,7 +55,6 @@ const configureSecurityRules = async () => {
   }
 };
 
-// Export the admin and database objects
-console.log('admin', admin);
+// Export the admin and database object
 const db = admin.database();
 module.exports = { admin, db, configureSecurityRules };

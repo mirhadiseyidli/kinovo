@@ -80,7 +80,6 @@ const sendEmail = async ({ to, subject, html, text }) => {
 
     // Send the email
     const info = await transporter.sendMail(mailOptions);
-    console.log('Email sent successfully:', info.messageId);
     return info;
   } catch (error) {
     console.error('Error sending email:', error);
@@ -95,8 +94,6 @@ const verifyEmailConfig = async () => {
     transporter.verify((error, success) => {
       if (error) {
         console.error('Email service configuration error:', error);
-      } else {
-        console.log('Email service is ready to send messages');
       }
     });
   } catch (error) {

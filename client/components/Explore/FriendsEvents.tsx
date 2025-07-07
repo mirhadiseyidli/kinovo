@@ -18,7 +18,7 @@ interface FriendsEventsProps {
 }
 
 const FriendsEvents: React.FC<FriendsEventsProps> = React.memo(({ refreshing, onFinishRefresh }) => {
-  const { fetchFriendsEvents, loading } = useGetFriendsEvents();
+  const { fetchFriendsEvents, loading, isFirstFetch } = useGetFriendsEvents();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [friendsEvents, setFriendsEvents] = useState<Event[]>([]);
@@ -58,6 +58,9 @@ const FriendsEvents: React.FC<FriendsEventsProps> = React.memo(({ refreshing, on
     fetchEvents();
   }, []);
 
+  // Show skeleton only on first fetch, not on refreshes
+  const showSkeleton = isFirstFetch && loading;
+
   return (
     <ThemedView style={{ flex: 1, width: '100%' }}>
       {/* Header */}
@@ -80,7 +83,7 @@ const FriendsEvents: React.FC<FriendsEventsProps> = React.memo(({ refreshing, on
 
       {/* Event List */}
       <View style={{ flex: 1 }}>
-        {loading || refreshing ? (
+        {showSkeleton ? (
           <SkeletonBox width={'100%'} height={120} borderRadius={16} />
         ) : (
           friendsEvents.length > 0 ? (

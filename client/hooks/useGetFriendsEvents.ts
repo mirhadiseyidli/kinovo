@@ -1,18 +1,29 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Alert } from 'react-native';
 import api from '@/utils/api';
 import { Event, ApiError } from '@/types/allTypes';
+import { useAuthSession } from '@/components/Auth/AuthProvider';
 
 export const useGetFriendsEvents = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isFirstFetch, setIsFirstFetch] = useState(true);
+  const [hasDataBeenFetched, setHasDataBeenFetched] = useState(false);
+  const { userId } = useAuthSession();
 
   const fetchFriendsEvents = async (): Promise<Event[] | null> => {
+    // If we have fetched data before, this is not a first fetch
+    if (hasDataBeenFetched) {
+      setIsFirstFetch(false);
+    }
+
     setLoading(true);
     setError(null);
     
     try {
       const response = await api.get('/api/manageevents/eventslist/friends');
+      setIsFirstFetch(false); // First fetch completed
+      setHasDataBeenFetched(true);
       setLoading(false);
       return response.data;
     } catch (error) {
@@ -25,9 +36,18 @@ export const useGetFriendsEvents = () => {
     }
   };
 
+  // Reset first fetch state when user changes
+  useEffect(() => {
+    if (userId) {
+      setIsFirstFetch(true);
+      setHasDataBeenFetched(false);
+    }
+  }, [userId]);
+
   return {
     fetchFriendsEvents,
     loading,
+    isFirstFetch,
     error
   };
 }; 

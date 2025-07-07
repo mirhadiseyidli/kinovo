@@ -248,23 +248,25 @@ const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFini
     );
   }, [themeColors]);
 
-  if (loading && !refreshing) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ReanimatedShimmerLine />
-      </View>
-    );
-  }
-
   return (
     <View style={{ flex: 1 }}>
+      {(loading || refreshing)  && (
+        <View style={{ 
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 2
+        }}>
+            <ReanimatedShimmerLine />
+        </View>
+      )}
       <FlashList
         ref={flashListRef}
         data={listData}
         renderItem={renderItem}
         estimatedItemSize={100}
-        onRefresh={onFinishRefresh}
-        refreshing={refreshing}
+        refreshing={refreshing || loading}
         contentContainerStyle={{ paddingBottom: tabBarHeight }}
         getItemType={(item) => item.type}
         keyExtractor={(item) => item.key}

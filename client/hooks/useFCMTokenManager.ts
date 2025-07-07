@@ -28,7 +28,6 @@ export const useFCMTokenManager = () => {
       
       // Mark token as sent
       await AsyncStorage.setItem(FCM_TOKEN_SENT_KEY, token);
-      console.log('FCM token sent to server successfully');
       return true;
     } catch (error) {
       console.error('Failed to send FCM token to server:', error);
@@ -49,7 +48,6 @@ export const useFCMTokenManager = () => {
       setPermissionGranted(hasPermission);
 
       if (!hasPermission) {
-        console.log('FCM permission not granted');
         setIsLoading(false);
         return;
       }
@@ -75,7 +73,6 @@ export const useFCMTokenManager = () => {
 
   // Handle token refresh
   const handleTokenRefresh = useCallback(async (newToken: string) => {
-    console.log('FCM token refreshed:', newToken);
     setFcmToken(newToken);
     await AsyncStorage.setItem(FCM_TOKEN_KEY, newToken);
     await sendTokenToServer(newToken);
@@ -93,7 +90,6 @@ export const useFCMTokenManager = () => {
       
       // Handle foreground messages
       const unsubscribeForeground = messaging().onMessage(async remoteMessage => {
-        console.log('Foreground FCM Message received:', remoteMessage);
         
         // You can handle the message here - maybe show an in-app notification
         // or update the notification context

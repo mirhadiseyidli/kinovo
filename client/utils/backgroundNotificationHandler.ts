@@ -3,7 +3,6 @@ import { NavigationAction } from '@react-navigation/native';
 
 // Background message handler
 messaging().setBackgroundMessageHandler(async remoteMessage => {
-  console.log('Background FCM Message received:', remoteMessage);
   
   // You can process the notification here
   // For example, update local storage, show local notification, etc.
@@ -17,7 +16,6 @@ export const getInitialNotification = async () => {
   const remoteMessage = await messaging().getInitialNotification();
   
   if (remoteMessage) {
-    console.log('App opened from notification (killed state):', remoteMessage);
     return remoteMessage;
   }
   

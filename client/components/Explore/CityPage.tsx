@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, ImageBackground, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, ScrollView, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
@@ -13,6 +13,7 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { EventCardSkeleton } from '@/components/Skeleton';
 import { useFocusEffect } from '@react-navigation/native';
 import { getCityByName, getStateByCity, getCityDescription } from '@/constants/Cities';
+import { OptimizedCDNImage } from '@/components/OptimizedCDNImage';
 
 const CityPage = () => {
   const { city } = useLocalSearchParams();
@@ -22,6 +23,8 @@ const CityPage = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [isFirstFetch, setIsFirstFetch] = useState(true);
+  const [hasDataBeenFetched, setHasDataBeenFetched] = useState(false);
   const router = useRouter();
 
   // Get city info from constants
@@ -48,21 +51,24 @@ const CityPage = () => {
       setEvents([]);
       setHasError(true);
       throw err; // Re-throw to be handled by caller
+    } finally {
+      setHasDataBeenFetched(true);
     }
   };
 
   const loadEvents = async () => {
+    if (!hasDataBeenFetched) {
+      setIsFirstFetch(true);
+    }
     setLoading(true);
     setHasError(false);
     try {
       await fetchEventsByCity();
-      setLoading(false); // Set loading to false on success
     } catch (error) {
-      // On error, only set loading to false if we have existing data to show
-      if (events.length > 0) {
-        setLoading(false);
-      }
-      // If no existing data, keep loading true to show skeleton
+      // Error handling is done in fetchEventsByCity
+    } finally {
+      setLoading(false);
+      setIsFirstFetch(false);
     }
   };
 
@@ -104,37 +110,47 @@ const CityPage = () => {
       }
     >
       {/* Header Image with Gradient Overlay */}
-      <View style={{ height: 300 }}>
-        <ImageBackground
-          source={cityInfo?.image || require('@/assets/event-default.png')}
-          style={{ flex: 1 }}
+      <View style={{ height: 300, position: 'relative' }}>
+        <OptimizedCDNImage
+          source={cityInfo?.image?.uri || cityInfo?.image}
+          style={{ 
+            width: '100%', 
+            height: '100%',
+            position: 'absolute'
+          }}
+          containerStyle={{
+            width: '100%',
+            height: '100%'
+          }}
           resizeMode="cover"
+          width={400}
+          height={300}
+          quality={85}
+        />
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.7)', themeColors.background]}
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: '100%',
+            paddingHorizontal: 16,
+            paddingBottom: 16,
+            justifyContent: 'flex-end',
+          }}
+          locations={[0, 0.7, 1]}
         >
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.7)', themeColors.background]}
-            style={{
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: '100%',
-              paddingHorizontal: 16,
-              paddingBottom: 16,
-              justifyContent: 'flex-end',
-            }}
-            locations={[0, 0.7, 1]}
-          >
-            <ThemedText style={{ fontSize: 24, fontWeight: 'bold', color: 'white', marginBottom: 8 }}>
-              {city}
-            </ThemedText>
-            <ThemedText style={{ fontSize: 16, color: 'white', marginBottom: 8 }}>
-              {stateName || 'Unknown State'}
-            </ThemedText>
-            <ThemedText style={{ fontSize: 14, color: 'white', opacity: 0.9 }}>
-              {cityDescription}
-            </ThemedText>
-          </LinearGradient>
-        </ImageBackground>
+          <ThemedText style={{ fontSize: 24, fontWeight: 'bold', color: 'white', marginBottom: 8 }}>
+            {city}
+          </ThemedText>
+          <ThemedText style={{ fontSize: 16, color: 'white', marginBottom: 8 }}>
+            {stateName || 'Unknown State'}
+          </ThemedText>
+          <ThemedText style={{ fontSize: 14, color: 'white', opacity: 0.9 }}>
+            {cityDescription}
+          </ThemedText>
+        </LinearGradient>
       </View>
 
       {/* Events Section */}
@@ -144,14 +160,14 @@ const CityPage = () => {
             Events in {city}
           </ThemedText>
           <ThemedText style={{ color: themeColors.textSecondary }}>
-            {loading && events.length === 0 ? '...' : `${events.length} events`}
+            {isFirstFetch ? '...' : `${events.length} events`}
           </ThemedText>
         </ThemedView>
 
         {/* Events List */}
         <ThemedView style={{ gap: 16 }}>
-          {(loading && events.length === 0) || refreshing ? (
-            <EventCardSkeleton count={3} />
+          {isFirstFetch ? (
+            <EventCardSkeleton count={1} />
           ) : events.length > 0 ? (
             events.map((event) => (
               <Event
@@ -174,6 +190,7 @@ const CityPage = () => {
                 alignItems: 'center',
                 justifyContent: 'center',
                 minHeight: 120,
+                marginTop: 8,
               }}
             >
               <View style={{ marginBottom: 12 }}>

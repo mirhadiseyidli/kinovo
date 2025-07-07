@@ -72,7 +72,7 @@ const UserGeneralInfo = forwardRef(({ _id }: UserGeneralInfoProps, ref) => {
   const [userToView, setUserToView] = useState<User | null>(null);
   const [friendRequestStatus, setFriendRequestStatus] = useState<Partial<FriendRequestStatusProps> | null>(null);
   const [friendshipStatus, setFriendshipStatus] = useState<'pending' | 'friend' | null>(null);
-  const { fetchUserData } = useUserData();
+  const { fetchUserData, isFirstFetch } = useUserData();
   const { acceptFriendRequest, rejectFriendRequest } = useManageFriends();
   const { refreshData, friendRequests } = useNotifications();
   const [user, setUser] = useState<User | null>(null);
@@ -316,8 +316,14 @@ const UserGeneralInfo = forwardRef(({ _id }: UserGeneralInfoProps, ref) => {
     }, [fetchUser])
   );
 
-  if (loading || !userToView || !user) {
+  const showSkeleton = isFirstFetch && loading;
+
+  if (showSkeleton) {
     return <UserGeneralInfoSkeleton />;
+  }
+
+  if (!userToView || !user) {
+    return null;
   }
 
   return (

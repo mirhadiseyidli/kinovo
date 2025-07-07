@@ -111,7 +111,7 @@ const PastEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }>
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const tabBarHeight = useBottomTabBarHeight();
-  const { fetchMyPastEvents, loading, clearCache } = useGetMyPastEvents();
+  const { fetchMyPastEvents, loading, isFirstFetch, clearCache } = useGetMyPastEvents();
   const [myPastEventsList, setMyPastEventsList] = useState<Event[]>([]);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [activeFilter, setActiveFilter] = useState<DateFilter>({ type: 'all', date: null });
@@ -165,6 +165,9 @@ const PastEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }>
     }
   }, [activeFilter.type, activeFilter.date]);
 
+  // Show skeleton only on first fetch, not on refreshes
+  const showSkeleton = isFirstFetch && loading;
+
   return (
     <ThemedView style={{ flex: 1, width: '100%' }}>
       {/* Header Section */}
@@ -193,7 +196,7 @@ const PastEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }>
       </View>
 
       {/* Events List */}
-      {loading || refreshing ? (
+      {showSkeleton ? (
           <EventCardSkeleton count={2} />
         ) : (!myPastEventsList || myPastEventsList.length === 0 ? (
           <View>

@@ -13,7 +13,6 @@ class FCMService {
    * @param {Object} data - Data payload
    */
   async sendToToken(token, notification, data = {}) {
-    console.log('Sending FCM message to token:', token);
     try {
       const message = {
         token,

@@ -11,17 +11,10 @@ const TEAM_ID = process.env.APPLE_TEAM_ID;
 const KEY_ID = process.env.APPLE_WEATHER_KEY_ID;
 const SERVICE_ID = process.env.APPLE_BUNDLE_ID;
 const privateKey = process.env.APPLE_WEATHER_PRIVATE_KEY.replace(/\\n/g, '\n');
-console.log('privateKey', privateKey);
 
 const generateWeatherKitToken = () => {
   const now = Math.floor(Date.now() / 1000);
   const expires = now + 60 * 60; // 1 hour max
-
-  console.log('TEAM_ID', TEAM_ID);
-  console.log('SERVICE_ID', SERVICE_ID);
-  console.log('KEY_ID', KEY_ID);
-  console.log('expires', expires);
-  console.log('privateKey', privateKey);
 
   return jwt.sign({ sub: SERVICE_ID }, 
     privateKey, 
@@ -42,7 +35,6 @@ const getWeather = async (req, res) => {
   }
 
   const token = generateWeatherKitToken();
-  console.log('token', token);
 
   try {
     const weatherRes = await axios.get(

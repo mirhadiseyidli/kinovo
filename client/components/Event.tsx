@@ -13,7 +13,7 @@ import { useRouter } from 'expo-router';
 import { getCategoryImage } from '@/constants/CategoryImages';
 import { BlurView } from 'expo-blur';
 import DefaultProfilePicture from './DefaultProfilePicture';
-import { OptimizedImage } from '@/components/OptimizedImage';
+import { OptimizedCDNImage } from '@/components/OptimizedCDNImage';
 import { useFocusEffect } from '@react-navigation/native';
 
 const EventView: React.FC<{ event: Event, loading: boolean }> = React.memo(({ event, loading }) => {
@@ -69,11 +69,6 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = React.memo(({ ev
       
       const wasVisible = isVisible;
       setIsVisible(isInViewport);
-      
-      // Log visibility changes for debugging
-      if (__DEV__ && wasVisible !== isInViewport) {
-        console.log(`👁️ [Event Visibility] ${event.title}: ${isInViewport ? 'visible' : 'hidden'}`);
-      }
     });
   }, [isVisible, event.title]);
 
@@ -121,7 +116,6 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = React.memo(({ ev
     const shouldAnimate = isVisible && isEventLive && mountedRef.current;
     
     if (shouldAnimate) {
-      console.log(`🎯 [Event Animation] Starting pulse for live event: ${event.title}`);
       pulse.value = withRepeat(
         withTiming(1.5, {
           duration: 800,
@@ -131,10 +125,6 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = React.memo(({ ev
         true
       );
     } else {
-      // Cancel animation when not visible or not live
-      if (visibilityCheckTimeoutRef.current) {
-        console.log(`⏹️ [Event Animation] Stopping pulse for event: ${event.title} (visible: ${isVisible}, live: ${isEventLive})`);
-      }
       cancelAnimation(pulse);
       pulse.value = 1; // Reset to default state
     }
@@ -266,15 +256,16 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = React.memo(({ ev
       >
         {/* Event Image */}
         <View style={{ width: height, height: height, marginRight: 16, borderRadius: 8, overflow: 'hidden' }}>
-          <OptimizedImage
+          <OptimizedCDNImage
             source={event.event_picture || null}
             fallbackCategory={event.category}
             style={{ width: '100%', height: '100%' }}
             resizeMode="cover"
             width={height}
             height={height}
-            quality={0.8}
-            showLoader={true}
+            quality={85}
+            priority="normal"
+            enableBlurUp={true}
           />
           {/* Category Overlay */}
           <BlurView

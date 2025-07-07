@@ -6,7 +6,6 @@ const { createEventReminderNotification } = require('../controllers/notification
 const startEventReminderCron = () => {
   // Run every hour at minute 0 (e.g., 12:00, 1:00, 2:00)
   cron.schedule('0 * * * *', async () => {
-    console.log('Running event reminder cron job...');
     
     try {
       const now = new Date();
@@ -21,25 +20,20 @@ const startEventReminderCron = () => {
         status: { $ne: 'cancelled' }
       }).select('_id title start_time');
 
-      console.log(`Found ${upcomingEvents.length} events starting within the next hour`);
-
       // Send reminder notifications for each event
       for (const event of upcomingEvents) {
         try {
           await createEventReminderNotification(event._id);
-          console.log(`Sent reminder notifications for event: ${event.title}`);
         } catch (error) {
           console.error(`Failed to send reminder for event ${event._id}:`, error);
         }
       }
 
-      console.log('Event reminder cron job completed');
     } catch (error) {
       console.error('Error in event reminder cron job:', error);
     }
   });
 
-  console.log('Event reminder cron job scheduled to run every hour');
 };
 
 module.exports = {

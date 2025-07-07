@@ -20,6 +20,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { shareContent } from '@/utils/shareUtils';
 import { Feather } from '@expo/vector-icons';
+import { useEventContext } from '@/context/UserSessionContext';
 
 type ViewEventModalType = 
   | 'report_confirm' 
@@ -282,6 +283,7 @@ const ViewEvent = () => {
   const { event_id, occurrence_start, occurrence_end, is_occurrence } = useLocalSearchParams();
   const id = Array.isArray(event_id) ? event_id[0] : event_id;
   const { event, loading, error, fetchEventById } = useGetEventById(id);
+  const { subscribeToEventUpdates, unsubscribeFromEventUpdates } = useEventContext();
   const navigation = useNavigation();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
@@ -371,6 +373,14 @@ const ViewEvent = () => {
       });
     }
   }, [navigation, id]);
+
+  // Subscribe to event updates when component mounts
+  useEffect(() => {
+    if (id) {
+      subscribeToEventUpdates(id);
+      return () => unsubscribeFromEventUpdates(id);
+    }
+  }, [id, subscribeToEventUpdates, unsubscribeFromEventUpdates]);
 
   // Show skeleton during loading or network errors (backend not responding)
   if (loading || error) {

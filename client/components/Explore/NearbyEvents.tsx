@@ -157,7 +157,7 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
     text: 'San Francisco, CA'
   });
   const [nearbyEvents, setNearbyEvents] = useState<Event[]>([]);
-  const { fetchNearByEvents, loading } = useGetNearByEvents();
+  const { fetchNearByEvents, loading, isFirstFetch } = useGetNearByEvents();
   const fetchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isDataReady, setIsDataReady] = useState(false);
 
@@ -240,7 +240,7 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
     }, [debouncedFetch, userLocation])
   );
 
-  const shouldShowSkeleton = loading || !isDataReady;
+  const shouldShowSkeleton = isFirstFetch && loading;
 
   const handleScrollEndDrag = (event: ScrollHandlerEvent) => {
     const offsetX = event.nativeEvent.contentOffset.x;

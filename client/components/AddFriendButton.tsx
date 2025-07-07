@@ -30,8 +30,6 @@ const AddFriendButton = ({ targetUser, loadingFriendAction, buttonFlex = 1, onFr
       
       // Send the actual request
       await sendFriendRequest(targetUser);
-      
-      console.log('Friend request sent successfully');
     } catch (error) {
       console.error('Failed to send friend request:', error);
       

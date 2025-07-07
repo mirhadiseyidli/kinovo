@@ -38,7 +38,7 @@ const Categories: React.FC<CategoriesProps> = ({ refreshing, onFinishRefresh }) 
   const screenWidth = Dimensions.get('window').width;
   const colorScheme = useColorScheme();
   const router = useRouter();
-  const { categories, fetchCategories, loading } = useCategories();
+  const { categories, fetchCategories, loading, isFirstFetch } = useCategories();
 
   useEffect(() => {
     fetchCategories();
@@ -121,6 +121,9 @@ const Categories: React.FC<CategoriesProps> = ({ refreshing, onFinishRefresh }) 
     return iconMap[categoryName] || 'activity';
   };
 
+  // Show skeleton only on first fetch, not on refreshes
+  const showSkeleton = isFirstFetch && loading;
+
   return (
     <ThemedView style={{ flex: 1, width: screenWidth }}>
       {/* Section Header */}
@@ -138,7 +141,7 @@ const Categories: React.FC<CategoriesProps> = ({ refreshing, onFinishRefresh }) 
 
       {/* Scrollable Categories */}
       <ThemedView style={{ width: screenWidth }}>
-        {loading || refreshing ? (
+        {showSkeleton ? (
           <CategoriesSkeleton />
         ) : (
           <ScrollView

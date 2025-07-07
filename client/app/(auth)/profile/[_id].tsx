@@ -26,7 +26,6 @@ type UserGeneralInfoRef = {
 };
 
 const ProfilePage = () => {
-  console.log('ProfilePage');
   const router = useRouter();
   const { isLoading, accessToken } = useAuthSession();
   // Handle deep linking
