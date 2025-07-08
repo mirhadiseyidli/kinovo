@@ -1,6 +1,7 @@
 import React, { useCallback, createContext, useContext, useState, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, Alert, ActionSheetIOS, Platform, InteractionManager, NativeScrollEvent, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { useFocusEffect, useNavigation } from 'expo-router';
+import { useNavigation } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useGetEventById } from '@/hooks/useGetEventById';
 import EventImage from '@/components/ViewEvent/EventImage';
@@ -378,9 +379,32 @@ const ViewEvent = () => {
   useEffect(() => {
     if (id) {
       subscribeToEventUpdates(id);
-      return () => unsubscribeFromEventUpdates(id);
     }
-  }, [id, subscribeToEventUpdates, unsubscribeFromEventUpdates]);
+    
+    // Cleanup on unmount or when navigating away
+    return () => {
+      if (id) {
+        unsubscribeFromEventUpdates(id);
+      }
+    };
+  }, [id]);
+
+  // Additional cleanup when component loses focus
+  useFocusEffect(
+    useCallback(() => {
+      // Subscribe when focused
+      if (id) {
+        subscribeToEventUpdates(id);
+      }
+      
+      // Cleanup when unfocused (navigating away)
+      return () => {
+        if (id) {
+          unsubscribeFromEventUpdates(id);
+        }
+      };
+    }, [id, subscribeToEventUpdates, unsubscribeFromEventUpdates])
+  );
 
   // Show skeleton during loading or network errors (backend not responding)
   if (loading || error) {

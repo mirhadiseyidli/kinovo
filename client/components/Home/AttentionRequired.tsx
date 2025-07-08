@@ -103,25 +103,29 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
     }
   }, [fetchAttentionRequiredEvents, onFinishRefresh]);
 
-  // Fetch events when explicitly refreshing
+  // Fetch events when explicitly refreshing (only if no initialEvents provided)
   useFocusEffect(
     React.useCallback(() => {
-      if (refreshing) {
-        // Force refresh when pull-to-refresh is triggered
-        fetchEvents(true);
-      } else {
-        // Normal fetch (will use cache if available)
-        fetchEvents(false);
+      // Don't fetch when initialEvents are provided - use those events only
+      if (!initialEvents) {
+        if (refreshing) {
+          // Force refresh when pull-to-refresh is triggered
+          fetchEvents(true);
+        } else {
+          // Normal fetch (will use cache if available)
+          fetchEvents(false);
+        }
       }
-    }, [refreshing, fetchEvents])
+    }, [refreshing, fetchEvents, initialEvents])
   );
 
-  // Update local state when hook state changes
+  // Update local state when hook state changes (only if no initialEvents provided)
   useEffect(() => {
-    if (attentionEventsList) {
+    // Don't override initialEvents - only update when used on home screen without initialEvents
+    if (attentionEventsList && !initialEvents) {
       setLocalEventsList(attentionEventsList);
     }
-  }, [attentionEventsList]);
+  }, [attentionEventsList, initialEvents]);
 
   // Clear cache when context signals a refresh is needed
   useEffect(() => {
@@ -233,7 +237,6 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
         key={event._id}
         onPress={() => handleViewEvent(event)}
         style={{
-          marginBottom: index === 0 ? 16 : 0,
           borderRadius: 12,
           backgroundColor: themeColors.eventCardBackgroundColor,
           overflow: 'hidden',
@@ -610,7 +613,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
         </View>
       )}
 
-      <ThemedView style={{ paddingHorizontal: showHeader ? 16 : 0 }}>
+      <ThemedView style={{ paddingHorizontal: showHeader ? 16 : 0, gap: 16 }}>
         {showSkeleton ? (
           <EventCardSkeleton count={2} />
         ) : (

@@ -214,7 +214,7 @@ const EmailLogin: React.FC<EmailLoginProps> = ({ onLoginSuccess, onLoginStart, o
         <ThemedText style={{ fontSize: 24, marginBottom: 8, textAlign: 'center' }}>
           Welcome Back!
         </ThemedText>
-        <ThemedText style={{ fontSize: 14, color: themeColors.textSecondary, textAlign: 'center', marginBottom: 32 }}>
+        <ThemedText style={{ fontSize: 14, color: themeColors.textThird, textAlign: 'center', marginBottom: 32 }}>
           Log into your account
         </ThemedText>
       </ThemedView>

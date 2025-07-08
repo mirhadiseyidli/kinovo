@@ -90,7 +90,7 @@ const WeekView: React.FC<WeekViewProps> = ({ refreshing, onFinishRefresh }) => {
     };
 
     fetchEvents();
-  }, [refreshing, currentDate, fetchEventsForWeek, refreshEvents, onFinishRefresh]);
+  }, [refreshing, currentDate]); // Removed function dependencies to prevent infinite loops
 
   const handleMomentumScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { x } = event.nativeEvent.contentOffset;

@@ -158,7 +158,9 @@ export const OptimizedCDNImage: React.FC<OptimizedCDNImageProps> = ({
   
   // Refs for cleanup and state management
   const mountedRef = useRef(true);
-  const timeoutRef = useRef<number | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const preloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const forceCompleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadStartedRef = useRef(false);
   const imageLoadedRef = useRef(false);
   const currentSourceRef = useRef<string | null>(null);
@@ -170,6 +172,15 @@ export const OptimizedCDNImage: React.FC<OptimizedCDNImageProps> = ({
       mountedRef.current = false;
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      if (preloadTimerRef.current) {
+        clearTimeout(preloadTimerRef.current);
+        preloadTimerRef.current = null;
+      }
+      if (forceCompleteTimerRef.current) {
+        clearTimeout(forceCompleteTimerRef.current);
+        forceCompleteTimerRef.current = null;
       }
     };
   }, []);
@@ -180,6 +191,14 @@ export const OptimizedCDNImage: React.FC<OptimizedCDNImageProps> = ({
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
+    if (preloadTimerRef.current) {
+      clearTimeout(preloadTimerRef.current);
+      preloadTimerRef.current = null;
+    }
+    if (forceCompleteTimerRef.current) {
+      clearTimeout(forceCompleteTimerRef.current);
+      forceCompleteTimerRef.current = null;
+    }
     loadStartedRef.current = false;
     imageLoadedRef.current = false;
     setBlurUpLoaded(false);
@@ -188,40 +207,36 @@ export const OptimizedCDNImage: React.FC<OptimizedCDNImageProps> = ({
 
   // Force transition to loaded state (safety net)
   const forceLoadComplete = useCallback((reason: string) => {
-    if (!mountedRef.current) return;
+    if (!mountedRef.current || imageLoadedRef.current) return;
     
+    // Clear all timers to prevent further state changes
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
+    }
+    if (forceCompleteTimerRef.current) {
+      clearTimeout(forceCompleteTimerRef.current);
+      forceCompleteTimerRef.current = null;
     }
     
     imageLoadedRef.current = true;
     setLoadingState('loaded');
     onLoad?.();
-  }, []);
+  }, [onLoad]);
 
   // Start loading timeout
   const startLoadingTimeout = useCallback(() => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
     }
     
     timeoutRef.current = setTimeout(() => {
       if (mountedRef.current && !imageLoadedRef.current) {
-        setLoadingState('timeout');
-        if (!mountedRef.current) return;
-        
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-          timeoutRef.current = null;
-        }
-        
-        imageLoadedRef.current = true;
-        setLoadingState('loaded');
-        onLoad?.();
+        forceLoadComplete('timeout');
       }
     }, loadingTimeout);
-  }, [loadingTimeout, onLoad]);
+  }, [loadingTimeout, forceLoadComplete]);
 
   // Enhanced error handling with better retry logic
   const handleImageError = useCallback((errorSource: string, isMainImage: boolean = true) => {
@@ -281,6 +296,13 @@ export const OptimizedCDNImage: React.FC<OptimizedCDNImageProps> = ({
     
     // Start timeout for this load attempt
     startLoadingTimeout();
+    
+    // Safety net: absolute maximum timeout to prevent infinite loading
+    const absoluteMaxTimeout = setTimeout(() => {
+      if (mountedRef.current && !imageLoadedRef.current) {
+        forceLoadComplete('absolute_timeout');
+      }
+    }, loadingTimeout * 2); // Double the regular timeout
 
     // Preload blur-up image if enabled (non-blocking)
     if (enableBlurUp && variants.lowQuality !== variants.primary) {
@@ -296,32 +318,28 @@ export const OptimizedCDNImage: React.FC<OptimizedCDNImageProps> = ({
         });
     }
 
-    // Enhanced preload strategy
+    // Enhanced preload strategy - but don't force completion to avoid race conditions
     const preloadDelay = priority === 'high' ? 0 : priority === 'normal' ? 100 : 500;
     
-    const preloadTimer = setTimeout(() => {
+    preloadTimerRef.current = setTimeout(() => {
       if (mountedRef.current && !imageLoadedRef.current) {
         Image.prefetch(variants.primary)
           .then(() => {
-            // If prefetch succeeds but component hasn't loaded yet, force complete after delay
-            setTimeout(() => {
+            // Prefetch succeeded - set up a much longer delay before forcing completion
+            // This gives the native Image component time to fire its onLoad event naturally
+            if (forceCompleteTimerRef.current) {
+              clearTimeout(forceCompleteTimerRef.current);
+            }
+            
+            forceCompleteTimerRef.current = setTimeout(() => {
               if (mountedRef.current && !imageLoadedRef.current) {
-                if (!mountedRef.current) return;
-                
-                if (timeoutRef.current) {
-                  clearTimeout(timeoutRef.current);
-                  timeoutRef.current = null;
-                }
-                
-                imageLoadedRef.current = true;
-                setLoadingState('loaded');
-                onLoad?.();
+                forceLoadComplete('prefetch_fallback');
               }
-            }, 500); // Give 500ms for normal events to fire
+            }, 2000); // Much longer delay to avoid racing with native events
           })
           .catch(() => {
             // If prefetch fails, try fallback
-            if (mountedRef.current && variants.fallback !== variants.primary) {
+            if (mountedRef.current && variants.fallback !== variants.primary && !imageLoadedRef.current) {
               setCurrentSource(variants.fallback);
             }
           });
@@ -329,35 +347,45 @@ export const OptimizedCDNImage: React.FC<OptimizedCDNImageProps> = ({
     }, preloadDelay);
 
     return () => {
-      clearTimeout(preloadTimer);
+      clearTimeout(absoluteMaxTimeout);
+      if (preloadTimerRef.current) {
+        clearTimeout(preloadTimerRef.current);
+        preloadTimerRef.current = null;
+      }
       resetLoadingState();
     };
   }, [source, width, height, quality, priority, enableBlurUp, startLoadingTimeout, resetLoadingState, onLoad]);
 
   // Enhanced event handlers with better reliability
   const handleLoadStart = useCallback(() => {
-    if (mountedRef.current && !loadStartedRef.current) {
-      loadStartedRef.current = true;
-      setLoadingState('loading');
-      startLoadingTimeout(); // Restart timeout on load start
-    }
+    if (!mountedRef.current || loadStartedRef.current || imageLoadedRef.current) return;
+    
+    loadStartedRef.current = true;
+    setLoadingState('loading');
+    startLoadingTimeout(); // Restart timeout on load start
   }, [startLoadingTimeout]);
 
   const handleLoad = useCallback(() => {
-    if (mountedRef.current && !imageLoadedRef.current) {
-      imageLoadedRef.current = true;
-      
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
-      
-      setLoadingState('loaded');
-      onLoad?.();
+    if (!mountedRef.current || imageLoadedRef.current) return;
+    
+    // Clear all timers since native load succeeded
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
     }
+    if (forceCompleteTimerRef.current) {
+      clearTimeout(forceCompleteTimerRef.current);
+      forceCompleteTimerRef.current = null;
+    }
+    
+    imageLoadedRef.current = true;
+    setLoadingState('loaded');
+    onLoad?.();
   }, [onLoad]);
 
   const handleError = useCallback(() => {
+    if (!mountedRef.current) return;
+    
     handleImageError(currentSourceRef.current || 'unknown', true);
   }, [handleImageError]); // Use ref to avoid dependency loops
 

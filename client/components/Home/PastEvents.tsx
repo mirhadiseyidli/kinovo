@@ -120,6 +120,7 @@ const PastEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }>
   const fetchPastEvents = React.useCallback(async (forceRefresh: boolean = false) => {
     try {
       const myPastEvents = await fetchMyPastEvents(forceRefresh);
+      console.log(myPastEvents);
       setMyPastEventsList(myPastEvents || []);
     } catch (error) {
       console.error('Failed to fetch past events:', error);

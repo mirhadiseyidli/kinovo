@@ -70,7 +70,7 @@ const MonthView: React.FC<MonthViewComponentProps> = ({
     };
 
     fetchEvents();
-  }, [refreshing, currentDate, fetchEventsForMonth, refreshEvents, onFinishRefresh]);
+  }, [refreshing, currentDate]); // Removed function dependencies to prevent multiple fetches
 
   // Update month array when currentDate changes from external sources (like dropdown)
   useEffect(() => {

@@ -67,10 +67,19 @@ const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFini
       return [];
     }
 
-    // Group events by date
-    const grouped = eventOccurrences.reduce((acc, occurrence) => {
-      if (!occurrence || !occurrence.date) return acc;
+    // Remove duplicate occurrences before grouping
+    const uniqueOccurrences = eventOccurrences.filter((occurrence, index, array) => {
+      if (!occurrence || !occurrence.date) return false;
       
+      // Find first occurrence with same ID and date
+      return index === array.findIndex(occ => 
+        occ.id === occurrence.id && 
+        format(occ.date, 'yyyy-MM-dd') === format(occurrence.date, 'yyyy-MM-dd')
+      );
+    });
+
+    // Group events by date
+    const grouped = uniqueOccurrences.reduce((acc, occurrence) => {
       const dateKey = format(occurrence.date, 'yyyy-MM-dd');
       if (!acc[dateKey]) acc[dateKey] = [];
       acc[dateKey].push(occurrence);
@@ -98,7 +107,7 @@ const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFini
           .map(occurrence => ({
             type: 'event',
             occurrence,
-            key: `event-${occurrence.event._id}-${dateKey}`,
+            key: `event-${occurrence.id}`, // Use occurrence.id for unique keys
           }));
 
         return [headerItem, ...eventItems];
@@ -131,12 +140,10 @@ const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFini
     }
   }, [listData]);
 
-  // Effect to handle initial load and view changes to 'schedule'
+  // Effect to handle initial scroll when schedule view becomes active and has data
   useEffect(() => {
-    if (view.toLowerCase() === 'schedule') {
+    if (view.toLowerCase() === 'schedule' && listData.length > 0) {
       const findAndScrollToTarget = () => {
-        if (listData.length === 0) return;
-
         const today = new Date();
         const todayStr = format(today, 'yyyy-MM-dd');
         
@@ -156,14 +163,18 @@ const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFini
         
         if (targetDate) {
           // Use a timeout to ensure the list has had time to render.
-          setTimeout(() => scrollToDate(targetDate!, false), 100);
+          setTimeout(() => scrollToDate(targetDate!, false), 200);
         }
       };
 
-      findAndScrollToTarget();
+      // Only scroll if we haven't scrolled to any date yet
+      if (!lastScrolledDate.current) {
+        findAndScrollToTarget();
+      }
     }
-  }, [view, listData, scrollToDate]);
+  }, [view, listData.length]); // Removed scrollToDate dependency and listData dependency
 
+  // Combined effect to handle both fetching and scrolling
   useEffect(() => {
     // Only fetch events when schedule view is active
     if (view.toLowerCase() !== 'schedule') return;
@@ -177,14 +188,6 @@ const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFini
         
         await fetchEventsForDateRange(startDate, endDate);
         
-        // After fetching events, scroll to current date
-        if (currentDate) {
-          // Small delay to ensure listData is updated
-          setTimeout(() => {
-            scrollToDate(currentDate);
-          }, 100);
-        }
-        
         if (refreshing && onFinishRefresh) {
           onFinishRefresh();
         }
@@ -197,15 +200,18 @@ const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFini
     };
 
     fetchScheduleEvents();
-  }, [fetchEventsForDateRange, view, refreshing, onFinishRefresh]);
+  }, [view, refreshing]); // Removed function dependencies to prevent excessive re-runs
 
-  // Effect for scrolling when a day is selected from another view
+  // Separate effect for scrolling to avoid conflicts with fetching
   useEffect(() => {
-    if (view.toLowerCase() === 'schedule' && currentDate && (!lastScrolledDate.current || !isSameDay(currentDate, lastScrolledDate.current))) {
-      // Small delay to allow UI to update before scrolling
-      setTimeout(() => scrollToDate(currentDate), 100);
+    if (view.toLowerCase() === 'schedule' && currentDate && listData.length > 0) {
+      // Check if we need to scroll to a different date
+      if (!lastScrolledDate.current || !isSameDay(currentDate, lastScrolledDate.current)) {
+        // Small delay to allow UI to update before scrolling
+        setTimeout(() => scrollToDate(currentDate), 150);
+      }
     }
-  }, [view, currentDate, scrollToDate]);
+  }, [view, currentDate, listData.length]); // Removed scrollToDate dependency
 
   const renderItem = useCallback(({ item }: { item: ListItem }) => {
     if (item.type === 'header') {

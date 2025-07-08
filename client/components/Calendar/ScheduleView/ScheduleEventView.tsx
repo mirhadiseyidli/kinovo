@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -6,7 +6,6 @@ import { Colors } from '@/constants/Colors';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { EventOccurrence } from '@/utils/eventUtils';
-import { useEventContext } from '@/context/UserSessionContext';
 
 type ScheduleEventViewProps = {
   title: string;
@@ -26,17 +25,10 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
-  const { subscribeToEventUpdates, unsubscribeFromEventUpdates } = useEventContext();
 
-  // Subscribe to event updates when component mounts
-  useEffect(() => {
-    // Use originalEventId for subscriptions, not the occurrence ID
-    const baseEventId = eventOccurrence?.originalEventId;
-    if (baseEventId) {
-      subscribeToEventUpdates(baseEventId);
-      return () => unsubscribeFromEventUpdates(baseEventId);
-    }
-  }, [eventOccurrence?.originalEventId, subscribeToEventUpdates, unsubscribeFromEventUpdates]);
+  // Don't subscribe to event updates in individual event components
+  // This prevents excessive subscriptions and duplication issues
+  // Event updates are handled at the context level
 
   // Determine styling based on user status
   let titleStyle: any = { 
