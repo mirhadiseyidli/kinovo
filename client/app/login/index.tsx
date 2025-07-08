@@ -121,19 +121,19 @@ export default function Auth() {
                 style={{
                   flex: 1,
                   height: 1,
-                  backgroundColor: themeColors.border,
+                  backgroundColor: themeColors.textThird,
                 }}
               />
               <ThemedText
                 style={{
                   marginHorizontal: 16,
-                  color: themeColors.border,
+                  color: themeColors.textThird,
                   textAlign: 'center',
                 }}
               >
                 or continue with
               </ThemedText>
-              <ThemedView style={{ flex: 1, height: 1, backgroundColor: themeColors.border }} />
+              <ThemedView style={{ flex: 1, height: 1, backgroundColor: themeColors.textThird }} />
             </ThemedView>
 
             {/* OAuth Buttons */}

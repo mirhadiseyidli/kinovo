@@ -39,7 +39,7 @@ interface EventContextType {
   cachedDateRanges: { start: Date; end: Date }[];
   
   // Event operations
-  fetchEventsForDateRange: (startDate: Date, endDate: Date) => Promise<void>;
+  fetchEventsForDateRange: (startDate: Date, endDate: Date, forceRefresh?: boolean) => Promise<void>;
   fetchEventsForMonth: (month: number, year: number) => Promise<void>;
   fetchEventsForWeek: (date: Date) => Promise<void>;
   refreshEvents: (date: Date, view: 'Month' | 'Week' | 'Schedule') => Promise<void>;
@@ -63,7 +63,7 @@ interface EventContextType {
   // New operations for event updates
   setEvents: React.Dispatch<React.SetStateAction<Event[]>>;
   setEventOccurrences: React.Dispatch<React.SetStateAction<EventOccurrence[]>>;
-  expandEventsToOccurrences: (events: Event[], startDate: Date, endDate: Date) => EventOccurrence[];
+  expandEventsToOccurrences: (events: Event[], startDate: Date, endDate: Date, modifications?: RecurringEventModification[]) => EventOccurrence[];
 
   // Event update subscription
   subscribeToEventUpdates: (eventId: string) => void;
@@ -93,6 +93,8 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
   const [cachedDateRanges, setCachedDateRanges] = useState<{ start: Date; end: Date }[]>([]);
   const [subscriptions, setSubscriptions] = useState<Set<string>>(new Set());
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingFetchRef = useRef<Promise<void> | null>(null);
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { userId } = useAuthSession();
   
   // Performance optimization: Cache for event occurrences to prevent recalculation
@@ -134,7 +136,15 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
     };
 
     const interval = setInterval(cleanup, 30000); // Run cleanup every 30 seconds
-    return () => clearInterval(interval);
+    
+    // Cleanup on unmount
+    return () => {
+      clearInterval(interval);
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+      pendingFetchRef.current = null;
+    };
   }, [eventOccurrences.length, cachedDateRanges.length]);
 
   // Load cached modifications on mount
@@ -184,10 +194,18 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
     );
   }, [cachedDateRanges]);
 
-  const expandEventsToOccurrences = useCallback((events: Event[], startDate: Date, endDate: Date): EventOccurrence[] => {
+  const expandEventsToOccurrences = useCallback((events: Event[], startDate: Date, endDate: Date, modifications?: RecurringEventModification[]): EventOccurrence[] => {
+    // Use passed modifications or current ones, but don't depend on state
+    const modsToUse = modifications || eventModifications;
+    
+    // Early return if no events to process
+    if (!events || events.length === 0) {
+      return [];
+    }
+    
     // Performance optimization: Create cache key based on events and date range
     const eventsHash = events.map(e => `${e._id}-${e.start_time}-${e.recurrence?.frequency || 'none'}`).sort().join('|');
-    const modificationsHash = eventModifications.map(m => `${m.originalEventId}-${m.occurrenceDate.getTime()}`).sort().join('|');
+    const modificationsHash = modsToUse.map(m => `${m.originalEventId}-${m.occurrenceDate.getTime()}`).sort().join('|');
     const cacheKey = `${eventsHash}-${modificationsHash}-${startDate.getTime()}-${endDate.getTime()}`;
     
     // Return cached result if available
@@ -214,7 +232,7 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
         }
       } else {
         // For non-recurring events or original recurring events, use the expansion function
-      const occurrences = expandRecurringEvent(event, startDate, endDate, eventModifications);
+      const occurrences = expandRecurringEvent(event, startDate, endDate, modsToUse);
       allOccurrences.push(...occurrences);
       }
     });
@@ -228,86 +246,98 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
     occurrenceCache.current.set(cacheKey, allOccurrences);
     
     return allOccurrences;
-  }, [eventModifications]);
+  }, []); // Remove dependency on eventModifications
 
-  const fetchEventsForDateRange = useCallback(async (startDate: Date, endDate: Date) => {
-    if (isDateRangeCached(startDate, endDate)) {
+  const fetchEventsForDateRange = useCallback(async (startDate: Date, endDate: Date, forceRefresh: boolean = false) => {
+    if (!forceRefresh && isDateRangeCached(startDate, endDate)) {
       return; // Already cached
     }
 
-    setLoading(true);
-    try {
-      const fetchedEvents = await fetchEventsFromAPI(startDate, endDate);
-      
-      // Merge with existing events (avoid duplicates)
-      // For recurring event occurrences, we need to check by both _id and originalEventId
-      setEvents(prevEvents => {
-        const existingIds = new Set(prevEvents.map(e => e._id));
-        const existingOccurrenceIds = new Set(
-          prevEvents
-            .filter(e => e.isRecurringOccurrence)
-            .map(e => e._id)
-        );
-        
-        const newEvents = fetchedEvents.filter(e => {
-          // Skip if we already have this exact event ID
-          if (existingIds.has(e._id)) return false;
-          
-          // For recurring occurrences, also check if we already have this specific occurrence
-          if (e.isRecurringOccurrence && existingOccurrenceIds.has(e._id)) return false;
-          
-          return true;
-        });
-        
-        return [...prevEvents, ...newEvents];
-      });
-
-      // Update cached ranges
-      setCachedDateRanges(prev => [...prev, { start: startDate, end: endDate }]);
-
-      // Re-expand ALL events to occurrences for the ENTIRE cached range
-      // This ensures we don't have duplicates and everything is properly sorted
-      const allEvents = [...events, ...fetchedEvents.filter(e => {
-        // Same filtering logic as above
-        const existingIds = new Set(events.map(existing => existing._id));
-        if (existingIds.has(e._id)) return false;
-        
-        if (e.isRecurringOccurrence) {
-          const existingOccurrenceIds = new Set(
-            events
-              .filter(existing => existing.isRecurringOccurrence)
-              .map(existing => existing._id)
-          );
-          if (existingOccurrenceIds.has(e._id)) return false;
-        }
-        
-        return true;
-      })];
-      
-      // Calculate the full range of all cached data
-      const allRanges = [...cachedDateRanges, { start: startDate, end: endDate }];
-      const fullStartDate = new Date(Math.min(...allRanges.map(r => r.start.getTime())));
-      const fullEndDate = new Date(Math.max(...allRanges.map(r => r.end.getTime())));
-      
-      // Expand all events for the full range
-      const allOccurrences = expandEventsToOccurrences(allEvents, fullStartDate, fullEndDate);
-      
-      // Sort occurrences chronologically and remove duplicates
-      const sortedOccurrences = allOccurrences
-        .sort((a, b) => a.date.getTime() - b.date.getTime())
-        .filter((occurrence, index, array) => {
-          // Remove duplicates based on occurrence id
-          return index === 0 || occurrence.id !== array[index - 1].id;
-        });
-      
-      setEventOccurrences(sortedOccurrences);
-
-    } catch (error) {
-      console.error('Error fetching events for date range:', error);
-    } finally {
-      setLoading(false);
+    // Prevent concurrent fetch operations
+    if (pendingFetchRef.current) {
+      await pendingFetchRef.current;
+      // Check cache again after waiting for pending operation
+      if (isDateRangeCached(startDate, endDate)) {
+        return;
+      }
     }
-  }, [events, isDateRangeCached, expandEventsToOccurrences, cachedDateRanges]);
+
+    // Clear any pending debounce timeout
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    const fetchOperation = async () => {
+      setLoading(true);
+      try {
+        const fetchedEvents = await fetchEventsFromAPI(startDate, endDate);
+        
+        // Use atomic update with a single setState call to prevent race conditions
+        setEvents(prevEvents => {
+          const existingIds = new Set(prevEvents.map(e => e._id));
+          const existingOccurrenceIds = new Set(
+            prevEvents
+              .filter(e => e.isRecurringOccurrence)
+              .map(e => e._id)
+          );
+          
+          const newEvents = fetchedEvents.filter(e => {
+            // Skip if we already have this exact event ID
+            if (existingIds.has(e._id)) return false;
+            
+            // For recurring occurrences, also check if we already have this specific occurrence
+            if (e.isRecurringOccurrence && existingOccurrenceIds.has(e._id)) return false;
+            
+            return true;
+          });
+          
+          const mergedEvents = [...prevEvents, ...newEvents];
+          
+          // Update cached ranges and occurrences in the same update cycle
+          setCachedDateRanges(prevRanges => {
+            const hasOverlap = prevRanges.some(range => 
+              (startDate >= range.start && startDate <= range.end) ||
+              (endDate >= range.start && endDate <= range.end) ||
+              (startDate <= range.start && endDate >= range.end)
+            );
+            
+            const newRanges = hasOverlap ? prevRanges : [...prevRanges, { start: startDate, end: endDate }];
+            
+            // Recalculate occurrences with the new events and ranges
+            if (newRanges.length > 0) {
+              const fullStartDate = new Date(Math.min(...newRanges.map(r => r.start.getTime())));
+              const fullEndDate = new Date(Math.max(...newRanges.map(r => r.end.getTime())));
+              
+              const allOccurrences = expandEventsToOccurrences(mergedEvents, fullStartDate, fullEndDate, eventModifications);
+              
+              // Remove duplicates and sort
+              const uniqueOccurrences = allOccurrences
+                .filter((occurrence: EventOccurrence, index: number, array: EventOccurrence[]) => {
+                  return index === array.findIndex(occ => occ.id === occurrence.id);
+                })
+                .sort((a: EventOccurrence, b: EventOccurrence) => a.date.getTime() - b.date.getTime());
+              
+              setEventOccurrences(uniqueOccurrences);
+            }
+            
+            return newRanges;
+          });
+          
+          return mergedEvents;
+        });
+
+      } catch (error) {
+        console.error('Error fetching events for date range:', error);
+      } finally {
+        setLoading(false);
+        pendingFetchRef.current = null;
+      }
+    };
+
+    // Set pending operation and execute
+    pendingFetchRef.current = fetchOperation();
+    await pendingFetchRef.current;
+  }, [isDateRangeCached]);
 
   const fetchEventsForMonth = useCallback(async (month: number, year: number) => {
     const startDate = startOfMonth(new Date(year, month));
@@ -349,26 +379,33 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
   const refreshEvents = useCallback(async (date: Date, view: 'Month' | 'Week' | 'Schedule') => {
     setRefreshing(true);
     try {
-      // Clear cache and refetch
-      clearCache();
-      
-      // Refetch based on view type
+      // Force refetch by bypassing cache check
       if (view === 'Month') {
-        await fetchEventsForMonth(date.getMonth(), date.getFullYear());
+        const startDate = startOfMonth(new Date(date.getFullYear(), date.getMonth()));
+        const endDate = endOfMonth(new Date(date.getFullYear(), date.getMonth()));
+        // Extend range to include previous and next month for better UX
+        const extendedStart = startOfWeek(subWeeks(startDate, 2));
+        const extendedEnd = endOfWeek(addWeeks(endDate, 2));
+        await fetchEventsForDateRange(extendedStart, extendedEnd, true); // forceRefresh = true
       } else if (view === 'Week') {
-        await fetchEventsForWeek(date);
+        const startDate = startOfWeek(date);
+        const endDate = endOfWeek(date);
+        // Extend range to include previous and next week
+        const extendedStart = startOfWeek(subWeeks(date, 1));
+        const extendedEnd = endOfWeek(addWeeks(date, 1));
+        await fetchEventsForDateRange(extendedStart, extendedEnd, true); // forceRefresh = true
       } else if (view === 'Schedule') {
-        // For schedule view, fetch current month plus/minus one month
+        // For schedule view, refresh current month plus/minus one month
         const startDate = startOfMonth(subMonths(date, 1));
         const endDate = endOfMonth(addMonths(date, 1));
-        await fetchEventsForDateRange(startDate, endDate);
+        await fetchEventsForDateRange(startDate, endDate, true); // forceRefresh = true
       }
     } catch (error) {
       console.error('Error refreshing events:', error);
     } finally {
       setRefreshing(false);
     }
-  }, [fetchEventsForMonth, fetchEventsForWeek, fetchEventsForDateRange, clearCache]);
+  }, [fetchEventsForDateRange]);
 
   const getOccurrencesForDateFunc = useCallback((date: Date): EventOccurrence[] => {
     return getOccurrencesForDate(eventOccurrences, date);
@@ -401,7 +438,8 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
       // Re-expand events with new modifications
       const allOccurrences = expandEventsToOccurrences(events, 
         new Date(Math.min(...cachedDateRanges.map(r => r.start.getTime()))),
-        new Date(Math.max(...cachedDateRanges.map(r => r.end.getTime())))
+        new Date(Math.max(...cachedDateRanges.map(r => r.end.getTime()))),
+        updatedModifications
       );
       setEventOccurrences(allOccurrences);
 
@@ -411,7 +449,7 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
     } catch (error) {
       console.error('Error modifying recurring event:', error);
     }
-  }, [eventModifications, events, cachedDateRanges, expandEventsToOccurrences]);
+  }, [eventModifications, events, cachedDateRanges]);
 
   // Helper function to validate if an event ID is a base event ID (not an occurrence ID)
   const isValidBaseEventId = useCallback((eventId: string): boolean => {
@@ -424,6 +462,11 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
   // Effect to handle event updates
   useEffect(() => {
     if (eventsToUpdate.size === 0) return;
+    
+    // Prevent multiple simultaneous update cycles
+    if (pendingFetchRef.current) {
+      return;
+    }
 
     const updateEvents = async () => {
       try {
@@ -474,7 +517,7 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
             }
           });
 
-          // Update events array
+          // Use atomic update to prevent race conditions with other operations
           setEvents(prevEvents => {
             const eventMap = new Map(prevEvents.map(event => [event._id, event]));
             validUpdatedEvents.forEach(updatedEvent => {
@@ -482,30 +525,55 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
                 eventMap.set(updatedEvent._id, updatedEvent);
               }
             });
-            return Array.from(eventMap.values());
+            
+            const updatedEvents = Array.from(eventMap.values());
+            
+            // Update occurrences atomically within the same update cycle
+            setCachedDateRanges(currentRanges => {
+              if (currentRanges.length > 0) {
+                const fullStartDate = new Date(Math.min(...currentRanges.map(r => r.start.getTime())));
+                const fullEndDate = new Date(Math.max(...currentRanges.map(r => r.end.getTime())));
+
+                // Re-expand all events using the updated events array
+                const newOccurrences = expandEventsToOccurrences(updatedEvents, fullStartDate, fullEndDate, eventModifications);
+                
+                // Ensure unique occurrences
+                const uniqueOccurrences = newOccurrences
+                  .filter((occurrence: EventOccurrence, index: number, array: EventOccurrence[]) => {
+                    return index === array.findIndex(occ => occ.id === occurrence.id);
+                  })
+                  .sort((a: EventOccurrence, b: EventOccurrence) => a.date.getTime() - b.date.getTime());
+                
+                setEventOccurrences(uniqueOccurrences);
+              }
+              return currentRanges;
+            });
+            
+            return updatedEvents;
           });
-
-          // Get the full date range from cache
-          const fullStartDate = new Date(Math.min(...cachedDateRanges.map(r => r.start.getTime())));
-          const fullEndDate = new Date(Math.max(...cachedDateRanges.map(r => r.end.getTime())));
-
-          // Re-expand all events
-          const newOccurrences = expandEventsToOccurrences(events, fullStartDate, fullEndDate);
-          setEventOccurrences(newOccurrences);
         }
       } catch (error) {
         console.error('Error updating events:', error);
       }
     };
 
-    // Update every 30 seconds if there are events to update
-    const intervalId = setInterval(updateEvents, 30000);
+    // Only set up interval if there are events to update
+    let intervalId: ReturnType<typeof setInterval> | null = null;
     
-    // Initial update
-    updateEvents();
+    if (eventsToUpdate.size > 0) {
+      // Initial update only if we have events to update
+      updateEvents();
+      
+      // Set interval for subsequent updates
+      intervalId = setInterval(updateEvents, 30000);
+    }
 
-    return () => clearInterval(intervalId);
-  }, [eventsToUpdate, cachedDateRanges, expandEventsToOccurrences, isValidBaseEventId]);
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [eventsToUpdate]); // Removed function dependencies to prevent excessive re-runs
 
   const subscribeToEventUpdates = useCallback((eventId: string) => {
     // Only subscribe to valid base event IDs
