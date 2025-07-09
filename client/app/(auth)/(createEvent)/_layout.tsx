@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback } from 'react';
-import { Dimensions } from 'react-native';
+import { Dimensions, Alert } from 'react-native';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -10,28 +10,15 @@ import EventAttendeesAndOptions from '@/app/(auth)/(createEvent)/EventAttendeesA
 import { CreateEventProvider, useCreateEventContext } from '@/context/CreateEventContext';
 import { useNavigation, useRouter } from 'expo-router';
 import { useSharedValue } from 'react-native-reanimated';
+import { CreateEventScrollContext } from '@/context/CreateEventScrollContext';
 
 const Tab = createMaterialTopTabNavigator();
-const { width } = Dimensions.get('window'); // Get screen width dynamically
-
-// Create a context for sharing scroll state between tabs
-export const CreateEventScrollContext = React.createContext<{
-  bounceCompleted: { value: boolean };
-  wasDraggingAtTop: { value: boolean };
-  isDismissing: { value: boolean };
-  handleDismiss: () => void;
-}>({
-  bounceCompleted: { value: false },
-  wasDraggingAtTop: { value: false },
-  isDismissing: { value: false },
-  handleDismiss: () => {},
-});
 
 // Inner component that has access to the context
 function TabsNavigator() {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const { isEditMode } = useCreateEventContext();
+  const { isEditMode, title, category, description, location, capacity, recurrence, attendees, visibility, resetEventForm } = useCreateEventContext();
   const navigation = useNavigation();
   const router = useRouter();
 
@@ -40,12 +27,56 @@ function TabsNavigator() {
   const wasDraggingAtTop = useSharedValue(false);
   const isDismissing = useSharedValue(false);
 
+  const hasUnsavedChanges = useCallback(() => {
+    if (isEditMode) {
+      // For edit mode, we conservatively assume there are unsaved changes if any setter changed the value. 
+      // Since fine-grained tracking isn't implemented yet, we simply compare against the "dirty" indicators below.
+    }
+    return (
+      title.trim() !== '' ||
+      category !== null ||
+      (description ?? '').trim() !== '' ||
+      location.text !== null ||
+      capacity !== null ||
+      recurrence.checked ||
+      recurrence.frequency !== null ||
+      recurrence.end_date !== null ||
+      attendees.length > 0 ||
+      visibility !== 'private'
+    );
+  }, [title, category, description, location.text, capacity, recurrence, attendees.length, visibility, isEditMode]);
+
   // Handle dismissal at the parent level
   const handleDismiss = useCallback(() => {
-    if (router.canGoBack()) {
-      router.dismissAll();
+    if (hasUnsavedChanges()) {
+      Alert.alert(
+        'Discard changes?',
+        'You have unsaved changes. Are you sure you want to discard them?',
+        [
+          { text: 'Continue Editing', style: 'cancel', onPress: () => {
+              // Reset dismissal flags so the scroll handler can detect next swipe
+              isDismissing.value = false;
+              bounceCompleted.value = false;
+              wasDraggingAtTop.value = false;
+            } },
+          {
+            text: 'Discard',
+            style: 'destructive',
+            onPress: () => {
+              resetEventForm();
+              if (router.canGoBack()) {
+                router.dismissAll();
+              }
+            },
+          },
+        ],
+      );
+    } else {
+      if (router.canGoBack()) {
+        router.dismissAll();
+      }
     }
-  }, [router]);
+  }, [hasUnsavedChanges, resetEventForm, router]);
 
   // Update the header title based on edit mode
   useEffect(() => {

@@ -1,21 +1,18 @@
 import React, { useState } from 'react';
-import { TouchableOpacity, Text, View, ActivityIndicator } from "react-native";
+import { TouchableOpacity, Text, View, ActivityIndicator } from 'react-native';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import LinearGradient from 'react-native-linear-gradient';
-import { ThemedText } from '@/components/ThemedText';
-import { Feather, Octicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { ManageFriendButtonProps } from '@/types/allTypes';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
-import { useAuthSession } from './Auth/AuthProvider';
 import { useManageFriends } from '@/hooks/useManageFriends';
+import { useBanner } from '@/context/BannerContext';
 
 const AddFriendButton = ({ targetUser, loadingFriendAction, buttonFlex = 1, onFriendRequestSent }: ManageFriendButtonProps & { onFriendRequestSent?: () => void }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { sendFriendRequest } = useManageFriends();
   const [isLoading, setIsLoading] = useState(false);
+  const { showBanner } = useBanner();
 
   const handleSendFriendRequest = async () => {
     if (isLoading) return;
@@ -30,6 +27,8 @@ const AddFriendButton = ({ targetUser, loadingFriendAction, buttonFlex = 1, onFr
       
       // Send the actual request
       await sendFriendRequest(targetUser);
+      // Show success banner
+      showBanner('Friend request sent');
     } catch (error) {
       console.error('Failed to send friend request:', error);
       
