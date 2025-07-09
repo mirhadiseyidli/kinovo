@@ -41,7 +41,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
   const router = useRouter();
   const { fetchAttentionRequiredEvents, loading, isFirstFetch, clearCache, attentionEventsList } = useGetAttentionRequiredEvents();
   const { respondToInvitation } = useEventInvitation();
-  const { refreshing: contextRefreshing } = useEventContext();
+  const { refreshing: contextRefreshing, invalidateEvent } = useEventContext();
   const { userId } = useAuthSession();
   const [localEventsList, setLocalEventsList] = useState<Event[]>(initialEvents || []);
   const [loadingResponses, setLoadingResponses] = useState<{ [key: string]: boolean }>({});
@@ -172,6 +172,9 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
         Object.keys(requestOptions).length > 0 ? requestOptions : undefined
       );
 
+      // IMPORTANT: Invalidate event from subscriptions and cache to prevent data override
+      invalidateEvent(eventId);
+
       // Update the event with new status and update across caches
       const updatedEvent = localEventsList.find(event => 
         event._id === eventId || event.originalEventId === eventId
@@ -202,7 +205,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
     } finally {
       setLoadingResponses(prev => ({ ...prev, [eventId]: false }));
     }
-  }, [respondToInvitation, localEventsList, userId]);
+  }, [respondToInvitation, invalidateEvent, localEventsList, userId]);
 
   const formatDate = React.useCallback((date: string | Date | null) => {
     if (!date) return '';

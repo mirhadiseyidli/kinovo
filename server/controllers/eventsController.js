@@ -14,6 +14,7 @@ const {
   buildEventFilter,
   processEventsWithRecurrence,
   processEventsWithRecurrenceEnhanced,
+  processEventsForDiscovery,
   enrichEventsWithUserData,
   filterUserEvents,
   
@@ -598,10 +599,12 @@ const getEventById = async (req, res) => {
 
 const getNearbyEvents = async (req, res) => {
   try {
-    const { lat, lng, distance } = req.query;
+    const { lat, lng, distance, limit, skip } = req.query;
     const userLat = parseFloat(lat);
     const userLng = parseFloat(lng);
     const searchDistance = parseFloat(distance) || 50; // Default to 50 miles if not provided
+    const limitNumber = parseInt(limit) || 0; // 0 means no limit
+    const skipNumber = parseInt(skip) || 0;
     
     if (isNaN(userLat) || isNaN(userLng)) {
       return res.status(400).json({ message: 'Invalid coordinates' });
@@ -622,23 +625,28 @@ const getNearbyEvents = async (req, res) => {
     const events = await Events.find(eventFilter)
       .populate('creator', 'first_name last_name username full_name profile_picture');
 
-    // Process events with recurrence using utility, excluding user attending events
-    const now = new Date();
-    const futureLimit = new Date(now.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year from now
-    
-    const processedEvents = processEventsWithRecurrence(events, now, futureLimit, { 
+    // Process events for discovery - show only next occurrence of recurring events, excluding user attending events
+    const processedEvents = processEventsForDiscovery(events, { 
       excludeUserAttending: true, 
       userId: req.user._id 
     });
 
     // Calculate distances and filter nearby events using utility
-    const nearbyEvents = calculateEventsDistance(processedEvents, userLat, userLng, searchDistance);
+    const allNearbyEvents = calculateEventsDistance(processedEvents, userLat, userLng, searchDistance);
+
+    // Apply pagination if limit is specified
+    let paginatedEvents = allNearbyEvents;
+    if (limitNumber > 0) {
+      paginatedEvents = allNearbyEvents.slice(skipNumber, skipNumber + limitNumber);
+    }
 
     res.status(200).json({
-      events: nearbyEvents.map(item => ({
+      events: paginatedEvents.map(item => ({
         ...item.event,
         distance: item.distance
-      }))
+      })),
+      total: allNearbyEvents.length,
+      hasMore: limitNumber > 0 ? (skipNumber + limitNumber) < allNearbyEvents.length : false
     });
 
   } catch (error) {
@@ -979,11 +987,13 @@ const getEventsByCategory = async (req, res) => {
 
     // Get standard populate configuration and find events
     const populateConfig = getEventWithCreatorAndAttendeesPopulate();
-    const events = await Events.find(eventFilter).populate(populateConfig);
+    const events = await Events.find(eventFilter).populate(populateConfig).lean();
 
-    // Process events with recurrence using utility
-    const { now, oneYearFromNow } = getDateRanges();
-    const processedEvents = processEventsWithRecurrence(events, now, oneYearFromNow);
+    // Process events for discovery - show only next occurrence of recurring events
+    const processedEvents = processEventsForDiscovery(events, {
+      excludeUserAttending: false,
+      userId: req.user._id
+    });
 
     // Add user-specific fields using utility
     const eventsWithUserStatus = enrichEventsWithUserData(processedEvents, req.user._id, friends);
@@ -1013,11 +1023,13 @@ const getEventsByCity = async (req, res) => {
 
     // Get standard populate configuration and find events
     const populateConfig = getEventWithCreatorAndAttendeesPopulate();
-    const events = await Events.find(eventFilter).populate(populateConfig);
+    const events = await Events.find(eventFilter).populate(populateConfig).lean();
 
-    // Process events with recurrence using utility
-    const { now, oneYearFromNow } = getDateRanges();
-    const processedEvents = processEventsWithRecurrence(events, now, oneYearFromNow);
+    // Process events for discovery - show only next occurrence of recurring events
+    const processedEvents = processEventsForDiscovery(events, {
+      excludeUserAttending: false,
+      userId: req.user._id
+    });
 
     // Add user-specific fields using utility
     const eventsWithUserStatus = enrichEventsWithUserData(processedEvents, req.user._id, friends);
@@ -1063,10 +1075,19 @@ const getAttentionRequiredEvents = async (req, res) => {
           return false;
         }
 
-        // Check if the event is in the future or ongoing
-        const eventEndTime = new Date(userEvent.event.end_time);
-        if (eventEndTime < now) {
-          return false;
+        // For non-recurring events, check if they are in the future or ongoing.
+        // For recurring events, we let them pass and filter occurrences later.
+        const isRecurring = userEvent.event.recurrence?.checked;
+        if (!isRecurring) {
+          const eventEndTime = new Date(userEvent.event.end_time);
+          if (eventEndTime < now) {
+            return false;
+          }
+        } else {
+          const eventRecurrenceEndTime = new Date(userEvent.event.recurrence.end_date);
+          if (eventRecurrenceEndTime < now) {
+            return false;
+          }
         }
 
         // Include if status is pending (undefined, null, or explicitly 'pending') or rejected
@@ -1122,7 +1143,20 @@ const getRecommendedEvents = async (req, res) => {
     // Base query for upcoming events that are either public or private from friends
     const baseQuery = {
       status: { $ne: 'cancelled' },
-      end_time: { $gte: now },
+      // For recurring events, we need to check programmatically, so include events that either:
+      // 1. Haven't ended yet (non-recurring), OR
+      // 2. Are recurring (we'll filter them later)
+      $or: [
+        // Non-recurring events that haven't ended
+        {
+          'recurrence.checked': { $ne: true },
+          end_time: { $gte: now }
+        },
+        // Recurring events (filter later programmatically)
+        {
+          'recurrence.checked': true
+        }
+      ],
       $and: [
         {
           $or: [
@@ -1154,10 +1188,17 @@ const getRecommendedEvents = async (req, res) => {
     let events = await Events.find(baseQuery)
       .populate('creator', '_id full_name profile_picture')
       .populate('attendees.user', '_id full_name profile_picture')
+      .lean() // Convert to plain objects
       .sort({ start_time: 1 });
 
+    // Process events for discovery - show only next occurrence of recurring events
+    const discoveryEvents = processEventsForDiscovery(events, {
+      excludeUserAttending: true, // Exclude events user is already attending (for recommendations)
+      userId: req.user._id
+    });
+
     // Process events to calculate relevance scores
-    const processedEvents = events.map(event => {
+    const processedEvents = discoveryEvents.map(event => {
       let relevanceScore = 0;
 
       // Activity match score (0-3)
@@ -1188,7 +1229,7 @@ const getRecommendedEvents = async (req, res) => {
       else if (daysUntilEvent <= 30) relevanceScore += 1; // Within next month
 
       return {
-        ...event.toObject(),
+        ...event,
         relevanceScore
       };
     });
@@ -1203,8 +1244,6 @@ const getRecommendedEvents = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
-
-
 
 const getFriendsEvents = async (req, res) => {
   try {
@@ -1222,7 +1261,20 @@ const getFriendsEvents = async (req, res) => {
     // Build custom query for friends events (complex visibility requirements)
     const events = await Events.find({
       status: { $ne: 'cancelled' },
-      end_time: { $gte: now },
+      // For recurring events, we need to check programmatically, so include events that either:
+      // 1. Haven't ended yet (non-recurring), OR
+      // 2. Are recurring (we'll filter them later)
+      $or: [
+        // Non-recurring events that haven't ended
+        {
+          'recurrence.checked': { $ne: true },
+          end_time: { $gte: now }
+        },
+        // Recurring events (filter later programmatically)
+        {
+          'recurrence.checked': true
+        }
+      ],
       _id: { $nin: [...filterData.reportedEventIds, ...filterData.notInterestedEventIds] },
       $and: [
         {
@@ -1248,10 +1300,14 @@ const getFriendsEvents = async (req, res) => {
       ]
     })
     .populate(getEventWithCreatorAndAttendeesPopulate())
+    .lean() // Convert to plain objects
     .sort({ start_time: 1 });
 
-    // Process events with recurrence using enhanced utility
-    const processedEvents = processEventsWithRecurrenceEnhanced(events, now, oneYearFromNow);
+    // Process events for discovery - show only next occurrence of recurring events
+    const processedEvents = processEventsForDiscovery(events, {
+      excludeUserAttending: false,
+      userId: req.user._id
+    });
 
     // Add user-specific fields using utility
     const eventsWithUserStatus = enrichEventsWithUserData(processedEvents, req.user._id, friends);

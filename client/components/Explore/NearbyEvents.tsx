@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CityLocationModal from './CityLocationModal';
 import { EventCardSkeleton, SkeletonBox } from '../Skeleton';
 import { useFocusEffect } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 
 interface NearbyEventsProps {
   refreshing: boolean;
@@ -149,6 +150,7 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
   const scrollRef = useRef<ScrollView>(null);
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
+  const router = useRouter();
   const [userLocation, setUserLocation] = useState<{ city: string; state: string; lat: number | null; lng: number | null; text?: string }>({
     city: 'San Francisco',
     state: 'CA',
@@ -157,21 +159,28 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
     text: 'San Francisco, CA'
   });
   const [nearbyEvents, setNearbyEvents] = useState<Event[]>([]);
-  const { fetchNearByEvents, loading, isFirstFetch } = useGetNearByEvents();
+  const [totalEventCount, setTotalEventCount] = useState(0);
+  const { fetchNearByEventsPreview, loading, isFirstFetch } = useGetNearByEvents();
   const fetchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isDataReady, setIsDataReady] = useState(false);
 
   const fetchEvents = useCallback(async () => {
     if (userLocation.lat !== null && userLocation.lng !== null) {
       try {
-        const fetchedEvents = await fetchNearByEvents(userLocation.lat, userLocation.lng, selectedDistance);
-        setNearbyEvents(fetchedEvents ?? []);
+        const result = await fetchNearByEventsPreview(userLocation.lat, userLocation.lng, selectedDistance);
+        if (result && typeof result === 'object' && 'events' in result) {
+          setNearbyEvents(result.events ?? []);
+          setTotalEventCount(result.totalCount ?? 0);
+        } else {
+          setNearbyEvents([]);
+          setTotalEventCount(0);
+        }
         setIsDataReady(true);
       } finally {
         onFinishRefresh();
       }
     }
-  }, [userLocation.lat, userLocation.lng, selectedDistance, fetchNearByEvents, onFinishRefresh]);
+  }, [userLocation.lat, userLocation.lng, selectedDistance, fetchNearByEventsPreview, onFinishRefresh]);
 
   // Debounced fetch function
   const debouncedFetch = useCallback(() => {
@@ -276,6 +285,22 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
     setUserLocation(location);
     // Events will be fetched automatically by the useEffect that watches userLocation changes
   };
+
+  const handleSeeMorePress = () => {
+    router.push({
+      pathname: '/(auth)/(nearbyEvents)/[distance]',
+      params: {
+        distance: selectedDistance.toString(),
+        lat: userLocation.lat?.toString() || '',
+        lng: userLocation.lng?.toString() || '',
+        city: userLocation.city,
+        state: userLocation.state
+      }
+    });
+  };
+
+  // Calculate total items for pagination (5 events + see more if there are more than 5)
+  const totalItems = nearbyEvents.length + (totalEventCount > 5 ? 1 : 0);
 
   return (
     <ThemedView style={{ flex: 1, width: screenWidth }}>
@@ -410,30 +435,54 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
               ))}
 
               {/* See More Button as the Last Item */}
-              {nearbyEvents.length > 5 && (
-                <TouchableOpacity style={{ alignItems: 'center', justifyContent: 'center', width: screenWidth }}>
-                  <ThemedText 
+              {totalEventCount > 5 && (
+                <TouchableOpacity 
+                  style={{ alignItems: 'center', justifyContent: 'center', width: screenWidth, paddingHorizontal: 16 }}
+                  onPress={handleSeeMorePress}
+                >
+                  <ThemedView 
                     style={{
-                      fontWeight: 'bold',
+                      width: '100%',
+                      height: 140,
+                      backgroundColor: themeColors.mountainGreen,
+                      borderRadius: 12,
+                      alignItems: 'center',
+                      justifyContent: 'center',
                       padding: 16,
-                      borderRadius: 8,
-                      textAlign: 'center',
-                      width: '80%',
-                      backgroundColor: Colors[colorScheme ?? 'dark'].mountainGreen,
-                      color: Colors[colorScheme ?? 'dark'].text,
                     }}
                   >
-                    See More Events
-                  </ThemedText>
+                    <Feather name="plus-circle" size={32} color="white" style={{ marginBottom: 8 }} />
+                    <ThemedText 
+                      style={{
+                        fontWeight: 'bold',
+                        fontSize: 18,
+                        textAlign: 'center',
+                        color: 'white',
+                        marginBottom: 4
+                      }}
+                    >
+                      See More Events
+                    </ThemedText>
+                    <ThemedText 
+                      style={{
+                        fontSize: 14,
+                        textAlign: 'center',
+                        color: 'white',
+                        opacity: 0.9
+                      }}
+                    >
+                      {totalEventCount - 5} more nearby
+                    </ThemedText>
+                  </ThemedView>
                 </TouchableOpacity>
               )}
             </ScrollView>
           </ThemedView>
 
           {/* Pagination Dots */}
-          {nearbyEvents.length > 1 && (
+          {totalItems > 1 && (
             <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8 }}>
-              {nearbyEvents.map((_, index) => (
+              {Array.from({ length: totalItems }, (_, index) => (
                 <TouchableOpacity 
                   key={index}
                   onPress={() => scrollToItem(index)}

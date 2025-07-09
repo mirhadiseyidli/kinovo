@@ -40,6 +40,10 @@ const RecommendedEvents: React.FC<RecommendedEventsProps> = React.memo(({ refres
   useFocusEffect(
     React.useCallback(() => {
       if (refreshing) {
+        // Force refresh when pull-to-refresh is triggered
+        fetchEvents();
+      } else {
+        // Initial fetch on component mount or focus (will use cache if available)
         fetchEvents();
       }
     }, [refreshing])
