@@ -169,10 +169,6 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
         });
       });
       
-      if (validEvents.length !== prevEvents.length) {
-        console.log(`[EventContext] Cleaned up ${prevEvents.length - validEvents.length} non-attendee events from cache`);
-      }
-      
       return validEvents;
     });
   }, [userId]);
@@ -206,13 +202,9 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
       const cacheParam = forceRefresh ? `&_t=${Date.now()}` : '';
       const url = `/api/manageevents/eventslist/get/my/events/range?start=${format(startDate, 'yyyy-MM-dd')}&end=${format(endDate, 'yyyy-MM-dd')}${cacheParam}`;
       
-      console.log(`[EventContext] Fetching events from API (forceRefresh: ${forceRefresh}):`, url);
-      
       const response = await api.get(url);
 
       const events = response.data.events || [];
-      
-      console.log(`[EventContext] Received ${events.length} events from API`);
       
       // SECURITY: Extra validation to ensure only events where user is an attendee are cached
       const filteredEvents = events.filter((event: Event) => {
@@ -223,8 +215,6 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
           return attendeeId.toString() === userId.toString();
         });
       });
-      
-      console.log(`[EventContext] After filtering: ${filteredEvents.length} events where user is attendee`);
       
       return filteredEvents;
     } catch (error) {
@@ -276,9 +266,13 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
           });
         }
       } else {
-        // For non-recurring events or original recurring events, use the expansion function
-      const occurrences = expandRecurringEvent(event, startDate, endDate, modsToUse);
-      allOccurrences.push(...occurrences);
+        // For original recurring events (master docs): skip expansion if server already supplied occurrences
+        const occurrencesExist = events.some(e => e.isRecurringOccurrence && e.originalEventId === event._id);
+
+        if (!occurrencesExist) {
+          const occurrences = expandRecurringEvent(event, startDate, endDate, modsToUse);
+          allOccurrences.push(...occurrences);
+        }
       }
     });
 
@@ -317,7 +311,6 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
       try {
         // Clear occurrence cache on force refresh to ensure fresh calculations
         if (forceRefresh) {
-          console.log('[EventContext] Clearing occurrence cache for force refresh');
           occurrenceCache.current.clear();
         }
         
@@ -325,42 +318,48 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
         
         // Use atomic update with a single setState call to prevent race conditions
         setEvents(prevEvents => {
-          let mergedEvents: Event[];
-          
           if (forceRefresh) {
-            // For force refresh, replace existing events with fresh data instead of filtering
-            console.log('[EventContext] Force refresh: replacing existing events with fresh data');
-            const eventMap = new Map(prevEvents.map(e => [e._id, e]));
             
-            // Replace existing events with fresh versions
-            fetchedEvents.forEach(freshEvent => {
-              if (freshEvent._id) {
-                eventMap.set(freshEvent._id, freshEvent);
-              }
-            });
+            // For a force refresh, we replace the cached data for the given range.
+            // The fetched events become the new source of truth.
+            const mergedEvents = fetchedEvents;
             
-            mergedEvents = Array.from(eventMap.values());
-          } else {
-            // Normal fetch: only add truly new events
-            const existingIds = new Set(prevEvents.map(e => e._id));
-            const existingOccurrenceIds = new Set(
-              prevEvents
-                .filter(e => e.isRecurringOccurrence)
-                .map(e => e._id)
-            );
+            // Reset the cached date ranges to only reflect the newly fetched range.
+            setCachedDateRanges([{ start: startDate, end: endDate }]);
             
-            const newEvents = fetchedEvents.filter(e => {
-              // Skip if we already have this exact event ID
-              if (existingIds.has(e._id)) return false;
-              
-              // For recurring occurrences, also check if we already have this specific occurrence
-              if (e.isRecurringOccurrence && existingOccurrenceIds.has(e._id)) return false;
-              
-              return true;
-            });
+            // Recalculate occurrences based on the fresh events and range.
+            const allOccurrences = expandEventsToOccurrences(mergedEvents, startDate, endDate, eventModifications);
             
-            mergedEvents = [...prevEvents, ...newEvents];
+            const uniqueOccurrences = allOccurrences
+              .filter((occurrence: EventOccurrence, index: number, array: EventOccurrence[]) => {
+                return index === array.findIndex(occ => occ.id === occurrence.id);
+              })
+              .sort((a: EventOccurrence, b: EventOccurrence) => a.date.getTime() - b.date.getTime());
+            
+            setEventOccurrences(uniqueOccurrences);
+            
+            return mergedEvents;
           }
+          
+          // Normal fetch: only add truly new events
+          const existingIds = new Set(prevEvents.map(e => e._id));
+          const existingOccurrenceIds = new Set(
+            prevEvents
+              .filter(e => e.isRecurringOccurrence)
+              .map(e => e._id)
+          );
+          
+          const newEvents = fetchedEvents.filter(e => {
+            // Skip if we already have this exact event ID
+            if (existingIds.has(e._id)) return false;
+            
+            // For recurring occurrences, also check if we already have this specific occurrence
+            if (e.isRecurringOccurrence && existingOccurrenceIds.has(e._id)) return false;
+            
+            return true;
+          });
+          
+          const mergedEvents = [...prevEvents, ...newEvents];
           
           // Update cached ranges and occurrences in the same update cycle
           setCachedDateRanges(prevRanges => {
@@ -449,7 +448,6 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
     setRefreshing(true);
     try {
       // IMPORTANT: Clear event subscriptions before refresh to prevent override of fresh data
-      console.log('[EventContext] Clearing event subscriptions before refresh to prevent data override');
       setEventsToUpdate(new Set());
       
       // Force refetch by bypassing cache check
@@ -494,7 +492,6 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
       cacheManager.clearEventFromCaches(eventId);
     }
     
-    console.log(`[EventContext] Invalidated event ${eventId} from cache and subscriptions`);
   }, [userId]);
 
   const getOccurrencesForDateFunc = useCallback((date: Date): EventOccurrence[] => {
@@ -564,7 +561,6 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
         const validEventIds = Array.from(eventsToUpdate).filter(eventId => {
           const isValid = isValidBaseEventId(eventId);
           if (!isValid) {
-            console.warn(`[EventContext] Filtering out invalid occurrence ID: ${eventId}`);
             // Remove invalid ID from subscriptions
             setEventsToUpdate(prev => {
               const newSet = new Set(prev);
@@ -593,7 +589,6 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
               });
               
               if (!currentUserIsAttendee) {
-                console.warn(`[EventContext] Filtering out event ${eventId} - user is not an attendee`);
                 // Remove this event from future updates since user is no longer invited
                 setEventsToUpdate(prev => {
                   const newSet = new Set(prev);

@@ -13,7 +13,7 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
-import { useViewEventModal } from '../../app/(auth)/viewEvent/[event_id]';
+import { useViewEventModal } from '@/context/ViewEventModalContext';
 import DefaultProfilePicture from '../DefaultProfilePicture';
 import { useEventInvitation } from '@/hooks/useEventInvitation';
 import { useEventContext } from '@/context/UserSessionContext';

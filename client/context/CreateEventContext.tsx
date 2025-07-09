@@ -53,6 +53,9 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [attendees, setAttendees] = useState<EventAttendee[]>([]);
   const [visibility, setVisibility] = useState<string>('private');
 
+  // Add state for original recurrence status
+  const [originalRecurrenceChecked, setOriginalRecurrenceChecked] = useState<boolean>(false);
+
   // Form state
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [loading, setLoading] = useState<boolean>(false);
@@ -84,6 +87,8 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
     });
     setAttendees(eventToEdit.attendees || []);
     setVisibility(eventToEdit.visibility || 'private');
+    // Track original recurrence status
+    setOriginalRecurrenceChecked(eventToEdit.recurrence?.checked ?? false);
     setIsEditMode(true);
     setEventId(eventToEdit._id || null);
   };
@@ -248,6 +253,7 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setError(null);
     setIsEditMode(false);
     setEventId(null);
+    setOriginalRecurrenceChecked(false); // Reset original recurrence status
   };
 
   // Compile event data
@@ -320,6 +326,7 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
     visibility,
     isEditMode,
     eventId,
+    originalRecurrenceChecked,
     
     // Form state
     validationErrors,

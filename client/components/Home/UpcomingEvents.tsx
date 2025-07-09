@@ -20,8 +20,6 @@ const UpcomingEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => voi
   const [localEventsList, setLocalEventsList] = useState<Event[]>(myEventsList || []);
   const router = useRouter();
   const { refreshing: contextRefreshing } = useEventContext();
-  console.log('myEventsList', myEventsList);
-  console.log('localEventsList', localEventsList);
 
   const navigateToCalendar = React.useCallback(() => {
     router.push('/(auth)/(tabs)/calendar')
