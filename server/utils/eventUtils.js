@@ -3,6 +3,12 @@ const User = require('../database/schemas/usersSchema');
 const Events = require('../database/schemas/eventsSchema');
 const { createEventUpdateNotification } = require('../controllers/notificationsController');
 
+// Global helper: build a stable occurrence ID (baseId-yyyy-MM-dd)
+const buildOccurrenceId = (baseId, date) => {
+  const yyyyMmDd = date.toISOString().split('T')[0];
+  return `${baseId}-${yyyyMmDd}`;
+};
+
 /**
  * Get user's filtered event lists (reported, not interested, friends)
  * @param {string} userId - User ID
@@ -159,7 +165,7 @@ const generateRecurringOccurrences = (event, startRange, endRange) => {
       ...(event.toObject ? event.toObject() : event),
       start_time: occurrenceDate,
       end_time: occurrenceEndTime,
-      _id: `${event._id}-${occurrenceDate.toISOString()}`,
+      _id: buildOccurrenceId(event._id, occurrenceDate),
       originalEventId: event._id,
       isRecurringOccurrence: true,
       userStatus: event.userStatus // Preserve userStatus if it exists
@@ -199,8 +205,19 @@ const processEventsWithRecurrence = (events, startRange = null, endRange = null,
                        event.recurrence?.frequency !== 'none';
 
     if (isRecurring) {
-      const occurrences = generateRecurringOccurrences(event, start, end);
-      processedEvents.push(...occurrences);
+      // To catch live recurring events, we generate occurrences from a recent past date
+      // and then filter to keep only those that haven't ended yet.
+      // We look back 7 days to reasonably catch events that might still be ongoing.
+      const lookBehindStartDate = new Date(start.getTime() - 7 * 24 * 60 * 60 * 1000);
+      
+      const allPossibleOccurrences = generateRecurringOccurrences(event, lookBehindStartDate, end);
+      
+      const upcomingAndLiveOccurrences = allPossibleOccurrences.filter(occurrence => {
+        const occurrenceEnd = new Date(occurrence.end_time);
+        return occurrenceEnd >= start;
+      });
+      
+      processedEvents.push(...upcomingAndLiveOccurrences);
     } else {
       // For non-recurring events, check if they haven't ended
       const eventEnd = new Date(event.end_time);
@@ -950,7 +967,7 @@ const processEventsWithRecurrenceEnhanced = (events, startDate, endDate, include
             ...event,
             start_time: occurrenceDate,
             end_time: occurrenceEndTime,
-            _id: `${event._id}-${occurrenceDate.toISOString()}`,
+            _id: buildOccurrenceId(event._id, occurrenceDate),
             originalEventId: event._id,
             isRecurringOccurrence: true
           };
@@ -1071,14 +1088,64 @@ const createSeparateOccurrenceEvent = async (originalEvent, occurrenceDate, modi
 const splitRecurringEvent = async (originalEvent, splitDate, modifications = {}) => {
   const splitStartDate = new Date(splitDate);
   
+  // Preserve original recurrence before making any modifications so we can
+  // safely reuse it for the future event. Clone to avoid shared references.
+  const originalRecurrenceClone = originalEvent.recurrence
+    ? { ...originalEvent.recurrence }
+    : { checked: false, frequency: 'none', end_date: null };
+
   // Update the original event's end date to the day before split
   const dayBefore = new Date(splitStartDate);
   dayBefore.setDate(dayBefore.getDate() - 1);
   
   originalEvent.recurrence.end_date = dayBefore;
+  // After truncating the series, determine if the ORIGINAL event now has only
+  // a single occurrence left. If so, convert it to a non-recurring event so
+  // the client will treat it correctly.
+  if (originalEvent.recurrence?.checked) {
+    try {
+      const until = dayBefore;
+      const rruleOriginal = new RRule({
+        freq: getFrequencyMapping(originalEvent.recurrence.frequency),
+        dtstart: new Date(originalEvent.start_time),
+        until
+      });
+      const secondOccurrenceOriginal = rruleOriginal.after(new Date(originalEvent.start_time), false);
+      if (!secondOccurrenceOriginal) {
+        originalEvent.recurrence = { checked: false, frequency: 'none', end_date: null };
+      }
+    } catch (err) {
+      console.warn('splitRecurringEvent: failed original recurrence check', err);
+    }
+  }
+
   await originalEvent.save();
-  
+   
   // Create new recurring event for future occurrences
+  // Determine if only one occurrence remains after the split in the FUTURE
+  // side of the series. Use the preserved clone first, then any modifications.
+  let futureRecurrence = modifications.recurrence || { ...originalRecurrenceClone };
+
+  if (futureRecurrence?.checked) {
+    try {
+      const until = futureRecurrence.end_date 
+        ? new Date(futureRecurrence.end_date)
+        : splitStartDate;
+      const rrule = new RRule({
+        freq: getFrequencyMapping(futureRecurrence.frequency),
+        dtstart: splitStartDate,
+        until
+      });
+      const secondOccurrence = rrule.after(splitStartDate, false);
+      if (!secondOccurrence) {
+        // Only one instance from now on – make it non-recurring
+        futureRecurrence = { checked: false, frequency: 'none', end_date: null };
+      }
+    } catch (err) {
+      console.warn('splitRecurringEvent: failed recurrence check', err);
+    }
+  }
+
   const futureEventData = {
     creator: originalEvent.creator,
     event_picture: modifications.event_picture || originalEvent.event_picture,
@@ -1089,7 +1156,7 @@ const splitRecurringEvent = async (originalEvent, splitDate, modifications = {})
     start_time: splitStartDate,
     end_time: modifications.end_time || originalEvent.end_time,
     capacity: modifications.capacity !== undefined ? modifications.capacity : originalEvent.capacity,
-    recurrence: modifications.recurrence || originalEvent.recurrence,
+    recurrence: futureRecurrence,
     attendees: modifications.attendees || originalEvent.attendees,
     visibility: modifications.visibility || originalEvent.visibility,
     excludedDates: originalEvent.excludedDates ? [...originalEvent.excludedDates] : [],
@@ -1523,7 +1590,7 @@ const findNextRecurringOccurrence = (event, fromDate = new Date()) => {
       ...(event.toObject ? event.toObject() : event),
       start_time: nextAfterExcluded,
       end_time: occurrenceEndTime,
-      _id: `${event._id}-${nextAfterExcluded.toISOString()}`,
+      _id: buildOccurrenceId(event._id, nextAfterExcluded),
       originalEventId: event._id,
       isRecurringOccurrence: true,
       userStatus: event.userStatus // Preserve userStatus if it exists
@@ -1538,7 +1605,7 @@ const findNextRecurringOccurrence = (event, fromDate = new Date()) => {
     ...(event.toObject ? event.toObject() : event),
     start_time: nextOccurrenceDate,
     end_time: occurrenceEndTime,
-    _id: `${event._id}-${nextOccurrenceDate.toISOString()}`,
+    _id: buildOccurrenceId(event._id, nextOccurrenceDate),
     originalEventId: event._id,
     isRecurringOccurrence: true,
     userStatus: event.userStatus // Preserve userStatus if it exists

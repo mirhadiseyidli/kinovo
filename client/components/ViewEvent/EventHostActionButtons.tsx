@@ -5,7 +5,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { ContextMenu, Submenu } from '@expo/ui/swift-ui';
 import { Button } from '@expo/ui/swift-ui';
-import { useViewEventModal } from '../../app/(auth)/viewEvent/[event_id]';
+import { useViewEventModal } from '@/context/ViewEventModalContext';
 
 type Props = {
   onInvite?: () => void;

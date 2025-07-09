@@ -142,6 +142,8 @@ const WeekGrid: React.FC<WeekGridProps> = ({ hours, weekDates, gridRef, loading,
     // Get memoized styles
     const { backgroundColor, borderColor, borderWidth, opacity, textStyle } = getEventStyles(occurrence.event.userStatus);
     
+    const isPast = new Date(occurrence.event.end_time) < new Date();
+
     return (
       <TouchableOpacity
         key={`${occurrence.id}-${eventIndex}`}
@@ -158,7 +160,7 @@ const WeekGrid: React.FC<WeekGridProps> = ({ hours, weekDates, gridRef, loading,
           borderRadius: 4,
           padding: 4,
           zIndex: 10,
-          opacity: opacity,
+          opacity: isPast ? 0.4 : opacity,
           overflow: 'hidden',
         }}
       >

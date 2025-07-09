@@ -22,6 +22,7 @@ import Animated, {
 import { shareContent } from '@/utils/shareUtils';
 import { Feather } from '@expo/vector-icons';
 import { useEventContext } from '@/context/UserSessionContext';
+import { ViewEventModalContext } from '@/context/ViewEventModalContext';
 
 type ViewEventModalType = 
   | 'report_confirm' 
@@ -43,22 +44,6 @@ interface ViewEventModalState {
   type: ViewEventModalType | null;
   data?: any;
 }
-
-interface ViewEventModalContextType {
-  showModal: (type: ViewEventModalType, data?: any) => void;
-  hideModal: () => void;
-  isModalActive: boolean;
-}
-
-const ViewEventModalContext = createContext<ViewEventModalContextType | null>(null);
-
-export const useViewEventModal = () => {
-  const context = useContext(ViewEventModalContext);
-  if (!context) {
-    throw new Error('useViewEventModal must be used within ViewEventModalProvider');
-  }
-  return context;
-};
 
 const ViewEventModalProvider: React.FC<{ children: React.ReactNode; event: any }> = ({ children, event }) => {
   const [modalState, setModalState] = useState<ViewEventModalState>({ type: null });
@@ -235,14 +220,8 @@ const ViewEventModalProvider: React.FC<{ children: React.ReactNode; event: any }
     }
   }, [modalState, hideModal, showModal, router]);
 
-  const contextValue: ViewEventModalContextType = {
-    showModal,
-    hideModal,
-    isModalActive: modalState.type !== null,
-  };
-
   return (
-    <ViewEventModalContext.Provider value={contextValue}>
+    <ViewEventModalContext.Provider value={{ showModal, hideModal, isModalActive: !!modalState.type }}>
       {children}
     </ViewEventModalContext.Provider>
   );

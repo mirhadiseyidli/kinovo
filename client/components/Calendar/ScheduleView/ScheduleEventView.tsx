@@ -10,6 +10,7 @@ import { EventOccurrence } from '@/utils/eventUtils';
 type ScheduleEventViewProps = {
   title: string;
   time: string;
+  endTime: Date;
   location?: string;
   userStatus?: 'pending' | 'maybe' | 'accepted' | 'rejected';
   eventOccurrence?: EventOccurrence;
@@ -18,6 +19,7 @@ type ScheduleEventViewProps = {
 const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({ 
   title, 
   time, 
+  endTime,
   location,
   userStatus = 'accepted',
   eventOccurrence
@@ -136,6 +138,8 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
     return name.length > maxLength ? name.slice(0, maxLength) + '...' : name;
   };
 
+  const isPast = endTime < new Date();
+
   return (
     <TouchableOpacity onPress={handleEventPress}>
       <View
@@ -148,6 +152,7 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
           overflow: 'hidden',
           position: 'relative',
           backgroundColor: themeColors.eventCardBackgroundColor,
+          opacity: isPast ? 0.5 : 1,
         }}
       >
         <View style={{ flex: 1 }}>

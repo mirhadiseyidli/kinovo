@@ -870,6 +870,7 @@ export interface CreateEventContextType {
   visibility: string;
   isEditMode: boolean;
   eventId: string | null;
+  originalRecurrenceChecked: boolean;
   
   // Form state
   validationErrors: ValidationErrors;

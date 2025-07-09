@@ -116,6 +116,8 @@ const DayCell: React.FC<DayCellProps> = ({
       <View style={{ width: '100%', paddingHorizontal: 2 }}>
         {dayOccurrences.map((occurrence, index) => {
           const eventStyle = getEventStyle(occurrence.event.userStatus);
+          const isPast = new Date(occurrence.event.end_time!) < new Date();
+          
           return (
             <View
               key={occurrence.id}
@@ -129,6 +131,7 @@ const DayCell: React.FC<DayCellProps> = ({
                 borderColor: eventStyle.borderColor,
                 borderWidth: 1,
                 justifyContent: 'center',
+                opacity: isPast ? 0.5 : 1,
               }}
             >
               <Text
