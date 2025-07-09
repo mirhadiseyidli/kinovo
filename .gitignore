@@ -53,9 +53,10 @@
 *credentials*
 
 # Nginx
-*nginx.conf
-*/nginx.conf
 *nginx.conf*
+*/nginx.conf*
+*nginx.conf*
+*/server/nginx.conf*
 
 # Test plist
 *test 
