@@ -146,7 +146,7 @@ export default function FriendListUserItem({
         return (
           <TouchableOpacity
             style={{
-              backgroundColor: themeColors.inputBackgroundColor,
+              backgroundColor: themeColors.mountainGreen,
               paddingHorizontal: 12,
               paddingVertical: 6,
               borderRadius: 8,

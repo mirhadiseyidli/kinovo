@@ -20,6 +20,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 
 import '@/utils/backgroundNotificationHandler';
 import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
+import { BannerProvider } from '@/context/BannerContext';
 
 // Configure how notifications are handled when the app is in the foreground
 Notifications.setNotificationHandler({
@@ -103,7 +104,7 @@ function InnerLayout() {
     height: "100%"
   }), [logoFadeAnim]);
 
-  return !appIsReady ? (
+  const innerContent = !appIsReady ? (
     <ThemedView
       style={{
         flex: 1,
@@ -122,5 +123,11 @@ function InnerLayout() {
         {!isLoading && accessToken?.current && isFirebaseInitialized && <UserPresence />}
         <Slot />
     </ThemedView>
+  );
+
+  return (
+    <BannerProvider>
+      {innerContent}
+    </BannerProvider>
   );
 }

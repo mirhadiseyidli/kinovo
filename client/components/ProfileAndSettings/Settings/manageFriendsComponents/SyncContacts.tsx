@@ -11,6 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
 import { useManageFriends } from '@/hooks/useManageFriends';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { useInviteContact } from '@/hooks/useInviteContact';
 
 interface ContactSyncScreenProps {
   parentRefreshing?: boolean;
@@ -28,6 +29,7 @@ const ContactSyncScreen = forwardRef<ContactSyncScreenRef, ContactSyncScreenProp
     const colorScheme = useColorScheme();
     const themeColors = Colors[colorScheme ?? 'dark'];
     const { syncContacts } = useManageFriends();
+    const { invite, loading: inviteLoading } = useInviteContact();
 
     const checkPermission = async () => {
       const { status } = await Contacts.getPermissionsAsync();
@@ -207,7 +209,7 @@ const ContactSyncScreen = forwardRef<ContactSyncScreenRef, ContactSyncScreenProp
                     subtitle={user.phone_number}
                     avatarUri={user.profile_picture}
                     status={user.status}
-                    onInvite={() => console.log(`Invite sent to ${user.full_name}`)}
+                    onInvite={() => invite(user.phone_number)}
                   />
                 ))}
               </View>
