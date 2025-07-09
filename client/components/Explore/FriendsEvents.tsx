@@ -90,7 +90,7 @@ const FriendsEvents: React.FC<FriendsEventsProps> = React.memo(({ refreshing, on
           <View style={{ gap: 16 }}>
             {friendsEvents.slice(0, 3).map((event, index) => (
                 <View key={`${event._id}-${index}`}>
-                <EventComponent event={event} loading={refreshing || loading}/>
+                  <EventComponent event={event} loading={refreshing || loading}/>
                 </View>
             ))}
           </View>

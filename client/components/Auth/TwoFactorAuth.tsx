@@ -24,7 +24,9 @@ const TwoFactorAuth: React.FC<TwoFactorAuthProps> = ({
 }) => {
   const [confirmation, setConfirmation] = useState<FirebaseAuthTypes.ConfirmationResult | null>(null);
   const [verificationCode, setVerificationCode] = useState(['', '', '', '', '', '']);
+  const [fullCode, setFullCode] = useState('');
   const inputRefs = useRef<TextInput[]>([]);
+  const hiddenInputRef = useRef<TextInput>(null);
   const [loading, setLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(60);
   const colorScheme = useColorScheme();
@@ -69,6 +71,25 @@ const TwoFactorAuth: React.FC<TwoFactorAuthProps> = ({
     }
   };
 
+  // Handle input from the hidden input (for iOS autofill)
+  const handleHiddenInputChange = (text: string) => {
+    // Only allow numbers and limit to 6 digits
+    const numericText = text.replace(/\D/g, '').slice(0, 6);
+    setFullCode(numericText);
+    
+    // Split into individual digits for display
+    const digits = numericText.split('');
+    const newCode = Array(6).fill('').map((_, index) => digits[index] || '');
+    setVerificationCode(newCode);
+    
+    // Auto-verify if we have 6 digits
+    if (numericText.length === 6) {
+      setTimeout(() => {
+        verifyCodeWithInput(numericText);
+      }, 100);
+    }
+  };
+
   const handleCodeChange = (text: string, index: number) => {
     // Only allow numbers
     if (!/^\d*$/.test(text)) return;
@@ -76,6 +97,10 @@ const TwoFactorAuth: React.FC<TwoFactorAuthProps> = ({
     const newCode = [...verificationCode];
     newCode[index] = text;
     setVerificationCode(newCode);
+    
+    // Update the hidden input as well
+    const newFullCode = newCode.join('');
+    setFullCode(newFullCode);
 
     // Auto-advance to next field
     if (text.length === 1 && index < 5) {
@@ -90,13 +115,18 @@ const TwoFactorAuth: React.FC<TwoFactorAuthProps> = ({
         const newCode = [...verificationCode];
         newCode[index - 1] = '';
         setVerificationCode(newCode);
+        setFullCode(newCode.join(''));
         inputRefs.current[index - 1]?.focus();
       }
     }
   };
 
-  const handleVerifyCode = async () => {
-    const code = verificationCode.join('');
+  const handleInputFocus = (index: number) => {
+    // When any visible input is focused, also focus the hidden input
+    hiddenInputRef.current?.focus();
+  };
+
+  const verifyCodeWithInput = async (code: string) => {
     if (!code || code.length !== 6) {
       Alert.alert('Error', 'Please enter a valid 6-digit verification code');
       return;
@@ -138,6 +168,11 @@ const TwoFactorAuth: React.FC<TwoFactorAuthProps> = ({
     }
   };
 
+  const handleVerifyCode = async () => {
+    const code = verificationCode.join('');
+    await verifyCodeWithInput(code);
+  };
+
   const handleResendCode = async () => {
     if (resendTimer > 0) return;
     await sendVerificationCode();
@@ -154,6 +189,25 @@ const TwoFactorAuth: React.FC<TwoFactorAuthProps> = ({
           Enter the 6-digit code sent to {phoneNumber}
         </ThemedText>
 
+        {/* Hidden input for iOS autofill */}
+        <TextInput
+          ref={hiddenInputRef}
+          style={{
+            position: 'absolute',
+            left: -9999,
+            opacity: 0,
+            height: 0,
+            width: 0
+          }}
+          value={fullCode}
+          onChangeText={handleHiddenInputChange}
+          keyboardType="number-pad"
+          textContentType="oneTimeCode"
+          autoComplete="sms-otp"
+          maxLength={6}
+          autoFocus={true}
+        />
+
         <ThemedView style={{ 
           flexDirection: 'row', 
           justifyContent: 'space-between', 
@@ -161,31 +215,44 @@ const TwoFactorAuth: React.FC<TwoFactorAuthProps> = ({
           width: '100%'
         }}>
           {verificationCode.map((digit, index) => (
-            <TextInput
+            <TouchableOpacity
               key={index}
-              ref={ref => {
-                if (ref) {
-                  inputRefs.current[index] = ref;
-                }
-              }}
+              onPress={() => handleInputFocus(index)}
               style={{
                 width: 45,
                 height: 52,
                 backgroundColor: themeColors.inputBackgroundColor,
                 borderRadius: 8,
-                fontSize: 24,
-                textAlign: 'center',
-                color: themeColors.text,
                 borderWidth: 1,
-                borderColor: digit ? themeColors.mountainGreen : 'transparent'
+                borderColor: digit ? themeColors.mountainGreen : 'transparent',
+                justifyContent: 'center',
+                alignItems: 'center'
               }}
-              keyboardType="number-pad"
-              maxLength={1}
-              value={digit}
-              onChangeText={(text) => handleCodeChange(text, index)}
-              onKeyPress={(e) => handleKeyPress(e, index)}
-              selectTextOnFocus={true}
-            />
+            >
+              <TextInput
+                ref={ref => {
+                  if (ref) {
+                    inputRefs.current[index] = ref;
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  fontSize: 24,
+                  textAlign: 'center',
+                  color: themeColors.text,
+                  backgroundColor: 'transparent'
+                }}
+                keyboardType="number-pad"
+                maxLength={1}
+                value={digit}
+                onChangeText={(text) => handleCodeChange(text, index)}
+                onKeyPress={(e) => handleKeyPress(e, index)}
+                onFocus={() => handleInputFocus(index)}
+                selectTextOnFocus={true}
+                editable={!loading}
+              />
+            </TouchableOpacity>
           ))}
         </ThemedView>
 

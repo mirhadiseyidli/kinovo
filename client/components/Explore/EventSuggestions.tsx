@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { View, TouchableOpacity } from 'react-native';
 import Event from '@/components/Event';
 import { ThemedText } from '@/components/ThemedText';
@@ -35,16 +35,14 @@ const EventSuggestions: React.FC<EventSuggestionsProps> = ({ refreshing, onFinis
     onFinishRefresh();
   };
 
-  useEffect(() => {
-    if (refreshing) {
-      fetchEvents();
-    }
-  }, [refreshing]);
-
-  // Auto-recovery when screen comes into focus (for server reconnection scenarios)
+  // Auto-recovery when screen comes into focus and initial fetch
   useFocusEffect(
     React.useCallback(() => {
       if (refreshing) {
+        // Force refresh when pull-to-refresh is triggered
+        fetchEvents();
+      } else {
+        // Initial fetch on focus or mount (will use cache if available)
         fetchEvents();
       }
     }, [refreshing])

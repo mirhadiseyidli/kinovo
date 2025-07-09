@@ -230,25 +230,99 @@ const processEventsWithRecurrence = (events, startRange = null, endRange = null,
  */
 const enrichEventsWithUserData = (events, userId, friends = []) => {
   return events.map(event => {
-    const userAttendee = event.attendees?.find(att => 
-      att.user._id ? att.user._id.toString() === userId.toString() 
-                   : att.user.toString() === userId.toString()
-    );
-    
-    const creatorId = event.creator._id ? event.creator._id.toString() : event.creator.toString();
-    const isCreator = creatorId === userId.toString();
-    const isFriendEvent = friends.some(friendId => 
-      friendId.toString() === creatorId
-    );
+    try {
+      // Defensive check for event structure
+      if (!event || !userId) {
+        console.warn('Invalid event or userId in enrichEventsWithUserData:', { eventId: event?._id, userId });
+        return {
+          ...event,
+          isUserAttending: false,
+          isUserInvited: false,
+          isUserCreator: false,
+          isFriendEvent: false,
+          userStatus: null
+        };
+      }
 
-    return {
-      ...event,
-      isUserAttending: !!userAttendee,
-      isUserInvited: !!userAttendee,
-      isUserCreator: isCreator,
-      isFriendEvent: isFriendEvent,
-      userStatus: userAttendee?.status || null
-    };
+      // Ensure we're working with a plain object (convert Mongoose doc if needed)
+      const eventObj = event.toObject ? event.toObject() : event;
+
+      // Safe attendee lookup with comprehensive null checks
+      const userAttendee = eventObj.attendees?.find(att => {
+        // Check if attendee and user exist
+        if (!att || !att.user) {
+          return false;
+        }
+        
+        try {
+          // Handle both populated and non-populated user references
+          const attendeeUserId = att.user._id?.toString() || att.user.toString?.();
+          return attendeeUserId === userId.toString();
+        } catch (err) {
+          console.warn('Error processing attendee in enrichEventsWithUserData:', { 
+            eventId: eventObj._id, 
+            attendeeUser: att.user,
+            error: err.message 
+          });
+          return false;
+        }
+      });
+      
+      // Safe creator lookup with null checks
+      let creatorId = '';
+      let isCreator = false;
+      
+      if (eventObj.creator) {
+        try {
+          creatorId = eventObj.creator._id?.toString() || eventObj.creator.toString?.() || '';
+          isCreator = creatorId === userId.toString();
+        } catch (err) {
+          console.warn('Error processing creator in enrichEventsWithUserData:', { 
+            eventId: eventObj._id, 
+            creator: eventObj.creator,
+            error: err.message 
+          });
+        }
+      }
+      
+      // Safe friends check
+      const isFriendEvent = friends.some(friendId => {
+        try {
+          return friendId.toString() === creatorId;
+        } catch (err) {
+          return false;
+        }
+      });
+
+      return {
+        ...eventObj,
+        isUserAttending: !!userAttendee,
+        isUserInvited: !!userAttendee,
+        isUserCreator: isCreator,
+        isFriendEvent: isFriendEvent,
+        userStatus: userAttendee?.status || null
+      };
+      
+    } catch (error) {
+      // Catch-all error handler to prevent crashes
+      console.error('Error in enrichEventsWithUserData:', {
+        error: error.message,
+        eventId: event?._id,
+        userId,
+        stack: error.stack
+      });
+      
+      // Convert to plain object for safety and return with defaults
+      const eventObj = event?.toObject ? event.toObject() : event || {};
+      return {
+        ...eventObj,
+        isUserAttending: false,
+        isUserInvited: false,
+        isUserCreator: false,
+        isFriendEvent: false,
+        userStatus: null
+      };
+    }
   });
 };
 
@@ -1355,6 +1429,122 @@ const generateRecurringEventDates = (startDate, endDate, frequency) => {
   return occurrences;
 };
 
+/**
+ * Process events for discovery pages - shows only the next upcoming occurrence of recurring events
+ * @param {Array} events - Array of events
+ * @param {Object} options - Processing options
+ * @returns {Array} Processed events with only next occurrence for recurring events
+ */
+const processEventsForDiscovery = (events, options = {}) => {
+  const now = new Date();
+  const { excludeUserAttending = false, userId = null } = options;
+  
+  const processedEvents = [];
+
+  for (const event of events) {
+    // Skip if user is attending and we want to exclude those
+    if (excludeUserAttending && userId) {
+      const isUserAttending = event.attendees?.some(a => a.user.toString() === userId.toString());
+      if (isUserAttending) continue;
+    }
+
+    const isRecurring = event.recurrence?.checked &&
+                       event.recurrence?.frequency &&
+                       event.recurrence?.frequency !== 'none';
+
+    if (isRecurring) {
+      // For recurring events, find only the NEXT upcoming occurrence
+      const nextOccurrence = findNextRecurringOccurrence(event, now);
+      if (nextOccurrence) {
+        processedEvents.push(nextOccurrence);
+      }
+    } else {
+      // For non-recurring events, include if they're in the future
+      const eventEnd = new Date(event.end_time);
+      if (eventEnd >= now) {
+        const eventObj = event.toObject ? event.toObject() : event;
+        processedEvents.push({
+          ...eventObj,
+          isRecurringOccurrence: false,
+          userStatus: event.userStatus // Preserve userStatus if it exists
+        });
+      }
+    }
+  }
+
+  // Sort events by start time
+  processedEvents.sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+
+  return processedEvents;
+};
+
+/**
+ * Find the next upcoming occurrence of a recurring event
+ * @param {Object} event - The recurring event
+ * @param {Date} fromDate - Date to search from (default: now)
+ * @returns {Object|null} Next occurrence or null if none found
+ */
+const findNextRecurringOccurrence = (event, fromDate = new Date()) => {
+  const eventStartTime = new Date(event.start_time);
+  const eventEndTime = new Date(event.end_time);
+  const recurrenceEndDate = event.recurrence.end_date 
+    ? new Date(event.recurrence.end_date) 
+    : new Date(fromDate.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year from now
+
+  // If recurrence has already ended, return null
+  if (recurrenceEndDate < fromDate) return null;
+
+  // Generate occurrences using RRule
+  const ruleOptions = {
+    freq: getFrequencyMapping(event.recurrence.frequency),
+    dtstart: eventStartTime,
+    until: recurrenceEndDate
+  };
+
+  const rule = new RRule(ruleOptions);
+  
+  // Get the next occurrence after fromDate
+  const nextOccurrenceDate = rule.after(fromDate, false); // false = exclude fromDate itself
+  
+  if (!nextOccurrenceDate) return null;
+
+  // Check if this date is excluded
+  if (isDateExcluded(nextOccurrenceDate, event.excludedDates)) {
+    // If excluded, find the next one after this
+    const nextAfterExcluded = rule.after(nextOccurrenceDate, false);
+    if (!nextAfterExcluded || isDateExcluded(nextAfterExcluded, event.excludedDates)) {
+      return null; // Could implement recursive check, but for discovery this should suffice
+    }
+    // Use the next occurrence after the excluded one
+    const eventDuration = eventEndTime.getTime() - eventStartTime.getTime();
+    const occurrenceEndTime = new Date(nextAfterExcluded.getTime() + eventDuration);
+
+    return {
+      ...(event.toObject ? event.toObject() : event),
+      start_time: nextAfterExcluded,
+      end_time: occurrenceEndTime,
+      _id: `${event._id}-${nextAfterExcluded.toISOString()}`,
+      originalEventId: event._id,
+      isRecurringOccurrence: true,
+      userStatus: event.userStatus // Preserve userStatus if it exists
+    };
+  }
+
+  // Calculate end time for this occurrence
+  const eventDuration = eventEndTime.getTime() - eventStartTime.getTime();
+  const occurrenceEndTime = new Date(nextOccurrenceDate.getTime() + eventDuration);
+
+  return {
+    ...(event.toObject ? event.toObject() : event),
+    start_time: nextOccurrenceDate,
+    end_time: occurrenceEndTime,
+    _id: `${event._id}-${nextOccurrenceDate.toISOString()}`,
+    originalEventId: event._id,
+    isRecurringOccurrence: true,
+    userStatus: event.userStatus // Preserve userStatus if it exists
+  };
+};
+
 // =============================================================================
 // EXPORTS
 // =============================================================================
@@ -1410,5 +1600,7 @@ module.exports = {
   calculateEventsDistance,
   findUsersWithinDistance,
   findUsersWithin50Miles,
-  generateRecurringEventDates
+  generateRecurringEventDates,
+  processEventsForDiscovery,
+  findNextRecurringOccurrence
 }; 

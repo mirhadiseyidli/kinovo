@@ -59,6 +59,7 @@ interface EventContextType {
   // Cache operations
   clearCache: () => void;
   isDateRangeCached: (startDate: Date, endDate: Date) => boolean;
+  invalidateEvent: (eventId: string) => void;
 
   // New operations for event updates
   setEvents: React.Dispatch<React.SetStateAction<Event[]>>;
@@ -150,7 +151,31 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
   // Load cached modifications on mount
   useEffect(() => {
     loadCachedModifications();
+    // SECURITY: Clean up any existing cached events where user is not an attendee
+    cleanupNonAttendeeEvents();
   }, []);
+
+  // SECURITY: Remove any cached events where current user is not an attendee
+  const cleanupNonAttendeeEvents = useCallback(() => {
+    if (!userId) return;
+    
+    setEvents(prevEvents => {
+      const validEvents = prevEvents.filter(event => {
+        if (!event.attendees) return false;
+        
+        return event.attendees.some((attendee: { user: any; status: string }) => {
+          const attendeeId = attendee.user._id || attendee.user;
+          return attendeeId.toString() === userId.toString();
+        });
+      });
+      
+      if (validEvents.length !== prevEvents.length) {
+        console.log(`[EventContext] Cleaned up ${prevEvents.length - validEvents.length} non-attendee events from cache`);
+      }
+      
+      return validEvents;
+    });
+  }, [userId]);
 
   const loadCachedModifications = async () => {
     try {
@@ -175,13 +200,33 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
     }
   };
 
-  const fetchEventsFromAPI = async (startDate: Date, endDate: Date): Promise<Event[]> => {
+  const fetchEventsFromAPI = async (startDate: Date, endDate: Date, forceRefresh: boolean = false): Promise<Event[]> => {
     try {
-      const response = await api.get(
-        `/api/manageevents/eventslist/get/my/events/range?start=${format(startDate, 'yyyy-MM-dd')}&end=${format(endDate, 'yyyy-MM-dd')}`
-      );
+      // Add cache busting parameter for force refresh
+      const cacheParam = forceRefresh ? `&_t=${Date.now()}` : '';
+      const url = `/api/manageevents/eventslist/get/my/events/range?start=${format(startDate, 'yyyy-MM-dd')}&end=${format(endDate, 'yyyy-MM-dd')}${cacheParam}`;
+      
+      console.log(`[EventContext] Fetching events from API (forceRefresh: ${forceRefresh}):`, url);
+      
+      const response = await api.get(url);
 
-      return response.data.events || [];
+      const events = response.data.events || [];
+      
+      console.log(`[EventContext] Received ${events.length} events from API`);
+      
+      // SECURITY: Extra validation to ensure only events where user is an attendee are cached
+      const filteredEvents = events.filter((event: Event) => {
+        if (!event.attendees || !userId) return false;
+        
+        return event.attendees.some((attendee: { user: any; status: string }) => {
+          const attendeeId = attendee.user._id || attendee.user;
+          return attendeeId.toString() === userId.toString();
+        });
+      });
+      
+      console.log(`[EventContext] After filtering: ${filteredEvents.length} events where user is attendee`);
+      
+      return filteredEvents;
     } catch (error) {
       console.error('Error fetching events:', error);
       return [];
@@ -270,28 +315,52 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
     const fetchOperation = async () => {
       setLoading(true);
       try {
-        const fetchedEvents = await fetchEventsFromAPI(startDate, endDate);
+        // Clear occurrence cache on force refresh to ensure fresh calculations
+        if (forceRefresh) {
+          console.log('[EventContext] Clearing occurrence cache for force refresh');
+          occurrenceCache.current.clear();
+        }
+        
+        const fetchedEvents = await fetchEventsFromAPI(startDate, endDate, forceRefresh);
         
         // Use atomic update with a single setState call to prevent race conditions
         setEvents(prevEvents => {
-          const existingIds = new Set(prevEvents.map(e => e._id));
-          const existingOccurrenceIds = new Set(
-            prevEvents
-              .filter(e => e.isRecurringOccurrence)
-              .map(e => e._id)
-          );
+          let mergedEvents: Event[];
           
-          const newEvents = fetchedEvents.filter(e => {
-            // Skip if we already have this exact event ID
-            if (existingIds.has(e._id)) return false;
+          if (forceRefresh) {
+            // For force refresh, replace existing events with fresh data instead of filtering
+            console.log('[EventContext] Force refresh: replacing existing events with fresh data');
+            const eventMap = new Map(prevEvents.map(e => [e._id, e]));
             
-            // For recurring occurrences, also check if we already have this specific occurrence
-            if (e.isRecurringOccurrence && existingOccurrenceIds.has(e._id)) return false;
+            // Replace existing events with fresh versions
+            fetchedEvents.forEach(freshEvent => {
+              if (freshEvent._id) {
+                eventMap.set(freshEvent._id, freshEvent);
+              }
+            });
             
-            return true;
-          });
-          
-          const mergedEvents = [...prevEvents, ...newEvents];
+            mergedEvents = Array.from(eventMap.values());
+          } else {
+            // Normal fetch: only add truly new events
+            const existingIds = new Set(prevEvents.map(e => e._id));
+            const existingOccurrenceIds = new Set(
+              prevEvents
+                .filter(e => e.isRecurringOccurrence)
+                .map(e => e._id)
+            );
+            
+            const newEvents = fetchedEvents.filter(e => {
+              // Skip if we already have this exact event ID
+              if (existingIds.has(e._id)) return false;
+              
+              // For recurring occurrences, also check if we already have this specific occurrence
+              if (e.isRecurringOccurrence && existingOccurrenceIds.has(e._id)) return false;
+              
+              return true;
+            });
+            
+            mergedEvents = [...prevEvents, ...newEvents];
+          }
           
           // Update cached ranges and occurrences in the same update cycle
           setCachedDateRanges(prevRanges => {
@@ -379,6 +448,10 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
   const refreshEvents = useCallback(async (date: Date, view: 'Month' | 'Week' | 'Schedule') => {
     setRefreshing(true);
     try {
+      // IMPORTANT: Clear event subscriptions before refresh to prevent override of fresh data
+      console.log('[EventContext] Clearing event subscriptions before refresh to prevent data override');
+      setEventsToUpdate(new Set());
+      
       // Force refetch by bypassing cache check
       if (view === 'Month') {
         const startDate = startOfMonth(new Date(date.getFullYear(), date.getMonth()));
@@ -406,6 +479,23 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
       setRefreshing(false);
     }
   }, [fetchEventsForDateRange]);
+
+  // Function to invalidate specific event from cache and subscriptions (called by response handlers)
+  const invalidateEvent = useCallback((eventId: string) => {
+    // Remove from subscriptions to prevent stale data override
+    setEventsToUpdate(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(eventId);
+      return newSet;
+    });
+    
+    // Clear the event from home screen caches
+    if (userId) {
+      cacheManager.clearEventFromCaches(eventId);
+    }
+    
+    console.log(`[EventContext] Invalidated event ${eventId} from cache and subscriptions`);
+  }, [userId]);
 
   const getOccurrencesForDateFunc = useCallback((date: Date): EventOccurrence[] => {
     return getOccurrencesForDate(eventOccurrences, date);
@@ -493,7 +583,28 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
         const updatePromises = validEventIds.map(async (eventId) => {
           try {
             const response = await api.get(`/api/manageevents/eventslist/event/get/event/by/id?_id=${eventId}`);
-            return response.data.found_event;
+            const updatedEvent = response.data.found_event;
+            
+            // SECURITY: Only cache events where current user is an attendee
+            if (updatedEvent && updatedEvent.attendees) {
+              const currentUserIsAttendee = updatedEvent.attendees.some((attendee: { user: any; status: string }) => {
+                const attendeeId = attendee.user._id || attendee.user;
+                return attendeeId.toString() === userId?.toString();
+              });
+              
+              if (!currentUserIsAttendee) {
+                console.warn(`[EventContext] Filtering out event ${eventId} - user is not an attendee`);
+                // Remove this event from future updates since user is no longer invited
+                setEventsToUpdate(prev => {
+                  const newSet = new Set(prev);
+                  newSet.delete(eventId);
+                  return newSet;
+                });
+                return null;
+              }
+            }
+            
+            return updatedEvent;
           } catch (error) {
             console.error(`Error fetching event ${eventId}:`, error);
             // Remove problematic event ID from future updates
@@ -573,7 +684,7 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
         clearInterval(intervalId);
       }
     };
-  }, [eventsToUpdate]); // Removed function dependencies to prevent excessive re-runs
+  }, [eventsToUpdate, userId]); // Added userId dependency for security check
 
   const subscribeToEventUpdates = useCallback((eventId: string) => {
     // Only subscribe to valid base event IDs
@@ -608,6 +719,7 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
     modifyRecurringEvent,
     clearCache,
     isDateRangeCached,
+    invalidateEvent,
     setEvents,
     setEventOccurrences,
     expandEventsToOccurrences,

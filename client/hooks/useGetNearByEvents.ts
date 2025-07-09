@@ -39,8 +39,43 @@ export const useGetNearByEvents = () => {
     }
   }, [hasDataBeenFetched]);
 
+  // New function to get only first 5 nearby events for carousel preview
+  const fetchNearByEventsPreview = useCallback(async (lat: number | null, lng: number | null, distance: number = 50) => {
+    if (!lat || !lng) return [];
+    
+    // If we have fetched data before, this is not a first fetch
+    if (hasDataBeenFetched) {
+      setIsFirstFetch(false);
+    }
+    
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await api.get(`/api/manageevents/eventslist/get/nearby/events?lat=${lat}&lng=${lng}&distance=${distance}`);
+      const events = response.data.events;
+      
+      // Return only first 5 events for preview
+      const previewEvents = events.slice(0, 5);
+      
+      // Ensure data is processed before setting loading to false
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      setIsFirstFetch(false); // First fetch completed
+      setHasDataBeenFetched(true);
+      return { events: previewEvents, totalCount: events.length };
+    } catch (error) {
+      const err = error as ApiError;
+      console.error('Failed to fetch nearby events preview:', err.message);
+      setError(err.message);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }, [hasDataBeenFetched]);
+
   return { 
     fetchNearByEvents, 
+    fetchNearByEventsPreview,
     refetchNearByEvents: fetchNearByEvents, 
     loading, 
     isFirstFetch,

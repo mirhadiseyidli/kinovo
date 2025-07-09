@@ -33,7 +33,7 @@ const EventDetailsSection: React.FC<EventProp> = ({ event }) => {
   const { showModal } = useViewEventModal();
 
   const { respondToInvitation, joinEvent, markNotInterested, cancelEvent: cancelEventApi } = useEventInvitation();
-  const { refreshEvents } = useEventContext();
+  const { refreshEvents, invalidateEvent } = useEventContext();
   const { accessToken, userId } = useAuthSession();
   const router = useRouter();
   const { occurrence_start, is_occurrence } = useLocalSearchParams();
@@ -83,6 +83,9 @@ const EventDetailsSection: React.FC<EventProp> = ({ event }) => {
       
       await respondToInvitation(event._id, status, Object.keys(requestOptions).length > 0 ? requestOptions : undefined);
       
+      // IMPORTANT: Invalidate event from subscriptions and cache to prevent data override
+      invalidateEvent(event._id);
+      
       // Update the event with new status and update across caches
       if (userId) {
         const eventWithNewStatus = {
@@ -92,12 +95,12 @@ const EventDetailsSection: React.FC<EventProp> = ({ event }) => {
         cacheManager.updateEventAcrossCaches(event._id, eventWithNewStatus, userId);
       }
       
-      // Refresh events to update calendar
+      // Refresh events to update calendar with fresh data
       await refreshEvents(event.start_time ? new Date(event.start_time) : new Date(), 'Month');
     } catch (error) {
       console.error('Failed to respond to invitation:', error);
     }
-  }, [event, respondToInvitation, refreshEvents, isRecurringOccurrence, occurrence_start, userId]);
+  }, [event, respondToInvitation, refreshEvents, invalidateEvent, isRecurringOccurrence, occurrence_start, userId]);
 
   const handleJoinEvent = useCallback(async (status: 'accepted' | 'maybe') => {
     if (!event._id) return;
@@ -105,6 +108,9 @@ const EventDetailsSection: React.FC<EventProp> = ({ event }) => {
     try {
       await joinEvent(event._id, status);
       
+      // IMPORTANT: Invalidate event from subscriptions and cache to prevent data override
+      invalidateEvent(event._id);
+      
       // Update the event with new status and update across caches
       if (userId) {
         const eventWithNewStatus = {
@@ -114,12 +120,12 @@ const EventDetailsSection: React.FC<EventProp> = ({ event }) => {
         cacheManager.updateEventAcrossCaches(event._id, eventWithNewStatus, userId);
       }
       
-      // Refresh events to update calendar
+      // Refresh events to update calendar with fresh data
       await refreshEvents(event.start_time ? new Date(event.start_time) : new Date(), 'Month');
     } catch (error) {
       console.error('Failed to join event:', error);
     }
-  }, [event, joinEvent, refreshEvents, userId]);
+  }, [event, joinEvent, refreshEvents, invalidateEvent, userId]);
 
   const handleStatusChange = useCallback((status: 'accepted' | 'maybe' | 'rejected') => {
     // Check if the user is invited to this event
@@ -147,6 +153,9 @@ const EventDetailsSection: React.FC<EventProp> = ({ event }) => {
     try {
       await markNotInterested(event._id);
       
+      // IMPORTANT: Invalidate event from subscriptions and cache to prevent data override
+      invalidateEvent(event._id);
+      
       // Update the event with new status and update across caches
       if (userId) {
         const eventWithNewStatus = {
@@ -156,14 +165,14 @@ const EventDetailsSection: React.FC<EventProp> = ({ event }) => {
         cacheManager.updateEventAcrossCaches(event._id, eventWithNewStatus, userId);
       }
       
-      // Refresh events to update calendar
+      // Refresh events to update calendar with fresh data
       await refreshEvents(event.start_time ? new Date(event.start_time) : new Date(), 'Month');
       // Use the centralized navigation system instead of direct router.back()
       showModal('not_interested_success', { message: 'Event marked as not interested.' });
     } catch (error) {
       console.error('Failed to mark event as not interested:', error);
     }
-  }, [event, markNotInterested, refreshEvents, showModal, userId]);
+  }, [event, markNotInterested, refreshEvents, invalidateEvent, showModal, userId]);
 
   const acceptInvitation = useCallback(() => {
     handleStatusChange('accepted');

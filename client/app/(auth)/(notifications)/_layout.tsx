@@ -23,7 +23,7 @@ export default function NotificationsLayout() {
       }}
     >
       <Stack.Screen 
-      name="notifications"
+        name="notifications"
         options={{
           headerTitle: 'Notifications',
           headerTintColor: themeColors.text,

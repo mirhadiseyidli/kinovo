@@ -244,7 +244,7 @@ const ProfilePage = () => {
         />
       </View>
     );
-  }, [themeColors]);
+  }, []);
 
   return (
     <ThemedView style={{ flex: 1 }}>
