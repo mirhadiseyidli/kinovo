@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "V459SBG2XF.com.kinovoapp.kinovo",
+        "paths": ["*", "/"]
+      }
+    ]
+  }
+} 
