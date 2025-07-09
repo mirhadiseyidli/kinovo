@@ -12,7 +12,6 @@ export const useGetFriendsEvents = () => {
   const { userId } = useAuthSession();
 
   const fetchFriendsEvents = async (): Promise<Event[] | null> => {
-    console.log('fetchFriendsEvents');
     // If we have fetched data before, this is not a first fetch
     if (hasDataBeenFetched) {
       setIsFirstFetch(false);
@@ -26,7 +25,6 @@ export const useGetFriendsEvents = () => {
       setIsFirstFetch(false); // First fetch completed
       setHasDataBeenFetched(true);
       setLoading(false);
-      console.log('response.data', response.data);
       return response.data;
     } catch (error) {
       const err = error as ApiError;

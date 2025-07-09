@@ -20,6 +20,7 @@ import ContextMenuWithTrigger from "@/components/ContextMenuWithTrigger";
 import { Feather } from "@expo/vector-icons";
 // import { useDeepLinking } from "@/hooks/useDeepLinking";
 import { useAuthSession } from "@/components/Auth/AuthProvider";
+import { BannerProvider } from "@/context/BannerContext";
 
 type UserGeneralInfoRef = {
   onRefresh: () => void;
@@ -247,22 +248,24 @@ const ProfilePage = () => {
   }, []);
 
   return (
-    <ThemedView style={{ flex: 1 }}>
-      <CollapsibleTabView
-        onStartRefresh={onStartRefresh}
-        isRefreshing={isRefreshing}
-        navigationState={{ index, routes }}
-        renderScene={renderScene}
-        onIndexChange={setIndex}
-        renderTabBar={renderTabBar}
-        renderRefreshControl={renderRefreshControl}
-        lazy
-        renderScrollHeader={renderHeader}
-        animationHeaderPosition={animationHeaderPosition}
-        animationHeaderHeight={animationHeaderHeight}
-        refreshControlColor={themeColors.mountainGreen}
-      />
-    </ThemedView>
+    <BannerProvider>
+      <ThemedView style={{ flex: 1 }}>
+        <CollapsibleTabView
+          onStartRefresh={onStartRefresh}
+          isRefreshing={isRefreshing}
+          navigationState={{ index, routes }}
+          renderScene={renderScene}
+          onIndexChange={setIndex}
+          renderTabBar={renderTabBar}
+          renderRefreshControl={renderRefreshControl}
+          lazy
+          renderScrollHeader={renderHeader}
+          animationHeaderPosition={animationHeaderPosition}
+          animationHeaderHeight={animationHeaderHeight}
+          refreshControlColor={themeColors.mountainGreen}
+        />
+      </ThemedView>
+    </BannerProvider>
   );
 }
 

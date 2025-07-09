@@ -246,6 +246,7 @@ const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFini
         <ScheduleEventView
           title={event.title}
           time={format(event.start_time ? new Date(event.start_time) : new Date(), 'h:mm a')}
+          endTime={event.end_time ? new Date(event.end_time) : new Date()}
           location={event.location?.text || ''}
           userStatus={event.userStatus}
           eventOccurrence={occurrence}

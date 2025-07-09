@@ -12,7 +12,7 @@ import React, { useState, useRef, useContext } from 'react';
 import { View, TouchableOpacity, Text, Pressable, ScrollView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import type { CreateEventTabParamList, Suggestion } from '@/types/allTypes';
-import { CreateEventScrollContext } from './_layout';
+import { CreateEventScrollContext } from '@/context/CreateEventScrollContext';
 import Animated, { useAnimatedScrollHandler, runOnJS } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 

@@ -408,7 +408,7 @@ const getMyEventsForDateRange = async (req, res) => {
               ...event,
               start_time: occurrenceDate,
               end_time: occurrenceEndTime,
-              _id: `${event._id}-${occurrenceDate.toISOString()}`, // Unique ID for this occurrence
+              _id: `${event._id}-${occurrenceDate.toISOString().split('T')[0]}`, // Unique ID for this occurrence (date-only)
               originalEventId: event._id, // Keep reference to original event
               isRecurringOccurrence: true
             };
@@ -773,17 +773,23 @@ const cancelEvent = async (req, res) => {
           cancelledDate: new Date(occurrenceDate)
         });
 
-      } else if (modifyType === 'all_future') {
-        // Set recurrence end date to stop future occurrences
-        const today = new Date();
-        today.setHours(23, 59, 59, 999);
-        
-        event.recurrence.end_date = today;
-        await event.save();
+      } else if (modifyType === 'all_future' || modifyType === 'this_and_future') {
+        // Split the series at the selected occurrence date so that
+        // occurrences BEFORE remain intact, occurrences FROM this date onward
+        // belong to a new master that we immediately cancel.
+
+        // 1. Split the recurring event
+        const futureEvent = await splitRecurringEvent(event, new Date(occurrenceDate));
+
+        // 2. Cancel the future master (this cancels the chosen occurrence + future)
+        futureEvent.status = 'cancelled';
+        await futureEvent.save();
 
         return res.status(200).json({ 
           success: true, 
-          message: 'Successfully cancelled all future occurrences of this event'
+          message: 'Successfully cancelled this and all future occurrences of this event',
+          cancelledFrom: new Date(occurrenceDate),
+          futureEventId: futureEvent._id
         });
       }
     }

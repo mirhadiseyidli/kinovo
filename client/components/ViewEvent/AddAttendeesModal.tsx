@@ -11,7 +11,7 @@ import UserListItem from './UserListItem';
 import type { Friend, Event as EventType } from '@/types/allTypes';
 import api from '@/utils/api';
 import { useGetMyFriends } from '@/hooks/useGetMyFriends';
-import { useViewEventModal } from '../../app/(auth)/viewEvent/[event_id]';
+import { useViewEventModal } from '@/context/ViewEventModalContext';
 import { useLocalSearchParams } from 'expo-router';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');

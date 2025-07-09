@@ -11,7 +11,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import type { CreateEventTabParamList } from '@/types/allTypes';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
-import { CreateEventScrollContext } from './_layout';
+import { CreateEventScrollContext } from '@/context/CreateEventScrollContext';
 import Animated, { useAnimatedScrollHandler, runOnJS } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 

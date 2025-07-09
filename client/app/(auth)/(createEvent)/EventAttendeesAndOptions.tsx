@@ -13,7 +13,7 @@ import { useCreateEventContext } from '@/context/CreateEventContext';
 import { useCreateEvent } from '@/hooks/useCreateEvent';
 import { format } from 'date-fns';
 import DefaultProfilePicture from '@/components/DefaultProfilePicture';
-import { CreateEventScrollContext } from './_layout';
+import { CreateEventScrollContext } from '@/context/CreateEventScrollContext';
 import Animated, { useAnimatedScrollHandler, runOnJS } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 
@@ -41,6 +41,7 @@ export default React.memo(function EventAttendeesAndOptions() {
     eventId,
     title,
     recurrence,
+    originalRecurrenceChecked,
     compileEventData,
     resetEventForm,
     startTime
@@ -76,8 +77,8 @@ export default React.memo(function EventAttendeesAndOptions() {
   });
 
   const handleSaveEvent = async () => {
-    // If we're editing a recurring event, show the alert instead of saving directly
-    if (isEditMode && recurrence?.checked && recurrence.frequency && recurrence.frequency !== 'none') {
+    // If we're editing a recurring event that was originally recurring, show the alert instead of saving directly
+    if (isEditMode && originalRecurrenceChecked && recurrence.frequency && recurrence.frequency !== 'none') {
       showRecurringEventAlert();
     } else {
       // For non-recurring events or new events, use the normal flow
