@@ -6,6 +6,7 @@ const {
   createEventCreationNotificationForFriends,
   createEventUpdateNotification,
   createEventAttendanceNotification,
+  createEventInvitationNotification,
   createNearbyEventNotification
 } = require('./notificationsController');
 const {
@@ -189,12 +190,22 @@ const createEvent = async (req, res) => {
       }
     }
 
-    // Send notifications to friends for public events only
-    if (visibility === 'public' && creator.friends.length > 0) {
+    // Send invitation notifications to attendees (excluding creator)
+    if (attendeeIds.length > 0) {
+      try {
+        await createEventInvitationNotification(event._id, attendeeIds);
+      } catch (notificationError) {
+        console.error('Error sending event invitation notifications:', notificationError);
+        // Don't fail the event creation if notification fails
+      }
+    }
+
+    // Send notifications to friends for all events (not just public)
+    if (creator.friends.length > 0) {
       try {
         const notifications = await createEventCreationNotificationForFriends(event._id, req.user._id, creator.friends);
       } catch (notificationError) {
-        console.error('Error sending event creation notifications:', notificationError);
+        console.error('Error sending new event from friend notifications:', notificationError);
         // Don't fail the event creation if notifications fail
       }
     }
@@ -744,6 +755,25 @@ const respondToEventInvitation = async (req, res) => {
       }
     }
 
+    // Update invitation notification status for this user
+    try {
+      const Notification = require('../database/schemas/notificationsSchema');
+      await Notification.findOneAndUpdate(
+        {
+          recipient: req.user._id,
+          event: eventId,
+          type: 'event_invitation'
+        },
+        {
+          status: status,
+          is_seen: true,
+          updated_at: new Date()
+        }
+      );
+    } catch (notifUpdateErr) {
+      console.error('Failed to update invitation notification status:', notifUpdateErr);
+    }
+
     return res.status(200).json({ 
       success: true, 
       message: `Successfully ${status} the event invitation`,
@@ -780,6 +810,20 @@ const cancelEvent = async (req, res) => {
         // Add excluded date for this occurrence only
         await addExcludedDate(event, new Date(occurrenceDate));
 
+        // Send cancellation notifications to all attendees (except creator) for this occurrence
+        const attendeeIds = event.attendees
+          .map(attendee => attendee.user)
+          .filter(userId => userId.toString() !== req.user._id.toString());
+        
+        if (attendeeIds.length > 0) {
+          try {
+            await createEventUpdateNotification(eventId, req.user._id, attendeeIds);
+          } catch (notificationError) {
+            console.error('Error sending event occurrence cancellation notifications:', notificationError);
+            // Don't fail the cancellation if notification fails
+          }
+        }
+
         return res.status(200).json({ 
           success: true, 
           message: 'Successfully cancelled this specific event occurrence',
@@ -798,6 +842,20 @@ const cancelEvent = async (req, res) => {
         futureEvent.status = 'cancelled';
         await futureEvent.save();
 
+        // Send cancellation notifications to all attendees (except creator) for future occurrences
+        const attendeeIds = futureEvent.attendees
+          .map(attendee => attendee.user)
+          .filter(userId => userId.toString() !== req.user._id.toString());
+        
+        if (attendeeIds.length > 0) {
+          try {
+            await createEventUpdateNotification(futureEvent._id, req.user._id, attendeeIds);
+          } catch (notificationError) {
+            console.error('Error sending future event cancellation notifications:', notificationError);
+            // Don't fail the cancellation if notification fails
+          }
+        }
+
         return res.status(200).json({ 
           success: true, 
           message: 'Successfully cancelled this and all future occurrences of this event',
@@ -810,6 +868,20 @@ const cancelEvent = async (req, res) => {
     // Handle non-recurring events or cancel entire recurring series
     event.status = 'cancelled';
     await event.save();
+
+    // Send cancellation notifications to all attendees (except creator)
+    const attendeeIds = event.attendees
+      .map(attendee => attendee.user)
+      .filter(userId => userId.toString() !== req.user._id.toString());
+    
+    if (attendeeIds.length > 0) {
+      try {
+        await createEventUpdateNotification(eventId, req.user._id, attendeeIds);
+      } catch (notificationError) {
+        console.error('Error sending event cancellation notifications:', notificationError);
+        // Don't fail the cancellation if notification fails
+      }
+    }
 
     // Remove event from all users' events lists
     await User.updateMany(
@@ -975,6 +1047,14 @@ const inviteEventAttendees = async (req, res) => {
         }
       }
     );
+
+    // Send invitation notifications
+    try {
+      await createEventInvitationNotification(eventId, invitees);
+    } catch (notificationError) {
+      console.error('Error sending event invitation notifications:', notificationError);
+      // Don't fail the invitation if notification fails
+    }
 
     return res.status(200).json({
       success: true,
@@ -1525,7 +1605,7 @@ const updateEvent = async (req, res) => {
 
     // Send update notifications to all attendees
     const attendeeIds = event.attendees.map(attendee => attendee.user);
-    await sendEventUpdateNotifications(eventId, req.user._id, attendeeIds);
+    await createEventUpdateNotification(eventId, req.user._id, attendeeIds);
     
     return res.status(200).json({
       success: true,

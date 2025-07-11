@@ -4,6 +4,8 @@ const logger = require('winston');
 class FCMService {
   constructor() {
     this.messaging = admin.messaging();
+    console.log('messaging', this.messaging);
+    console.log('admin', admin);
   }
 
   /**
@@ -32,7 +34,6 @@ class FCMService {
         apns: {
           headers: {
             'apns-priority': '10',
-            'apns-expiration': String(Math.floor(Date.now() / 1000) + 86400) // 24 hours
           },
           payload: {
             aps: {
@@ -48,8 +49,9 @@ class FCMService {
           }
         }
       };
-
+      console.log('message', message);
       const response = await this.messaging.send(message);
+      console.log('response', response);
       logger.info('FCM message sent successfully:', response);
       return { success: true, messageId: response };
     } catch (error) {
@@ -105,7 +107,6 @@ class FCMService {
         apns: {
           headers: {
             'apns-priority': '10',
-            'apns-expiration': String(Math.floor(Date.now() / 1000) + 86400) // 24 hours
           },
           payload: {
             aps: {
@@ -168,14 +169,6 @@ class FCMService {
     let data = { type };
 
     switch (type) {
-      case 'friend_request':
-        notification = {
-          title: 'New Friend Request',
-          body: `${payload.senderName} wants to be your friend`
-        };
-        data.userId = payload.senderId;
-        break;
-
       case 'friend_request_accepted':
         notification = {
           title: 'Friend Request Accepted',
@@ -187,15 +180,20 @@ class FCMService {
       case 'event_invitation':
         notification = {
           title: 'Event Invitation',
-          body: `You're invited to "${payload.eventTitle}"`
+          body: payload.inviterName
+            ? `${payload.inviterName} invited you to "${payload.eventTitle}"`
+            : `You're invited to "${payload.eventTitle}"`
         };
         data.eventId = payload.eventId;
+        if (payload.inviterName) data.inviterName = payload.inviterName;
         break;
 
-      case 'event_update':
+      case 'event_updated':
         notification = {
-          title: 'Event Update',
-          body: `"${payload.eventTitle}" has been updated`
+          title: payload.isCancellation ? 'Event Cancelled' : 'Event Update',
+          body: payload.isCancellation 
+            ? `"${payload.eventTitle}" has been cancelled`
+            : `"${payload.eventTitle}" has been updated`
         };
         data.eventId = payload.eventId;
         break;
@@ -208,12 +206,36 @@ class FCMService {
         data.eventId = payload.eventId;
         break;
 
-      case 'event_cancelled':
+      case 'event_attendance_confirmed':
         notification = {
-          title: 'Event Cancelled',
-          body: `"${payload.eventTitle}" has been cancelled`
+          title: 'Event Attendance Confirmed',
+          body: `${payload.attendeeName} is attending "${payload.eventTitle}"`
         };
         data.eventId = payload.eventId;
+        break;
+
+      case 'new_event_from_friend':
+        notification = {
+          title: 'New Event from Friend',
+          body: `${payload.creatorName} created "${payload.eventTitle}"`
+        };
+        data.eventId = payload.eventId;
+        break;
+
+      case 'new_event_nearby':
+        notification = {
+          title: 'New Event Nearby',
+          body: `"${payload.eventTitle}" is happening near you`
+        };
+        data.eventId = payload.eventId;
+        break;
+
+      case 'someone_from_contacts_joined':
+        notification = {
+          title: 'Contact Joined Kinovo',
+          body: `${payload.contactName} from your contacts just joined Kinovo`
+        };
+        data.userId = payload.userId;
         break;
 
       default:
@@ -231,6 +253,7 @@ class FCMService {
 
     // Send to single token or multiple tokens
     if (tokenArray.length === 1) {
+      console.log('sending to single token', tokenArray[0]);
       return await this.sendToToken(tokenArray[0], notification, data);
     } else {
       return await this.sendToMultipleTokens(tokenArray, notification, data);

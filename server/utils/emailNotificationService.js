@@ -6,7 +6,9 @@ const {
   eventUpdatedEmailTemplate,
   eventAttendanceConfirmedEmailTemplate,
   eventReminderEmailTemplate,
-  nearbyEventEmailTemplate
+  nearbyEventEmailTemplate,
+  eventInvitationEmailTemplate,
+  contactJoinedEmailTemplate
 } = require('./emailTemplates');
 
 /**
@@ -25,15 +27,6 @@ const sendEmailNotification = async (recipientEmail, notificationType, data) => 
     let htmlContent = '';
 
     switch (notificationType) {
-      case 'friend_request':
-        subject = `${data.senderName} sent you a friend request on Kinovo`;
-        htmlContent = friendRequestEmailTemplate(
-          data.senderName,
-          data.senderUsername,
-          data.mutualFriendsCount
-        );
-        break;
-
       case 'friend_request_accepted':
         subject = `${data.accepterName} accepted your friend request on Kinovo`;
         htmlContent = friendRequestAcceptedEmailTemplate(
@@ -42,7 +35,7 @@ const sendEmailNotification = async (recipientEmail, notificationType, data) => 
         );
         break;
 
-      case 'event_created':
+      case 'new_event_from_friend':
         subject = `${data.creatorName} created a new event: ${data.eventTitle}`;
         htmlContent = eventCreatedEmailTemplate(
           data.creatorName,
@@ -52,13 +45,24 @@ const sendEmailNotification = async (recipientEmail, notificationType, data) => 
         );
         break;
 
+      case 'event_invitation':
+        subject = `You're invited to "${data.eventTitle}"`;
+        htmlContent = eventInvitationEmailTemplate(
+          data.invitedBy,
+          data.eventTitle,
+          data.eventLocation,
+          data.eventStartTime
+        );
+        break;
+
       case 'event_updated':
-        subject = `Event updated: ${data.eventTitle}`;
+        subject = data.isCancellation ? `Event cancelled: ${data.eventTitle}` : `Event updated: ${data.eventTitle}`;
         htmlContent = eventUpdatedEmailTemplate(
           data.updaterName,
           data.eventTitle,
           data.eventLocation,
-          data.eventStartTime
+          data.eventStartTime,
+          data.isCancellation
         );
         break;
 
@@ -87,6 +91,14 @@ const sendEmailNotification = async (recipientEmail, notificationType, data) => 
           data.eventLocation,
           data.eventStartTime,
           data.distance
+        );
+        break;
+
+      case 'someone_from_contacts_joined':
+        subject = `${data.contactName} from your contacts joined Kinovo`;
+        htmlContent = contactJoinedEmailTemplate(
+          data.contactName,
+          data.contactUsername
         );
         break;
 

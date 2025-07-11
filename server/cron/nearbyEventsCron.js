@@ -58,10 +58,10 @@ const findUsersWithin50Miles = async (eventLat, eventLng, excludeUserId, eventCr
   }
 };
 
-// Cron job that runs every 6 hours to randomly send nearby event notifications
+// Cron job that runs once daily to randomly send nearby event notifications
 const startNearbyEventsCron = () => {
-  // Run every 6 hours (at 00:00, 06:00, 12:00, 18:00)
-  cron.schedule('0 */6 * * *', async () => {
+  // Run once daily at 9 AM
+  cron.schedule('0 9 * * *', async () => {
     
     try {
       const now = new Date();

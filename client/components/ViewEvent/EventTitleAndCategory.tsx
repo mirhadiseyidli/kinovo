@@ -29,13 +29,13 @@ const EventTitleAndCategory: React.FC<EventTitleAndCategoryProps> = React.memo((
     <ThemedText style={{ 
       paddingVertical: 2,
       fontWeight: 'bold',
-      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+      backgroundColor: themeColors.eventCardCategoryColor,
       borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.3)',
+      borderColor: themeColors.eventCardCategoryBorderColor,
       paddingHorizontal: 8, 
       borderRadius: 4,
       fontSize: 12,
-      color: 'white'
+      color: themeColors.text
     }}>
       {category}
     </ThemedText>
