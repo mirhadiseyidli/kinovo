@@ -1,5 +1,6 @@
 const FriendRequest = require('../database/schemas/friendRequestsSchema');
 const Users = require('../database/schemas/usersSchema');
+const UserContacts = require('../database/schemas/userContactsSchema');
 const { updateFriendRequestNotificationStatus, createNotification, createFriendRequestNotification, sendFriendRequestPushNotification, sendEventInvitationPushNotification } = require('./notificationsController');
 const { sendEmailNotification } = require('../utils/emailNotificationService');
 const { removeFriendRequestFromFirebase } = require('../services/realtimeSyncService');
@@ -420,6 +421,25 @@ const syncContacts = async (req, res) => {
       return res.status(400).json({ message: 'Phone numbers are required and should be an array' });
     }
 
+    // Store contacts for future join detection
+    const contactPromises = phoneNumbers.map(async (phoneNumber) => {
+      try {
+        await UserContacts.findOneAndUpdate(
+          { user: req.user._id, phoneNumber },
+          { user: req.user._id, phoneNumber },
+          { upsert: true, new: true }
+        );
+      } catch (error) {
+        // Ignore duplicate key errors
+        if (error.code !== 11000) {
+          console.error('Error storing contact:', error);
+        }
+      }
+    });
+
+    await Promise.all(contactPromises);
+
+    // Find existing users
     const users = await Users.find({ 'phone_number.full_num': { $in: phoneNumbers } })
       .select('_id full_name username profile_picture phone_number.full_num');
     

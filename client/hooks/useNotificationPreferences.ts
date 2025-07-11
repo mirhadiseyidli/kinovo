@@ -3,13 +3,14 @@ import { useFocusEffect } from '@react-navigation/native';
 import api from '@/utils/api';
 
 interface NotificationPreferences {
-  friend_request: boolean;
   friend_request_accepted: boolean;
-  event_created: boolean;
-  event_attendance_confirmed: boolean;
-  new_event_nearby: boolean;
   event_reminder: boolean;
   event_updated: boolean;
+  new_event_nearby: boolean;
+  event_attendance_confirmed: boolean;
+  new_event_from_friend: boolean;
+  event_invitation: boolean;
+  someone_from_contacts_joined: boolean;
 }
 
 interface AllNotificationPreferences {
@@ -22,32 +23,35 @@ type NotificationChannel = 'inApp' | 'email' | 'push';
 
 const defaultPreferences: AllNotificationPreferences = {
   inApp: {
-    friend_request: true,
     friend_request_accepted: true,
-    event_created: true,
-    event_attendance_confirmed: true,
-    new_event_nearby: true,
     event_reminder: true,
     event_updated: true,
+    new_event_nearby: true,
+    event_attendance_confirmed: true,
+    new_event_from_friend: true,
+    event_invitation: true,
+    someone_from_contacts_joined: true,
   },
   email: {
-    friend_request: false,
     friend_request_accepted: false,
-    event_created: false,
-    event_attendance_confirmed: false,
-    new_event_nearby: false,
     event_reminder: true,
     event_updated: false,
+    new_event_nearby: false,
+    event_attendance_confirmed: false,
+    new_event_from_friend: false,
+    event_invitation: false,
+    someone_from_contacts_joined: false,
   },
 
   push: {
-    friend_request: true,
     friend_request_accepted: true,
-    event_created: true,
-    event_attendance_confirmed: true,
-    new_event_nearby: true,
     event_reminder: true,
     event_updated: true,
+    new_event_nearby: true,
+    event_attendance_confirmed: true,
+    new_event_from_friend: true,
+    event_invitation: true,
+    someone_from_contacts_joined: true,
   },
 };
 
