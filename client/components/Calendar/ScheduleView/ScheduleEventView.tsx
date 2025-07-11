@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import OptimizedImageBackground from '@/components/OptimizedImageBackground';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -35,6 +36,7 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
   // Determine styling based on user status
   let titleStyle: any = { 
     color: themeColors.text, 
+    marginBottom: 10,
     fontSize: 16, 
     fontWeight: '600' 
   };
@@ -42,6 +44,7 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
   if (userStatus === 'rejected') {
     titleStyle = {
       ...titleStyle,
+      marginBottom: 10,
       textDecorationLine: 'line-through',
       opacity: 0.7,
     };
@@ -142,7 +145,12 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
 
   return (
     <TouchableOpacity onPress={handleEventPress}>
-      <View
+      <OptimizedImageBackground
+        source={eventOccurrence?.event?.event_picture || null}
+        fallbackCategory={eventOccurrence?.event?.category}
+        width={400}
+        height={120}
+        quality={50}
         style={{
           padding: 16,
           borderRadius: 12,
@@ -150,11 +158,18 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
           alignItems: 'center',
           justifyContent: 'space-between',
           overflow: 'hidden',
-          position: 'relative',
-          backgroundColor: themeColors.eventCardBackgroundColor,
           opacity: isPast ? 0.5 : 1,
+          backgroundColor: themeColors.eventCardBackgroundColor,
         }}
+        resizeMode="cover"
+        imageStyle={{ bottom: -160 }}
       >
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+          <LinearGradient
+            colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.6)']}
+            style={{ flex: 1 }}
+          />
+        </View>
         <View style={{ flex: 1 }}>
           <Text style={titleStyle}>{title}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
@@ -203,7 +218,7 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
             {getStatusText()}
           </Text>
         </View>
-      </View>
+      </OptimizedImageBackground>
     </TouchableOpacity>
   );
 };
