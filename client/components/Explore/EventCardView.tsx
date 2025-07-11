@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, ImageBackground, Dimensions, TouchableOpacity, Image } from 'react-native';
+import { View, Dimensions, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
@@ -7,8 +7,9 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { BlurView } from 'expo-blur';
 import { SuggestedEventProps } from '@/types/allTypes';
 import { useRouter } from 'expo-router';
-import { getCategoryImage } from '@/constants/CategoryImages';
 import DefaultProfilePicture from '../DefaultProfilePicture';
+import OptimizedImageBackground from '../OptimizedImageBackground';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const EventCardView: React.FC<SuggestedEventProps> = ({
   event
@@ -62,10 +63,18 @@ const EventCardView: React.FC<SuggestedEventProps> = ({
     return name.length > maxLength ? name.slice(0, maxLength) + '...' : name;
   };
 
+  // Calculate dimensions based on aspect ratio
+  const imageWidth = screenWidth - 32; // Full width minus padding
+  const imageHeight = imageWidth / 2.2; // Maintain aspect ratio of 2.2
+
   return (
     <TouchableOpacity onPress={handleViewEvent}>
-      <ImageBackground
-        source={event?.event_picture ? { uri: event.event_picture } : getCategoryImage(event?.category)}
+      <OptimizedImageBackground
+        source={event?.event_picture || null}
+        fallbackCategory={event?.category}
+        width={imageWidth}
+        height={imageHeight}
+        quality={80}
         resizeMode="cover"
         style={{
           width: '100%',
@@ -75,13 +84,24 @@ const EventCardView: React.FC<SuggestedEventProps> = ({
           alignSelf: 'center',
           marginVertical: 8,
         }}
+        imageStyle={{
+          bottom: -160,
+        }}
       >
+        <View style={StyleSheet.absoluteFillObject}>
+          <LinearGradient
+            colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.6)']}
+            style={{ flex: 1 }}
+          />
+        </View>
         {/* Category chip */}
         <View style={{
           position: 'absolute',
           top: 12,
           right: 12,
-          backgroundColor: Colors[colorScheme ?? 'dark'].mountainGreen,
+          backgroundColor: 'rgba(255, 255, 255, 0.2)',
+          borderWidth: 1,
+          borderColor: 'rgba(255, 255, 255, 0.3)',
           paddingHorizontal: 8,
           paddingVertical: 4,
           borderRadius: 4,
@@ -93,7 +113,7 @@ const EventCardView: React.FC<SuggestedEventProps> = ({
             textTransform: 'capitalize',
             color: '#FFFFFF' // White text for better contrast on mountain green
           }}>
-            {event?.category?.toLowerCase() || 'Other'}
+            {event?.category || 'Other'}
           </ThemedText>
         </View>
 
@@ -151,7 +171,7 @@ const EventCardView: React.FC<SuggestedEventProps> = ({
             </View>
           </View>
         </BlurView>
-      </ImageBackground>
+      </OptimizedImageBackground>
     </TouchableOpacity>
   );
 };

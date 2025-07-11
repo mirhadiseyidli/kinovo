@@ -126,8 +126,8 @@ function InnerLayout() {
   );
 
   return (
-    <BannerProvider>
+    <View style={{ flex: 1 }}>
       {innerContent}
-    </BannerProvider>
+    </View>
   );
 }

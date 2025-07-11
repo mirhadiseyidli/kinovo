@@ -17,6 +17,7 @@ const {
   processEventsForDiscovery,
   enrichEventsWithUserData,
   filterUserEvents,
+  filterUserToViewEvents,
   
   // Population utilities
   getStandardEventPopulateConfig,
@@ -535,8 +536,20 @@ const getUserEvents = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Filter user events using utility
-    const relevantEvents = filterUserEvents(user.events, reportedEventIds, notInterestedEventIds, ['accepted', 'maybe']);
+    // Get current user to check friendship status
+    const currentUser = await User.findById(req.user._id).select('friends');
+    const isFriend = currentUser?.friends?.includes(userId) || user.friends?.includes(req.user._id);
+
+    // Filter user events using enhanced utility with visibility filtering
+    const relevantEvents = filterUserToViewEvents(
+      user.events, 
+      reportedEventIds, 
+      notInterestedEventIds, 
+      req.user._id,      // currentUserId
+      userId,            // profileOwnerId
+      isFriend,          // isFriend
+      ['accepted', 'maybe'] // allowedStatuses
+    );
 
     return res.status(200).json({ events: relevantEvents });
   } catch (error) {

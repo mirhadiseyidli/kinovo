@@ -132,23 +132,13 @@ const EventSuggestions: React.FC<EventSuggestionsProps> = ({ refreshing, onFinis
       </ThemedView>
 
       {/* Event List */}
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, gap: 16 }}>
         {recommendedEvents.map((event, index) => (
             <View key={event._id}>
               <Event
                 event={event}
                 loading={loading}
               />
-              {/* Divider Line */}
-              {index < recommendedEvents.length - 1 && (
-                <View
-                  style={{
-                    height: 0.3,
-                    backgroundColor: Colors[colorScheme ?? 'dark'].border,
-                    marginVertical: 16,
-                  }}
-                />
-              )}
             </View>
         ))}
       </View>

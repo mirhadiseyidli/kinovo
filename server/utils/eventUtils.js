@@ -370,6 +370,75 @@ const filterUserEvents = (userEvents, reportedEventIds, notInterestedEventIds, a
 };
 
 /**
+ * Filter user events by status, exclusions, and visibility permissions
+ * @param {Array} userEvents - User's events array
+ * @param {Array} reportedEventIds - IDs of reported events
+ * @param {Array} notInterestedEventIds - IDs of not interested events
+ * @param {string} currentUserId - ID of the user viewing the events
+ * @param {string} profileOwnerId - ID of the profile owner
+ * @param {boolean} isFriend - Whether the viewer and profile owner are friends
+ * @param {Array} allowedStatuses - Allowed event statuses (default: ['accepted', 'maybe'])
+ * @returns {Array} Filtered events with user status
+ */
+const filterUserToViewEvents = (
+  userEvents, 
+  reportedEventIds, 
+  notInterestedEventIds, 
+  currentUserId, 
+  profileOwnerId, 
+  isFriend = false, 
+  allowedStatuses = ['accepted', 'maybe']
+) => {
+  return (userEvents || [])
+    .filter(userEvent => {
+      if (!userEvent.event) return false;
+        
+      const eventId = userEvent.event._id.toString();
+      const isReported = reportedEventIds.includes(eventId);
+      const isNotInterested = notInterestedEventIds.includes(eventId);
+      const hasAllowedStatus = allowedStatuses.includes(userEvent.status);
+      
+      // Basic filtering (status, reports, not interested)
+      if (!hasAllowedStatus || isReported || isNotInterested) {
+        return false;
+      }
+
+      // If viewing own profile, show all events (no visibility filtering)
+      const isOwnProfile = currentUserId && profileOwnerId && currentUserId.toString() === profileOwnerId.toString();
+      if (isOwnProfile) {
+        return true;
+      }
+
+      // For other users, apply visibility filtering
+      const event = userEvent.event;
+      
+      // If user is not a friend, only show public events
+      if (!isFriend) {
+        return event.visibility === 'public';
+      }
+      
+      // If user is a friend, show public and private events
+      if (event.visibility === 'public' || event.visibility === 'private') {
+        return true;
+      }
+      
+      // For selected events, only show if current user is an attendee
+      if (event.visibility === 'selected' && currentUserId) {
+        const currentUserIsAttendee = event.attendees?.some(
+          attendee => attendee.user.toString() === currentUserId.toString()
+        );
+        return currentUserIsAttendee;
+      }
+      
+      return false;
+    })
+    .map(userEvent => ({
+      ...userEvent.event.toObject(),
+      userStatus: userEvent.status
+    }));
+};
+
+/**
  * Create a separate event occurrence for recurring event modifications
  * @param {Object} originalEvent - Original recurring event
  * @param {Date} occurrenceDate - Specific occurrence date
@@ -1625,6 +1694,7 @@ module.exports = {
   processEventsWithRecurrence,
   enrichEventsWithUserData,
   filterUserEvents,
+  filterUserToViewEvents,
   createSeparateOccurrenceData,
   addExcludedDate,
   findAttendeeIndex,

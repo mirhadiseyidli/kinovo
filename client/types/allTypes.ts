@@ -576,7 +576,7 @@ export interface FriendListUserItemProps {
   name: string;
   subtitle?: string;
   avatarUri?: string;
-  status: 'onKinovo' | 'invite' | 'request' | 'manageFriend' | 'manageTagFriend';
+  status: 'onKinovo' | 'invite' | 'request' | 'manageFriend' | 'manageTagFriend' | 'requestSent' | 'alreadyFriends';
   mutualFriendsCount?: number;
   onAdd?: () => void;
   onRemove?: () => void;

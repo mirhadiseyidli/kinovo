@@ -10,7 +10,9 @@ const {
   getReceivedFriendRequests,
   removeFriendFromFriendsList,
   getUserToViewFriends,
-  getNumberOfFriendsNewEvents
+  getNumberOfFriendsNewEvents,
+  checkFriendshipStatus,
+  inviteFriendByEmail
 } = require('../controllers/manageFriendsController');
 const { authMiddleware, checkRole } = require('../utils/authMiddleware');
 
@@ -27,5 +29,7 @@ router.get('/user/get/user/to/view/friends', authMiddleware, getUserToViewFriend
 router.post('/user/contacts/sync', authMiddleware, syncContacts);
 router.get('/user/get/received/friend/requests', authMiddleware, getReceivedFriendRequests);
 router.get('/user/get/number/friends/new/events', authMiddleware, getNumberOfFriendsNewEvents);
+router.post('/check/friendship/status', authMiddleware, checkFriendshipStatus);
+router.post('/invite-by-email', authMiddleware, inviteFriendByEmail);
 
 module.exports = router;

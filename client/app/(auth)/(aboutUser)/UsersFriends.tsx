@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -55,21 +55,22 @@ export default React.memo(function UserFriends({ userId, route, refreshing }: Us
     }
   }, [refreshing, fetchUserToViewFriends]);
 
-  const renderItem = ({ item }: { item: User }) => {
+  const renderItem = useCallback(({ item }: { item: User }) => {
     return (
-      <FriendListUserItem
-        _id={item._id}
-        key={item._id}
-        name={item.full_name}
-        avatarUri={item.profile_picture}
-        subtitle={`@${item.username}`}
-        status="manageFriend"
-        onEdit={() => console.log(`Edit friend ${item.username}`)}
-      />
+      <View style={{ marginBottom: 16 }}>
+        <FriendListUserItem
+          _id={item._id}
+          key={item._id}
+          name={item.full_name}
+          avatarUri={item.profile_picture}
+          subtitle={`@${item.username}`}
+          status="manageFriend"
+        />
+      </View>
     );
-  };
+  }, []);
 
-  const ListEmptyComponent = () => (
+  const ListEmptyComponent = useCallback(() => (
     <View style={{ paddingTop: 16, width: '100%' }}>
       <View style={{
         backgroundColor: themeColors.background,
@@ -113,31 +114,39 @@ export default React.memo(function UserFriends({ userId, route, refreshing }: Us
         </ThemedText>
       </View>
     </View>
-  );
+  ), [themeColors]);
 
-  const ListHeaderComponent = () => (
-    isFirstFetch ? (
-      <View style={{ marginTop: 16, flex: 1, flexDirection: 'column', gap: 16 }}>
-        <SkeletonBox width="100%" height={40} borderRadius={8} />
-        <FriendSkeleton />
-        <FriendSkeleton />
-        <FriendSkeleton />
-      </View>
-    ) : friendsList.length > 0 ? (
-      <View style={{ marginTop: 16, marginBottom: 16, width: '100%' }}>
-        <SearchFriendsBar
-          placeholder="Search friends..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>
-    ) : null
-  );
+  const ListHeaderComponent = useMemo(() => {
+    if (isFirstFetch) {
+      return (
+        <View style={{ marginTop: 16, flex: 1, flexDirection: 'column', gap: 16 }}>
+          <SkeletonBox width="100%" height={40} borderRadius={8} />
+          <FriendSkeleton />
+          <FriendSkeleton />
+          <FriendSkeleton />
+        </View>
+      );
+    } else if (friendsList.length > 0) {
+      return (
+        <View style={{ marginTop: 16, marginBottom: 16, width: '100%' }}>
+          <SearchFriendsBar
+            placeholder="Search friends..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+      );
+    }
+    return null;
+  }, [isFirstFetch, friendsList.length, searchQuery, setSearchQuery]);
 
-  const filteredFriends = friendsList.filter(friend => 
-    friend.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    friend.username.toLowerCase().includes(searchQuery.toLowerCase())
-  ) as any[];
+  const filteredFriends = useMemo(() => 
+    friendsList.filter(friend => 
+      friend.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      friend.username.toLowerCase().includes(searchQuery.toLowerCase())
+    ) as any[],
+    [friendsList, searchQuery]
+  );
 
   return (
     <ThemedView style={{ flex: 1, paddingHorizontal: 16 }}>
@@ -152,6 +161,7 @@ export default React.memo(function UserFriends({ userId, route, refreshing }: Us
           paddingBottom: insets.bottom + 20
         }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       />
     </ThemedView>
   );
