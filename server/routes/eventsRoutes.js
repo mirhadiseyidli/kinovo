@@ -1,5 +1,29 @@
 const express = require('express');
-const { getMyEvents, getUserEvents, createEvent, getMyPastEvents, getMyUpcomingEvents, getMyEventsCalendarMonthView, getMyEventsForDateRange, getEventById, getNearbyEvents, respondToEventInvitation, cancelEvent, deleteRecurringEvents, inviteEventAttendees, getEventsByCategory, getEventsByCity, getAttentionRequiredEvents, getRecommendedEvents, getFriendsEvents, joinEvent, markEventNotInterested, reportEvent, updateEvent, removeEventAttendee } = require('../controllers/eventsController');
+const { 
+    getMyEvents, 
+    getUserEvents, 
+    createEvent, 
+    getMyPastEvents, 
+    getMyUpcomingEvents, 
+    getMyEventsCalendarMonthView, 
+    getMyEventsForDateRange, 
+    getEventById, 
+    getNearbyEvents, 
+    respondToEventInvitation, 
+    cancelEvent, 
+    deleteRecurringEvents, 
+    inviteEventAttendees, 
+    getEventsByCategory, 
+    getEventsByCity, 
+    getAttentionRequiredEvents, 
+    getRecommendedEvents, 
+    getFriendsEvents, 
+    joinEvent, 
+    markEventNotInterested, 
+    reportEvent, 
+    updateEvent, 
+    removeEventAttendee,
+} = require('../controllers/eventsController');
 const { authMiddleware } = require('../utils/authMiddleware');
 
 const router = express.Router();

@@ -132,7 +132,6 @@ const CategoryPage = () => {
           borderRadius: 24,
           alignItems: 'center',
           justifyContent: 'center',
-          marginBottom: 16
         }}
       >
         <View style={{ alignItems: 'center', marginVertical: 8 }}>
@@ -157,7 +156,7 @@ const CategoryPage = () => {
       {/* Events Section */}
       <ThemedView style={{ paddingVertical: 16 }}>
         <ThemedView style={{ 
-          marginBottom: 24,
+          marginBottom: 16,
           flexDirection: 'row',
           justifyContent: 'space-between',
           alignItems: 'center'

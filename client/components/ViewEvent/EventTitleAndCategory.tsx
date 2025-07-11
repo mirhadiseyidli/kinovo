@@ -29,7 +29,9 @@ const EventTitleAndCategory: React.FC<EventTitleAndCategoryProps> = React.memo((
     <ThemedText style={{ 
       paddingVertical: 2,
       fontWeight: 'bold',
-      backgroundColor: themeColors.mountainGreen, 
+      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.3)',
       paddingHorizontal: 8, 
       borderRadius: 4,
       fontSize: 12,

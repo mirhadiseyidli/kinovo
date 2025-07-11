@@ -128,7 +128,7 @@ const CityPage = () => {
           quality={85}
         />
         <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.7)', themeColors.background]}
+          colors={['transparent', 'rgba(0,0,0,0.3)', themeColors.background]}
           style={{
             position: 'absolute',
             left: 0,
@@ -154,7 +154,7 @@ const CityPage = () => {
       </View>
 
       {/* Events Section */}
-      <ThemedView style={{ padding: 16 }}>
+      <ThemedView style={{ paddingHorizontal: 16 }}>
         <ThemedView style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 16 }}>
           <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>
             Events in {city}
