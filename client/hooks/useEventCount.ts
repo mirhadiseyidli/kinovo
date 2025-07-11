@@ -18,6 +18,10 @@ export const useEventCount = (
   isOwnProfile: boolean = false
 ): number => {
   const eventCount = useMemo(() => {
+    console.log('events', events);
+    console.log('currentUserId', currentUserId);
+    console.log('isFriend', isFriend);
+    console.log('isOwnProfile', isOwnProfile);
     if (!events) return 0;
     
     // If viewing own profile, show all events with accepted or maybe status
@@ -38,24 +42,23 @@ export const useEventCount = (
 
       const eventData = event.event;
       
-      // If user is not a friend, only show public events
-      if (!isFriend) {
-        return eventData.visibility === 'public';
-      }
-      
-      // If user is a friend, show public and private events
-      if (eventData.visibility === 'public' || eventData.visibility === 'private') {
+      const visibility = eventData.visibility;
+
+      // Public events are always visible
+      if (visibility === 'public') {
         return true;
       }
-      
-      // For selected events, only show if current user is an attendee
-      if (eventData.visibility === 'selected') {
-        const currentUserIsAttendee = eventData.attendees?.some(
-          attendee => attendee.user._id === currentUserId
-        );
-        return currentUserIsAttendee;
+
+      // Private events are visible only to friends
+      if (visibility === 'private') {
+        return isFriend;
       }
-      
+
+      // Selected events are visible if the current user is on the attendee list
+      if (visibility === 'selected') {
+        return eventData.attendees?.some(att => att.user._id === currentUserId);
+      }
+
       return false;
     }).length;
   }, [events, currentUserId, isFriend, isOwnProfile]);

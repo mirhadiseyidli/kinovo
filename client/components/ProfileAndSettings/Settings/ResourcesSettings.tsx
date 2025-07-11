@@ -4,6 +4,7 @@ import SettingComponent from './SettingComponent';
 import { router } from 'expo-router';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import NotificationTestComponent from '@/components/NotificationTestComponent';
 
 const ResourcesSettings = () => {
   const colorScheme = useColorScheme();
@@ -38,6 +39,16 @@ const ResourcesSettings = () => {
         onPress={handleDisabledInfo} 
         enabled={false}
       />
+
+      {/* Only show test components in development */}
+      {/* {__DEV__ && ( */}
+        <>
+          <Text style={{ fontSize: 14, color: themeColors.placeholderTextColor, marginTop: 20, marginBottom: 10 }}>
+            Development Tools
+          </Text>
+          <NotificationTestComponent />
+        </>
+      {/* )} */}
     </View>
   );
 };

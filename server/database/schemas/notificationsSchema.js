@@ -24,19 +24,14 @@ const notificationsSchema = new mongoose.Schema({
   type: {
     type: String,
     enum: [
-      'friend_request',
       'friend_request_accepted',
-      'event_created',
-      'event_attendance_confirmed',
-      'new_event_nearby',
       'event_reminder',
       'event_updated',
-      'event_liked',
-      'new_comment',
-      'someone_joined',
-      'event_reminder',
-      'event_update',
-      'event_cancel'
+      'new_event_nearby',
+      'event_attendance_confirmed',
+      'new_event_from_friend',
+      'event_invitation',
+      'someone_from_contacts_joined'
     ],
     required: true,
   },
@@ -58,8 +53,8 @@ const notificationsSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'accepted', 'rejected', 'seen', 'unseen'],
-    default: 'unseen',
+    enum: ['pending', 'accepted', 'maybe', 'rejected', 'seen', 'unseen'],
+    default: 'pending',
   },
   is_seen: {
     type: Boolean,

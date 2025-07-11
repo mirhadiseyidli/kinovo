@@ -1,11 +1,13 @@
 const bcrypt = require('bcrypt');
 const User = require('../database/schemas/usersSchema');
+const UserContacts = require('../database/schemas/userContactsSchema');
 const { generateAccessToken, generateRefreshToken } = require('../utils/token');
 const { verifyIdToken } = require('../utils/googleAuth');
 const { admin } = require('../config/firebase-admin');
 const jwt = require('jsonwebtoken');
 const logger = require('winston');
 const { verifyIdentityToken } = require('../utils/appleAuth');
+const { createContactJoinedNotification } = require('./notificationsController');
 
 // Helper functions
 const hashPassword = password => {
@@ -53,6 +55,10 @@ const googleAuth = async (req, res) => {
         google_id: userId,
         profile_picture: profilePicture || null,
       });
+
+      // Check if any existing users have this user's phone number in their contacts
+      // Note: Google doesn't provide phone number directly, so this is for future enhancement
+      // when user adds phone number later
     }
 
     const userDataFromDB = await User.findOne({ google_id: userId }).select('-password');
@@ -263,6 +269,22 @@ const signup = async (req, res) => {
 
     const userDataFromDB = await User.findOne({ email }).select('-password');
     if (userDataFromDB) {
+      // Check if any existing users have this phone number in their contacts
+      if (phone_number?.full_num) {
+        try {
+          const contactOwners = await UserContacts.find({ 
+            phoneNumber: phone_number.full_num 
+          }).distinct('user');
+          
+          if (contactOwners.length > 0) {
+            await createContactJoinedNotification(userDataFromDB._id, contactOwners);
+          }
+        } catch (contactError) {
+          console.error('Error sending contact joined notifications:', contactError);
+          // Don't fail signup if notification fails
+        }
+      }
+
       const accessToken = generateAccessToken({ _id: userDataFromDB._id, email: userDataFromDB.email });
       const refreshToken = generateRefreshToken({ _id: userDataFromDB._id, email: userDataFromDB.email });
       const customToken = await admin.auth().createCustomToken(userDataFromDB._id.toString());
