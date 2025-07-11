@@ -97,6 +97,10 @@ export const CategoryImages: CategoryImageType = {
     image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Pilates-change.png` },
     alt: 'Pilates'
   },
+  'Racquetball': {
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Racquetball.png` },
+    alt: 'Racquetball'
+  },
   'Ride': {
     image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Ride.png` },
     alt: 'Ride'
@@ -166,19 +170,27 @@ export const CategoryImages: CategoryImageType = {
     alt: 'Tennis'
   },
   'Trail Run': {
-    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Run.png` },
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Trail-Run.png` },
     alt: 'Trail Run'
   },
   'Walk': {
-    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Run.png` },
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Walk.png` },
     alt: 'Walk'
   },
   'Weight Training': {
-    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Crossfit.png` },
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Weight-Training.png` },
     alt: 'Weight Training'
   },
+  'Windsurf': {
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Windsurf.png` },
+    alt: 'Windsurf'
+  },
+  'Workout': {
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Workout.png` },
+    alt: 'Workout'
+  },
   'Yoga': {
-    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Pilates-change.png` },
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Yoga.png` },
     alt: 'Yoga'
   },
   // Add a default image

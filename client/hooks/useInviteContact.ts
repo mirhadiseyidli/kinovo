@@ -11,7 +11,7 @@ export function useInviteContact() {
     try {
       setLoading(true);
       const message =
-        'Hey! I\'m using Kinovo to discover and plan activities. Join me: https://kinovo.app';
+        'Hey! I\'m using Kinovo to discover and plan activities. Join me: https://kinovo.app/invite';
       const url = `sms:${phone}?body=${encodeURIComponent(message)}`;
       await Linking.openURL(url);
       showBanner('Invitation sent');

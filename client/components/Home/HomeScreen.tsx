@@ -133,12 +133,10 @@ const HomeScreen = React.memo(() => {
               onFinishRefresh={onFinishRefreshUpcomingEvents} 
             />
           </ThemedView>
-          <ThemedView style={{ width: '100%' }}>
-            <AttentionRequired 
-              refreshing={isLoading('attentionRequired')} 
-              onFinishRefresh={onFinishRefreshAttentionRequired} 
-            />
-          </ThemedView>
+          <AttentionRequired 
+            refreshing={isLoading('attentionRequired')} 
+            onFinishRefresh={onFinishRefreshAttentionRequired} 
+          />
           <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }}>
             <PastEvents 
               refreshing={isLoading('pastEvents')} 

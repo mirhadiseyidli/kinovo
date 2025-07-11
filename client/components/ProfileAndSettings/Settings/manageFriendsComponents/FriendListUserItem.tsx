@@ -132,7 +132,7 @@ export default function FriendListUserItem({
         return (
           <TouchableOpacity 
             style={{
-              backgroundColor: themeColors.inputBackgroundColor,
+              backgroundColor: themeColors.mountainGreen,
               paddingHorizontal: 12,
               paddingVertical: 6,
               borderRadius: 8,
@@ -141,6 +141,27 @@ export default function FriendListUserItem({
           >
             <Text style={{ color: themeColors.text, fontWeight: 'bold' }}>Add Friend</Text>
           </TouchableOpacity>
+        );
+      case 'requestSent':
+        return (
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Ionicons name="checkmark-circle" size={20} color={themeColors.mountainGreen} />
+            <Text style={{ marginLeft: 6, color: themeColors.mountainGreen, fontSize: 12, fontWeight: 'bold' }}>Request Sent</Text>
+          </View>
+        );
+      case 'alreadyFriends':
+        return (
+          <View 
+            style={{
+              backgroundColor: themeColors.inputBackgroundColor,
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 8,
+              opacity: 0.6,
+            }}
+          >
+            <Text style={{ color: themeColors.text, fontWeight: 'bold' }}>Friends</Text>
+          </View>
         );
       case 'invite':
         return (
