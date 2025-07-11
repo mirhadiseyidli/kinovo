@@ -3,6 +3,59 @@ const Users = require('../database/schemas/usersSchema');
 const { updateFriendRequestNotificationStatus, createNotification, createFriendRequestNotification, sendFriendRequestPushNotification, sendEventInvitationPushNotification } = require('./notificationsController');
 const { sendEmailNotification } = require('../utils/emailNotificationService');
 const { removeFriendRequestFromFirebase } = require('../services/realtimeSyncService');
+const { sendEmail } = require('../utils/emailService');
+
+// Invite a friend by email
+const inviteFriendByEmail = async (req, res) => {
+  try {
+    const { email: recipientEmail } = req.body;
+    const userId = req.user._id;
+
+    const sender = await Users.findById(userId);
+
+    if (!recipientEmail) {
+      return res.status(400).json({ message: 'Recipient email is required' });
+    }
+
+    // Check if the user is trying to invite themselves
+    if (recipientEmail.toLowerCase() === sender.email.toLowerCase()) {
+      return res.status(400).json({ message: 'You cannot invite yourself.' });
+    }
+
+    // Check if the recipient is already a user on Kinovo
+    const existingUser = await Users.findOne({ email: recipientEmail.toLowerCase() });
+    if (existingUser) {
+      // Check if they are already friends
+      const areFriends = sender.friends.includes(existingUser._id);
+      if (areFriends) {
+        return res.status(400).json({ message: 'You are already friends with this user.' });
+      } else {
+        return res.status(400).json({ message: 'This user is already on Kinovo. You can send them a friend request directly.' });
+      }
+    }
+
+    // Prepare and send the invitation email
+    const subject = `${sender.full_name} has invited you to join Kinovo!`;
+    const html = `<p>Hey!</p>
+                  <p>${sender.full_name} (${sender.username}) is inviting you to join Kinovo, the app to discover and create events with friends.</p>
+                  <p>Join them by downloading the app!</p>
+                  <p>Download the app here: <a href="https://kinovo.app/invite">https://kinovo.app/invite</a></p>
+                  <p>Thanks,</p>
+                  <p>The Kinovo Team</p>`;
+    
+    await sendEmail({
+      to: recipientEmail,
+      subject: subject,
+      html: html,
+    });
+
+    res.status(200).json({ message: 'Invitation sent successfully.' });
+
+  } catch (error) {
+    console.error('Error inviting friend by email:', error);
+    res.status(500).json({ message: 'Server error while sending invitation.' });
+  }
+};
 
 // Send friend request
 const sendFriendRequest = async (req, res) => {
@@ -500,6 +553,53 @@ const getNumberOfFriendsNewEvents = async (req, res) => {
   }
 };
 
+// Check friendship status for multiple users
+const checkFriendshipStatus = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Unauthorized: User not logged in' });
+    }
+
+    const { userIds } = req.body;
+    const currentUserId = req.user._id;
+
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ message: 'User IDs array is required' });
+    }
+
+    const statuses = {};
+
+    // Get current user's friends list
+    const currentUser = await Users.findById(currentUserId).select('friends');
+    const friendIds = currentUser.friends.map(friendId => friendId.toString());
+
+    // Check each user ID
+    for (const userId of userIds) {
+      if (friendIds.includes(userId)) {
+        statuses[userId] = 'alreadyFriends';
+      } else {
+        // Check if there's a pending friend request from current user to this user
+        const pendingRequest = await FriendRequest.findOne({
+          sender: currentUserId,
+          receiver: userId,
+          status: 'pending'
+        });
+
+        if (pendingRequest) {
+          statuses[userId] = 'requestSent';
+        } else {
+          statuses[userId] = 'onKinovo';
+        }
+      }
+    }
+
+    res.status(200).json({ statuses });
+  } catch (error) {
+    console.error('Error checking friendship status:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 module.exports = {
   sendFriendRequest,
   acceptFriendRequest,
@@ -511,5 +611,7 @@ module.exports = {
   getReceivedFriendRequests,
   removeFriendFromFriendsList,
   getUserToViewFriends,
-  getNumberOfFriendsNewEvents
+  getNumberOfFriendsNewEvents,
+  checkFriendshipStatus,
+  inviteFriendByEmail
 };

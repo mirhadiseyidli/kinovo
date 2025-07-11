@@ -1,5 +1,5 @@
 import { View, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -13,17 +13,27 @@ import FriendListUserItemCard from '@/components/ProfileAndSettings/Settings/man
 import FriendSuggestionsList, { FriendSuggestionsListRef } from '@/components/ProfileAndSettings/Settings/manageFriendsComponents/FriendSuggestionsList';
 import type { ApiError, User } from '@/types/allTypes';
 import api from '@/utils/api';
+import InviteFriendModal from '@/components/ProfileAndSettings/Settings/manageFriendsComponents/InviteFriendModal';
 
-export default function AddFriends() {
+export interface AddFriendsRef {
+  openInviteModal: () => void;
+}
+
+const AddFriends = forwardRef<AddFriendsRef, {}>((props, ref) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [results, setResults] = useState<User[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
+  const [isInviteModalVisible, setInviteModalVisible] = useState(false);
   
   // Refs to trigger child component refreshes
   const friendSuggestionsRef = useRef<FriendSuggestionsListRef>(null);
   const contactSyncRef = useRef<ContactSyncScreenRef>(null);
+
+  useImperativeHandle(ref, () => ({
+    openInviteModal: () => setInviteModalVisible(true),
+  }));
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -81,6 +91,10 @@ export default function AddFriends() {
 
   return (
     <ThemedView style={{ flex: 1, alignItems: 'center' }}>
+      <InviteFriendModal
+        visible={isInviteModalVisible}
+        onClose={() => setInviteModalVisible(false)}
+      />
       <View style={{ marginTop: 16, marginBottom: 16, paddingHorizontal: 16, width: '100%' }}>
         <AddFriendsSearchBar
           placeholder="Search for friends..."
@@ -121,4 +135,6 @@ export default function AddFriends() {
       </ScrollView>
     </ThemedView>
   );
-}
+});
+
+export default AddFriends;

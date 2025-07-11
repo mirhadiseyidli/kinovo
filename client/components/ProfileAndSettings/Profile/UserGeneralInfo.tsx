@@ -12,6 +12,7 @@ import UserProfileActionMenuButton from '@/components/UserProfileActionMenuButto
 import UserCoverPhoto from './UserCoverPhoto';
 import UserProfilePhoto from './UserProfilePhoto';
 import UserProfileBasicInfo from './UserProfileBasicInfo';
+import { useEventCount } from '@/hooks/useEventCount';
 import AddFriendButton from '@/components/AddFriendButton';
 import ShareUserProfileButton from '@/components/ShareUserProfileButton';
 import AlreadyFriendsAndUnfriendButton from '@/components/AlreadyFriendsAndUnfriendButton';
@@ -81,6 +82,9 @@ const UserGeneralInfo = forwardRef(({ _id }: UserGeneralInfoProps, ref) => {
   const [loading, setLoading] = useState(true);
   const [optimisticFriendRequestSent, setOptimisticFriendRequestSent] = useState(false);
   const tabRef = useRef<ProfileTabsHandle>(null);
+  
+  const isOwnProfile = userToView?._id === user?._id;
+  const eventCount = useEventCount(userToView?.events, user?._id, friendshipStatus === 'friend', isOwnProfile);
 
   const renderFriendActionButton = (userIdToView: string) => {
     if (userIdToView === user?._id) return null;
@@ -342,7 +346,7 @@ const UserGeneralInfo = forwardRef(({ _id }: UserGeneralInfoProps, ref) => {
             full_name={userToView.full_name}
             username={userToView.username}
             number_of_friends={userToView.friends?.length}
-            number_of_events={userToView.events?.length}
+            number_of_events={eventCount}
             number_of_activities={userToView.favorite_activities?.length}
           />
         </View>

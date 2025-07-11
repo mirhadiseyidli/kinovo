@@ -6,8 +6,8 @@ export const ACTIVITIES = [
   'Pickleball', 'Pilates', 'Racquetball', 'Ride', 'Rock Climbing',
   'Roller Ski', 'Rowing', 'Run', 'Sail', 'Skateboard', 'Snowboard',
   'Snowshoe', 'Soccer', 'Squash', 'Stair Stepper', 'Stand Up Paddling',
-  'Surfing', 'Swim', 'Table Tennis', 'Tennis', 'Trail Run', 'Velomobile',
-  'Walk', 'Weight Training', 'Wheelchair', 'Windsurf', 'Workout', 'Yoga'
+  'Surfing', 'Swim', 'Table Tennis', 'Tennis', 'Trail Run', 
+  'Walk', 'Weight Training', 'Windsurf', 'Workout', 'Yoga'
 ] as const;
 
 export type Activity = typeof ACTIVITIES[number]; 

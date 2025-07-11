@@ -46,9 +46,6 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
   const [localEventsList, setLocalEventsList] = useState<Event[]>(initialEvents || []);
   const [loadingResponses, setLoadingResponses] = useState<{ [key: string]: boolean }>({});
 
-  const declinedColor = "transparent"; // iOS red color for declined events
-  const pendingColor = "transparent"; // Warm yellow color for pending responses
-
   // Memoize expensive event filtering
   const futureEvents = React.useMemo(() => {
     return localEventsList.filter((event) => {
@@ -64,7 +61,6 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
     
     const now = new Date();
     const eventStartDate = new Date(startTime);
-    const eventEndDate = new Date(endTime);
     
     // If the event is in the past or ongoing, don't show it
     if (now >= eventStartDate) {
@@ -539,58 +535,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
   }, [getTimeLeft, themeColors, handleViewEvent, handleResponse, formatDate]);
 
   if (futureEvents.length === 0) {
-    return (
-      <ThemedView style={{ width: '100%', paddingHorizontal: 16 }}>
-        {showHeader && (
-          <ThemedText style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 16 }}>
-            Attention Required
-          </ThemedText>
-        )}
-        <View
-          style={{
-            backgroundColor: themeColors.background,
-            borderRadius: 12,
-            padding: 16,
-            borderWidth: 2,
-            borderStyle: 'dashed',
-            borderColor: themeColors.border,
-            width: '100%',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: 120,
-          }}
-        >
-          <View style={{ marginBottom: 12 }}>
-            <IconSymbol
-              name="checkmark.circle"
-              size={32}
-              color={themeColors.placeholderTextColor}
-            />
-          </View>
-          <ThemedText 
-            style={{ 
-              fontSize: 16, 
-              color: themeColors.placeholderTextColor,
-              textAlign: 'center',
-              marginBottom: 4,
-              fontWeight: '600'
-            }}
-          >
-            All caught up!
-          </ThemedText>
-          <ThemedText 
-            style={{ 
-              fontSize: 14, 
-              color: themeColors.placeholderTextColor,
-              textAlign: 'center',
-              opacity: 0.8
-            }}
-          >
-            No events need your attention right now
-          </ThemedText>
-        </View>
-      </ThemedView>
-    );
+    return null;
   }
 
   return (

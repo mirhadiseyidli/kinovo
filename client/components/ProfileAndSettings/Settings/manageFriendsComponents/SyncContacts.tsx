@@ -12,6 +12,8 @@ import { useAuthSession } from '@/components/Auth/AuthProvider';
 import { useManageFriends } from '@/hooks/useManageFriends';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useInviteContact } from '@/hooks/useInviteContact';
+import { useContactFriendshipStatus } from '@/hooks/useContactFriendshipStatus';
+import { useBanner } from '@/context/BannerContext';
 
 interface ContactSyncScreenProps {
   parentRefreshing?: boolean;
@@ -28,8 +30,10 @@ const ContactSyncScreen = forwardRef<ContactSyncScreenRef, ContactSyncScreenProp
     const [synced, setSynced] = useState(false);
     const colorScheme = useColorScheme();
     const themeColors = Colors[colorScheme ?? 'dark'];
-    const { syncContacts } = useManageFriends();
+    const { syncContacts, sendFriendRequest } = useManageFriends();
     const { invite, loading: inviteLoading } = useInviteContact();
+    const { checkFriendshipStatus, updateFriendshipStatus, getFriendshipStatus } = useContactFriendshipStatus();
+    const { showBanner } = useBanner();
 
     const checkPermission = async () => {
       const { status } = await Contacts.getPermissionsAsync();
@@ -94,6 +98,15 @@ const ContactSyncScreen = forwardRef<ContactSyncScreenRef, ContactSyncScreenProp
 
       setContacts(allMapped);
       setSynced(true);
+      
+      // Check friendship status for all Kinovo users
+      const kinovoUserIds = allMapped
+        .filter(contact => contact.status === 'onKinovo')
+        .map(contact => contact._id);
+      
+      if (kinovoUserIds.length > 0) {
+        await checkFriendshipStatus(kinovoUserIds);
+      }
     };
 
     const refreshContacts = useCallback(async () => {
@@ -119,6 +132,25 @@ const ContactSyncScreen = forwardRef<ContactSyncScreenRef, ContactSyncScreenProp
       }
       setContactsPermission(true);
       performSyncContacts();
+    };
+
+    const handleSendFriendRequest = async (userId: string) => {
+      try {
+        // Optimistically update the status
+        updateFriendshipStatus(userId, 'requestSent');
+        
+        // Send the actual request
+        await sendFriendRequest(userId);
+        
+        // Show success banner
+        showBanner('Friend request sent');
+      } catch (error) {
+        console.error('Failed to send friend request:', error);
+        
+        // Revert the optimistic update
+        updateFriendshipStatus(userId, 'onKinovo');
+        showBanner('Failed to send friend request');
+      }
     };
 
     useEffect(() => {
@@ -201,17 +233,24 @@ const ContactSyncScreen = forwardRef<ContactSyncScreenRef, ContactSyncScreenProp
               </View>
             ) : (
               <View style={{ flexDirection: 'column', gap: 16 }}>
-                {contacts.map((user) => (
-                  <FriendListUserItem
-                    _id={user._id}
-                    key={user._id}
-                    name={user.full_name}
-                    subtitle={user.phone_number}
-                    avatarUri={user.profile_picture}
-                    status={user.status}
-                    onInvite={() => invite(user.phone_number)}
-                  />
-                ))}
+                {contacts.map((user) => {
+                  const friendshipStatus = user.status === 'onKinovo' 
+                    ? getFriendshipStatus(user._id) 
+                    : user.status;
+                  
+                  return (
+                    <FriendListUserItem
+                      _id={user._id}
+                      key={user._id}
+                      name={user.full_name}
+                      subtitle={user.phone_number}
+                      avatarUri={user.profile_picture}
+                      status={friendshipStatus}
+                      onAdd={() => handleSendFriendRequest(user._id)}
+                      onInvite={() => invite(user.phone_number)}
+                    />
+                  );
+                })}
               </View>
             )}
           </>

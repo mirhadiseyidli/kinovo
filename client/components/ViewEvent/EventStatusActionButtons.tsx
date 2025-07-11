@@ -7,6 +7,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '../ThemedText';
 import EventHostActionButtons from './EventHostActionButtons';
+import PastEventHostActionButton from './PastEventHostActionButton';
 import { Button } from '@expo/ui/swift-ui';
 
 type Props = {
@@ -20,6 +21,7 @@ type Props = {
   isCreator: boolean;
   loading?: boolean;
   isInvited?: boolean;
+  isEventInPast?: boolean;
 };
 
 const EventStatusActionButtons: React.FC<Props> = ({ 
@@ -32,7 +34,8 @@ const EventStatusActionButtons: React.FC<Props> = ({
   onCancel, 
   isCreator,
   loading = false,
-  isInvited = true
+  isInvited = true,
+  isEventInPast = false
 }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
@@ -70,6 +73,45 @@ const EventStatusActionButtons: React.FC<Props> = ({
     setIsUpdating(false);
   }, [onDecline]);
 
+  // For past events, show only the user's response
+  if (isEventInPast) {
+    const getResponseButton = () => {
+      switch (localUserStatus) {
+        case 'accepted':
+          return (
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: themeColors.inputBackgroundColor, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10, flex: 1, justifyContent: 'center' }}>
+              <Feather name="check" size={12} color="white" style={{ marginRight: 4 }} />
+              <ThemedText style={{ fontSize: 12, fontWeight: '600', color: 'white' }}>Attended</ThemedText>
+            </View>
+          );
+        case 'maybe':
+          return (
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: themeColors.inputBackgroundColor, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10, flex: 1, justifyContent: 'center'  }}>
+              <MaterialIcons name="question-mark" size={12} color="white" style={{ marginRight: 4 }} />
+              <ThemedText style={{ fontSize: 12, fontWeight: '600', color: 'white' }}>Maybe</ThemedText>
+            </View>
+          );
+        case 'rejected':
+          return (
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: themeColors.inputBackgroundColor, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10, flex: 1, justifyContent: 'center'  }}>
+              <Feather name="x" size={12} color="white" style={{ marginRight: 4 }} />
+              <ThemedText style={{ fontSize: 12, fontWeight: '600', color: 'white' }}>Did Not Attend</ThemedText>
+            </View>
+          );
+        default:
+          return null;
+      }
+    };
+
+    return (
+      <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 }}>
+        {getResponseButton()}
+        {isCreator && <PastEventHostActionButton onDelete={onCancel} />}
+      </View>
+    );
+  }
+
+  // Regular event view
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 }}>
       <TouchableOpacity

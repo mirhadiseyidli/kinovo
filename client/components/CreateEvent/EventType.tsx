@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, TouchableOpacity, Modal, Alert, Platform, Pressable, Dimensions } from 'react-native';
+import { View, TouchableOpacity, Modal, Alert, Platform, Pressable, Dimensions, TextInput, KeyboardAvoidingView } from 'react-native';
 import Animated, { 
   FadeIn,
   useAnimatedStyle,
@@ -20,6 +20,7 @@ import { CategoryProps } from '@/types/allTypes';
 import { useCreateEventContext } from '@/context/CreateEventContext';
 import { useCategories } from '@/hooks/useCategories';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { truncateName } from '@/utils/truncateName';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SPRING_CONFIG = {
@@ -34,9 +35,22 @@ const Category: React.FC<CategoryProps> = React.memo(({ onCategorySelect }) => {
   const { category, settingEventCategory } = useCreateEventContext();
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
   const [showPicker, setShowPicker] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const { categories, fetchCategories, loading } = useCategories();
   const translateY = useSharedValue(SCREEN_HEIGHT);
   const mountedRef = useRef(true);
+
+  // Filter categories based on search query
+  const filteredCategories = categories.filter(category =>
+    category.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Auto-select first match when searching
+  useEffect(() => {
+    if (searchQuery.trim() && filteredCategories.length === 1) {
+      setSelectedCategory(filteredCategories[0].name);
+    }
+  }, [searchQuery, filteredCategories]);
 
   // Check for a category in AsyncStorage and context
   useEffect(() => {
@@ -85,6 +99,7 @@ const Category: React.FC<CategoryProps> = React.memo(({ onCategorySelect }) => {
 
   const closeModal = useCallback(() => {
     setShowPicker(false);
+    setSearchQuery(''); // Clear search when closing
   }, []);
 
   const gestureHandler = useAnimatedGestureHandler({
@@ -182,7 +197,7 @@ const Category: React.FC<CategoryProps> = React.memo(({ onCategorySelect }) => {
             }}
           >
             <ThemedText style={{ fontSize: 12, fontWeight: 'bold', color: themeColors.text }}>
-              {selectedCategory ?? 'Select'}
+              {truncateName(selectedCategory ?? 'Select', 16)}
             </ThemedText>
           </TouchableOpacity>
         </View>
@@ -212,61 +227,119 @@ const Category: React.FC<CategoryProps> = React.memo(({ onCategorySelect }) => {
                 onPress={closeModal}
               />
             </Animated.View>
-            <PanGestureHandler onGestureEvent={gestureHandler}>
-              <Animated.View
-                style={[{
-                  backgroundColor: themeColors.background,
-                  borderTopLeftRadius: 16,
-                  borderTopRightRadius: 16,
-                  overflow: 'hidden',
-                  width: '100%',
-                  paddingVertical: 16,
-                }, animatedStyle]}
-              >
-                <View style={{ width: 36, height: 5, backgroundColor: themeColors.border, borderRadius: 3, alignSelf: 'center', marginBottom: 16 }} />
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    paddingHorizontal: 16,
-                    paddingBottom: 8,
-                    borderBottomWidth: 1,
-                    borderBottomColor: themeColors.border,
-                  }}
+            <KeyboardAvoidingView 
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={{ maxHeight: SCREEN_HEIGHT * 0.8 }}
+            >
+              <PanGestureHandler onGestureEvent={gestureHandler}>
+                <Animated.View
+                  style={[{
+                    backgroundColor: themeColors.background,
+                    borderTopLeftRadius: 16,
+                    borderTopRightRadius: 16,
+                    overflow: 'hidden',
+                    width: '100%',
+                    paddingVertical: 16,
+                  }, animatedStyle]}
                 >
-                  <TouchableOpacity onPress={closeModal} style={{ paddingVertical: 4 }}>
-                    <ThemedText style={{ fontSize: 16 }}>Cancel</ThemedText>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => {
-                      if (selectedCategory) {
-                        handleCategorySelect(selectedCategory);
-                      }
-                      closeModal();
+                  <View style={{ width: 36, height: 5, backgroundColor: themeColors.border, borderRadius: 3, alignSelf: 'center', marginBottom: 16 }} />
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      paddingHorizontal: 16,
+                      paddingBottom: 8,
+                      borderBottomWidth: 1,
+                      borderBottomColor: themeColors.border,
                     }}
                   >
-                    <ThemedText style={{ fontSize: 16, fontWeight: '600', color: themeColors.mountainGreen }}>Done</ThemedText>
-                  </TouchableOpacity>
-                </View>
-                <Picker
-                  selectedValue={selectedCategory}
-                  onValueChange={(itemValue) => setSelectedCategory(itemValue)}
-                  style={{
-                    backgroundColor: themeColors.background,
-                    color: themeColors.text,
-                  }}
-                >
-                  <Picker.Item label="Select a category" value="" />
-                  {categories.map((category) => (
-                    <Picker.Item
-                      key={category._id}
-                      label={category.name}
-                      value={category.name}
-                    />
-                  ))}
-                </Picker>
-              </Animated.View>
-            </PanGestureHandler>
+                    <TouchableOpacity onPress={closeModal} style={{ paddingVertical: 4 }}>
+                      <ThemedText style={{ fontSize: 16 }}>Cancel</ThemedText>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (selectedCategory) {
+                          handleCategorySelect(selectedCategory);
+                        }
+                        closeModal();
+                      }}
+                    >
+                      <ThemedText style={{ fontSize: 16, fontWeight: '600', color: themeColors.mountainGreen }}>Done</ThemedText>
+                    </TouchableOpacity>
+                  </View>
+                  
+                  {/* Search Bar */}
+                  <View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
+                    <View style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      backgroundColor: themeColors.inputBackgroundColor,
+                      borderRadius: 8,
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                    }}>
+                      <Feather name="search" size={16} color={themeColors.placeholderTextColor} style={{ marginRight: 8 }} />
+                      <TextInput
+                        placeholder="Search categories..."
+                        placeholderTextColor={themeColors.placeholderTextColor}
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                        style={{
+                          flex: 1,
+                          fontSize: 16,
+                          color: themeColors.text,
+                        }}
+                        autoCorrect={false}
+                        autoCapitalize="none"
+                        returnKeyType="done"
+                        blurOnSubmit={true}
+                      />
+                      {searchQuery.length > 0 && (
+                        <TouchableOpacity onPress={() => setSearchQuery('')} style={{ padding: 4 }}>
+                          <Feather name="x" size={16} color={themeColors.placeholderTextColor} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+
+                  {/* Picker or No Results */}
+                  <View style={{ minHeight: 200 }}>
+                    {filteredCategories.length > 0 ? (
+                      <Picker
+                        selectedValue={selectedCategory}
+                        onValueChange={(itemValue) => setSelectedCategory(itemValue)}
+                        style={{
+                          backgroundColor: themeColors.background,
+                          color: themeColors.text,
+                        }}
+                      >
+                        <Picker.Item label="Select a category" value="" />
+                        {filteredCategories.map((category) => (
+                          <Picker.Item
+                            key={category._id}
+                            label={category.name}
+                            value={category.name}
+                          />
+                        ))}
+                      </Picker>
+                    ) : (
+                      <View style={{ 
+                        paddingVertical: 40, 
+                        paddingHorizontal: 16, 
+                        alignItems: 'center' 
+                      }}>
+                        <ThemedText style={{ 
+                          color: themeColors.placeholderTextColor, 
+                          fontSize: 16 
+                        }}>
+                          No categories found
+                        </ThemedText>
+                      </View>
+                    )}
+                  </View>
+                </Animated.View>
+              </PanGestureHandler>
+            </KeyboardAvoidingView>
           </View>
         </Modal>
       )}
