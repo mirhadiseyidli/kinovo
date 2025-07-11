@@ -85,7 +85,6 @@ export default function NotificationsPage() {
   );
 
   // Sort notifications: unread first, then read, all sorted by time (newest first)
-  // Friend request notifications are no longer created - they only exist in Friend Requests section
   const sortedNotifications = useMemo(() => {
     // Filter out invalid notifications first
     const validNotifications = paginatedNotifications.filter(notification => 
@@ -93,10 +92,6 @@ export default function NotificationsPage() {
     );
     
     return validNotifications
-      .filter(notification => {
-        // Exclude any remaining friend_request type notifications (should not exist)
-        return notification.type !== 'friend_request';
-      })
       .sort((a, b) => {
         // First sort by read status (unread first)
         if (a.is_seen !== b.is_seen) {
@@ -140,6 +135,14 @@ export default function NotificationsPage() {
     // Always navigate regardless of read/unread status
     if (notification.type === 'friend_request_accepted') {
       // Navigate to the sender's profile for friend request notifications
+      if (notification.sender?._id) {
+        router.push({
+          pathname: "/(auth)/profile/[_id]" as const,
+          params: { _id: notification.sender._id }
+        });
+      }
+    } else if (notification.type === 'someone_from_contacts_joined') {
+      // Navigate to the contact's profile
       if (notification.sender?._id) {
         router.push({
           pathname: "/(auth)/profile/[_id]" as const,
@@ -350,22 +353,7 @@ export default function NotificationsPage() {
   // Render empty component
   const renderEmpty = useCallback(() => {
     if (paginatedLoading) {
-      return (
-        <View style={{ 
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: 120,
-          marginHorizontal: 16
-        }}>
-          <ActivityIndicator size="large" color={themeColors.tint} />
-          <Text style={{ 
-            color: themeColors.placeholderTextColor, 
-            marginTop: 16 
-          }}>
-            Loading notifications...
-          </Text>
-        </View>
-      );
+      return null;
     }
 
     return (
@@ -404,14 +392,6 @@ export default function NotificationsPage() {
       </View>
     );
   }, [paginatedLoading, themeColors.tint, themeColors.placeholderTextColor, themeColors.background, themeColors.border]);
-
-  // if (contextLoading || firebaseLoading) {
-  //   return (
-  //     <ThemedView style={{ flex: 1, backgroundColor: themeColors.background }}>
-  //       <EventCardSkeleton count={3} />
-  //     </ThemedView>
-  //   );
-  // }
 
   return (
     <ThemedView style={{ flex: 1, backgroundColor: themeColors.background }}>

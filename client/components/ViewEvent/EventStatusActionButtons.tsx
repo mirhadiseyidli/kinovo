@@ -80,22 +80,22 @@ const EventStatusActionButtons: React.FC<Props> = ({
         case 'accepted':
           return (
             <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: themeColors.inputBackgroundColor, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10, flex: 1, justifyContent: 'center' }}>
-              <Feather name="check" size={12} color="white" style={{ marginRight: 4 }} />
-              <ThemedText style={{ fontSize: 12, fontWeight: '600', color: 'white' }}>Attended</ThemedText>
+              <Feather name="check" size={12} color={themeColors.placeholderTextColor} style={{ marginRight: 4 }} />
+              <ThemedText style={{ fontSize: 12, fontWeight: '600', color: themeColors.placeholderTextColor }}>Attended</ThemedText>
             </View>
           );
         case 'maybe':
           return (
             <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: themeColors.inputBackgroundColor, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10, flex: 1, justifyContent: 'center'  }}>
-              <MaterialIcons name="question-mark" size={12} color="white" style={{ marginRight: 4 }} />
-              <ThemedText style={{ fontSize: 12, fontWeight: '600', color: 'white' }}>Maybe</ThemedText>
+              <MaterialIcons name="question-mark" size={12} color={themeColors.placeholderTextColor} style={{ marginRight: 4 }} />
+              <ThemedText style={{ fontSize: 12, fontWeight: '600', color: themeColors.placeholderTextColor }}>Maybe</ThemedText>
             </View>
           );
         case 'rejected':
           return (
             <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: themeColors.inputBackgroundColor, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10, flex: 1, justifyContent: 'center'  }}>
-              <Feather name="x" size={12} color="white" style={{ marginRight: 4 }} />
-              <ThemedText style={{ fontSize: 12, fontWeight: '600', color: 'white' }}>Did Not Attend</ThemedText>
+              <Feather name="x" size={12} color={themeColors.placeholderTextColor} style={{ marginRight: 4 }} />
+              <ThemedText style={{ fontSize: 12, fontWeight: '600', color: themeColors.placeholderTextColor }}>Did Not Attend</ThemedText>
             </View>
           );
         default:

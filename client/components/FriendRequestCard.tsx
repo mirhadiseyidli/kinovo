@@ -25,7 +25,7 @@ const FriendRequestCard: React.FC<FriendRequestCardProps> = React.memo(({
     if (request.status === 'accepted') {
       return (
         <View style={{
-          backgroundColor: '#10B981',
+          backgroundColor: themeColors.mountainGreen,
           paddingHorizontal: 16,
           paddingVertical: 8,
           borderRadius: 20,

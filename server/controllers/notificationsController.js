@@ -58,21 +58,21 @@ const createFriendRequestNotification = async (friendRequestId, senderId, recipi
 
     let notification = null;
 
-    // // Create in-app notification if enabled
-    // if (shouldReceiveInApp) {
-    //   notification = await createNotification({
-    //     recipient: recipientId,
-    //     sender: senderId,
-    //     friend_request: friendRequestId,
-    //     type: 'friend_request',
-    //     title: 'New Friend Request',
-    //     subtitle: `${sender.full_name} sent you a friend request`,
-    //     status: 'pending',
-    //     data: {
-    //       mutualFriendsCount: mutualFriendsCount
-    //     }
-    //   });
-    // }
+    // Create in-app notification if enabled
+    if (shouldReceiveInApp) {
+      notification = await createNotification({
+        recipient: recipientId,
+        sender: senderId,
+        friend_request: friendRequestId,
+        type: 'friend_request',
+        title: 'New Friend Request',
+        subtitle: `${sender.full_name} sent you a friend request`,
+        status: 'pending',
+        data: {
+          mutualFriendsCount: mutualFriendsCount
+        }
+      });
+    }
 
     // Send email notification if enabled
     if (shouldReceiveEmail && recipient.email) {
@@ -269,8 +269,8 @@ const getUnseenNotificationsCount = async (req, res) => {
   }
 };
 
-// Create event creation notification for friends
-const createEventCreationNotification = async (eventId, creatorId, friendIds) => {
+// Create event creation notification for friends (now called new_event_from_friend)
+const createEventCreationNotificationForFriends = async (eventId, creatorId, friendIds) => {
   try {
     const creator = await Users.findById(creatorId);
     const event = await require('../database/schemas/eventsSchema').findById(eventId);
@@ -279,14 +279,15 @@ const createEventCreationNotification = async (eventId, creatorId, friendIds) =>
       throw new Error('Creator or event not found');
     }
 
-    // Create notifications for all friends (respecting their preferences)
+    // Create notifications for all friends (regardless of event visibility)
     const notifications = await Promise.all(
       friendIds.map(async (friendId) => {
-        // Check if friend wants to receive event creation notifications
-        const shouldReceiveInApp = await shouldReceiveNotification(friendId, 'event_created', 'inApp');
-        const shouldReceiveEmail = await shouldReceiveNotification(friendId, 'event_created', 'email');
+        // Check if friend wants to receive new event from friend notifications
+        const shouldReceiveInApp = await shouldReceiveNotification(friendId, 'new_event_from_friend', 'inApp');
+        const shouldReceiveEmail = await shouldReceiveNotification(friendId, 'new_event_from_friend', 'email');
+        const shouldReceivePush = await shouldReceiveNotification(friendId, 'new_event_from_friend', 'push');
         
-        if (!shouldReceiveInApp && !shouldReceiveEmail) {
+        if (!shouldReceiveInApp && !shouldReceiveEmail && !shouldReceivePush) {
           return null;
         }
 
@@ -303,21 +304,33 @@ const createEventCreationNotification = async (eventId, creatorId, friendIds) =>
             recipient: friendId,
             sender: creatorId,
             event: eventId,
-            type: 'event_created',
-            title: 'New Event Created',
+            type: 'new_event_from_friend',
+            title: 'New Event from Friend',
             subtitle: `${creator.full_name} created "${event.title}"`,
             data: {
               eventTitle: event.title,
               eventLocation: event.location?.text || event.location?.city,
               eventStartTime: event.start_time,
-              eventVisibility: event.visibility
+              eventVisibility: event.visibility,
+              creatorName: creator.full_name
             }
+          });
+        }
+
+        // Send push notification if enabled
+        if (shouldReceivePush) {
+          sendPushNotification([friendId], 'new_event_from_friend', {
+            eventTitle: event.title,
+            eventId: eventId,
+            creatorName: creator.full_name
+          }).catch(error => {
+            console.error('Push notification failed for new event from friend:', error);
           });
         }
 
         // Send email notification if enabled
         if (shouldReceiveEmail && friend.email) {
-          await sendEmailNotification(friend.email, 'event_created', {
+          await sendEmailNotification(friend.email, 'new_event_from_friend', {
             creatorName: creator.full_name,
             eventTitle: event.title,
             eventLocation: event.location?.text || event.location?.city,
@@ -325,25 +338,13 @@ const createEventCreationNotification = async (eventId, creatorId, friendIds) =>
           });
         }
 
-        // Send push notification if enabled
-        const shouldReceivePush = await shouldReceiveNotification(friendId, 'event_created', 'push');
-        if (shouldReceivePush) {
-          sendPushNotification([friendId], 'event_invitation', {
-            eventTitle: event.title,
-            eventId: eventId
-          }).catch(error => {
-            console.error('Push notification failed for event creation:', error);
-          });
-        }
-
-        // Note: Real-time notification will be sent automatically by the change stream
         return notification;
       })
     );
 
     return notifications.filter(notification => notification !== null);
   } catch (error) {
-    console.error('Error creating event creation notifications:', error);
+    console.error('Error creating new event from friend notifications:', error);
     throw error;
   }
 };
@@ -366,8 +367,9 @@ const createEventUpdateNotification = async (eventId, updaterId, attendeeIds) =>
           // Check if attendee wants to receive event update notifications
           const shouldReceiveInApp = await shouldReceiveNotification(attendeeId, 'event_updated', 'inApp');
           const shouldReceiveEmail = await shouldReceiveNotification(attendeeId, 'event_updated', 'email');
+          const shouldReceivePush = await shouldReceiveNotification(attendeeId, 'event_updated', 'push');
           
-          if (!shouldReceiveInApp && !shouldReceiveEmail) {
+          if (!shouldReceiveInApp && !shouldReceiveEmail && !shouldReceivePush) {
             return null;
           }
 
@@ -380,19 +382,34 @@ const createEventUpdateNotification = async (eventId, updaterId, attendeeIds) =>
 
           // Create in-app notification if enabled
           if (shouldReceiveInApp) {
+            const isCancellation = event.status === 'cancelled';
             notification = await createNotification({
               recipient: attendeeId,
               sender: updaterId,
               event: eventId,
               type: 'event_updated',
-              title: 'Event Updated',
-              subtitle: `${updater.full_name} updated "${event.title}"`,
+              title: isCancellation ? 'Event Cancelled' : 'Event Updated',
+              subtitle: isCancellation 
+                ? `${updater.full_name} cancelled "${event.title}"`
+                : `${updater.full_name} updated "${event.title}"`,
               data: {
                 eventTitle: event.title,
                 eventLocation: event.location?.text || event.location?.city,
                 eventStartTime: event.start_time,
-                updatedBy: updater.full_name
+                updatedBy: updater.full_name,
+                isCancellation: isCancellation
               }
+            });
+          }
+
+          // Send push notification if enabled
+          if (shouldReceivePush) {
+            sendPushNotification([attendeeId], 'event_updated', {
+              eventTitle: event.title,
+              eventId: eventId,
+              isCancellation: event.status === 'cancelled'
+            }).catch(error => {
+              console.error('Push notification failed for event update:', error);
             });
           }
 
@@ -402,7 +419,8 @@ const createEventUpdateNotification = async (eventId, updaterId, attendeeIds) =>
               updaterName: updater.full_name,
               eventTitle: event.title,
               eventLocation: event.location?.text || event.location?.city,
-              eventStartTime: event.start_time
+              eventStartTime: event.start_time,
+              isCancellation: event.status === 'cancelled'
             });
           }
 
@@ -431,11 +449,17 @@ const createEventAttendanceNotification = async (eventId, attendeeId, status) =>
       throw new Error('Attendee or event not found');
     }
 
+    // Don't notify if the event creator confirms their own attendance
+    if (event.creator.toString() === attendeeId.toString()) {
+      return null;
+    }
+
     // Check if event creator wants to receive attendance notifications
     const shouldReceiveInApp = await shouldReceiveNotification(event.creator, 'event_attendance_confirmed', 'inApp');
     const shouldReceiveEmail = await shouldReceiveNotification(event.creator, 'event_attendance_confirmed', 'email');
+    const shouldReceivePush = await shouldReceiveNotification(event.creator, 'event_attendance_confirmed', 'push');
     
-    if (!shouldReceiveInApp && !shouldReceiveEmail) {
+    if (!shouldReceiveInApp && !shouldReceiveEmail && !shouldReceivePush) {
       return null;
     }
 
@@ -464,6 +488,17 @@ const createEventAttendanceNotification = async (eventId, attendeeId, status) =>
       });
     }
 
+    // Send push notification if enabled
+    if (shouldReceivePush) {
+      sendPushNotification([event.creator], 'event_attendance_confirmed', {
+        eventTitle: event.title,
+        eventId: eventId,
+        attendeeName: attendee.full_name
+      }).catch(error => {
+        console.error('Push notification failed for event attendance:', error);
+      });
+    }
+
     // Send email notification if enabled
     if (shouldReceiveEmail && creator.email) {
       await sendEmailNotification(creator.email, 'event_attendance_confirmed', {
@@ -476,6 +511,87 @@ const createEventAttendanceNotification = async (eventId, attendeeId, status) =>
     return notification;
   } catch (error) {
     console.error('Error creating event attendance notification:', error);
+    throw error;
+  }
+};
+
+// Create event invitation notification
+const createEventInvitationNotification = async (eventId, inviteeIds) => {
+  try {
+    const event = await require('../database/schemas/eventsSchema')
+      .findById(eventId)
+      .populate('creator', 'full_name');
+    
+    if (!event) {
+      throw new Error('Event not found');
+    }
+
+    // Create invitation notifications for all invitees
+    const notifications = await Promise.all(
+      inviteeIds.map(async (inviteeId) => {
+        // Check if invitee wants to receive event invitation notifications
+        const shouldReceiveInApp = await shouldReceiveNotification(inviteeId, 'event_invitation', 'inApp');
+        const shouldReceiveEmail = await shouldReceiveNotification(inviteeId, 'event_invitation', 'email');
+        const shouldReceivePush = await shouldReceiveNotification(inviteeId, 'event_invitation', 'push');
+        
+        if (!shouldReceiveInApp && !shouldReceiveEmail && !shouldReceivePush) {
+          return null;
+        }
+
+        const invitee = await Users.findById(inviteeId);
+        if (!invitee) {
+          return null;
+        }
+
+        let notification = null;
+
+        // Create in-app notification if enabled
+        if (shouldReceiveInApp) {
+          notification = await createNotification({
+            recipient: inviteeId,
+            sender: event.creator._id,
+            event: eventId,
+            type: 'event_invitation',
+            title: 'Event Invitation',
+            subtitle: `${event.creator.full_name} invited you to "${event.title}"`,
+            status: 'pending',
+            data: {
+              eventTitle: event.title,
+              eventLocation: event.location?.text || event.location?.city,
+              eventStartTime: event.start_time,
+              invitedBy: event.creator.full_name
+            }
+          });
+        }
+
+        // Send push notification if enabled
+        if (shouldReceivePush) {
+          sendPushNotification([inviteeId], 'event_invitation', {
+            eventTitle: event.title,
+            eventId: eventId,
+            inviterName: event.creator.full_name
+          }).catch(error => {
+            console.error('Push notification failed for event invitation:', error);
+          });
+        }
+
+        // Send email notification if enabled
+        if (shouldReceiveEmail && invitee.email) {
+          await sendEmailNotification(invitee.email, 'event_invitation', {
+            eventTitle: event.title,
+            eventLocation: event.location?.text || event.location?.city,
+            eventStartTime: event.start_time,
+            invitedBy: event.creator.full_name
+          });
+        }
+
+        return notification;
+      })
+    );
+
+    return notifications.filter(notification => notification !== null);
+  } catch (error) {
+    console.error('Error creating event invitation notifications:', error);
     throw error;
   }
 };
@@ -594,8 +710,9 @@ const createNearbyEventNotification = async (eventId, userIds) => {
         // Check if user wants to receive nearby event notifications
         const shouldReceiveInApp = await shouldReceiveNotification(userId, 'new_event_nearby', 'inApp');
         const shouldReceiveEmail = await shouldReceiveNotification(userId, 'new_event_nearby', 'email');
+        const shouldReceivePush = await shouldReceiveNotification(userId, 'new_event_nearby', 'push');
         
-        if (!shouldReceiveInApp && !shouldReceiveEmail) {
+        if (!shouldReceiveInApp && !shouldReceiveEmail && !shouldReceivePush) {
           return null;
         }
 
@@ -626,6 +743,16 @@ const createNearbyEventNotification = async (eventId, userIds) => {
           });
         }
 
+        // Send push notification if enabled
+        if (shouldReceivePush) {
+          sendPushNotification([userId], 'new_event_nearby', {
+            eventTitle: event.title,
+            eventId: eventId
+          }).catch(error => {
+            console.error('Push notification failed for nearby event:', error);
+          });
+        }
+
         // Send email notification if enabled
         if (shouldReceiveEmail && user.email) {
           await sendEmailNotification(user.email, 'new_event_nearby', {
@@ -647,49 +774,78 @@ const createNearbyEventNotification = async (eventId, userIds) => {
   }
 };
 
-// Update event creation notification to only notify for public events
-const createEventCreationNotificationForFriends = async (eventId, creatorId, friendIds) => {
+// Create someone from contacts joined notification
+const createContactJoinedNotification = async (newUserId, contactOwnerIds) => {
   try {
-    const creator = await Users.findById(creatorId);
-    const event = await require('../database/schemas/eventsSchema').findById(eventId);
-    
-    if (!creator || !event) {
-      throw new Error('Creator or event not found');
+    const newUser = await Users.findById(newUserId);
+    if (!newUser) {
+      throw new Error('New user not found');
     }
 
-    // Only notify friends for public events
-    if (event.visibility !== 'public') {
-      return [];
-    }
-
-    // Create notifications for all friends
+    // Create notifications for all users who have this contact
     const notifications = await Promise.all(
-      friendIds.map(async (friendId) => {
-        const notification = await createNotification({
-          recipient: friendId,
-          sender: creatorId,
-          event: eventId,
-          type: 'event_created',
-          title: 'New Public Event',
-          subtitle: `${creator.full_name} created "${event.title}"`,
-          data: {
-            eventTitle: event.title,
-            eventLocation: event.location?.text || event.location?.city,
-            eventStartTime: event.start_time,
-            eventVisibility: event.visibility
-          }
-        });
+      contactOwnerIds.map(async (contactOwnerId) => {
+        // Check if contact owner wants to receive contact joined notifications
+        const shouldReceiveInApp = await shouldReceiveNotification(contactOwnerId, 'someone_from_contacts_joined', 'inApp');
+        const shouldReceiveEmail = await shouldReceiveNotification(contactOwnerId, 'someone_from_contacts_joined', 'email');
+        const shouldReceivePush = await shouldReceiveNotification(contactOwnerId, 'someone_from_contacts_joined', 'push');
+        
+        if (!shouldReceiveInApp && !shouldReceiveEmail && !shouldReceivePush) {
+          return null;
+        }
+
+        const contactOwner = await Users.findById(contactOwnerId);
+        if (!contactOwner) {
+          return null;
+        }
+
+        let notification = null;
+
+        // Create in-app notification if enabled
+        if (shouldReceiveInApp) {
+          notification = await createNotification({
+            recipient: contactOwnerId,
+            sender: newUserId,
+            type: 'someone_from_contacts_joined',
+            title: 'Contact Joined Kinovo',
+            subtitle: `${newUser.full_name} from your contacts just joined Kinovo`,
+            data: {
+              contactName: newUser.full_name,
+              contactUsername: newUser.username,
+              contactId: newUserId
+            }
+          });
+        }
+
+        // Send push notification if enabled
+        if (shouldReceivePush) {
+          sendPushNotification([contactOwnerId], 'someone_from_contacts_joined', {
+            contactName: newUser.full_name,
+            userId: newUserId
+          }).catch(error => {
+            console.error('Push notification failed for contact joined:', error);
+          });
+        }
+
+        // Send email notification if enabled
+        if (shouldReceiveEmail && contactOwner.email) {
+          await sendEmailNotification(contactOwner.email, 'someone_from_contacts_joined', {
+            contactName: newUser.full_name,
+            contactUsername: newUser.username
+          });
+        }
 
         return notification;
       })
     );
 
-    return notifications;
+    return notifications.filter(notification => notification !== null);
   } catch (error) {
-    console.error('Error creating event creation notifications:', error);
+    console.error('Error creating contact joined notifications:', error);
     throw error;
   }
 };
+
 
 // Create a new notification
 exports.createNotification = async (req, res) => {
@@ -756,31 +912,34 @@ const getUserNotificationPreferences = async (req, res) => {
         user: userId,
         preferences: {
           inApp: {
-            friend_request: true,
             friend_request_accepted: true,
-            event_created: true,
-            event_attendance_confirmed: true,
-            new_event_nearby: true,
             event_reminder: true,
-            event_updated: true
+            event_updated: true,
+            new_event_nearby: true,
+            event_attendance_confirmed: true,
+            new_event_from_friend: true,
+            event_invitation: true,
+            someone_from_contacts_joined: true
           },
           email: {
-            friend_request: false,
             friend_request_accepted: false,
-            event_created: false,
-            event_attendance_confirmed: false,
-            new_event_nearby: false,
             event_reminder: true,
-            event_updated: false
+            event_updated: false,
+            new_event_nearby: false,
+            event_attendance_confirmed: false,
+            new_event_from_friend: false,
+            event_invitation: false,
+            someone_from_contacts_joined: false
           },
           push: {
-            friend_request: true,
             friend_request_accepted: true,
-            event_created: true,
-            event_attendance_confirmed: true,
-            new_event_nearby: true,
             event_reminder: true,
-            event_updated: true
+            event_updated: true,
+            new_event_nearby: true,
+            event_attendance_confirmed: true,
+            new_event_from_friend: true,
+            event_invitation: true,
+            someone_from_contacts_joined: true
           }
         }
       });
@@ -992,6 +1151,42 @@ const sendEventInvitationPushNotification = async (eventId, inviteeIds) => {
   }
 };
 
+// Send test notification
+const sendTestNotification = async (req, res) => {
+  console.log('sendTestNotification', req.body);
+  try {
+    const { token, type, payload } = req.body;
+
+    if (!token || !type || !payload) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Token, type, and payload are required' 
+      });
+    }
+
+    // Send the notification using FCM service
+    console.log('sending to single token', token);
+    const result = await fcmService.sendNotificationByType(token, type, payload);
+
+    if (result.success) {
+      res.json({ success: true, message: 'Test notification sent successfully' });
+    } else {
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to send test notification',
+        error: result.error 
+      });
+    }
+  } catch (error) {
+    console.error('Error sending test notification:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error',
+      error: error.message 
+    });
+  }
+};
+
 module.exports = {
   createNotification,
   createFriendRequestNotification,
@@ -999,12 +1194,13 @@ module.exports = {
   getUserNotifications,
   markNotificationsAsSeen,
   getUnseenNotificationsCount,
-  createEventCreationNotification,
   createEventUpdateNotification,
   createEventAttendanceNotification,
+  createEventInvitationNotification,
   createEventReminderNotification,
   createNearbyEventNotification,
   createEventCreationNotificationForFriends,
+  createContactJoinedNotification,
   getUserNotificationPreferences,
   updateUserNotificationPreferences,
   shouldReceiveNotification,
@@ -1012,5 +1208,6 @@ module.exports = {
   saveFCMToken,
   sendPushNotification,
   sendFriendRequestPushNotification,
-  sendEventInvitationPushNotification
+  sendEventInvitationPushNotification,
+  sendTestNotification
 }; 

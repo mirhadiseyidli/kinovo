@@ -32,7 +32,15 @@ const getUserProfile = async (req, res) => {
       };
     }
 
-    res.status(200).json({ user: res.user, friendRequest });
+    // Populate events.event to include visibility and attendees for frontend counts
+    const populatedUser = await User.findById(res.user._id)
+      .select('-password')
+      .populate({
+        path: 'events.event',
+        select: 'visibility attendees',
+      });
+
+    res.status(200).json({ user: populatedUser, friendRequest });
   } catch (error) {
     console.error('Error in getUserProfile:', error);
     res.status(500).json({ message: 'Server error' });

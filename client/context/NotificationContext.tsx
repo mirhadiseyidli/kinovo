@@ -124,7 +124,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
           .filter(item => item && typeof item === 'object')
           .map(fbNotification => ({
             _id: fbNotification._id?.toString() || '',
-            type: fbNotification.type || 'event_created',
+            type: fbNotification.type || 'new_event_from_friend',
             title: fbNotification.title || '',
             subtitle: fbNotification.subtitle,
             message_body: fbNotification.message_body,
@@ -476,15 +476,16 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const senderName = notification.sender?.full_name || "Someone";
 
     switch (notification.type) {
-      case 'friend_request':
-        title = `${senderName} sent you a friend request`;
-        break;
       case 'friend_request_accepted':
         title = `${senderName} accepted your friend request`;
         break;
-      case 'event_created':
+      case 'new_event_from_friend':
         title = `${senderName} created a new event`;
         subtitle = notification.event?.title || 'Check it out!';
+        break;
+      case 'event_invitation':
+        title = `You're invited to "${notification.event?.title || 'an event'}"`;
+        subtitle = `Invited by ${senderName}`;
         break;
       case 'event_updated':
         title = `Event updated: ${notification.event?.title || 'An event was updated'}`;
@@ -501,6 +502,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       case 'new_event_nearby':
         title = `New event nearby you might be interested in`;
         subtitle = notification.event?.title || 'Check it out!';
+        break;
+      case 'someone_from_contacts_joined':
+        title = `${senderName} from your contacts joined Kinovo`;
+        subtitle = 'Connect with them now!';
         break;
       default:
         title = notification.title || notification.type || "New notification";

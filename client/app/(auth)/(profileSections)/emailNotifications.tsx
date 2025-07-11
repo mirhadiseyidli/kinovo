@@ -15,13 +15,14 @@ const EmailNotifications = () => {
   const { preferences, loading, refreshing, togglePreference, onRefresh } = useNotificationPreferences('email');
 
   const notificationTypeLabels = {
-    friend_request: 'Friend Requests',
     friend_request_accepted: 'Friend Request Accepted',
-    event_created: 'New Events Created',
-    event_attendance_confirmed: 'Event Attendance Confirmed',
-    new_event_nearby: 'New Nearby Events',
     event_reminder: 'Event Reminders',
     event_updated: 'Event Updates',
+    new_event_nearby: 'New Nearby Events',
+    event_attendance_confirmed: 'Event Attendance Confirmed',
+    new_event_from_friend: 'New Events from Friends',
+    event_invitation: 'Event Invitations',
+    someone_from_contacts_joined: 'Contacts Joined App',
   };
 
   const goBack = () => {

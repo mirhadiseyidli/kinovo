@@ -294,23 +294,21 @@ const EventDetailsSection: React.FC<EventProp> = ({ event }) => {
         <EventRecurrence frequency={event.recurrence.frequency} endDate={event.recurrence.end_date} />
       )}
 
-      {/* {!isEventInPast && ( */}
-        <EventStatusActionButtons 
-            currentUserStatus={event.attendees?.find(att => 
-              att.user?._id === loggedInUserId
-            )?.status ?? null}
-          onAccept={acceptInvitation}
-          onMaybe={maybeInvitation}
-          onDecline={declineInvitation}
-          onCancel={cancelEvent}
-          onEdit={editEvent}
-          onInvite={inviteToEvent}
-          isCreator={event.creator?._id === loggedInUserId}
-            loading={false}
-          isInvited={event.attendees?.some(att => att.user._id === loggedInUserId)}
-          isEventInPast={isEventInPast}
-        />
-      {/* )} */}
+      <EventStatusActionButtons 
+          currentUserStatus={event.attendees?.find(att => 
+            att.user?._id === loggedInUserId
+          )?.status ?? null}
+        onAccept={acceptInvitation}
+        onMaybe={maybeInvitation}
+        onDecline={declineInvitation}
+        onCancel={cancelEvent}
+        onEdit={editEvent}
+        onInvite={inviteToEvent}
+        isCreator={event.creator?._id === loggedInUserId}
+          loading={false}
+        isInvited={event.attendees?.some(att => att.user._id === loggedInUserId)}
+        isEventInPast={isEventInPast}
+      />
 
       <EventLocationInfo location={event?.location} />
 

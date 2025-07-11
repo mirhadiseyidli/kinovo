@@ -197,7 +197,7 @@ const eventCreatedEmailTemplate = (creatorName, eventTitle, eventLocation, event
   return getBaseEmailTemplate(content);
 };
 
-const eventUpdatedEmailTemplate = (updaterName, eventTitle, eventLocation, eventStartTime) => {
+const eventUpdatedEmailTemplate = (updaterName, eventTitle, eventLocation, eventStartTime, isCancellation = false) => {
   const startDate = new Date(eventStartTime).toLocaleDateString('en-US', {
     weekday: 'long',
     year: 'numeric',
@@ -213,8 +213,8 @@ const eventUpdatedEmailTemplate = (updaterName, eventTitle, eventLocation, event
 
   const content = `
     <div class="content">
-      <h2 class="title">Event Updated</h2>
-      <p class="subtitle">${updaterName} updated "${eventTitle}"</p>
+      <h2 class="title">${isCancellation ? 'Event Cancelled' : 'Event Updated'}</h2>
+      <p class="subtitle">${updaterName} ${isCancellation ? 'cancelled' : 'updated'} "${eventTitle}"</p>
       
       <div class="details">
         <div class="detail-item">
@@ -233,9 +233,12 @@ const eventUpdatedEmailTemplate = (updaterName, eventTitle, eventLocation, event
         ` : ''}
       </div>
       
-      <p>Check out the latest details for this event you're attending.</p>
+      ${isCancellation 
+        ? '<p>Unfortunately, this event has been cancelled. We apologize for any inconvenience.</p>'
+        : '<p>Check out the latest details for this event you\'re attending.</p>'
+      }
       
-      <a href="kinovo://events" class="button">View Updated Event</a>
+      <a href="kinovo://events" class="button">${isCancellation ? 'View Events' : 'View Updated Event'}</a>
     </div>
   `;
 
@@ -399,6 +402,70 @@ const passwordResetEmailTemplate = (userName, resetCode) => {
   return getBaseEmailTemplate(content);
 };
 
+const eventInvitationEmailTemplate = (invitedBy, eventTitle, eventLocation, eventStartTime) => {
+  const startDate = new Date(eventStartTime).toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+  
+  const startTime = new Date(eventStartTime).toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+
+  const content = `
+    <div class="content">
+      <h2 class="title">Event Invitation</h2>
+      <p class="subtitle">You're invited to "${eventTitle}" by ${invitedBy}!</p>
+      
+      <div class="details">
+        <div class="detail-item">
+          <span class="detail-label">Event:</span> ${eventTitle}
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Invited by:</span> ${invitedBy}
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Date:</span> ${startDate}
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Time:</span> ${startTime}
+        </div>
+        ${eventLocation ? `
+        <div class="detail-item">
+          <span class="detail-label">Location:</span> ${eventLocation}
+        </div>
+        ` : ''}
+      </div>
+      
+      <p>Open the Kinovo app to respond to this invitation.</p>
+      
+      <a href="kinovo://events" class="button">View Invitation</a>
+    </div>
+  `;
+
+  return getBaseEmailTemplate(content);
+};
+
+const contactJoinedEmailTemplate = (contactName, contactUsername) => {
+  const content = `
+    <div class="content">
+      <h2 class="title">Contact Joined Kinovo</h2>
+      <p class="subtitle">${contactName} from your contacts just joined Kinovo!</p>
+      
+      <p>Your contact ${contactName} (@${contactUsername}) is now on Kinovo. Connect with them to start planning activities together!</p>
+      
+      <a href="kinovo://profile/${contactUsername}" class="button">View Profile</a>
+      <a href="kinovo://friends/add" class="button">Send Friend Request</a>
+    </div>
+  `;
+
+  return getBaseEmailTemplate(content);
+};
+
 module.exports = {
   friendRequestEmailTemplate,
   friendRequestAcceptedEmailTemplate,
@@ -407,5 +474,7 @@ module.exports = {
   eventAttendanceConfirmedEmailTemplate,
   eventReminderEmailTemplate,
   nearbyEventEmailTemplate,
-  passwordResetEmailTemplate
+  passwordResetEmailTemplate,
+  eventInvitationEmailTemplate,
+  contactJoinedEmailTemplate
 }; 
