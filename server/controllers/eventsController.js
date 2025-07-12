@@ -9,6 +9,8 @@ const {
   createEventInvitationNotification,
   createNearbyEventNotification
 } = require('./notificationsController');
+// Event reminder scheduling helpers (EventBridge Scheduler)
+const { putSchedule, deleteSchedule } = require('../aws/eventReminderScheduler');
 const {
   // Core utilities
   getUserFilterData,
@@ -222,6 +224,17 @@ const createEvent = async (req, res) => {
         console.error('Error sending nearby event notifications:', notificationError);
         // Don't fail the event creation if notifications fail
       }
+    }
+
+    // Schedule 1-hour-before reminder using EventBridge Scheduler
+    try {
+      const reminderTime = new Date(event.start_time.getTime() - 60 * 60 * 1000);
+      if (reminderTime > new Date()) {
+        await putSchedule(event._id.toString(), reminderTime);
+      }
+    } catch (scheduleErr) {
+      console.error('Failed to create EventBridge reminder schedule:', scheduleErr);
+      // Do not fail the request because of scheduling issues
     }
 
     res.status(201).json({ success: true, event });
@@ -888,6 +901,12 @@ const cancelEvent = async (req, res) => {
       { 'events.event': eventId },
       { $pull: { events: { event: eventId } } }
     );
+
+    try {
+      await deleteSchedule(eventId);
+    } catch (scheduleErr) {
+      console.error('Failed to delete EventBridge schedule on event cancel:', scheduleErr);
+    }
 
     return res.status(200).json({ 
       success: true, 
@@ -1606,6 +1625,20 @@ const updateEvent = async (req, res) => {
     // Send update notifications to all attendees
     const attendeeIds = event.attendees.map(attendee => attendee.user);
     await createEventUpdateNotification(eventId, req.user._id, attendeeIds);
+
+    // Update / remove reminder schedule if needed
+    try {
+      if (sanitizedData.status === 'cancelled') {
+        await deleteSchedule(eventId);
+      } else if (Object.prototype.hasOwnProperty.call(sanitizedData, 'start_time')) {
+        const newReminderTime = new Date(event.start_time.getTime() - 60 * 60 * 1000);
+        if (newReminderTime > new Date()) {
+          await putSchedule(event._id.toString(), newReminderTime);
+        }
+      }
+    } catch (scheduleErr) {
+      console.error('Failed to update EventBridge reminder schedule:', scheduleErr);
+    }
     
     return res.status(200).json({
       success: true,
