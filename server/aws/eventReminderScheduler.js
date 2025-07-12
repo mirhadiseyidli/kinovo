@@ -18,9 +18,13 @@ const RULE_PREFIX = 'event-reminder-';
  * @param {Date} fireAt JS Date object when reminder should fire
  */
 function buildScheduleInput(eventId, fireAt) {
+  // EventBridge Scheduler requires format: YYYY-MM-DDTHH:mm:ss
+  // Convert from ISO string (2025-07-12T15:12:00.000Z) to required format
+  const scheduleDate = fireAt.toISOString().slice(0, 19); // Remove milliseconds and Z
+  
   return {
     Name: `${RULE_PREFIX}${eventId}`,
-    ScheduleExpression: `at(${fireAt.toISOString()})`,
+    ScheduleExpression: `at(${scheduleDate})`,
     FlexibleTimeWindow: { Mode: 'OFF' },
     Target: {
       Arn: process.env.REMINDER_LAMBDA_ARN,
