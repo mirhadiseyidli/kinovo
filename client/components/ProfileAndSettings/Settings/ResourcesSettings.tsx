@@ -42,12 +42,12 @@ const ResourcesSettings = () => {
 
       {/* Only show test components in development */}
       {/* {__DEV__ && ( */}
-        <>
+        {/* <>
           <Text style={{ fontSize: 14, color: themeColors.placeholderTextColor, marginTop: 20, marginBottom: 10 }}>
             Development Tools
           </Text>
           <NotificationTestComponent />
-        </>
+        </> */}
       {/* )} */}
     </View>
   );
