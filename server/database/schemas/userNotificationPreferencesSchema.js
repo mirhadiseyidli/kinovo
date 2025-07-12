@@ -20,7 +20,7 @@ const userNotificationPreferencesSchema = new mongoose.Schema({
     },
     email: {
       friend_request_accepted: { type: Boolean, default: false },
-      event_reminder: { type: Boolean, default: true },
+      event_reminder: { type: Boolean, default: false },
       event_updated: { type: Boolean, default: false },
       new_event_nearby: { type: Boolean, default: false },
       event_attendance_confirmed: { type: Boolean, default: false },
