@@ -18,6 +18,7 @@ const RULE_PREFIX = 'event-reminder-';
  * @param {Date} fireAt JS Date object when reminder should fire
  */
 function buildScheduleInput(eventId, fireAt) {
+  console.log('buildScheduleInput', eventId, fireAt);
   // EventBridge Scheduler requires format: YYYY-MM-DDTHH:mm:ss
   // Convert from ISO string (2025-07-12T15:12:00.000Z) to required format
   const scheduleDate = fireAt.toISOString().slice(0, 19); // Remove milliseconds and Z
@@ -42,6 +43,7 @@ function buildScheduleInput(eventId, fireAt) {
  * @param {Date}  fireAt    JS Date when reminder should fire
  */
 async function putSchedule(eventId, fireAt) {
+  console.log('putSchedule', eventId, fireAt);
   const input = buildScheduleInput(eventId, fireAt);
 
   try {
@@ -70,6 +72,7 @@ async function putSchedule(eventId, fireAt) {
  * @param {string} eventId Event _id as string
  */
 async function deleteSchedule(eventId) {
+  console.log('deleteSchedule', eventId);
   try {
     await schedulerClient.send(
       new DeleteScheduleCommand({ Name: `${RULE_PREFIX}${eventId}` }),

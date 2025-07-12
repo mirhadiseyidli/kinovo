@@ -17,9 +17,11 @@ const {
  * For backwards compatibility, we also check `event.body`.
  */
 exports.handler = async (event = {}) => {
+  console.log('SendEventReminder Lambda received event:', event);
   let eventId;
 
   try {
+    console.log('SendEventReminder Lambda received event:', event);
     const payload = typeof event.detail === 'string'
       ? JSON.parse(event.detail)
       : event.detail || JSON.parse(event.body || '{}');
@@ -38,6 +40,7 @@ exports.handler = async (event = {}) => {
   }
 
   try {
+    console.log('SendEventReminder Lambda creating reminder notification for event:', eventId);
     await createEventReminderNotification(eventId);
     return {
       statusCode: 200,
