@@ -2,7 +2,8 @@
 require('dotenv').config();
 
 // Ensure a MongoDB connection is established for each cold start
-// require('./database/connection');
+require('./database/connection');
+require('./config/firebase-admin');
 
 // Import the existing notification helper
 const {
