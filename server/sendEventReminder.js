@@ -14,24 +14,32 @@ const {
  * AWS Lambda handler invoked by EventBridge Scheduler.
  * Expects a JSON payload that includes the target `eventId`.
  *
- * The Scheduler payload is supplied under `event.detail` for version-2 targets.
- * For backwards compatibility, we also check `event.body`.
+ * EventBridge Scheduler sends the Input field directly as the event object.
  */
 module.exports.handler = async (event = {}) => {
+  console.log('SendEventReminder Lambda received event:', JSON.stringify(event, null, 2));
+  
   let eventId;
 
   try {
-    const payload = typeof event.detail === 'string'
-      ? JSON.parse(event.detail)
-      : event.detail || JSON.parse(event.body || '{}');
-
-    eventId = payload.eventId;
+    // EventBridge Scheduler sends the Input directly as the event object
+    // So we should access eventId directly from the event
+    eventId = event.eventId;
+    
+    // Fallback: try other possible formats for compatibility
+    if (!eventId) {
+      const payload = typeof event.detail === 'string'
+        ? JSON.parse(event.detail)
+        : event.detail || JSON.parse(event.body || '{}');
+      
+      eventId = payload.eventId;
+    }
   } catch (err) {
     console.error('Failed to parse Scheduler payload:', err);
   }
 
   if (!eventId) {
-    console.error('SendEventReminder Lambda received no eventId');
+    console.error('SendEventReminder Lambda received no eventId. Event:', JSON.stringify(event, null, 2));
     return {
       statusCode: 400,
       body: JSON.stringify({ message: 'Missing eventId' }),
@@ -39,6 +47,7 @@ module.exports.handler = async (event = {}) => {
   }
 
   try {
+    console.log('SendEventReminder Lambda creating reminder notification for event:', eventId);
     await createEventReminderNotification(eventId);
     return {
       statusCode: 200,
