@@ -1,8 +1,8 @@
 // Load environment variables
 require('dotenv').config();
 
-// Ensure a MongoDB connection is established for each cold start
-require('./database/connection');
+// Import optimized database connection
+const { connectToDatabase } = require('./database/connection');
 require('./config/firebase-admin');
 
 // Import the existing notification helper
@@ -47,11 +47,18 @@ module.exports.handler = async (event = {}) => {
   }
 
   try {
+    // Establish database connection with optimized settings
+    console.log('Connecting to MongoDB...');
+    await connectToDatabase();
+    console.log('MongoDB connection established');
+
     console.log('SendEventReminder Lambda creating reminder notification for event:', eventId);
     await createEventReminderNotification(eventId);
+    
+    console.log('Event reminder notification created successfully');
     return {
       statusCode: 200,
-      body: JSON.stringify({ message: 'Reminder sent' }),
+      body: JSON.stringify({ message: 'Reminder sent successfully' }),
     };
   } catch (err) {
     console.error(`Error sending reminder for event ${eventId}:`, err);
