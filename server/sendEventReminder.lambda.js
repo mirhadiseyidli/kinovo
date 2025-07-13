@@ -2,7 +2,7 @@
 require('dotenv').config();
 
 // Ensure a MongoDB connection is established for each cold start
-require('./database/connection');
+// require('./database/connection');
 
 // Import the existing notification helper
 const {
