@@ -1,10 +1,8 @@
 const nodemailer = require('nodemailer');
-const { google } = require('googleapis');
-const OAuth2 = google.auth.OAuth2;
+const { OAuth2Client } = require('google-auth-library');
 
-// Create an OAuth2 client
 const createOAuth2Client = () => {
-  return new OAuth2(
+  return new OAuth2Client(
     process.env.GMAIL_CLIENT_ID,
     process.env.GMAIL_CLIENT_SECRET,
     process.env.GMAIL_REDIRECT_URI
