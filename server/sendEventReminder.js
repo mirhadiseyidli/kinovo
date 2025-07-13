@@ -1,6 +1,9 @@
 // Load environment variables
 require('dotenv').config();
 
+// Set Lambda environment variable for proper detection
+process.env.AWS_LAMBDA_FUNCTION_NAME = process.env.AWS_LAMBDA_FUNCTION_NAME || 'SendEventReminder';
+
 // Import optimized database connection
 const { connectToDatabase } = require('./database/connection');
 require('./config/firebase-admin');
