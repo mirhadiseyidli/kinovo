@@ -225,6 +225,8 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
     return Math.ceil((eventDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
   }, []);
 
+  console.log('attentionEventsList', attentionEventsList);
+
   const renderEventCard = React.useCallback((event: Event, isLoading: boolean, isRejected: boolean, index: number) => {
     const timeLeft = getTimeLeft(event.start_time, event.end_time);
 

@@ -7,7 +7,7 @@ require('dotenv').config();
 // Import the existing notification helper
 const {
   createEventReminderNotification,
-} = require('./controllers/notificationsController');
+} = require('../controllers/notificationsController');
 
 /**
  * AWS Lambda handler invoked by EventBridge Scheduler.
