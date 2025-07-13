@@ -16,7 +16,7 @@ const {
  * The Scheduler payload is supplied under `event.detail` for version-2 targets.
  * For backwards compatibility, we also check `event.body`.
  */
-exports.handler = async (event = {}) => {
+module.exports.handler = async (event = {}) => {
   let eventId;
 
   try {
