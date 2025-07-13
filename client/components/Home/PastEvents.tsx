@@ -168,6 +168,8 @@ const PastEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }>
   // Show skeleton only on first fetch, not on refreshes
   const showSkeleton = isFirstFetch && loading;
 
+  console.log('myPastEventsList', myPastEventsList);
+
   return (
     <ThemedView style={{ flex: 1, width: '100%' }}>
       {/* Header Section */}

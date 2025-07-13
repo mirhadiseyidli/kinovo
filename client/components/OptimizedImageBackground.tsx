@@ -153,7 +153,7 @@ export const OptimizedImageBackground: React.FC<OptimizedImageBackgroundProps> =
       {isLoading && (
         <SkeletonBox
           width="100%"
-          height="100%"
+          height={200}
           borderRadius={style?.borderRadius as number || 0}
         />
       )}

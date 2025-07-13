@@ -92,12 +92,8 @@ app.use('/share', shareRoutes); // Share routes don't need /api prefix
 
 // Start the cron jobs
 const accountDeletionCron = require('./cron/accountDeletionCron');
-const { startEventReminderCron } = require('./cron/eventReminderCron');
-const { startNearbyEventsCron } = require('./cron/nearbyEventsCron');
 
 accountDeletionCron.start();
-startEventReminderCron();
-startNearbyEventsCron();
 
 // Start Server
 const PORT = process.env.BACKEND_PORT || 5002;
