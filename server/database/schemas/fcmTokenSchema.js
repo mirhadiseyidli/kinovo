@@ -37,7 +37,7 @@ const fcmTokenSchema = new mongoose.Schema({
 
 // Index for efficient queries
 fcmTokenSchema.index({ userId: 1, isActive: 1 });
-fcmTokenSchema.index({ token: 1 });
+// Note: token field already has an index due to unique: true, so no need to add another one
 fcmTokenSchema.index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 90 }); // Auto-delete after 90 days
 
 // Update the updatedAt field on save
