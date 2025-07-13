@@ -1,5 +1,6 @@
 // Load environment variables
 require('dotenv').config();
+const axios = require('axios');
 
 // Set Lambda environment variable for proper detection
 process.env.AWS_LAMBDA_FUNCTION_NAME = process.env.AWS_LAMBDA_FUNCTION_NAME || 'SendEventReminder';
@@ -20,6 +21,8 @@ const {
  * EventBridge Scheduler sends the Input field directly as the event object.
  */
 module.exports.handler = async (event = {}) => {
+  const res = await axios.get('https://checkip.amazonaws.com');
+  console.log('NAT IP:', res.data.trim());
   console.log('SendEventReminder Lambda received event:', JSON.stringify(event, null, 2));
   
   let eventId;
