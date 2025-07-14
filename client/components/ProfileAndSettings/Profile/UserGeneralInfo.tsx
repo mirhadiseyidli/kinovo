@@ -25,45 +25,10 @@ import { ThemedView } from '@/components/ThemedView';
 import { formatDistanceToNow } from 'date-fns';
 import { useManageFriends } from '@/hooks/useManageFriends';
 import { useNotifications } from '@/context/NotificationContext';
-import { SkeletonBox } from '@/components/Skeleton';
+import { UserGeneralInfoSkeleton } from '@/components/Skeleton';
 
 type ProfileTabsHandle = {
   onRefresh: () => void;
-};
-
-const UserGeneralInfoSkeleton = () => {
-  const colorScheme = useColorScheme();
-  const themeColors = Colors[colorScheme ?? 'dark'];
-  const insets = useSafeAreaInsets();
-
-  return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, paddingTop: 16, overflow: 'hidden' }}>
-      {/* Profile Photo and Basic Info Skeleton */}
-      <View style={{ flexDirection: 'row', marginBottom: 16 }}>
-        <View style={{ flex: 1 }}>
-          <SkeletonBox width={120} height={120} borderRadius={999} />
-        </View>
-        <View style={{ flex: 1.5, alignItems: 'flex-start', justifyContent: 'center' }}>
-          <SkeletonBox width={'100%'} height={24} marginBottom={8} />
-          <SkeletonBox width={'100%'} height={24} marginBottom={8} />
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <SkeletonBox width={67} height={48} borderRadius={8}/>
-            <SkeletonBox width={67} height={48} borderRadius={8}/>
-            <SkeletonBox width={67} height={48} borderRadius={8}/>
-          </View>
-        </View>
-      </View>
-
-      {/* Bio Skeleton */}
-      <SkeletonBox width="100%" height={60} marginBottom={16} borderRadius={8}/>
-
-      {/* Action Buttons Skeleton */}
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-        <SkeletonBox width={177} height={40} borderRadius={8} />
-        <SkeletonBox width={177} height={40} borderRadius={8} />
-      </View>
-    </View>
-  );
 };
 
 const UserGeneralInfo = forwardRef(({ _id }: UserGeneralInfoProps, ref) => {
@@ -320,14 +285,8 @@ const UserGeneralInfo = forwardRef(({ _id }: UserGeneralInfoProps, ref) => {
     }, [fetchUser])
   );
 
-  const showSkeleton = isFirstFetch && loading;
-
-  if (showSkeleton) {
-    return <UserGeneralInfoSkeleton />;
-  }
-
   if (!userToView || !user) {
-    return null;
+    return <UserGeneralInfoSkeleton />;
   }
 
   return (

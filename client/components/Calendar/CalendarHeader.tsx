@@ -213,7 +213,7 @@ const CalendarHeaderMonthView: React.FC<CalendarHeaderProps> = ({ refreshing, on
 
   const handleViewChange = (selectedView: string) => {
     if (selectedView !== view) {
-      setView(selectedView);
+      setView(selectedView, 'header_picker');
       resetToToday();
     }
   };

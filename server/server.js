@@ -102,8 +102,11 @@ async function startServer() {
 
     // Start the cron jobs
     const accountDeletionCron = require('./cron/accountDeletionCron');
+    const { startNearbyEventsCron, startFriendsEventsCron } = require('./cron/nearbyEventsCron');
 
     accountDeletionCron.start();
+    startNearbyEventsCron();
+    startFriendsEventsCron();
 
     // Start Server
     const PORT = process.env.BACKEND_PORT || 5002;

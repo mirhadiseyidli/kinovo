@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
@@ -6,6 +6,7 @@ import { Feather } from '@expo/vector-icons';
 import { FriendRequestNotification } from '@/types/allTypes';
 import { truncateName } from '@/utils/truncateName';
 import DefaultProfilePicture from './DefaultProfilePicture';
+import { useRouter } from 'expo-router';
 
 interface FriendRequestCardProps {
   request: FriendRequestNotification;
@@ -20,6 +21,7 @@ const FriendRequestCard: React.FC<FriendRequestCardProps> = React.memo(({
 }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
+  const router = useRouter();
 
   const getStatusBadge = useMemo(() => {
     if (request.status === 'accepted') {
@@ -103,6 +105,10 @@ const FriendRequestCard: React.FC<FriendRequestCardProps> = React.memo(({
     return `${Math.floor(diffInMinutes / 1440)}d ago`;
   }, [request.created_at]);
 
+  const goToProfile = useCallback(() => {
+    router.push(`/(auth)/profile/${request.sender._id}`);
+  }, [request.sender._id]);
+
   return (
     <View
       style={{
@@ -112,17 +118,23 @@ const FriendRequestCard: React.FC<FriendRequestCardProps> = React.memo(({
       }}
     >
       {/* User Avatar */}
-      <View style={{ marginRight: 12 }}>
+      <TouchableOpacity 
+        style={{ marginRight: 12 }}
+        onPress={goToProfile}
+      >
         <DefaultProfilePicture
           profilePicture={request.sender.profile_picture}
           fullName={request.sender.full_name}
           size={50}
           borderRadius={25}
         />
-      </View>
+      </TouchableOpacity>
 
       {/* User Info */}
-      <View style={{ flex: 1 }}>
+      <TouchableOpacity 
+        style={{ flex: 1 }}
+        onPress={goToProfile}
+      >
         <Text style={{ 
           color: themeColors.text, 
           fontSize: 16, 
@@ -155,7 +167,7 @@ const FriendRequestCard: React.FC<FriendRequestCardProps> = React.memo(({
             • {formattedTime}
           </Text>
         </View>
-      </View>
+      </TouchableOpacity>
 
       {/* Action Buttons or Status Badge */}
       {getStatusBadge}

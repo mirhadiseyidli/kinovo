@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Image, Dimensions, Text } from "react-native";
+import { View, Dimensions, Text } from "react-native";
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import LinearGradient from 'react-native-linear-gradient';
@@ -7,7 +7,8 @@ import { ThemedText } from '@/components/ThemedText';
 import { Feather, Octicons } from '@expo/vector-icons';
 import { UserProfilePhotoProps } from '@/types/allTypes';
 import { getInitials, getRandomColor } from '@/utils/profilePictureGenerator';
-import { OptimizedCDNImage } from '@/components/OptimizedCDNImage';
+import { Image } from 'expo-image';
+import { SkeletonBox } from '@/components/Skeleton';
 
 const UserProfilePhoto = ({ profile_picture, firstName, lastName }: UserProfilePhotoProps) => {
   const colorScheme = useColorScheme();
@@ -43,14 +44,18 @@ const UserProfilePhoto = ({ profile_picture, firstName, lastName }: UserProfileP
   return (
     <View style={{ width: 120, height: 120, borderRadius: 70, borderWidth: 2, borderColor: themeColors.mountainGreen, overflow: 'hidden' }}>
       {profile_picture ? (
-        <OptimizedCDNImage
+        <Image
           source={profile_picture}
           style={{ width: '100%', height: '100%' }}
-          width={120}
-          height={120}
-          quality={85}
-          priority="normal"
-          enableBlurUp={true}
+          contentFit="cover"
+          onError={() => {
+            return renderDefaultProfilePicture();
+          }}
+          onProgress={() => {
+            return <SkeletonBox width={120} height={120} borderRadius={70} />;
+          }}
+          cachePolicy="disk"
+          allowDownscaling={true}
         />
       ) : (firstName || lastName) ? (
         // Show default profile picture with initials

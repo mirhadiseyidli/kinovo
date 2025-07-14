@@ -21,6 +21,7 @@ import { Feather } from "@expo/vector-icons";
 // import { useDeepLinking } from "@/hooks/useDeepLinking";
 import { useAuthSession } from "@/components/Auth/AuthProvider";
 import { BannerProvider } from "@/context/BannerContext";
+import { UserGeneralInfoSkeleton } from "@/components/Skeleton";
 
 type UserGeneralInfoRef = {
   onRefresh: () => void;
@@ -50,7 +51,7 @@ const ProfilePage = () => {
   const [isFriend, setIsFriend] = useState(false);
   const navigation = useNavigation();
   const { removeFriendFromFriendList } = useManageFriends();
-  const { fetchUserData } = useUserData();
+  const { fetchUserData, loading: userDataLoading, isFirstFetch } = useUserData();
   
   // Memoize derived values
   const userId = useMemo(() => Array.isArray(_id) ? _id[0] : _id, [_id]);
@@ -127,13 +128,13 @@ const ProfilePage = () => {
     );
   }, [isViewingOwnProfile, isFriend, showRemoveFriendConfirmation, showBlockUserConfirmation]);
 
-  const goBack = () => {
+  const goBack = useCallback(() => {
     if (router.canGoBack()) {
       router.back();
     } else {
       router.replace('/');
     }
-  }
+  }, [router]);
 
   const headerLeft = useCallback(() => (
     <TouchableOpacity 
@@ -246,6 +247,14 @@ const ProfilePage = () => {
       </View>
     );
   }, []);
+
+  if (userDataLoading && isFirstFetch) {
+    return (
+      <ThemedView style={{ flex: 1 }}>
+        <UserGeneralInfoSkeleton />
+      </ThemedView>
+    );
+  }
 
   return (
     <BannerProvider>

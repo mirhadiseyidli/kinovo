@@ -29,7 +29,7 @@ interface ScheduleViewProps {
 
 const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFinishRefresh }) => {
   const { fetchEventsForDateRange, eventOccurrences, loading } = useEventContext();
-  const { view } = useCalendarViewContext();
+  const { view, lastViewChangeSource } = useCalendarViewContext();
   const { currentDate } = useCalendarContext();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
@@ -37,6 +37,8 @@ const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFini
   const height = Dimensions.get('window').height;
   const tabBarHeight = useBottomTabBarHeight();
   const lastScrolledDate = useRef<Date | null>(null);
+  const previousView = useRef<string>(view);
+  const isInitialLoad = useRef<boolean>(true);
 
   // Create shared values for worklet-safe state
   const scrollOffset = useSharedValue(0);
@@ -140,41 +142,7 @@ const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFini
     }
   }, [listData]);
 
-  // Effect to handle initial scroll when schedule view becomes active and has data
-  useEffect(() => {
-    if (view.toLowerCase() === 'schedule' && listData.length > 0) {
-      const findAndScrollToTarget = () => {
-        const today = new Date();
-        const todayStr = format(today, 'yyyy-MM-dd');
-        
-        // Find header for today or the first one after today
-        const targetHeader = listData.find(item => item.type === 'header' && item.date! >= todayStr);
-        
-        let targetDate: Date | null = null;
-        if (targetHeader && targetHeader.date) {
-          targetDate = parseISO(targetHeader.date);
-        } else if (listData.length > 0) {
-          // Fallback to the very first date in the list if no future/today date is found
-          const firstHeader = listData.find(item => item.type === 'header');
-          if (firstHeader && firstHeader.date) {
-            targetDate = parseISO(firstHeader.date);
-          }
-        }
-        
-        if (targetDate) {
-          // Use a timeout to ensure the list has had time to render.
-          setTimeout(() => scrollToDate(targetDate!, false), 200);
-        }
-      };
-
-      // Only scroll if we haven't scrolled to any date yet
-      if (!lastScrolledDate.current) {
-        findAndScrollToTarget();
-      }
-    }
-  }, [view, listData.length]); // Removed scrollToDate dependency and listData dependency
-
-  // Combined effect to handle both fetching and scrolling
+  // Effect to fetch events when schedule view becomes active
   useEffect(() => {
     // Only fetch events when schedule view is active
     if (view.toLowerCase() !== 'schedule') return;
@@ -200,18 +168,60 @@ const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFini
     };
 
     fetchScheduleEvents();
-  }, [view, refreshing]); // Removed function dependencies to prevent excessive re-runs
+  }, [view, refreshing]);
 
-  // Separate effect for scrolling to avoid conflicts with fetching
+  // Main effect to handle scrolling logic
   useEffect(() => {
-    if (view.toLowerCase() === 'schedule' && currentDate && listData.length > 0) {
-      // Check if we need to scroll to a different date
-      if (!lastScrolledDate.current || !isSameDay(currentDate, lastScrolledDate.current)) {
-        // Small delay to allow UI to update before scrolling
-        setTimeout(() => scrollToDate(currentDate), 150);
+    if (view.toLowerCase() !== 'schedule' || listData.length === 0) return;
+
+    const wasScheduleView = previousView.current.toLowerCase() === 'schedule';
+    const isViewChange = previousView.current !== view;
+    
+    // Update previous view
+    previousView.current = view;
+
+    // For day cell clicks, we want to scroll directly to the selected date without going to today first
+    if (isViewChange && lastViewChangeSource === 'day_cell') {
+      // Day cell was clicked - scroll directly to the selected date without animation
+      if (currentDate) {
+        setTimeout(() => scrollToDate(currentDate, false), 50);
       }
+      return; // Exit early to prevent other logic from running
     }
-  }, [view, currentDate, listData.length]); // Removed scrollToDate dependency
+
+    // For header picker changes or initial load (but not day cell clicks), scroll to today
+    if ((isInitialLoad.current && lastViewChangeSource !== 'day_cell') || (isViewChange && lastViewChangeSource === 'header_picker')) {
+      const today = new Date();
+      const todayStr = format(today, 'yyyy-MM-dd');
+      
+      // Find header for today or the first one after today
+      const targetHeader = listData.find(item => item.type === 'header' && item.date! >= todayStr);
+      
+      let targetDate: Date | null = null;
+      if (targetHeader && targetHeader.date) {
+        targetDate = parseISO(targetHeader.date);
+      } else if (listData.length > 0) {
+        // Fallback to the very first date in the list if no future/today date is found
+        const firstHeader = listData.find(item => item.type === 'header');
+        if (firstHeader && firstHeader.date) {
+          targetDate = parseISO(firstHeader.date);
+        }
+      }
+      
+      if (targetDate) {
+        setTimeout(() => {
+          scrollToDate(targetDate!, true); // Animated scroll for view changes
+          isInitialLoad.current = false;
+        }, 100);
+      }
+      return; // Exit early
+    }
+
+    // Handle date changes while already in schedule view (like current month selector clicks)
+    if (!isViewChange && currentDate && (!lastScrolledDate.current || !isSameDay(currentDate, lastScrolledDate.current))) {
+      setTimeout(() => scrollToDate(currentDate, true), 50); // Animated for month selector
+    }
+  }, [view, currentDate, listData.length, scrollToDate, lastViewChangeSource]);
 
   const renderItem = useCallback(({ item }: { item: ListItem }) => {
     if (item.type === 'header') {

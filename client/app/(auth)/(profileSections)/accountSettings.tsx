@@ -39,14 +39,17 @@ const accountSettings = () => {
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
   const [show2FA, setShow2FA] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [loaddingPage, setLoaddingPage] = useState(false);
 
   const loadData = useCallback(async () => {
+    setLoaddingPage(true);
     const userData = await fetchUserData();
     if (userData) {
       setUser(userData);
       setEmail(userData.email || '');
       setPhoneNumber(userData.phone_number?.full_num || '');
       setUsername(userData.username || '');
+      setLoaddingPage(false);
     }
 
     // Check permissions
@@ -274,14 +277,6 @@ const accountSettings = () => {
     }
   };
 
-  const goBack = () => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace('/');
-    }
-  }
-
   if (show2FA) {
     return (
       <ThemedView style={{ flex: 1, padding: 16 }}>
@@ -294,27 +289,16 @@ const accountSettings = () => {
     );
   }
 
+  if (loaddingPage) {
+    return (
+      <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={themeColors.mountainGreen} style={{ marginTop: 32 }}/>
+      </ThemedView>
+    );
+  }
+
   return (
     <ThemedView style={{ flex: 1 }}>
-      <Stack.Screen 
-        options={{
-          headerTitle: 'Account Settings',
-          headerTintColor: themeColors.text,
-          headerStyle: {
-            backgroundColor: themeColors.background,
-          },
-          headerShadowVisible: false,
-          headerShown: true,
-          headerBackButtonDisplayMode: 'minimal',
-          headerLeft: () => (
-            <TouchableOpacity 
-              onPress={goBack}
-            >
-              <Feather name="chevron-left" size={24} color={themeColors.text} />
-            </TouchableOpacity>
-          ),
-        }} 
-      />
       <ScrollView
         style={{ 
           flex: 1,

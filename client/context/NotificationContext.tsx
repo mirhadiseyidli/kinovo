@@ -213,6 +213,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             _id: fbRequest._id?.toString() || '',
             sender: {
               _id: fbRequest.from?.toString() || '',
+              first_name: fbRequest.sender?.first_name || '',
+              last_name: fbRequest.sender?.last_name || '',
               full_name: fbRequest.sender?.full_name || '',
               username: fbRequest.sender?.username || '',
               profile_picture: fbRequest.sender?.profile_picture || ''
@@ -495,7 +497,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         title = `${senderName} is attending the event`;
         subtitle = notification.event?.title || 'Check who\'s coming';
         break;
-      case 'event_reminder':
+      case 'event_reminder_10_mins':
+        title = `Reminder: ${notification.event?.title || 'Upcoming event'}`;
+        subtitle = 'Your event is coming up soon';
+        break;
+      case 'event_reminder_1_hour':
         title = `Reminder: ${notification.event?.title || 'Upcoming event'}`;
         subtitle = 'Your event is coming up soon';
         break;
