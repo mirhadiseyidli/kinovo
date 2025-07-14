@@ -76,8 +76,6 @@ const UpcomingEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => voi
   // Show skeleton only on first fetch, not on refreshes
   const showSkeleton = isFirstFetch && loading;
 
-  console.log('upcomingEventsList', localEventsList);
-
   return (
     <ThemedView style={{ flex: 1, width: '100%' }}>
       {/* Header */}

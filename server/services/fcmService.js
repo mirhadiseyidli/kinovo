@@ -198,10 +198,18 @@ class FCMService {
         data.eventId = payload.eventId;
         break;
 
-      case 'event_reminder':
+      case 'event_reminder_10_mins':
         notification = {
           title: 'Event Reminder',
-          body: `"${payload.eventTitle}" starts in ${payload.timeUntil}`
+          body: `"${payload.eventTitle}" starts in 10 minutes`
+        };
+        data.eventId = payload.eventId;
+        break;
+
+      case 'event_reminder_1_hour':
+        notification = {
+          title: 'Event Reminder',
+          body: `"${payload.eventTitle}" starts in 1 hour`
         };
         data.eventId = payload.eventId;
         break;

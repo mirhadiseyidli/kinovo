@@ -596,8 +596,8 @@ const createEventInvitationNotification = async (eventId, inviteeIds) => {
   }
 };
 
-// Create event reminder notification (1 hour before)
-const createEventReminderNotification = async (eventId) => {
+// Create event reminder notification (10 minutes or 1 hour before)
+const createEventReminderNotification = async (eventId, reminderType = 'event_reminder_1_hour') => {
   try {
     const event = await require('../database/schemas/eventsSchema')
       .findById(eventId)
@@ -617,9 +617,9 @@ const createEventReminderNotification = async (eventId) => {
     const notifications = await Promise.all(
       acceptedAttendees.map(async (attendee) => {
         // Check if attendee wants to receive event reminder notifications
-        const shouldReceiveInApp = await shouldReceiveNotification(attendee._id, 'event_reminder', 'inApp');
-        const shouldReceiveEmail = await shouldReceiveNotification(attendee._id, 'event_reminder', 'email');
-        const shouldReceivePush = await shouldReceiveNotification(attendee._id, 'event_reminder', 'push');
+        const shouldReceiveInApp = await shouldReceiveNotification(attendee._id, reminderType, 'inApp');
+        const shouldReceiveEmail = await shouldReceiveNotification(attendee._id, reminderType, 'email');
+        const shouldReceivePush = await shouldReceiveNotification(attendee._id, reminderType, 'push');
         
         if (!shouldReceiveInApp && !shouldReceiveEmail && !shouldReceivePush) {
           return null;
@@ -635,18 +635,19 @@ const createEventReminderNotification = async (eventId) => {
         // Create in-app notification if enabled
         if (shouldReceiveInApp) {
           console.log('Creating in-app notification for event reminder');
+          const timeText = reminderType === 'event_reminder_10_mins' ? '10 minutes' : '1 hour';
           notification = await createNotification({
             recipient: attendee._id,
             sender: event.creator._id,
             event: eventId,
-            type: 'event_reminder',
+            type: reminderType,
             title: 'Event Reminder',
-            subtitle: `"${event.title}" starts in 1 hour`,
+            subtitle: `"${event.title}" starts in ${timeText}`,
             data: {
               eventTitle: event.title,
               eventLocation: event.location?.text || event.location?.city,
               eventStartTime: event.start_time,
-              reminderType: '1_hour_before'
+              reminderType: reminderType === 'event_reminder_10_mins' ? '10_mins_before' : '1_hour_before'
             }
           });
         }
@@ -654,7 +655,7 @@ const createEventReminderNotification = async (eventId) => {
         // Send push notification if enabled
         if (shouldReceivePush) {
           console.log('Sending push notification for event reminder');
-          await sendPushNotification([attendee._id], 'event_reminder', {
+          await sendPushNotification([attendee._id], reminderType, {
             eventTitle: event.title,
             eventId: eventId
           }).then(response => {
@@ -668,7 +669,7 @@ const createEventReminderNotification = async (eventId) => {
         // Send email notification if enabled
         if (shouldReceiveEmail && attendeeUser.email) {
           console.log('Sending email notification for event reminder');
-          await sendEmailNotification(attendeeUser.email, 'event_reminder', {
+          await sendEmailNotification(attendeeUser.email, reminderType, {
             eventTitle: event.title,
             eventLocation: event.location?.text || event.location?.city,
             eventStartTime: event.start_time
@@ -919,7 +920,8 @@ const getUserNotificationPreferences = async (req, res) => {
         preferences: {
           inApp: {
             friend_request_accepted: true,
-            event_reminder: true,
+            event_reminder_10_mins: true,
+            event_reminder_1_hour: true,
             event_updated: true,
             new_event_nearby: true,
             event_attendance_confirmed: true,
@@ -929,7 +931,8 @@ const getUserNotificationPreferences = async (req, res) => {
           },
           email: {
             friend_request_accepted: false,
-            event_reminder: true,
+            event_reminder_10_mins: false,
+            event_reminder_1_hour: false,
             event_updated: false,
             new_event_nearby: false,
             event_attendance_confirmed: false,
@@ -939,7 +942,8 @@ const getUserNotificationPreferences = async (req, res) => {
           },
           push: {
             friend_request_accepted: true,
-            event_reminder: true,
+            event_reminder_10_mins: true,
+            event_reminder_1_hour: true,
             event_updated: true,
             new_event_nearby: true,
             event_attendance_confirmed: true,

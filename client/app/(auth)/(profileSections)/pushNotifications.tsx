@@ -49,7 +49,8 @@ const PushNotifications = () => {
 
   const notificationTypeLabels = {
     friend_request_accepted: 'Friend Request Accepted',
-    event_reminder: 'Event Reminders',
+    event_reminder_10_mins: 'Event Reminders (10 minutes)',
+    event_reminder_1_hour: 'Event Reminders (1 hour)',
     event_updated: 'Event Updates',
     new_event_nearby: 'New Nearby Events',
     event_attendance_confirmed: 'Event Attendance Confirmed',

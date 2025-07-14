@@ -10,7 +10,8 @@ const userNotificationPreferencesSchema = new mongoose.Schema({
   preferences: {
     inApp: {
       friend_request_accepted: { type: Boolean, default: true },
-      event_reminder: { type: Boolean, default: true },
+      event_reminder_10_mins: { type: Boolean, default: true },
+      event_reminder_1_hour: { type: Boolean, default: true },
       event_updated: { type: Boolean, default: true },
       new_event_nearby: { type: Boolean, default: true },
       event_attendance_confirmed: { type: Boolean, default: true },
@@ -20,7 +21,8 @@ const userNotificationPreferencesSchema = new mongoose.Schema({
     },
     email: {
       friend_request_accepted: { type: Boolean, default: false },
-      event_reminder: { type: Boolean, default: false },
+      event_reminder_10_mins: { type: Boolean, default: false },
+      event_reminder_1_hour: { type: Boolean, default: false },
       event_updated: { type: Boolean, default: false },
       new_event_nearby: { type: Boolean, default: false },
       event_attendance_confirmed: { type: Boolean, default: false },
@@ -30,7 +32,8 @@ const userNotificationPreferencesSchema = new mongoose.Schema({
     },
     push: {
       friend_request_accepted: { type: Boolean, default: true },
-      event_reminder: { type: Boolean, default: true },
+      event_reminder_10_mins: { type: Boolean, default: true },
+      event_reminder_1_hour: { type: Boolean, default: true },
       event_updated: { type: Boolean, default: true },
       new_event_nearby: { type: Boolean, default: true },
       event_attendance_confirmed: { type: Boolean, default: true },

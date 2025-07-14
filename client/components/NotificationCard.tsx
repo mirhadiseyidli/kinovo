@@ -94,7 +94,6 @@ const NotificationCard: React.FC<NotificationCardProps> = React.memo(({ notifica
 
   // update local status when respond success
   React.useEffect(() => {
-    console.log('notification.status', notification.status);
     setInvitationStatus(notification.status as any);
   }, [notification.status]);
 
