@@ -1,12 +1,14 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import OptimizedImageBackground from '@/components/OptimizedImageBackground';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { EventOccurrence } from '@/utils/eventUtils';
+import { SkeletonBox } from '@/components/Skeleton';
+import { ImageBackground } from 'expo-image';
+import { getCategoryImage } from '@/constants/CategoryImages';
 
 type ScheduleEventViewProps = {
   title: string;
@@ -145,12 +147,8 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
 
   return (
     <TouchableOpacity onPress={handleEventPress}>
-      <OptimizedImageBackground
-        source={eventOccurrence?.event?.event_picture || null}
-        fallbackCategory={eventOccurrence?.event?.category}
-        width={400}
-        height={120}
-        quality={50}
+      <ImageBackground
+        source={getCategoryImage(eventOccurrence?.event?.category)}
         style={{
           padding: 16,
           borderRadius: 12,
@@ -161,8 +159,18 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
           opacity: isPast ? 0.5 : 1,
           backgroundColor: themeColors.eventCardBackgroundColor,
         }}
-        resizeMode="cover"
-        imageStyle={{ bottom: -160 }}
+        contentFit="cover"
+        onError={() => {
+          return <SkeletonBox width={400} height={120} borderRadius={12} />;
+        }}
+        onProgress={() => {
+          return <SkeletonBox width={400} height={120} borderRadius={12} />;
+        }}
+        cachePolicy="disk"
+        allowDownscaling={true}
+        imageStyle={{
+          bottom: -160,
+        }}
       >
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
           <LinearGradient
@@ -218,7 +226,7 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
             {getStatusText()}
           </Text>
         </View>
-      </OptimizedImageBackground>
+      </ImageBackground>
     </TouchableOpacity>
   );
 };

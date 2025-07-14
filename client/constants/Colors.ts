@@ -36,7 +36,7 @@ export const Colors = {
     maybeStatusColor: '#FFB347',
     eventCardBackgroundColor: 'rgba(222, 221, 221, 0.51)',
     card: '#f7f7f7',
-    eventCardCategoryColor: 'rgba(146, 146, 146, 0.2)',
+    eventCardCategoryColor: 'rgba(146, 146, 146, 0.3)',
     eventCardCategoryBorderColor: 'rgba(146, 146, 146, 0.3)',
   },
   dark: {
@@ -67,7 +67,7 @@ export const Colors = {
     maybeStatusColor: '#FFB347',
     eventCardBackgroundColor: 'rgba(51, 51, 51, 0.5)',
     card: '#222527',
-    eventCardCategoryColor: 'rgba(255, 255, 255, 0.2)',
+    eventCardCategoryColor: 'rgba(255, 255, 255, 0.3)',
     eventCardCategoryBorderColor: 'rgba(255, 255, 255, 0.3)',
   },
 };

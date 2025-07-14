@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TouchableOpacity, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { TouchableOpacity, ScrollView, Alert, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
@@ -19,11 +19,13 @@ const EditPhone = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [currentPhoneNumber, setCurrentPhoneNumber] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loaddingPage, setLoaddingPage] = useState(false);
   const [show2FA, setShow2FA] = useState(false);
   const [confirmationResult, setConfirmationResult] = useState<any>(null);
 
   React.useEffect(() => {
     const loadUserData = async () => {
+      setLoaddingPage(true);
       const userData = await fetchUserData();
       if (userData?.phone_number?.full_num) {
         // Format the phone number from E.164 to (XXX) XXX-XXXX
@@ -32,6 +34,7 @@ const EditPhone = () => {
         setPhoneNumber(formattedNum);
         setCurrentPhoneNumber(userData.phone_number.full_num);
       }
+      setLoaddingPage(false);
     };
     loadUserData();
   }, []);
@@ -143,35 +146,16 @@ const EditPhone = () => {
     );
   }
 
-  const goBack = () => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace('/');
-    }
+  if (loaddingPage) {
+    return (
+      <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={themeColors.mountainGreen} style={{ marginTop: 32 }}/>
+      </ThemedView>
+    );
   }
 
   return (
     <ThemedView style={{ flex: 1 }}>
-      <Stack.Screen 
-        options={{
-          headerTitle: 'Phone Number',
-          headerTintColor: themeColors.text,
-          headerStyle: {
-            backgroundColor: themeColors.background,
-          },
-          headerShadowVisible: false,
-          headerShown: true,
-          headerBackButtonDisplayMode: 'minimal',
-          headerLeft: () => (
-            <TouchableOpacity 
-              onPress={goBack}
-            >
-              <Feather name="chevron-left" size={24} color={themeColors.text} />
-            </TouchableOpacity>
-          ),
-        }} 
-      />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}

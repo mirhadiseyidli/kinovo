@@ -12,6 +12,7 @@ import { CalendarViewProvider } from '@/context/CalendarViewContext';
 const TabsLayout = React.memo(() => {
   const router = useRouter();
   const colorScheme = useColorScheme();
+  const themeColors = Colors[colorScheme ?? 'dark'];
 
   // Memoize tab bar icon components for better performance
   const TabBarIcons = React.useMemo(() => ({
@@ -35,9 +36,9 @@ const TabsLayout = React.memo(() => {
   const tabBarStyle = React.useMemo(() => Platform.select({
     ios: {
       position: 'absolute' as const,
-      backgroundColor: Colors[colorScheme ?? 'dark'].background,
+      backgroundColor: themeColors.background,
       borderTopWidth: 0,
-      borderTopColor: Colors[colorScheme ?? 'dark'].border,
+      borderTopColor: themeColors.border,
       shadowOpacity: 0.1,
       elevation: 3,
       paddingTop: 4,
@@ -45,27 +46,27 @@ const TabsLayout = React.memo(() => {
       justifyContent: 'center' as const,
     },
     default: {
-      backgroundColor: Colors[colorScheme ?? 'dark'].background,
+      backgroundColor: themeColors.background,
       borderTopWidth: 1,
-      borderTopColor: Colors[colorScheme ?? 'dark'].border,
+      borderTopColor: themeColors.border,
       paddingTop: 10,
     },
-  }), [colorScheme]);
+  }), []);
 
   return (
     <CalendarViewProvider>
       <View style={{ 
           flex: 1,
-          backgroundColor: Colors[colorScheme ?? 'dark'].background
+          backgroundColor: themeColors.background
         }}
       >
         <Tabs
           initialRouteName="index"
           backBehavior="history"
-          detachInactiveScreens={true}
+          // detachInactiveScreens={true}
           screenOptions={{
             tabBarButton: HapticTab,
-            tabBarActiveTintColor: Colors[colorScheme ?? 'dark'].tint,
+            tabBarActiveTintColor: themeColors.tint,
             headerShown: false,
             tabBarShowLabel: false,
             tabBarHideOnKeyboard: true,

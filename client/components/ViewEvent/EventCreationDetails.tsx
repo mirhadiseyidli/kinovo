@@ -4,9 +4,10 @@ import { User } from '@/types/allTypes';
 import { ThemedText } from '../ThemedText';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import { OptimizedCDNImage } from '../OptimizedCDNImage';
 import { Feather } from '@expo/vector-icons';
 import { getInitials, getRandomColor } from '@/utils/profilePictureGenerator';
+import { SkeletonBox } from '../Skeleton';
+import { Image } from 'expo-image';
 
 const EventCreationDetails = (
   { event_creator, event_creation_time }: 
@@ -84,19 +85,18 @@ const EventCreationDetails = (
             borderWidth: 1,
             borderColor: themeColors.mountainGreen,
           }}>
-            <OptimizedCDNImage
+            <Image
               source={event_creator.profile_picture}
-              fallbackCategory="profile"
-              style={{
-                width: '100%',
-                height: '100%',
+              style={{ width: '100%', height: '100%' }}
+              contentFit="cover"
+              onError={() => {
+                return renderDefaultProfilePicture();
               }}
-              width={32}
-              height={32}
-              quality={85}
-              priority="normal"
-              enableBlurUp={true}
-              resizeMode="cover"
+              onProgress={() => {
+                return <SkeletonBox width={32} height={32} borderRadius={16} />;
+              }}
+              cachePolicy="disk"
+              allowDownscaling={true}
             />
           </View>
         ) : (

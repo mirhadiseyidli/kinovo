@@ -50,6 +50,8 @@ export default function NotificationsPage() {
     loadingMore,
     hasMoreData,
     error,
+    hasCachedData,
+    isFirstLoad,
     loadInitialNotifications,
     loadMoreNotifications,
     refreshNotifications,
@@ -181,7 +183,7 @@ export default function NotificationsPage() {
     <View
       style={{
         height: 0.3,
-        backgroundColor: themeColors.border,
+        backgroundColor: 'transparent',
         marginHorizontal: 16,
       }}
     />
@@ -193,24 +195,24 @@ export default function NotificationsPage() {
   const renderHeader = useCallback(() => (
     <View>
       {/* Friend Requests Section */}
-      <View style={{ marginBottom: 24 }}>
-        {/* Section Header */}
-        <View style={{ 
-          flexDirection: 'row', 
-          alignItems: 'center', 
-          paddingHorizontal: 16, 
-          marginBottom: 16 
-        }}>
-          <Feather name="users" size={20} color={themeColors.tint} style={{ marginRight: 8 }} />
-          <Text style={{ 
-            color: themeColors.text, 
-            fontSize: 16, 
-            fontWeight: 'bold',
-            flex: 1
+      {friendRequests.length > 0 && (
+        <View style={{ marginBottom: 16 }}>
+          {/* Section Header */}
+          <View style={{ 
+            flexDirection: 'row', 
+            alignItems: 'center', 
+            paddingHorizontal: 16, 
+            marginBottom: 16 
           }}>
-            Friend Requests
-          </Text>
-          {friendRequests.length > 0 && (
+            <Feather name="users" size={20} color={themeColors.tint} style={{ marginRight: 8 }} />
+            <Text style={{ 
+              color: themeColors.text, 
+              fontSize: 16, 
+              fontWeight: 'bold',
+              flex: 1
+            }}>
+              Friend Requests
+            </Text>
             <View
               style={{
                 backgroundColor: '#EF4444',
@@ -226,11 +228,9 @@ export default function NotificationsPage() {
                 {friendRequests.length}
               </Text>
             </View>
-          )}
-        </View>
+          </View>
 
-        {/* Friend Requests List or Empty State */}
-        {friendRequests.length > 0 ? (
+          {/* Friend Requests List or Empty State */}
           <View>
             {friendRequests.map((request, index) => (
               <View key={request._id}>
@@ -244,7 +244,7 @@ export default function NotificationsPage() {
                   <View
                     style={{
                       height: 0.3,
-                      backgroundColor: themeColors.border,
+                      backgroundColor: 'transparent',
                       marginHorizontal: 16,
                     }}
                   />
@@ -252,61 +252,27 @@ export default function NotificationsPage() {
               </View>
             ))}
           </View>
-        ) : (
-          <View style={{ 
-            backgroundColor: themeColors.background,
-            borderRadius: 12,
-            padding: 16,
-            borderWidth: 2,
-            borderStyle: 'dashed',
-            borderColor: themeColors.border,
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: 120,
-            marginHorizontal: 16
-          }}>
-            <View style={{ marginBottom: 12 }}>
-              <Feather name="user-check" size={32} color={themeColors.placeholderTextColor} />
-            </View>
-            <Text style={{ 
-              color: themeColors.placeholderTextColor,
-              fontSize: 16, 
-              textAlign: 'center',
-              marginBottom: 4,
-              fontWeight: '600'
-            }}>
-              No friend requests
-            </Text>
-            <Text style={{ 
-              color: themeColors.placeholderTextColor, 
-              fontSize: 14, 
-              textAlign: 'center',
-              opacity: 0.8
-            }}>
-              No new requests at this time
-            </Text>
-          </View>
-        )}
-      </View>
+        </View>
+      )}
 
       {/* Recent Activity Section Header */}
-        <View style={{ 
-          flexDirection: 'row', 
-          alignItems: 'center', 
-          paddingHorizontal: 16, 
-          marginBottom: 16 
+      <View style={{ 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        paddingHorizontal: 16, 
+        marginBottom: 16 
+      }}>
+        <Feather name="bell" size={20} color={themeColors.text} style={{ marginRight: 8 }} />
+        <Text style={{ 
+          color: themeColors.text, 
+          fontSize: 16, 
+          fontWeight: 'bold' 
         }}>
-          <Feather name="bell" size={20} color={themeColors.text} style={{ marginRight: 8 }} />
-          <Text style={{ 
-            color: themeColors.text, 
-            fontSize: 16, 
-            fontWeight: 'bold' 
-          }}>
-            Recent Activity
-          </Text>
-        </View>
+          Recent Activity
+        </Text>
+      </View>
     </View>
-  ), [friendRequests.length, handleAcceptFriendRequest, handleDeclineFriendRequest, themeColors.background, themeColors.border, themeColors.text]);
+  ), [friendRequests.length, handleAcceptFriendRequest, handleDeclineFriendRequest]);
 
   // Render footer component
   const renderFooter = useCallback(() => {
@@ -348,12 +314,21 @@ export default function NotificationsPage() {
     }
 
     return null;
-  }, [loadingMore, hasMoreData, sortedNotifications.length, themeColors.tint, themeColors.placeholderTextColor]);
+  }, [loadingMore, hasMoreData, sortedNotifications.length]);
 
   // Render empty component
   const renderEmpty = useCallback(() => {
-    if (paginatedLoading) {
-      return null;
+    // Only show skeleton on first load when there's no cached data
+    if (paginatedLoading && isFirstLoad && !hasCachedData) {
+      return (
+        <View style={{ paddingHorizontal: 16, marginTop: 16, gap: 16 }}>
+          <SkeletonBox height={100} width={'100%'} borderRadius={12}/>
+          <SkeletonBox height={100} width={'100%'} borderRadius={12}/>
+          <SkeletonBox height={100} width={'100%'} borderRadius={12}/>
+          <SkeletonBox height={100} width={'100%'} borderRadius={12}/>
+          <SkeletonBox height={100} width={'100%'} borderRadius={12}/>
+        </View>
+      );
     }
 
     return (
@@ -391,7 +366,7 @@ export default function NotificationsPage() {
         </Text>
       </View>
     );
-  }, [paginatedLoading, themeColors.tint, themeColors.placeholderTextColor, themeColors.background, themeColors.border]);
+  }, [paginatedLoading, isFirstLoad, hasCachedData, themeColors.tint, themeColors.placeholderTextColor, themeColors.background, themeColors.border]);
 
   return (
     <ThemedView style={{ flex: 1, backgroundColor: themeColors.background }}>
