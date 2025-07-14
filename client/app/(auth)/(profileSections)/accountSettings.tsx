@@ -83,10 +83,11 @@ const accountSettings = () => {
   );
 
   const handleChangePassword = () => {
-    if (user?.google_id) {
+    let provider = user?.google_id ? 'Google' : user?.apple_id ? 'Apple' : 'Regular';
+    if (provider === 'Google' || provider === 'Apple') {
       Alert.alert(
         "Not Available",
-        "Password change is not available for accounts created with Google. Please manage your account security through your Google account settings.",
+        `Password change is not available for accounts created with ${provider}. Please manage your account security through your ${provider} account settings.`,
         [{ text: "OK" }]
       );
     } else {
@@ -346,7 +347,7 @@ const accountSettings = () => {
                 title="Change Password" 
                 subtitle="•••••••••••••"
                 onPress={handleChangePassword}
-                enabled={!user?.google_id}
+                enabled={!user?.google_id && !user?.apple_id}
               />
               <SettingComponent 
                 icon="map-pin" 
