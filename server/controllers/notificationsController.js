@@ -58,22 +58,6 @@ const createFriendRequestNotification = async (friendRequestId, senderId, recipi
 
     let notification = null;
 
-    // Create in-app notification if enabled
-    // if (shouldReceiveInApp) {
-    //   notification = await createNotification({
-    //     recipient: recipientId,
-    //     sender: senderId,
-    //     friend_request: friendRequestId,
-    //     type: 'friend_request',
-    //     title: 'New Friend Request',
-    //     subtitle: `${sender.full_name} sent you a friend request`,
-    //     status: 'pending',
-    //     data: {
-    //       mutualFriendsCount: mutualFriendsCount
-    //     }
-    //   });
-    // }
-
     // Send email notification if enabled
     if (shouldReceiveEmail && recipient.email) {
       await sendEmailNotification(recipient.email, 'friend_request', {
