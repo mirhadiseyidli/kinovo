@@ -16,7 +16,6 @@ import Animated, {
 import { useSyncInitialPosition } from "./hooks/use-sync-initial-position";
 import { useHeaderTabContext } from "./context";
 import type { SceneProps } from "./types";
-import { SCROLLABLE_STATE } from "./contants";
 
 function mergeRefs<T>(
   ...inputRefs: (React.Ref<T> | undefined)[]

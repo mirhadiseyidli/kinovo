@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Event, ApiError } from '@/types/allTypes';
 import api from '@/utils/api';
 
@@ -10,6 +10,18 @@ export const usePaginatedNearbyEvents = () => {
   const [page, setPage] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isFirstFetch, setIsFirstFetch] = useState(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+    };
+  }, []);
 
   const fetchNearbyEvents = useCallback(async (
     lat: number | null, 
@@ -19,6 +31,13 @@ export const usePaginatedNearbyEvents = () => {
     isRefresh: boolean = false
   ) => {
     if (!lat || !lng) return [];
+
+    // Cancel any existing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    abortControllerRef.current = new AbortController();
 
     const isLoadingMore = pageNum > 0;
     if (isLoadingMore) {
@@ -35,32 +54,45 @@ export const usePaginatedNearbyEvents = () => {
       const skip = pageNum === 0 ? 0 : 6 + (pageNum - 1) * 5;
       
       const response = await api.get(
-        `/api/manageevents/eventslist/get/nearby/events?lat=${lat}&lng=${lng}&distance=${distance}&limit=${limit}&skip=${skip}`
+        `/api/manageevents/eventslist/get/nearby/events?lat=${lat}&lng=${lng}&distance=${distance}&limit=${limit}&skip=${skip}`,
+        { signal: abortControllerRef.current.signal }
       );
       
       const fetchedEvents = response.data.events || [];
       
-      if (isRefresh || pageNum === 0) {
-        setEvents(fetchedEvents);
-        setPage(0);
-      } else {
-        setEvents(prev => [...prev, ...fetchedEvents]);
+      if (mountedRef.current) {
+        if (isRefresh || pageNum === 0) {
+          setEvents(fetchedEvents);
+          setPage(0);
+        } else {
+          setEvents(prev => [...prev, ...fetchedEvents]);
+        }
+        
+        // Check if there are more events to load
+        setHasMore(fetchedEvents.length === limit);
+        setPage(pageNum);
+        setIsFirstFetch(false);
       }
-      
-      // Check if there are more events to load
-      setHasMore(fetchedEvents.length === limit);
-      setPage(pageNum);
-      setIsFirstFetch(false);
       
       return fetchedEvents;
     } catch (error) {
       const err = error as ApiError;
+      
+      // Don't show error for aborted requests
+      if (err.name === 'AbortError' || err.message?.includes('aborted')) {
+        return [];
+      }
+      
       console.error('Failed to fetch paginated nearby events:', err.message);
-      setError(err.message);
+      if (mountedRef.current) {
+        setError(err.message);
+      }
       throw error;
     } finally {
-      setLoading(false);
-      setLoadingMore(false);
+      if (mountedRef.current) {
+        setLoading(false);
+        setLoadingMore(false);
+      }
     }
   }, []);
 
