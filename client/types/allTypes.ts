@@ -35,6 +35,7 @@ export interface User {
     full_num: string | null;
   };
   google_id?: string;
+  apple_id?: string;
   profile_picture?: string;
   cover_photo?: string;
   bio?: string;
