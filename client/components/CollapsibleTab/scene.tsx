@@ -4,6 +4,7 @@ import { StyleSheet } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   runOnJS,
+  runOnUI,
   scrollTo,
   useAnimatedRef,
   useAnimatedScrollHandler,
@@ -97,7 +98,11 @@ export function SceneComponent<P extends object>({
     (contentWidth: number, contentHeight: number) => {
       onContentSizeChange?.(contentWidth, contentHeight);
       if (Math.ceil(contentHeight) >= expectHeight) {
-        initialPosition(shareAnimatedValue.value);
+        // Use runOnUI to safely access shared value in worklet context
+        runOnUI((position) => {
+          'worklet';
+          runOnJS(initialPosition)(position);
+        })(shareAnimatedValue.value);
       }
     },
     [onContentSizeChange, initialPosition, expectHeight, shareAnimatedValue]

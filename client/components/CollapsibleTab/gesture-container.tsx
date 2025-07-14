@@ -86,7 +86,7 @@ export const GestureContainer = React.forwardRef<
   const translateYValue = overridenTranslateYValue || defaultTranslateYValue;
   const curIndexValue = useSharedValue(initialPage);
   const isSlidingHeader = useSharedValue(false);
-  const slideIndex = useSharedValue(curIndexValue.value);
+  const slideIndex = useSharedValue(initialPage);
   const headerTrans = useSharedValue(0);
   const opacityValue = useSharedValue(initHeaderHeight === 0 ? 0 : 1);
   /* pull-refresh */
@@ -100,7 +100,7 @@ export const GestureContainer = React.forwardRef<
   const startY = useSharedValue(0);
   const isPullEnough = useSharedValue(false);
   const headerTransStartY = useSharedValue(0);
-  const dragIndex = useSharedValue(curIndexValue.value);
+  const dragIndex = useSharedValue(initialPage);
   //#endregion
 
   //#region hooks
