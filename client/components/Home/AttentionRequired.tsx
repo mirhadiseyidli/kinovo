@@ -16,7 +16,7 @@ import { getCategoryImage } from '@/constants/CategoryImages';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { EventCardSkeleton } from '../Skeleton';
 import { truncateName } from '@/utils/truncateName';
-import { OptimizedImage } from '@/components/OptimizedImage';
+import { Image } from 'expo-image';
 import { useFocusEffect } from '@react-navigation/native';
 import { cacheManager } from '@/utils/homeScreenCache';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
@@ -398,19 +398,10 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
               overflow: 'hidden',
               position: 'relative'
             }}>
-              <OptimizedImage
-                source={event.event_picture || null}
-                fallbackCategory={event.category}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  opacity: 0.8,
-                }}
-                resizeMode="cover"
-                width={64}
-                height={64}
-                quality={0.8}
-                showLoader={true}
+              <Image
+                source={getCategoryImage(event.category)}
+                style={{ width: '100%', height: '100%', opacity: 0.8 }}
+                contentFit="cover"
               />
               {/* Category with blur overlay */}
               <BlurView

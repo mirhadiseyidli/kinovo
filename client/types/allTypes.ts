@@ -1033,6 +1033,8 @@ export interface NotificationData {
   recipient: string;
   sender?: {
     _id: string;
+    first_name: string;
+    last_name: string;
     full_name: string;
     username: string;
     profile_picture?: string;
@@ -1072,6 +1074,8 @@ export interface FriendRequestNotification {
   _id: string;
   sender: {
     _id: string;
+    first_name: string;
+    last_name: string;
     full_name: string;
     username: string;
     profile_picture?: string;

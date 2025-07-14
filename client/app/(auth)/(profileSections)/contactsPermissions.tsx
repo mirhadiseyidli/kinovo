@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TouchableOpacity, ScrollView, Switch, View } from 'react-native';
+import { TouchableOpacity, ScrollView, Switch, View, ActivityIndicator } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
@@ -12,14 +12,17 @@ const ContactsPermissions = () => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [isEnabled, setIsEnabled] = useState(false);
+  const [loaddingPage, setLoaddingPage] = useState(false);
 
   useEffect(() => {
     checkPermission();
   }, []);
 
   const checkPermission = async () => {
+    setLoaddingPage(true);
     const { status } = await Contacts.getPermissionsAsync();
     setIsEnabled(status === 'granted');
+    setLoaddingPage(false);
   };
 
   const togglePermission = async () => {
@@ -32,35 +35,17 @@ const ContactsPermissions = () => {
     }
   };
 
-  const goBack = () => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace('/');
-    }
+  if (loaddingPage) {
+
+    return (
+      <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={themeColors.mountainGreen} style={{ marginTop: 32 }}/>
+      </ThemedView>
+    );
   }
 
   return (
     <ThemedView style={{ flex: 1 }}>
-      <Stack.Screen 
-        options={{
-          headerTitle: 'Contacts Permissions',
-          headerTintColor: themeColors.text,
-          headerStyle: {
-            backgroundColor: themeColors.background,
-          },
-          headerShadowVisible: false,
-          headerShown: true,
-          headerBackButtonDisplayMode: 'minimal',
-          headerLeft: () => (
-            <TouchableOpacity 
-              onPress={goBack}
-            >
-              <Feather name="chevron-left" size={24} color={themeColors.text} />
-            </TouchableOpacity>
-          ),
-        }} 
-      />
       <ScrollView style={{ flex: 1, padding: 16 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <ThemedText style={{ fontSize: 16 }}>Allow Contacts Access</ThemedText>

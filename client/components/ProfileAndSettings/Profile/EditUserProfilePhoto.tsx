@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Dimensions, Image, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
+import { View, Text, TextInput, Dimensions, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { Feather } from '@expo/vector-icons';
@@ -10,7 +10,7 @@ import { useCDNImageUpload } from '@/hooks/useCDNImageUpload';
 import { useUserData } from '@/hooks/useUserData';
 import { useDefaultProfilePicture } from '@/hooks/useDefaultProfilePicture';
 import { getInitials, getRandomColor } from '@/utils/profilePictureGenerator';
-import { OptimizedCDNImage } from '@/components/OptimizedCDNImage';
+import { Image } from 'expo-image';
 
 const EditUserProfilePhotos = ({ user }: EditUserProfilePhotosProps) => {
   const colorScheme = useColorScheme();
@@ -234,19 +234,10 @@ const EditUserProfilePhotos = ({ user }: EditUserProfilePhotosProps) => {
             )}
           </View>
         ) : currentProfilePicture ? (
-          <OptimizedCDNImage
+          <Image
             source={currentProfilePicture}
-            style={{ 
-              width: '100%', 
-              height: '100%',
-              borderRadius: 70 
-            }}
-            resizeMode="cover"
-            width={140}
-            height={140}
-            quality={85}
-            priority="normal"
-            enableBlurUp={true}
+            style={{ width: '100%', height: '100%', borderRadius: 70 }}
+            contentFit="cover"
           />
         ) : (user.first_name || user.last_name) ? (
           // Show default profile picture with initials

@@ -1,14 +1,16 @@
 import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
-import OptimizedImage from './OptimizedImage';
 import DefaultProfilePicture from './DefaultProfilePicture';
 import { NotificationCardProps } from '@/types/allTypes';
 import InvitationActionButtons from './InvitationActionButtons';
 import { useEventInvitation } from '@/hooks/useEventInvitation';
 import { ThemedText } from '@/components/ThemedText';
+import { getCategoryImage } from '@/constants/CategoryImages';
+import { Image } from 'expo-image';
+import { SkeletonBox } from './Skeleton';
 
 const NotificationCard: React.FC<NotificationCardProps> = React.memo(({ notification, onPress, isMarking = false }) => {
   const colorScheme = useColorScheme();
@@ -18,23 +20,30 @@ const NotificationCard: React.FC<NotificationCardProps> = React.memo(({ notifica
 
   const thumbnail = useMemo(() => {
     if (isUserNotification) {
-      const uri = notification.sender?.profile_picture || null;
-      return uri ? (
-        <Image source={{ uri }} style={{ width: 40, height: 40, borderRadius: 20 }} />
-      ) : (
-        <DefaultProfilePicture size={40} />
-      );
+      return <DefaultProfilePicture 
+              size={40} 
+              profilePicture={notification.sender?.profile_picture} 
+              firstName={notification.sender?.first_name} 
+              lastName={notification.sender?.last_name}
+              fullName={notification.sender?.full_name}
+              showBorder={true}
+              borderColor={themeColors.border}
+            />
     }
 
     // Event-based: use event image or category fallback
     const category = notification.event?.category || notification.data?.eventCategory || null;
     return (
-      <OptimizedImage
-        source={null}
-        fallbackCategory={category}
+      <Image
+        source={getCategoryImage(category)}
         style={{ width: 40, height: 40, borderRadius: 8 }}
-        resizeMode="cover"
-        showLoader={false}
+        contentFit="cover"
+        onError={() => {
+          return <SkeletonBox width={40} height={40} borderRadius={8} />;
+        }}
+        onProgress={() => {
+          return <SkeletonBox width={40} height={40} borderRadius={8} />;
+        }}
       />
     );
   }, [isUserNotification, notification]);

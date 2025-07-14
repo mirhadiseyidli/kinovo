@@ -233,9 +233,9 @@ export default React.memo(function EventDateAndLocation() {
                   alignItems: 'center',
                 }}
                 onPress={() => handleLocationSelect(
-                  item?.displayName?.text,
-                  item?.postalAddress.locality,
-                  item?.postalAddress.administrativeArea,
+                  item?.displayName?.text || '',
+                  item?.postalAddress?.locality || '',
+                  item?.postalAddress?.administrativeArea || '',
                   item?.location,
                 )}
               >

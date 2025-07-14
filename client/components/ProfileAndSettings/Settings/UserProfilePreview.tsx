@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, Button, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, Button, Alert, TouchableOpacity } from 'react-native';
 import { router, Link, useNavigation } from 'expo-router';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
@@ -9,10 +9,10 @@ import { Feather } from '@expo/vector-icons';
 import { useAuthSession } from "@/components/Auth/AuthProvider";
 import { User } from '@/types/allTypes';
 import { getInitials, getRandomColor } from '@/utils/profilePictureGenerator';
-import { OptimizedCDNImage } from '@/components/OptimizedCDNImage';
 import api from '@/utils/api';
-import { ProfilePreviewSkeleton } from '@/components/Skeleton';
+import { ProfilePreviewSkeleton, SkeletonBox } from '@/components/Skeleton';
 import { useFocusEffect } from '@react-navigation/native';
+import { Image } from 'expo-image';
 
 const UserProfilePreview: React.FC = () => {
   const { signOut } = useAuthSession()
@@ -120,15 +120,18 @@ const UserProfilePreview: React.FC = () => {
         overflow: 'hidden' 
       }}>
         {user.profile_picture ? (
-          <OptimizedCDNImage
+          <Image
             source={user.profile_picture}
-            fallbackCategory="profile"
             style={{ width: '100%', height: '100%' }}
-            width={140}
-            height={140}
-            quality={85}
-            priority="normal"
-            enableBlurUp={true}
+            contentFit="cover"
+            onError={() => {
+              return renderDefaultProfilePicture();
+            }}
+            onProgress={() => {
+              return <SkeletonBox width={140} height={140} borderRadius={70} />;
+            }}
+            cachePolicy="disk"
+            allowDownscaling={true}
           />
         ) : (user.first_name || user.last_name) ? (
           // Show default profile picture with initials

@@ -10,7 +10,7 @@ import Animated, {
   withTiming,
   cancelAnimation,
   interpolate,
-  Extrapolate,
+  Extrapolation
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -51,7 +51,7 @@ const useShimmerAnimation = (shouldAnimate: boolean = true) => {
           translateX.value,
           [-1, 1],
           [-100, 300],
-          Extrapolate.CLAMP
+          Extrapolation.CLAMP
         ) 
       }
     ],
@@ -114,10 +114,85 @@ export const SkeletonBox: React.FC<SkeletonBoxProps> = ({
           ]}
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 0.5 }}
-          style={{ width: '100%', height: '100%' }}
+          style={{ width: '100%' }}
         />
       </Animated.View>
     </View>
+  );
+};
+
+/**
+ * Skeleton for the UserGeneralInfo component
+ */
+export const UserGeneralInfoSkeleton = () => {
+  return (
+    <ThemedView>
+      {/* Profile Photo and Basic Info Skeleton - matches actual layout */}
+      <View style={{ 
+        flex: 1, 
+        alignItems: 'center', 
+        flexDirection: 'row', 
+        paddingVertical: 16, 
+        width: '100%', 
+        paddingHorizontal: 16 
+      }}>
+        <View style={{ flex: 1, alignItems: 'flex-start' }}>
+          <SkeletonBox width={120} height={120} borderRadius={999} />
+        </View>
+
+        <View style={{ flex: 1.5, alignItems: 'flex-start' }}>
+          {/* Name skeleton */}
+          <SkeletonBox width={'80%'} height={20} marginBottom={8} />
+          {/* Username skeleton */}
+          <SkeletonBox width={'60%'} height={16} marginBottom={12} />
+          {/* Stats skeleton - friends, events, activities */}
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <SkeletonBox width={60} height={48} borderRadius={8}/>
+            <SkeletonBox width={60} height={48} borderRadius={8}/>
+            <SkeletonBox width={60} height={48} borderRadius={8}/>
+          </View>
+        </View>
+      </View>
+
+      {/* Bio and details section skeleton */}
+      <View style={{ width: '100%', paddingHorizontal: 16, gap: 8 }}>
+        {/* Bio skeleton */}
+        <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+          <SkeletonBox width={16} height={16} borderRadius={8} />
+          <SkeletonBox width={'70%'} height={14} />
+        </View>
+        
+        {/* Location skeleton */}
+        <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+          <SkeletonBox width={16} height={16} borderRadius={8} />
+          <SkeletonBox width={'50%'} height={14} />
+        </View>
+        
+        {/* Social handles skeleton */}
+        <View style={{ flexDirection: 'row', gap: 24 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <SkeletonBox width={16} height={16} borderRadius={8} />
+            <SkeletonBox width={80} height={14} />
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <SkeletonBox width={16} height={16} borderRadius={8} />
+            <SkeletonBox width={80} height={14} />
+          </View>
+        </View>
+        
+        {/* Member info skeleton */}
+        <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+          <SkeletonBox width={16} height={16} borderRadius={8} />
+          <SkeletonBox width={'90%'} height={14} />
+        </View>
+      </View>
+
+      {/* Action Buttons Skeleton */}
+      <View style={{ flexDirection: 'row', width: '100%', paddingHorizontal: 16, gap: 8, marginTop: 16 }}>
+        <SkeletonBox width={'50%'} height={40} borderRadius={8} />
+        <SkeletonBox width={'50%'} height={40} borderRadius={8} />
+      </View>
+    </ThemedView>
   );
 };
 
@@ -485,7 +560,7 @@ export const ProfilePreviewSkeleton: React.FC = () => {
   return (
     <ThemedView style={{ alignItems: 'center', justifyContent: 'center' }}>
         <SkeletonBox width={140} height={140} borderRadius={999}/>
-        <SkeletonBox width={160} height={24} borderRadius={8} marginTop={16}/>
+        <SkeletonBox width={160} height={24} borderRadius={8} marginTop={20}/>
         <SkeletonBox width={180} height={16} borderRadius={4} marginTop={4}/>
     </ThemedView>
   );

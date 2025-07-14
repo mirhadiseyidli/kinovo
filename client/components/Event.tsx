@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { View, Text, Image, Dimensions, TouchableOpacity, AppState } from 'react-native';
+import { View, Text, Dimensions, TouchableOpacity, AppState } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withRepeat, Easing, cancelAnimation } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -13,8 +13,9 @@ import { useRouter } from 'expo-router';
 import { getCategoryImage } from '@/constants/CategoryImages';
 import { BlurView } from 'expo-blur';
 import DefaultProfilePicture from './DefaultProfilePicture';
-import { OptimizedCDNImage } from '@/components/OptimizedCDNImage';
 import { useFocusEffect } from '@react-navigation/native';
+import { SkeletonBox } from './Skeleton';
+import { Image } from 'expo-image';
 
 const EventView: React.FC<{ event: Event, loading: boolean }> = React.memo(({ event, loading }) => {
   
@@ -256,16 +257,16 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = React.memo(({ ev
       >
         {/* Event Image */}
         <View style={{ width: height, height: height, marginRight: 16, borderRadius: 8, overflow: 'hidden' }}>
-          <OptimizedCDNImage
-            source={event.event_picture || null}
-            fallbackCategory={event.category}
+          <Image
+            source={getCategoryImage(event.category)}
             style={{ width: '100%', height: '100%' }}
-            resizeMode="cover"
-            width={height}
-            height={height}
-            quality={85}
-            priority="normal"
-            enableBlurUp={true}
+            contentFit="cover"
+            onError={() => {
+              return <SkeletonBox width={height} height={height} borderRadius={8} />;
+            }}
+            onProgress={() => {
+              return <SkeletonBox width={height} height={height} borderRadius={8} />;
+            }}
           />
           {/* Category Overlay */}
           <BlurView
