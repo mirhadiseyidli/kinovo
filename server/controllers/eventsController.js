@@ -1009,6 +1009,14 @@ const inviteEventAttendees = async (req, res) => {
         // Synchronize attendees with new event
         await synchronizeAttendeesWithNewEvent(updatedAttendees, separateEvent._id);
 
+        // Send invitation notifications using the separate event ID
+        try {
+          await createEventInvitationNotification(separateEvent._id, invitees);
+        } catch (notificationError) {
+          console.error('Error sending event invitation notifications for separate occurrence:', notificationError);
+          // Don't fail the invitation if notification fails
+        }
+
         return res.status(200).json({ 
           success: true, 
           message: 'Successfully invited attendees to this specific event occurrence',
@@ -1040,6 +1048,14 @@ const inviteEventAttendees = async (req, res) => {
             }
           }
         );
+
+        // Send invitation notifications
+        try {
+          await createEventInvitationNotification(eventId, invitees);
+        } catch (notificationError) {
+          console.error('Error sending event invitation notifications:', notificationError);
+          // Don't fail the invitation if notification fails
+        }
 
         return res.status(200).json({
           success: true,
@@ -1602,62 +1618,185 @@ const updateEvent = async (req, res) => {
       return res.status(403).json({ message: 'Only the event creator can perform this action' });
     }
 
+    // Store original attendees for comparison
+    const originalAttendees = event.attendees || [];
+    const newAttendees = eventData.attendees || [];
+
     // Get user's current attendance status using utility
     const userStatus = getUserAttendanceStatus(event, req.user._id);
 
     // Check if this is a recurring event using utility
     const recurring = isRecurringEvent(event);
 
+    // Variables to track notification data after recurring event handling
+    let finalEventId = eventId;
+    let finalEvent = event;
+    let shouldContinueWithNotifications = true;
+
     // Handle recurring event modifications
     if (recurring && occurrenceDate && modifyType) {
       let result;
       
-      if (modifyType === 'this_only') {
-        result = await handleThisOccurrenceOnlyUpdate(event, occurrenceDate, eventData, userStatus);
-      } 
-      else if (modifyType === 'this_and_future') {
-        result = await handleThisAndFutureUpdate(event, occurrenceDate, eventData, userStatus);
-      }
-      else if (modifyType === 'all_instances') {
-        result = await handleAllInstancesUpdate(event, eventData, eventId, req.user._id);
+      // Process attendee data to preserve existing responses for recurring events
+      let processedEventData = { ...eventData };
+      if (newAttendees && newAttendees.length > 0) {
+        // Create a map of existing attendees with their current status
+        const existingAttendeesMap = new Map();
+        originalAttendees.forEach(attendee => {
+          const userId = attendee.user._id ? attendee.user._id.toString() : attendee.user.toString();
+          existingAttendeesMap.set(userId, attendee.status);
+        });
+
+        // Process new attendees list, preserving existing statuses
+        const updatedAttendees = newAttendees.map(attendee => {
+          const userId = attendee.user._id ? attendee.user._id.toString() : attendee.user.toString();
+          const existingStatus = existingAttendeesMap.get(userId);
+          
+          return {
+            user: attendee.user,
+            status: existingStatus || attendee.status || 'pending'
+          };
+        });
+
+        processedEventData.attendees = updatedAttendees;
       }
       
-      if (result) {
-        return res.status(200).json(result);
+      if (modifyType === 'this_only') {
+        result = await handleThisOccurrenceOnlyUpdate(event, occurrenceDate, processedEventData, userStatus);
+        if (result && result.separateEventId) {
+          finalEventId = result.separateEventId;
+          finalEvent = await findEventById(result.separateEventId);
+        }
+      } 
+      else if (modifyType === 'this_and_future') {
+        result = await handleThisAndFutureUpdate(event, occurrenceDate, processedEventData, userStatus);
+        if (result && result.futureEventId) {
+          finalEventId = result.futureEventId;
+          finalEvent = await findEventById(result.futureEventId);
+        }
+      }
+      else if (modifyType === 'all_instances') {
+        result = await handleAllInstancesUpdate(event, processedEventData, eventId, req.user._id);
+        // For all_instances, we continue with the original event
+        finalEvent = await findEventById(eventId); // Refresh the event data
+      }
+      
+      // Don't return early - continue with notification logic
+    } else {
+      // For non-recurring events, preserve existing attendee responses
+      let updatedAttendees = [];
+      
+      if (newAttendees && newAttendees.length > 0) {
+        // Create a map of existing attendees with their current status
+        const existingAttendeesMap = new Map();
+        originalAttendees.forEach(attendee => {
+          const userId = attendee.user._id ? attendee.user._id.toString() : attendee.user.toString();
+          existingAttendeesMap.set(userId, attendee.status);
+        });
+
+        // Process new attendees list, preserving existing statuses
+        updatedAttendees = newAttendees.map(attendee => {
+          const userId = attendee.user._id ? attendee.user._id.toString() : attendee.user.toString();
+          const existingStatus = existingAttendeesMap.get(userId);
+          
+          return {
+            user: attendee.user,
+            status: existingStatus || attendee.status || 'pending'
+          };
+        });
+      } else {
+        // If no attendees provided, keep original attendees
+        updatedAttendees = originalAttendees;
+      }
+
+      // Update event data while preserving attendee responses
+      const sanitizedData = sanitizeEventUpdateData({
+        ...eventData,
+        attendees: updatedAttendees
+      });
+      
+      Object.assign(event, sanitizedData);
+      await event.save();
+      finalEvent = event;
+    }
+
+    // Notification logic - works for both recurring and non-recurring events
+    if (shouldContinueWithNotifications && newAttendees && newAttendees.length > 0) {
+      // Find attendees who were already in the event (for update notifications)
+      const originalAttendeeIds = originalAttendees.map(attendee => 
+        attendee.user._id ? attendee.user._id.toString() : attendee.user.toString()
+      );
+      
+      const newAttendeeIds = newAttendees.map(attendee => 
+        attendee.user._id ? attendee.user._id.toString() : attendee.user.toString()
+      );
+
+      // Find new invitees (not in original list)
+      const invitedAttendeeIds = newAttendeeIds.filter(id => !originalAttendeeIds.includes(id));
+      
+      // Find existing attendees who remain in the event (for update notifications)
+      const remainingAttendeeIds = newAttendeeIds.filter(id => 
+        originalAttendeeIds.includes(id) && id !== req.user._id.toString()
+      );
+
+      // Send invitation notifications to new attendees
+      if (invitedAttendeeIds.length > 0) {
+        try {
+          await createEventInvitationNotification(finalEventId, invitedAttendeeIds);
+        } catch (notificationError) {
+          console.error('Error sending event invitation notifications:', notificationError);
+          // Don't fail the update if notification fails
+        }
+      }
+
+      // Send update notifications to existing attendees who remain in the event
+      if (remainingAttendeeIds.length > 0) {
+        try {
+          await createEventUpdateNotification(finalEventId, req.user._id, remainingAttendeeIds);
+        } catch (notificationError) {
+          console.error('Error sending event update notifications:', notificationError);
+          // Don't fail the update if notification fails
+        }
+      }
+    } else if (shouldContinueWithNotifications) {
+      // If no attendees specified, send update notifications to all existing attendees
+      const existingAttendeeIds = originalAttendees
+        .map(attendee => attendee.user._id ? attendee.user._id.toString() : attendee.user.toString())
+        .filter(id => id !== req.user._id.toString());
+
+      if (existingAttendeeIds.length > 0) {
+        try {
+          await createEventUpdateNotification(finalEventId, req.user._id, existingAttendeeIds);
+        } catch (notificationError) {
+          console.error('Error sending event update notifications:', notificationError);
+          // Don't fail the update if notification fails
+        }
       }
     }
-    
-    // For non-recurring events, simply update
-    const sanitizedData = sanitizeEventUpdateData(eventData);
-    Object.assign(event, sanitizedData);
-    await event.save();
-
-    // Send update notifications to all attendees
-    const attendeeIds = event.attendees.map(attendee => attendee.user);
-    await createEventUpdateNotification(eventId, req.user._id, attendeeIds);
 
     // Update / remove reminder schedules if needed
     try {
+      const sanitizedData = sanitizeEventUpdateData(eventData);
       if (sanitizedData.status === 'cancelled') {
-        await deleteSchedule(eventId, 'all');
+        await deleteSchedule(finalEventId, 'all');
       } else if (Object.prototype.hasOwnProperty.call(sanitizedData, 'start_time')) {
         // Delete old schedules first
-        await deleteSchedule(eventId, 'all');
+        await deleteSchedule(finalEventId, 'all');
         
         // Create new schedules with updated time
-        const eventStartTime = event.start_time.getTime();
+        const eventStartTime = finalEvent.start_time.getTime();
         const now = new Date().getTime();
         
         // Schedule 1-hour reminder
         const oneHourBefore = new Date(eventStartTime - 60 * 60 * 1000);
         if (oneHourBefore.getTime() > now) {
-          await putSchedule(event._id.toString(), oneHourBefore, '1hour');
+          await putSchedule(finalEventId.toString(), oneHourBefore, '1hour');
         }
         
         // Schedule 10-minute reminder
         const tenMinsBefore = new Date(eventStartTime - 10 * 60 * 1000);
         if (tenMinsBefore.getTime() > now) {
-          await putSchedule(event._id.toString(), tenMinsBefore, '10min');
+          await putSchedule(finalEventId.toString(), tenMinsBefore, '10min');
         }
       }
     } catch (scheduleErr) {
@@ -1667,7 +1806,8 @@ const updateEvent = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: 'Event updated successfully',
-      event
+      event: finalEvent,
+      ...(finalEventId !== eventId && { updatedEventId: finalEventId })
     });
   } catch (error) {
     console.error('Error in updateEvent:', error);
