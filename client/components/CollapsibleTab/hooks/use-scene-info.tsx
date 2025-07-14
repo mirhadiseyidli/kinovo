@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import Animated, {
   runOnJS,
+  runOnUI,
   useAnimatedReaction,
   useSharedValue,
 } from "react-native-reanimated";
@@ -40,17 +41,21 @@ export const useSceneInfo = (curIndexValue: Animated.SharedValue<number>) => {
   const aArray = [childScrollRef, childScrollYTrans];
 
   const updateIsReady = useCallback(() => {
-    const mIndex = curIndexValue.value;
-    const isReady = aArray.every((item) =>
-      Object.prototype.hasOwnProperty.call(item, mIndex)
-    );
+    // Use runOnUI to safely access shared value in worklet context
+    runOnUI(() => {
+      'worklet';
+      const mIndex = curIndexValue.value;
+      const isReady = aArray.every((item) =>
+        Object.prototype.hasOwnProperty.call(item, mIndex)
+      );
 
-    if (isReady) {
-      sceneIsReady.value = {
-        ...sceneIsReady.value,
-        [mIndex]: isReady,
-      };
-    }
+      if (isReady) {
+        sceneIsReady.value = {
+          ...sceneIsReady.value,
+          [mIndex]: isReady,
+        };
+      }
+    })();
   }, [curIndexValue, sceneIsReady, ...aArray]);
 
   // We should call function updateIsReady when the elements in the aArray change
