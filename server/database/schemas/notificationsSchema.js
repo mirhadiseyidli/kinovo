@@ -24,6 +24,7 @@ const notificationsSchema = new mongoose.Schema({
   type: {
     type: String,
     enum: [
+      'friend_request',
       'friend_request_accepted',
       'event_reminder',
       'event_updated',
