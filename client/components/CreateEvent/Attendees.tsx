@@ -47,10 +47,24 @@ const Attendees: React.FC<AttendeesProps> = ({
   const { fetchUserData } = useUserData();
   const maxVisibleFriends = 4;
   const [refreshing, setRefreshing] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
 
   // Use refs to track initialization and updates
   const isInitialized = useRef(false);
   const skipNextUpdate = useRef(false);
+
+  // Cleanup effect
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, []);
   const lastAttendeesList = useRef<string>('');
   
   // Initialize component once on mount
@@ -156,17 +170,29 @@ const Attendees: React.FC<AttendeesProps> = ({
   };
 
   useEffect(() => {
-    const handler = setTimeout(() => {
-      getFriend(inputValue);
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    
+    timeoutRef.current = setTimeout(() => {
+      if (mountedRef.current) {
+        getFriend(inputValue);
+      }
     }, 300);
 
     return () => {
-      clearTimeout(handler);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
     };
   }, [inputValue]);
 
   // Attendee management functions
   const handleAdd = (friend: AttendeeFriend) => {
+    if (!mountedRef.current) return;
+    
     const alreadyAdded = attendees.some((f) => f._id === friend._id);
     if (alreadyAdded) return;
     if (limit !== null && attendees.length >= limit) return;
@@ -179,6 +205,8 @@ const Attendees: React.FC<AttendeesProps> = ({
   };
 
   const handleRemove = (id: string) => {
+    if (!mountedRef.current) return;
+    
     // Don't allow removing the organizer
     if (user && id === user._id) return;
     

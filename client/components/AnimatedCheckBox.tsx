@@ -1,10 +1,11 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Pressable, TextStyle, View, ViewStyle, Text } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
   interpolateColor,
+  cancelAnimation,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from './ThemedText';
@@ -39,10 +40,20 @@ const AnimatedCheckBox = React.memo<Props>(({
   const progress = useSharedValue(value ? 1 : 0);
   const [containerHeight, setContainerHeight] = useState(0);
   const AnimatedThemedText = Animated.createAnimatedComponent(Text);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
     progress.value = withTiming(value ? 1 : 0, { duration: 300 });
   }, [value]);
+
+  // Cleanup effect
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      cancelAnimation(progress);
+    };
+  }, []);
 
   // Memoized animated styles to prevent recreation
   const checkBoxAnimationStyle = useAnimatedStyle(() => ({
@@ -72,7 +83,9 @@ const AnimatedCheckBox = React.memo<Props>(({
   }, [value, onValueChange]);
 
   const handleLayout = useCallback((e: any) => {
-    setContainerHeight(e.nativeEvent.layout.height);
+    if (mountedRef.current) {
+      setContainerHeight(e.nativeEvent.layout.height);
+    }
   }, []);
 
   return (

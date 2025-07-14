@@ -84,13 +84,14 @@ const Category: React.FC<CategoryProps> = React.memo(({ onCategorySelect }) => {
   useEffect(() => {
     if (showPicker && mountedRef.current) {
       translateY.value = withSpring(0, SPRING_CONFIG);
-    } else {
+    } else if (mountedRef.current) {
       translateY.value = SCREEN_HEIGHT;
     }
   }, [showPicker]);
 
   // Cleanup animations on unmount
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
       mountedRef.current = false;
       cancelAnimation(translateY);
@@ -98,9 +99,11 @@ const Category: React.FC<CategoryProps> = React.memo(({ onCategorySelect }) => {
   }, []);
 
   const closeModal = useCallback(() => {
-    setShowPicker(false);
-    setSearchQuery(''); // Clear search when closing
-    setTempCategory(undefined); // Reset temp selection
+    if (mountedRef.current) {
+      setShowPicker(false);
+      setSearchQuery(''); // Clear search when closing
+      setTempCategory(undefined); // Reset temp selection
+    }
   }, []);
 
   // Memoize animated style to prevent recreation on every render
@@ -115,11 +118,13 @@ const Category: React.FC<CategoryProps> = React.memo(({ onCategorySelect }) => {
   }, [fetchCategories]);
 
   const handleCategorySelect = (category: string) => {
-    // Treat empty selection as no category chosen
-    const value = category === '' ? undefined : category;
-    setSelectedCategory(value);
-    onCategorySelect(value ?? '');
-    settingEventCategory(value ?? '');
+    if (mountedRef.current) {
+      // Treat empty selection as no category chosen
+      const value = category === '' ? undefined : category;
+      setSelectedCategory(value);
+      onCategorySelect(value ?? '');
+      settingEventCategory(value ?? '');
+    }
   };
 
   const openCategoryOptions = () => {
