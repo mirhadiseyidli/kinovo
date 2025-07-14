@@ -59,20 +59,20 @@ const createFriendRequestNotification = async (friendRequestId, senderId, recipi
     let notification = null;
 
     // Create in-app notification if enabled
-    if (shouldReceiveInApp) {
-      notification = await createNotification({
-        recipient: recipientId,
-        sender: senderId,
-        friend_request: friendRequestId,
-        type: 'friend_request',
-        title: 'New Friend Request',
-        subtitle: `${sender.full_name} sent you a friend request`,
-        status: 'pending',
-        data: {
-          mutualFriendsCount: mutualFriendsCount
-        }
-      });
-    }
+    // if (shouldReceiveInApp) {
+    //   notification = await createNotification({
+    //     recipient: recipientId,
+    //     sender: senderId,
+    //     friend_request: friendRequestId,
+    //     type: 'friend_request',
+    //     title: 'New Friend Request',
+    //     subtitle: `${sender.full_name} sent you a friend request`,
+    //     status: 'pending',
+    //     data: {
+    //       mutualFriendsCount: mutualFriendsCount
+    //     }
+    //   });
+    // }
 
     // Send email notification if enabled
     if (shouldReceiveEmail && recipient.email) {
@@ -1039,8 +1039,14 @@ const shouldReceiveNotification = async (userId, notificationType, channel = 'in
 const saveFCMToken = async (req, res) => {
   try {
     const { token, platform, userId } = req.body;
+    console.log('📱 FCM: Received token save request', { 
+      userId, 
+      platform, 
+      tokenStart: token ? token.substring(0, 20) + '...' : 'none' 
+    });
     
     if (!token || !platform || !userId) {
+      console.log('❌ FCM: Missing required fields', { token: !!token, platform: !!platform, userId: !!userId });
       return res.status(400).json({ 
         success: false, 
         message: 'Token, platform, and userId are required' 
@@ -1049,6 +1055,7 @@ const saveFCMToken = async (req, res) => {
 
     // Check if token already exists
     const existingToken = await FCMToken.findOne({ token });
+    console.log('📱 FCM: Existing token found:', !!existingToken);
     
     if (existingToken) {
       // Update existing token
@@ -1057,18 +1064,20 @@ const saveFCMToken = async (req, res) => {
       existingToken.isActive = true;
       existingToken.lastUsed = new Date();
       await existingToken.save();
+      console.log('✅ FCM: Updated existing token');
     } else {
       // Create new token
-      await FCMToken.create({
+      const newToken = await FCMToken.create({
         userId,
         token,
         platform,
         isActive: true
       });
+      console.log('✅ FCM: Created new token', newToken._id);
     }
 
     // Deactivate old tokens for this user on the same platform
-    await FCMToken.updateMany(
+    const updateResult = await FCMToken.updateMany(
       { 
         userId, 
         platform, 
@@ -1077,6 +1086,7 @@ const saveFCMToken = async (req, res) => {
       },
       { isActive: false }
     );
+    console.log('📱 FCM: Deactivated old tokens:', updateResult.modifiedCount);
 
     res.json({ success: true, message: 'FCM token saved successfully' });
   } catch (error) {
