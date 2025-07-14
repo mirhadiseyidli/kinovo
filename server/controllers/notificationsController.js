@@ -654,14 +654,16 @@ const createEventReminderNotification = async (eventId) => {
         // Send push notification if enabled
         if (shouldReceivePush) {
           console.log('Sending push notification for event reminder');
-          const pushNotification = sendPushNotification([attendee._id], 'event_reminder', {
+          await sendPushNotification([attendee._id], 'event_reminder', {
             eventTitle: event.title,
             eventId: eventId
-          }).catch(error => {
+          }).then(response => {
+            console.log('Push notification sent:', response);
+          })
+          .catch(error => {
             console.error('Push notification failed for event reminder:', error);
           });
         }
-        console.log('Push notification sent:', pushNotification);
 
         // Send email notification if enabled
         if (shouldReceiveEmail && attendeeUser.email) {
