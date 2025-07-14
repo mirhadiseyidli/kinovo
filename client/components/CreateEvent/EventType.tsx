@@ -5,11 +5,8 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
-  useAnimatedGestureHandler,
-  runOnJS,
   cancelAnimation
 } from 'react-native-reanimated';
-import { PanGestureHandler } from 'react-native-gesture-handler';
 import { Picker } from '@react-native-picker/picker';
 import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -33,7 +30,10 @@ const Category: React.FC<CategoryProps> = React.memo(({ onCategorySelect }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { category, settingEventCategory } = useCreateEventContext();
+  // Category chosen and saved (committed)
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
+  // Temporary category used inside the modal before pressing "Done"
+  const [tempCategory, setTempCategory] = useState<string | undefined>(undefined);
   const [showPicker, setShowPicker] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { categories, fetchCategories, loading } = useCategories();
@@ -45,12 +45,12 @@ const Category: React.FC<CategoryProps> = React.memo(({ onCategorySelect }) => {
     category.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Auto-select first match when searching
+  // Auto-select first match inside the modal only
   useEffect(() => {
-    if (searchQuery.trim() && filteredCategories.length === 1) {
-      setSelectedCategory(filteredCategories[0].name);
+    if (showPicker && searchQuery.trim() && filteredCategories.length === 1) {
+      setTempCategory(filteredCategories[0].name);
     }
-  }, [searchQuery, filteredCategories]);
+  }, [searchQuery, filteredCategories, showPicker]);
 
   // Check for a category in AsyncStorage and context
   useEffect(() => {
@@ -100,29 +100,8 @@ const Category: React.FC<CategoryProps> = React.memo(({ onCategorySelect }) => {
   const closeModal = useCallback(() => {
     setShowPicker(false);
     setSearchQuery(''); // Clear search when closing
+    setTempCategory(undefined); // Reset temp selection
   }, []);
-
-  const gestureHandler = useAnimatedGestureHandler({
-    onStart: (_, ctx: any) => {
-      ctx.startY = translateY.value;
-    },
-    onActive: (event, ctx) => {
-      if (!mountedRef.current) return; // Don't update if unmounted
-      const newValue = ctx.startY + event.translationY;
-      if (newValue > 0) { // Only allow downward drag
-        translateY.value = newValue;
-      }
-    },
-    onEnd: (event) => {
-      if (!mountedRef.current) return; // Don't update if unmounted
-      if (event.velocityY > 500 || event.translationY > 100) {
-        translateY.value = withSpring(SCREEN_HEIGHT, SPRING_CONFIG);
-        runOnJS(closeModal)();
-      } else {
-        translateY.value = withSpring(0, SPRING_CONFIG);
-      }
-    },
-  });
 
   // Memoize animated style to prevent recreation on every render
   const animatedStyle = useAnimatedStyle(() => {
@@ -136,13 +115,16 @@ const Category: React.FC<CategoryProps> = React.memo(({ onCategorySelect }) => {
   }, [fetchCategories]);
 
   const handleCategorySelect = (category: string) => {
-    setSelectedCategory(category);
-    onCategorySelect(category);
-    settingEventCategory(category);
+    // Treat empty selection as no category chosen
+    const value = category === '' ? undefined : category;
+    setSelectedCategory(value);
+    onCategorySelect(value ?? '');
+    settingEventCategory(value ?? '');
   };
 
   const openCategoryOptions = () => {
     if (Platform.OS === 'ios') {
+      setTempCategory(selectedCategory); // initialise modal selection
       setShowPicker(true);
     } else {
       Alert.alert('Select Category', '', [
@@ -197,7 +179,7 @@ const Category: React.FC<CategoryProps> = React.memo(({ onCategorySelect }) => {
             }}
           >
             <ThemedText style={{ fontSize: 12, fontWeight: 'bold', color: themeColors.text }}>
-              {truncateName(selectedCategory ?? 'Select', 16)}
+              {truncateName(selectedCategory || 'Select', 16)}
             </ThemedText>
           </TouchableOpacity>
         </View>
@@ -231,17 +213,16 @@ const Category: React.FC<CategoryProps> = React.memo(({ onCategorySelect }) => {
               behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
               style={{ maxHeight: SCREEN_HEIGHT * 0.8 }}
             >
-              <PanGestureHandler onGestureEvent={gestureHandler}>
-                <Animated.View
-                  style={[{
-                    backgroundColor: themeColors.background,
-                    borderTopLeftRadius: 16,
-                    borderTopRightRadius: 16,
-                    overflow: 'hidden',
-                    width: '100%',
-                    paddingVertical: 16,
-                  }, animatedStyle]}
-                >
+               <Animated.View
+                 style={[{
+                   backgroundColor: themeColors.background,
+                   borderTopLeftRadius: 16,
+                   borderTopRightRadius: 16,
+                   overflow: 'hidden',
+                   width: '100%',
+                   paddingVertical: 16,
+                 }, animatedStyle]}
+               >
                   <View style={{ width: 36, height: 5, backgroundColor: themeColors.border, borderRadius: 3, alignSelf: 'center', marginBottom: 16 }} />
                   <View
                     style={{
@@ -258,9 +239,7 @@ const Category: React.FC<CategoryProps> = React.memo(({ onCategorySelect }) => {
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => {
-                        if (selectedCategory) {
-                          handleCategorySelect(selectedCategory);
-                        }
+                        handleCategorySelect(tempCategory ?? '');
                         closeModal();
                       }}
                     >
@@ -306,8 +285,8 @@ const Category: React.FC<CategoryProps> = React.memo(({ onCategorySelect }) => {
                   <View style={{ minHeight: 200 }}>
                     {filteredCategories.length > 0 ? (
                       <Picker
-                        selectedValue={selectedCategory}
-                        onValueChange={(itemValue) => setSelectedCategory(itemValue)}
+                        selectedValue={tempCategory}
+                        onValueChange={(itemValue) => setTempCategory(itemValue)}
                         style={{
                           backgroundColor: themeColors.background,
                           color: themeColors.text,
@@ -338,7 +317,6 @@ const Category: React.FC<CategoryProps> = React.memo(({ onCategorySelect }) => {
                     )}
                   </View>
                 </Animated.View>
-              </PanGestureHandler>
             </KeyboardAvoidingView>
           </View>
         </Modal>

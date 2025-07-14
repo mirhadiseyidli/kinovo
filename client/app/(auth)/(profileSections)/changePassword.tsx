@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
@@ -22,13 +22,16 @@ const ChangePassword = () => {
   const [show2FA, setShow2FA] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [currentEmail, setCurrentEmail] = useState('');
+  const [loaddingPage, setLoaddingPage] = useState(false);
 
   React.useEffect(() => {
     const loadUserData = async () => {
+      setLoaddingPage(true);
       const userData = await fetchUserData();
       if (userData?.email) {
         setCurrentEmail(userData.email);
       }
+      setLoaddingPage(false);
     };
     loadUserData();
   }, []);
@@ -114,35 +117,16 @@ const ChangePassword = () => {
     );
   }
 
-  const goBack = () => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace('/');
-    }
+  if (loaddingPage) {
+    return (
+      <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={themeColors.mountainGreen} style={{ marginTop: 32 }}/>
+      </ThemedView>
+    );
   }
 
   return (
     <ThemedView style={{ flex: 1 }}>
-      <Stack.Screen 
-        options={{
-          headerTitle: 'Change Password',
-          headerTintColor: themeColors.text,
-          headerStyle: {
-            backgroundColor: themeColors.background,
-          },
-          headerShadowVisible: false,
-          headerShown: true,
-          headerBackButtonDisplayMode: 'minimal',
-          headerLeft: () => (
-            <TouchableOpacity 
-              onPress={goBack}
-            >
-              <Feather name="chevron-left" size={24} color={themeColors.text} />
-            </TouchableOpacity>
-          ),
-        }} 
-      />
       <ScrollView style={{ flex: 1, padding: 16 }}>
         <PasswordInput
           label="Current Password"

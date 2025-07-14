@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { View, InteractionManager, Dimensions, ViewStyle, DimensionValue } from "react-native";
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { MapSkeleton } from './Skeleton';
 import MapView, { Marker, MapViewProps } from 'react-native-maps';
 import { useLocation } from '@/context/LocationContext';
+import { useMapMemoryOptimization } from '@/hooks/useMapMemoryOptimization';
 
 export interface OptimizedMapViewProps {
   coordinates: {
@@ -23,6 +24,20 @@ export interface OptimizedMapViewProps {
 }
 
 const { width: screenWidth } = Dimensions.get('window');
+
+// Memoized marker component
+const MapMarker = React.memo<{
+  coordinate: { latitude: number; longitude: number };
+  title: string;
+  pinColor: string;
+}>(({ coordinate, title, pinColor }) => (
+  <Marker 
+    coordinate={coordinate}
+    title={title}
+    pinColor={pinColor}
+  />
+));
+MapMarker.displayName = 'MapMarker';
 
 // Create a function for all map settings
 const useMapSettings = (props: {
@@ -77,7 +92,21 @@ const OptimizedMapView: React.FC<OptimizedMapViewProps> = ({
   const [shouldRender, setShouldRender] = useState(!lazy);
   const mountedRef = useRef(true);
   const interactionTaskRef = useRef<any>(null);
+  const mapRef = useRef<MapView>(null);
   const locationPermission = useLocation();
+
+  // Generate unique map ID for memory optimization
+  const mapId = useMemo(() => 
+    `map_${coordinates.latitude}_${coordinates.longitude}_${Date.now()}`, 
+    [coordinates.latitude, coordinates.longitude]
+  );
+
+  // Use memory optimization hook
+  const { shouldRenderMap, cleanupMaps, unregisterMap } = useMapMemoryOptimization(mapId, {
+    enableBackgroundCleanup: true,
+    interactionDelay: loadDelay,
+    maxMapInstances: 2 // Limit concurrent maps
+  });
 
   // Use the settings hook with correct props
   const { uiSettings } = useMapSettings({
@@ -86,10 +115,60 @@ const OptimizedMapView: React.FC<OptimizedMapViewProps> = ({
     coordinates
   });
 
+  // Memoize container style to prevent recreation
+  const containerStyle: ViewStyle = useMemo(() => ({
+    height, 
+    width: width as DimensionValue, 
+    borderRadius: 8,
+    overflow: 'hidden'
+  }), [height, width]);
+
+  // Memoize marker title to prevent string processing on every render
+  const markerTitle = useMemo(() => 
+    selectedLocation?.toString() ?? 'Selected Location', 
+    [selectedLocation]
+  );
+
+  // Memoize marker coordinate to prevent object recreation
+  const markerCoordinate = useMemo(() => ({
+    latitude: coordinates.latitude,
+    longitude: coordinates.longitude,
+  }), [coordinates.latitude, coordinates.longitude]);
+
+  // Memoized map event handlers to prevent recreation
+  const handleMapReady = useCallback(() => {
+    console.log('Map is ready');
+  }, []);
+
+  const handleRegionChangeComplete = useCallback(() => {
+    // Optional: Handle region changes if needed
+  }, []);
+
+  // Cleanup function for MapView resources
+  const cleanupMapResources = useCallback(() => {
+    try {
+      // Clear any map-specific resources
+      if (mapRef.current) {
+        // Force cleanup of map tiles and cache
+        mapRef.current = null;
+      }
+      
+      // Unregister this specific map instance
+      if (unregisterMap) {
+        unregisterMap(mapId);
+      }
+      
+      setIsMapReady(false);
+      setShouldRender(false);
+    } catch (error) {
+      console.warn('Error cleaning up map resources:', error);
+    }
+  }, [unregisterMap, mapId]);
+
   useEffect(() => {
     mountedRef.current = true;
     
-    if (lazy) {
+    if (lazy && shouldRenderMap) {
       // Defer map loading until after interactions/animations are complete
       interactionTaskRef.current = InteractionManager.runAfterInteractions(() => {
         if (mountedRef.current) {
@@ -111,16 +190,29 @@ const OptimizedMapView: React.FC<OptimizedMapViewProps> = ({
         interactionTaskRef.current.cancel();
       }
     };
-  }, [lazy, loadDelay]);
+  }, [lazy, loadDelay, shouldRenderMap]);
 
-  // Cleanup on unmount to free memory
+  // Cleanup on unmount to free memory - enhanced version
   useEffect(() => {
     return () => {
-      // Force cleanup of map resources
-      setIsMapReady(false);
-      setShouldRender(false);
+      // Comprehensive cleanup
+      cleanupMapResources();
+      
+      // Cancel any pending tasks
+      if (interactionTaskRef.current) {
+        interactionTaskRef.current.cancel();
+      }
     };
-  }, []);
+  }, [cleanupMapResources]);
+
+  // Don't render if memory optimization says no
+  if (!shouldRenderMap) {
+    return (
+      <View style={style}>
+        <MapSkeleton height={typeof height === 'number' ? height : 150} />
+      </View>
+    );
+  }
 
   // Don't render anything if not ready
   if (!shouldRender) {
@@ -140,25 +232,23 @@ const OptimizedMapView: React.FC<OptimizedMapViewProps> = ({
     );
   }
 
-  const containerStyle: ViewStyle = {
-    height, 
-    width: width as DimensionValue, 
-    borderRadius: 8,
-    overflow: 'hidden'
-  };
-
-  // Ensure title is always a string
-  const markerTitle = selectedLocation?.toString() ?? 'Selected Location';
-
   return (
     <View style={[containerStyle, style]}>
-      <MapView {...uiSettings} userInterfaceStyle={colorScheme === 'dark' ? 'dark' : 'light'}>
+      <MapView 
+        ref={mapRef}
+        {...uiSettings} 
+        userInterfaceStyle={colorScheme === 'dark' ? 'dark' : 'light'}
+        onMapReady={handleMapReady}
+        onRegionChangeComplete={handleRegionChangeComplete}
+        // Memory optimization props
+        cacheEnabled={true}
+        loadingEnabled={true}
+        // Limit tile loading for better performance
+        mapPadding={{ top: 0, right: 0, bottom: 0, left: 0 }}
+      >
         {showMarker && (
-          <Marker 
-            coordinate={{
-              latitude: coordinates.latitude,
-              longitude: coordinates.longitude,
-            }} 
+          <MapMarker
+            coordinate={markerCoordinate}
             title={markerTitle}
             pinColor={themeColors.mountainGreen}
           />
@@ -168,10 +258,11 @@ const OptimizedMapView: React.FC<OptimizedMapViewProps> = ({
   );
 };
 
-// Visibility hook for lazy loading maps
+// Enhanced visibility hook for lazy loading maps with memory optimization
 export const useMapVisibility = (threshold: number = 100) => {
   const [isVisible, setIsVisible] = useState(false);
   const viewRef = useRef<View>(null);
+  const timeoutRef = useRef<number | undefined>(undefined);
 
   const checkVisibility = useCallback(() => {
     if (viewRef.current) {
@@ -187,9 +278,23 @@ export const useMapVisibility = (threshold: number = 100) => {
   }, [threshold]);
 
   useEffect(() => {
-    const timer = setTimeout(checkVisibility, 100);
-    return () => clearTimeout(timer);
+    timeoutRef.current = setTimeout(checkVisibility, 100);
+    
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
   }, [checkVisibility]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   return {
     isVisible,
@@ -198,4 +303,21 @@ export const useMapVisibility = (threshold: number = 100) => {
   };
 };
 
-export default React.memo(OptimizedMapView);
+// Enhanced memo comparison for better optimization
+const mapPropsAreEqual = (
+  prevProps: OptimizedMapViewProps, 
+  nextProps: OptimizedMapViewProps
+) => {
+  return (
+    prevProps.coordinates.latitude === nextProps.coordinates.latitude &&
+    prevProps.coordinates.longitude === nextProps.coordinates.longitude &&
+    prevProps.selectedLocation === nextProps.selectedLocation &&
+    prevProps.height === nextProps.height &&
+    prevProps.width === nextProps.width &&
+    prevProps.interactive === nextProps.interactive &&
+    prevProps.showMarker === nextProps.showMarker &&
+    prevProps.lazy === nextProps.lazy
+  );
+};
+
+export default React.memo(OptimizedMapView, mapPropsAreEqual);

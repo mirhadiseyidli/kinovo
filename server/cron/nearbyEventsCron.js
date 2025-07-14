@@ -1,60 +1,71 @@
 const cron = require('node-cron');
 const Event = require('../database/schemas/eventsSchema');
-const User = require('../database/schemas/usersSchema');
-const { createNearbyEventNotification } = require('../controllers/notificationsController');
+const User = require('../database/schemas/userSchema');
+const { createNotification } = require('../utils/notificationUtils');
+const admin = require('../config/firebase-admin');
 
-// Helper function to calculate distance between two coordinates
-const calculateDistance = (lat1, lon1, lat2, lon2) => {
-  const R = 3959; // Earth's radius in miles
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const d = R * c;
-  return d;
-};
-
-const toRad = (value) => {
-  return (value * Math.PI) / 180;
-};
-
-// Find users within 50 miles of an event
-const findUsersWithin50Miles = async (eventLat, eventLng, excludeUserId, eventCreatorId) => {
+// Helper function to find users within 50 miles using MongoDB's geospatial queries
+const findUsersWithin50Miles = async (lat, lng, excludeUserId = null, creatorId = null) => {
   try {
-    // Get all users with location data, excluding event creator and existing attendees
-    const users = await User.find({
-      _id: { 
-        $ne: excludeUserId,
-        $ne: eventCreatorId 
-      },
-      'location.coordinates.lat': { $exists: true, $ne: null },
-      'location.coordinates.lng': { $exists: true, $ne: null }
-    }).select('_id location');
-
-    const nearbyUsers = [];
-    
-    for (const user of users) {
-      if (user.location?.coordinates?.lat && user.location?.coordinates?.lng) {
-        const distance = calculateDistance(
-          eventLat,
-          eventLng,
-          user.location.coordinates.lat,
-          user.location.coordinates.lng
-        );
-        
-        // 50 miles threshold
-        if (distance <= 50) {
-          nearbyUsers.push(user._id);
+    const query = {
+      'location.coordinates': {
+        $near: {
+          $geometry: {
+            type: 'Point',
+            coordinates: [lng, lat]
+          },
+          $maxDistance: 80467.2 // 50 miles in meters (50 * 1609.344)
         }
       }
+    };
+
+    // Exclude the user making the request and the event creator
+    const excludeIds = [excludeUserId, creatorId].filter(id => id !== null);
+    if (excludeIds.length > 0) {
+      query._id = { $nin: excludeIds };
     }
 
-    return nearbyUsers;
+    const users = await User.find(query).select('_id');
+    return users.map(user => user._id);
   } catch (error) {
     console.error('Error finding nearby users:', error);
     return [];
+  }
+};
+
+// Helper function to create a nearby event notification
+const createNearbyEventNotification = async (eventId, userIds) => {
+  try {
+    const notifications = userIds.map(userId => ({
+      user: userId,
+      type: 'nearby_event',
+      event: eventId,
+      created_at: new Date(),
+      is_seen: false
+    }));
+
+    await createNotification(notifications);
+    console.log(`Created ${notifications.length} nearby event notifications for event ${eventId}`);
+  } catch (error) {
+    console.error('Error creating nearby event notifications:', error);
+  }
+};
+
+// Helper function to create a friends event notification
+const createFriendsEventNotification = async (eventId, userIds) => {
+  try {
+    const notifications = userIds.map(userId => ({
+      user: userId,
+      type: 'friend_event',
+      event: eventId,
+      created_at: new Date(),
+      is_seen: false
+    }));
+
+    await createNotification(notifications);
+    console.log(`Created ${notifications.length} friends event notifications for event ${eventId}`);
+  } catch (error) {
+    console.error('Error creating friends event notifications:', error);
   }
 };
 
@@ -124,8 +135,76 @@ const startNearbyEventsCron = () => {
     }
   });
 
+  console.log('Nearby events cron job started - runs daily at 9 AM');
+};
+
+// Cron job that runs once daily to send friends event notifications
+const startFriendsEventsCron = () => {
+  // Run once daily at 12 PM (noon)
+  cron.schedule('0 12 * * *', async () => {
+    
+    try {
+      const now = new Date();
+      const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+      
+      // Find all users with friends
+      const usersWithFriends = await User.find({
+        'friends': { $exists: true, $not: { $size: 0 } }
+      }).select('_id friends').populate('friends', '_id');
+
+      console.log(`Found ${usersWithFriends.length} users with friends`);
+
+      for (const user of usersWithFriends) {
+        try {
+          // Get friend IDs
+          const friendIds = user.friends.map(friend => friend._id);
+          
+          if (friendIds.length === 0) continue;
+
+          // Find events created by this user's friends in the next 3 days
+          const friendsEvents = await Event.find({
+            creator: { $in: friendIds },
+            start_time: {
+              $gte: now,
+              $lte: threeDaysFromNow
+            },
+            status: { $ne: 'cancelled' },
+            // Include both public and friends_only events
+            visibility: { $in: ['public', 'friends_only'] }
+          }).populate('creator', '_id name').select('_id title start_time creator attendees visibility');
+
+          if (friendsEvents.length === 0) continue;
+
+          // Filter events where the user is not already an attendee
+          const eligibleEvents = friendsEvents.filter(event => {
+            const attendeeIds = event.attendees.map(attendee => attendee.user.toString());
+            return !attendeeIds.includes(user._id.toString());
+          });
+
+          if (eligibleEvents.length === 0) continue;
+
+          // Randomly select up to 2 events to notify about (to avoid spam)
+          const eventsToNotify = eligibleEvents
+            .sort(() => 0.5 - Math.random())
+            .slice(0, 2);
+
+          // Create notifications for each selected event
+          for (const event of eventsToNotify) {
+            await createFriendsEventNotification(event._id, [user._id]);
+          }
+
+        } catch (error) {
+          console.error(`Failed to send friends event notifications for user ${user._id}:`, error);
+        }
+      }
+
+    } catch (error) {
+      console.error('Error in friends events cron job:', error);
+    }
+  });
 };
 
 module.exports = {
-  startNearbyEventsCron
+  startNearbyEventsCron,
+  startFriendsEventsCron
 }; 

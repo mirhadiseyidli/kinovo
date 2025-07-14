@@ -35,7 +35,7 @@ const Dropdown: React.FC<DropdownProps> = ({
   const handleViewChange = useCallback((view: string) => {
     // Use requestAnimationFrame for smoother transitions
     requestAnimationFrame(() => {
-      setView(view);
+      setView(view, 'header_picker');
       setMonthListOpen(false);
     });
   }, [setView, setMonthListOpen]);

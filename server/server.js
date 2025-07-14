@@ -1,9 +1,9 @@
 require('dotenv').config();
-require('./database/connection');
 
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const { connectToDatabase } = require('./database/connection');
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
@@ -45,62 +45,78 @@ app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'Server is running.' });
 });
 
-// Initialize categories
-const { initializeCategories } = require('./controllers/categoryController');
-initializeCategories().catch(console.error);
-
-// Initialize Firebase Realtime Database
-configureSecurityRules().catch(error => {
-  console.error('Failed to configure Firebase security rules:', error);
-});
-initializeChangeStreams();
-
-// Check Authentication (JWT based)
-const { verifyAccessToken } = require('./utils/token');
-
-app.get('/api/check-auth', (req, res) => {
-  const token = req.headers.authorization?.split(' ')[1]; // Extract token from Authorization header
-  if (!token) {
-    return res.status(401).json({ loggedIn: false, message: 'No token provided' });
-  }
-
+// Initialize server with proper database connection
+async function startServer() {
   try {
-    const decoded = verifyAccessToken(token);
-    res.json({
-      loggedIn: true,
-      user: { id: decoded.id, email: decoded.email, role: decoded.role },
+    // Ensure database connection is established
+    console.log('Connecting to database...');
+    await connectToDatabase();
+    console.log('Database connection established successfully');
+
+    // Initialize categories after database connection
+    console.log('Initializing categories...');
+    const { initializeCategories } = require('./controllers/categoryController');
+    await initializeCategories();
+    console.log('Categories initialized successfully');
+
+    // Initialize Firebase Realtime Database
+    configureSecurityRules().catch(error => {
+      console.error('Failed to configure Firebase security rules:', error);
     });
-  } catch (err) {
-    res.status(401).json({ loggedIn: false, message: 'Invalid or expired token' });
+    initializeChangeStreams();
+
+    // Check Authentication (JWT based)
+    const { verifyAccessToken } = require('./utils/token');
+
+    app.get('/api/check-auth', (req, res) => {
+      const token = req.headers.authorization?.split(' ')[1]; // Extract token from Authorization header
+      if (!token) {
+        return res.status(401).json({ loggedIn: false, message: 'No token provided' });
+      }
+
+      try {
+        const decoded = verifyAccessToken(token);
+        res.json({
+          loggedIn: true,
+          user: { id: decoded.id, email: decoded.email, role: decoded.role },
+        });
+      } catch (err) {
+        res.status(401).json({ loggedIn: false, message: 'Invalid or expired token' });
+      }
+    });
+
+    // Routes
+    app.use('/api/auth', authRoutes);
+    app.use('/api/users', userRoutes);
+    app.use('/api/assistants', aiRoutes);
+    app.use('/api/search', searchRoutes);
+    app.use('/api/managefriends', manageFriendsRoutes);
+    app.use('/api/friendsuggestions', friendSuggestionsRoutes);
+    app.use('/api/manageevents', eventsRoutes);
+    app.use('/api/weather', weatherRoutes);
+    app.use('/api/notifications', notificationsRoutes);
+    app.use('/api', categoryRoutes);
+    app.use('/api/google', googleApiRoutes);
+    app.use('/api/storage', storageRoutes);
+    app.use('/share', shareRoutes); // Share routes don't need /api prefix
+
+    // Start the cron jobs
+    const accountDeletionCron = require('./cron/accountDeletionCron');
+    const { startNearbyEventsCron, startFriendsEventsCron } = require('./cron/nearbyEventsCron');
+
+    accountDeletionCron.start();
+    startNearbyEventsCron();
+    startFriendsEventsCron();
+
+    // Start Server
+    const PORT = process.env.BACKEND_PORT || 5002;
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
   }
-});
+}
 
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/assistants', aiRoutes);
-app.use('/api/search', searchRoutes);
-app.use('/api/managefriends', manageFriendsRoutes);
-app.use('/api/friendsuggestions', friendSuggestionsRoutes);
-app.use('/api/manageevents', eventsRoutes);
-app.use('/api/weather', weatherRoutes);
-app.use('/api/notifications', notificationsRoutes);
-app.use('/api', categoryRoutes);
-app.use('/api/google', googleApiRoutes);
-app.use('/api/storage', storageRoutes);
-app.use('/share', shareRoutes); // Share routes don't need /api prefix
-
-// Start the cron jobs
-const accountDeletionCron = require('./cron/accountDeletionCron');
-const { startEventReminderCron } = require('./cron/eventReminderCron');
-const { startNearbyEventsCron } = require('./cron/nearbyEventsCron');
-
-accountDeletionCron.start();
-startEventReminderCron();
-startNearbyEventsCron();
-
-// Start Server
-const PORT = process.env.BACKEND_PORT || 5002;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
-});
+startServer();

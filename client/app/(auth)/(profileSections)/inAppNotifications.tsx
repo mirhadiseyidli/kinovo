@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, ScrollView, TouchableOpacity, Switch, RefreshControl } from 'react-native';
+import { View, ScrollView, TouchableOpacity, Switch, RefreshControl, ActivityIndicator } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
@@ -16,7 +16,8 @@ const InAppNotifications = () => {
 
   const notificationTypeLabels = {
     friend_request_accepted: 'Friend Request Accepted',
-    event_reminder: 'Event Reminders',
+    event_reminder_10_mins: 'Event Reminders (10 minutes)',
+    event_reminder_1_hour: 'Event Reminders (1 hour)',
     event_updated: 'Event Updates',
     new_event_nearby: 'New Nearby Events',
     event_attendance_confirmed: 'Event Attendance Confirmed',
@@ -28,41 +29,13 @@ const InAppNotifications = () => {
   if (loading) {
     return (
       <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ThemedText>Loading preferences...</ThemedText>
+        <ActivityIndicator size="large" color={themeColors.mountainGreen} style={{ marginTop: 32 }}/>
       </ThemedView>
     );
   }
 
-  const goBack = () => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace('/');
-    }
-  }
-
   return (
     <ThemedView style={{ flex: 1 }}>
-      <Stack.Screen 
-        options={{
-          headerTitle: 'In-App Notifications',
-          headerTintColor: themeColors.text,
-          headerStyle: {
-            backgroundColor: themeColors.background,
-          },
-          headerShadowVisible: false,
-          headerShown: true,
-          headerBackButtonDisplayMode: 'minimal',
-          headerLeft: () => (
-            <TouchableOpacity 
-              onPress={goBack}
-            >
-              <Feather name="chevron-left" size={24} color={themeColors.text} />
-            </TouchableOpacity>
-          ),
-        }} 
-      />
-      
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 16 }}

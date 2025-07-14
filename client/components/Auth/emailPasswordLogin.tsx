@@ -188,8 +188,6 @@ const EmailLogin: React.FC<EmailLoginProps> = ({ onLoginSuccess, onLoginStart, o
           password
         });
 
-        console.log('response', response);
-
         if (response.data.success) {
           const { accessToken, refreshToken, user } = response.data;
           // Small delay to show success animation before navigation

@@ -19,7 +19,9 @@ const GoogleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess, onLoginStart, o
   });
 
   React.useEffect(() => {
-    if (response?.type === 'success' && response.authentication) {
+    if (!response) return;
+
+    if (response.type === 'success' && response.authentication) {
       const idToken = response.authentication.idToken;
 
       if (!idToken) {
@@ -63,6 +65,9 @@ const GoogleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess, onLoginStart, o
       };
 
       authenticate();
+    } else {
+      // Any non-success response (cancel, dismiss, error) should clear loading state in parent
+      onLoginError?.();
     }
   }, [response]);
 

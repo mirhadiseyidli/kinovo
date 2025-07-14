@@ -4,7 +4,8 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { Feather } from '@expo/vector-icons';
 import { getInitials, getRandomColor } from '@/utils/profilePictureGenerator';
-import { OptimizedCDNImage } from '@/components/OptimizedCDNImage';
+import { Image } from 'expo-image';
+import { SkeletonBox } from './Skeleton';
 
 interface DefaultProfilePictureProps {
   profilePicture?: string | null;
@@ -96,19 +97,21 @@ const DefaultProfilePicture: React.FC<DefaultProfilePictureProps> = React.memo((
       borderWidth: showBorder ? 2 : 0,
       borderColor: borderColor || themeColors.mountainGreen,
     }}>
-      <OptimizedCDNImage
+      <Image
         source={profilePicture || null}
-        fallbackCategory="profile"
         style={{
           width: '100%',
           height: '100%',
         }}
-        width={size}
-        height={size}
-        quality={85}
-        priority="normal"
-        enableBlurUp={true}
-        resizeMode="cover"
+        allowDownscaling={true}
+        cachePolicy="disk"
+        contentFit="cover"
+        onError={() => {
+          return renderDefaultProfilePicture();
+        }}
+        onProgress={() => {
+          return <SkeletonBox width={size} height={size} borderRadius={radius} />;
+        }}
       />
     </View>
   );

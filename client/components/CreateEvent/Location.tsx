@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   KeyboardAvoidingView,
@@ -39,6 +39,8 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
   const { location, settingEventLocation } = useCreateEventContext();
   const userLocation = useLocation();
   const [userCoordinates, setUserCoordinates] = useState<Coordinates | null>(null);
+  const mountedRef = useRef(true);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   const [selectedLocation, setSelectedLocation] = useState<SelectedLocation>(location?.text || null);
   const [mapVisible] = useState(new Animated.Value(location?.coordinates ? 1 : 0)); // Controls slide animation
@@ -50,20 +52,30 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
   );
 
   const getUserLocation = async () => {
-    if (!userLocation) return;
-    const userCoordinates = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.High,
-      timeInterval: 1000,
-      distanceInterval: 10
-    });
-    setUserCoordinates({
-      latitude: userCoordinates.coords.latitude,
-      longitude: userCoordinates.coords.longitude
-    });
-  }
+    // Require explicit permission from context
+    if (!userLocation?.locationPermission) return;
+    try {
+      const userCoordinates = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Low, // lighter weight
+      });
+      if (!mountedRef.current) return;
+      setUserCoordinates({
+        latitude: userCoordinates.coords.latitude,
+        longitude: userCoordinates.coords.longitude
+      });
+    } catch (err) {
+      // Silently ignore – we already handle lack of permission elsewhere
+      console.warn('getCurrentPositionAsync error', err);
+    }
+  };
 
   useEffect(() => {
+    mountedRef.current = true;
     getUserLocation();
+    return () => {
+      mountedRef.current = false;
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
   }, [userLocation]);
 
   // Update local state when context changes
@@ -116,6 +128,7 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
         }));
       }
 
+      if (!mountedRef.current) return;
       setSuggestions(results);
       setShowSuggestions(results.length > 0);
     } catch (error) {
@@ -186,7 +199,11 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
     }
     
     setInputText(text);
-    fetchAddressSuggestions(text);
+    // Debounce network calls to avoid flooding
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => {
+      fetchAddressSuggestions(text);
+    }, 300);
   };
 
   const handleInputFocus = () => {
@@ -227,7 +244,7 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
         </View>
 
         {/* Animated Map View */}
-        {coordinates && (
+        {coordinates && Number.isFinite(coordinates.latitude) && Number.isFinite(coordinates.longitude) && (
           <Animated.View style={{
             marginTop: mapVisible.interpolate({
               inputRange: [0, 1],

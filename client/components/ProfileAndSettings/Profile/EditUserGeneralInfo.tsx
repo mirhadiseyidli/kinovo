@@ -134,7 +134,11 @@ const EditUserGeneralInfo = () => {
   };
 
   if (!user) {
-    return <Text>Loading...</Text>;
+    return (
+      <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={themeColors.mountainGreen} style={{ marginTop: 32 }}/>
+      </ThemedView>
+    );
   }
 
   return (

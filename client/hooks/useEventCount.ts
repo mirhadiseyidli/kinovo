@@ -18,10 +18,6 @@ export const useEventCount = (
   isOwnProfile: boolean = false
 ): number => {
   const eventCount = useMemo(() => {
-    console.log('events', events);
-    console.log('currentUserId', currentUserId);
-    console.log('isFriend', isFriend);
-    console.log('isOwnProfile', isOwnProfile);
     if (!events) return 0;
     
     // If viewing own profile, show all events with accepted or maybe status
@@ -42,7 +38,17 @@ export const useEventCount = (
 
       const eventData = event.event;
       
+      // Add null check for eventData
+      if (!eventData) {
+        return false;
+      }
+      
       const visibility = eventData.visibility;
+
+      // Add null check for visibility
+      if (!visibility) {
+        return false;
+      }
 
       // Public events are always visible
       if (visibility === 'public') {

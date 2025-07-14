@@ -8,8 +8,10 @@ import { BlurView } from 'expo-blur';
 import { SuggestedEventProps } from '@/types/allTypes';
 import { useRouter } from 'expo-router';
 import DefaultProfilePicture from '../DefaultProfilePicture';
-import OptimizedImageBackground from '../OptimizedImageBackground';
 import { LinearGradient } from 'expo-linear-gradient';
+import { SkeletonBox } from '../Skeleton';
+import { ImageBackground } from 'expo-image';
+import { getCategoryImage } from '@/constants/CategoryImages';
 
 const EventCardView: React.FC<SuggestedEventProps> = ({
   event
@@ -69,13 +71,8 @@ const EventCardView: React.FC<SuggestedEventProps> = ({
 
   return (
     <TouchableOpacity onPress={handleViewEvent}>
-      <OptimizedImageBackground
-        source={event?.event_picture || null}
-        fallbackCategory={event?.category}
-        width={imageWidth}
-        height={imageHeight}
-        quality={80}
-        resizeMode="cover"
+      <ImageBackground
+        source={getCategoryImage(event?.category)}
         style={{
           width: '100%',
           borderRadius: 16,
@@ -84,6 +81,15 @@ const EventCardView: React.FC<SuggestedEventProps> = ({
           alignSelf: 'center',
           marginVertical: 8,
         }}
+        contentFit="cover"
+        onError={() => {
+          return <SkeletonBox width={400} height={120} borderRadius={12} />;
+        }}
+        onProgress={() => {
+          return <SkeletonBox width={400} height={120} borderRadius={12} />;
+        }}
+        cachePolicy="disk"
+        allowDownscaling={true}
         imageStyle={{
           bottom: -160,
         }}
@@ -171,7 +177,7 @@ const EventCardView: React.FC<SuggestedEventProps> = ({
             </View>
           </View>
         </BlurView>
-      </OptimizedImageBackground>
+      </ImageBackground>
     </TouchableOpacity>
   );
 };

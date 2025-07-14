@@ -73,7 +73,7 @@ const DayCell: React.FC<DayCellProps> = ({
   };
 
   const openSchedule = () => {
-    setView('Schedule');
+    setView('Schedule', 'day_cell');
     navigateToDay(date);
   };
 

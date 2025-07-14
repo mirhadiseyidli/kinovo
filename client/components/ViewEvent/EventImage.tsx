@@ -1,8 +1,10 @@
 import React from 'react';
 import { View } from 'react-native';
-import { OptimizedCDNImage } from '@/components/OptimizedCDNImage';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { SkeletonBox } from '../Skeleton';
+import { Image } from 'expo-image';
+import { getCategoryImage } from '@/constants/CategoryImages';
 
 interface EventImageProps {
   event_picture: string | null;
@@ -17,20 +19,18 @@ const EventImage = ({ event_picture, category, width = 200, height = 200 }: Even
   
   return (
     <View style={{ width: '60%', aspectRatio: 1, borderRadius: 16, overflow: 'hidden' }}>
-      <OptimizedCDNImage
-        source={event_picture}
-        fallbackCategory={category}
-        style={{ 
-          width: '100%', 
-          height: '100%',
-          borderRadius: 16
+      <Image
+        source={getCategoryImage(category)}
+        style={{ width: '100%', height: '100%', borderRadius: 16 }}
+        contentFit="cover"
+        onError={() => {
+          return <SkeletonBox width={width} height={height} borderRadius={16} />;
         }}
-        resizeMode="cover"
-        width={width}
-        height={height}
-        quality={85}
-        priority="high"
-        enableBlurUp={true}
+        onProgress={() => {
+          return <SkeletonBox width={width} height={height} borderRadius={16} />;
+        }}
+        cachePolicy="disk"
+        allowDownscaling={true}
       />
     </View>
   );

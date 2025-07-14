@@ -4,7 +4,8 @@ import api from '@/utils/api';
 
 interface NotificationPreferences {
   friend_request_accepted: boolean;
-  event_reminder: boolean;
+  event_reminder_10_mins: boolean;
+  event_reminder_1_hour: boolean;
   event_updated: boolean;
   new_event_nearby: boolean;
   event_attendance_confirmed: boolean;
@@ -24,7 +25,8 @@ type NotificationChannel = 'inApp' | 'email' | 'push';
 const defaultPreferences: AllNotificationPreferences = {
   inApp: {
     friend_request_accepted: true,
-    event_reminder: true,
+    event_reminder_10_mins: true,
+    event_reminder_1_hour: true,
     event_updated: true,
     new_event_nearby: true,
     event_attendance_confirmed: true,
@@ -34,7 +36,8 @@ const defaultPreferences: AllNotificationPreferences = {
   },
   email: {
     friend_request_accepted: false,
-    event_reminder: true,
+    event_reminder_10_mins: false,
+    event_reminder_1_hour: false,
     event_updated: false,
     new_event_nearby: false,
     event_attendance_confirmed: false,
@@ -45,7 +48,8 @@ const defaultPreferences: AllNotificationPreferences = {
 
   push: {
     friend_request_accepted: true,
-    event_reminder: true,
+    event_reminder_10_mins: true,
+    event_reminder_1_hour: true,
     event_updated: true,
     new_event_nearby: true,
     event_attendance_confirmed: true,

@@ -13,7 +13,7 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { EventCardSkeleton } from '@/components/Skeleton';
 import { useFocusEffect } from '@react-navigation/native';
 import { getCityByName, getStateByCity, getCityDescription } from '@/constants/Cities';
-import { OptimizedCDNImage } from '@/components/OptimizedCDNImage';
+import { Image } from 'expo-image';
 
 const CityPage = () => {
   const { city } = useLocalSearchParams();
@@ -111,21 +111,10 @@ const CityPage = () => {
     >
       {/* Header Image with Gradient Overlay */}
       <View style={{ height: 300, position: 'relative' }}>
-        <OptimizedCDNImage
+        <Image
           source={cityInfo?.image?.uri || cityInfo?.image}
-          style={{ 
-            width: '100%', 
-            height: '100%',
-            position: 'absolute'
-          }}
-          containerStyle={{
-            width: '100%',
-            height: '100%'
-          }}
-          resizeMode="cover"
-          width={400}
-          height={300}
-          quality={85}
+          style={{ width: '100%', height: '100%', position: 'absolute' }}
+          contentFit="cover"
         />
         <LinearGradient
           colors={['transparent', 'rgba(0,0,0,0.3)', themeColors.background]}

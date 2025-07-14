@@ -1033,6 +1033,8 @@ export interface NotificationData {
   recipient: string;
   sender?: {
     _id: string;
+    first_name: string;
+    last_name: string;
     full_name: string;
     username: string;
     profile_picture?: string;
@@ -1051,7 +1053,7 @@ export interface NotificationData {
       profile_picture?: string;
     };
   };
-  type: 'friend_request_accepted' | 'event_reminder' | 'event_updated' | 'new_event_nearby' | 'event_attendance_confirmed' | 'new_event_from_friend' | 'event_invitation' | 'someone_from_contacts_joined';
+  type: 'friend_request_accepted' | 'event_reminder_10_mins' | 'event_reminder_1_hour' | 'event_updated' | 'new_event_nearby' | 'event_attendance_confirmed' | 'new_event_from_friend' | 'event_invitation' | 'someone_from_contacts_joined';
   title: string;
   subtitle?: string;
   message_body?: string;
@@ -1072,6 +1074,8 @@ export interface FriendRequestNotification {
   _id: string;
   sender: {
     _id: string;
+    first_name: string;
+    last_name: string;
     full_name: string;
     username: string;
     profile_picture?: string;

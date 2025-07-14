@@ -32,7 +32,6 @@ export default React.memo(function UserEvents({ userId, route, refreshing }: Use
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [searchQuery, setSearchQuery] = useState('');
   const { eventsList, fetchUserToViewEvents, loading, isFirstFetch } = useGetUserToViewEvents(userId);
-  console.log('eventsList', eventsList);
   const insets = useSafeAreaInsets();
 
   useEffect(() => {

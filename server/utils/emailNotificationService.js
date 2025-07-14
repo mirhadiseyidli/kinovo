@@ -75,7 +75,16 @@ const sendEmailNotification = async (recipientEmail, notificationType, data) => 
         );
         break;
 
-      case 'event_reminder':
+      case 'event_reminder_10_mins':
+        subject = `Reminder: ${data.eventTitle} starts in 10 minutes`;
+        htmlContent = eventReminderEmailTemplate(
+          data.eventTitle,
+          data.eventLocation,
+          data.eventStartTime
+        );
+        break;
+
+      case 'event_reminder_1_hour':
         subject = `Reminder: ${data.eventTitle} starts in 1 hour`;
         htmlContent = eventReminderEmailTemplate(
           data.eventTitle,

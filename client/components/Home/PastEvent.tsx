@@ -7,7 +7,9 @@ import { useRouter } from 'expo-router';
 import { Event } from '@/types/allTypes';
 import { LinearGradient } from 'expo-linear-gradient';
 import DefaultProfilePicture from '../DefaultProfilePicture';
-import OptimizedImageBackground from '../OptimizedImageBackground';
+import { getCategoryImage } from '@/constants/CategoryImages';
+import { SkeletonBox } from '../Skeleton';
+import { ImageBackground } from 'expo-image';
 
 const PastEvent: React.FC<{ event: Event; loading: boolean }> = React.memo(({ event, loading }) => {
   const colorScheme = useColorScheme();
@@ -26,12 +28,8 @@ const PastEvent: React.FC<{ event: Event; loading: boolean }> = React.memo(({ ev
 
   return (
     <TouchableOpacity onPress={handleViewEvent}>
-      <OptimizedImageBackground
-        source={event.event_picture || null}
-        fallbackCategory={event.category}
-        width={400}
-        height={200}
-        quality={50}
+      <ImageBackground
+        source={getCategoryImage(event.category)}
         style={{
           padding: 16,
           borderRadius: 12,
@@ -40,7 +38,15 @@ const PastEvent: React.FC<{ event: Event; loading: boolean }> = React.memo(({ ev
           overflow: 'hidden',
           backgroundColor: themeColors.eventCardBackgroundColor,
         }}
-        resizeMode="cover"
+        contentFit="cover"
+        onError={() => {
+          return <SkeletonBox width={400} height={120} borderRadius={12} />;
+        }}
+        onProgress={() => {
+          return <SkeletonBox width={400} height={120} borderRadius={12} />;
+        }}
+        cachePolicy="disk"
+        allowDownscaling={true}
         imageStyle={{
           bottom: -160,
         }}
@@ -64,9 +70,9 @@ const PastEvent: React.FC<{ event: Event; loading: boolean }> = React.memo(({ ev
                 paddingHorizontal: 8,
                 paddingVertical: 4,
                 borderRadius: 4,
-                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                backgroundColor: themeColors.eventCardCategoryColor,
                 borderWidth: 1,
-                borderColor: 'rgba(255, 255, 255, 0.3)',
+                borderColor: themeColors.eventCardCategoryBorderColor,
               }}
             >
               <Text style={{ color: 'white', fontWeight: '600', fontSize: 12, textTransform: 'capitalize' }}>
@@ -120,7 +126,7 @@ const PastEvent: React.FC<{ event: Event; loading: boolean }> = React.memo(({ ev
             )}
           </View>
         </View>
-      </OptimizedImageBackground>
+      </ImageBackground>
     </TouchableOpacity>
   );
 });

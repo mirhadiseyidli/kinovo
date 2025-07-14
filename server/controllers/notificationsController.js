@@ -59,20 +59,20 @@ const createFriendRequestNotification = async (friendRequestId, senderId, recipi
     let notification = null;
 
     // Create in-app notification if enabled
-    if (shouldReceiveInApp) {
-      notification = await createNotification({
-        recipient: recipientId,
-        sender: senderId,
-        friend_request: friendRequestId,
-        type: 'friend_request',
-        title: 'New Friend Request',
-        subtitle: `${sender.full_name} sent you a friend request`,
-        status: 'pending',
-        data: {
-          mutualFriendsCount: mutualFriendsCount
-        }
-      });
-    }
+    // if (shouldReceiveInApp) {
+    //   notification = await createNotification({
+    //     recipient: recipientId,
+    //     sender: senderId,
+    //     friend_request: friendRequestId,
+    //     type: 'friend_request',
+    //     title: 'New Friend Request',
+    //     subtitle: `${sender.full_name} sent you a friend request`,
+    //     status: 'pending',
+    //     data: {
+    //       mutualFriendsCount: mutualFriendsCount
+    //     }
+    //   });
+    // }
 
     // Send email notification if enabled
     if (shouldReceiveEmail && recipient.email) {
@@ -596,8 +596,8 @@ const createEventInvitationNotification = async (eventId, inviteeIds) => {
   }
 };
 
-// Create event reminder notification (1 hour before)
-const createEventReminderNotification = async (eventId) => {
+// Create event reminder notification (10 minutes or 1 hour before)
+const createEventReminderNotification = async (eventId, reminderType = 'event_reminder_1_hour') => {
   try {
     const event = await require('../database/schemas/eventsSchema')
       .findById(eventId)
@@ -617,9 +617,9 @@ const createEventReminderNotification = async (eventId) => {
     const notifications = await Promise.all(
       acceptedAttendees.map(async (attendee) => {
         // Check if attendee wants to receive event reminder notifications
-        const shouldReceiveInApp = await shouldReceiveNotification(attendee._id, 'event_reminder', 'inApp');
-        const shouldReceiveEmail = await shouldReceiveNotification(attendee._id, 'event_reminder', 'email');
-        const shouldReceivePush = await shouldReceiveNotification(attendee._id, 'event_reminder', 'push');
+        const shouldReceiveInApp = await shouldReceiveNotification(attendee._id, reminderType, 'inApp');
+        const shouldReceiveEmail = await shouldReceiveNotification(attendee._id, reminderType, 'email');
+        const shouldReceivePush = await shouldReceiveNotification(attendee._id, reminderType, 'push');
         
         if (!shouldReceiveInApp && !shouldReceiveEmail && !shouldReceivePush) {
           return null;
@@ -634,35 +634,42 @@ const createEventReminderNotification = async (eventId) => {
 
         // Create in-app notification if enabled
         if (shouldReceiveInApp) {
+          console.log('Creating in-app notification for event reminder');
+          const timeText = reminderType === 'event_reminder_10_mins' ? '10 minutes' : '1 hour';
           notification = await createNotification({
             recipient: attendee._id,
             sender: event.creator._id,
             event: eventId,
-            type: 'event_reminder',
+            type: reminderType,
             title: 'Event Reminder',
-            subtitle: `"${event.title}" starts in 1 hour`,
+            subtitle: `"${event.title}" starts in ${timeText}`,
             data: {
               eventTitle: event.title,
               eventLocation: event.location?.text || event.location?.city,
               eventStartTime: event.start_time,
-              reminderType: '1_hour_before'
+              reminderType: reminderType === 'event_reminder_10_mins' ? '10_mins_before' : '1_hour_before'
             }
           });
         }
 
         // Send push notification if enabled
         if (shouldReceivePush) {
-          sendPushNotification([attendee._id], 'event_reminder', {
+          console.log('Sending push notification for event reminder');
+          await sendPushNotification([attendee._id], reminderType, {
             eventTitle: event.title,
             eventId: eventId
-          }).catch(error => {
+          }).then(response => {
+            console.log('Push notification sent:', response);
+          })
+          .catch(error => {
             console.error('Push notification failed for event reminder:', error);
           });
         }
 
         // Send email notification if enabled
         if (shouldReceiveEmail && attendeeUser.email) {
-          await sendEmailNotification(attendeeUser.email, 'event_reminder', {
+          console.log('Sending email notification for event reminder');
+          await sendEmailNotification(attendeeUser.email, reminderType, {
             eventTitle: event.title,
             eventLocation: event.location?.text || event.location?.city,
             eventStartTime: event.start_time
@@ -913,7 +920,8 @@ const getUserNotificationPreferences = async (req, res) => {
         preferences: {
           inApp: {
             friend_request_accepted: true,
-            event_reminder: true,
+            event_reminder_10_mins: true,
+            event_reminder_1_hour: true,
             event_updated: true,
             new_event_nearby: true,
             event_attendance_confirmed: true,
@@ -923,7 +931,8 @@ const getUserNotificationPreferences = async (req, res) => {
           },
           email: {
             friend_request_accepted: false,
-            event_reminder: true,
+            event_reminder_10_mins: false,
+            event_reminder_1_hour: false,
             event_updated: false,
             new_event_nearby: false,
             event_attendance_confirmed: false,
@@ -933,7 +942,8 @@ const getUserNotificationPreferences = async (req, res) => {
           },
           push: {
             friend_request_accepted: true,
-            event_reminder: true,
+            event_reminder_10_mins: true,
+            event_reminder_1_hour: true,
             event_updated: true,
             new_event_nearby: true,
             event_attendance_confirmed: true,
@@ -1033,8 +1043,14 @@ const shouldReceiveNotification = async (userId, notificationType, channel = 'in
 const saveFCMToken = async (req, res) => {
   try {
     const { token, platform, userId } = req.body;
+    console.log('📱 FCM: Received token save request', { 
+      userId, 
+      platform, 
+      tokenStart: token ? token.substring(0, 20) + '...' : 'none' 
+    });
     
     if (!token || !platform || !userId) {
+      console.log('❌ FCM: Missing required fields', { token: !!token, platform: !!platform, userId: !!userId });
       return res.status(400).json({ 
         success: false, 
         message: 'Token, platform, and userId are required' 
@@ -1043,6 +1059,7 @@ const saveFCMToken = async (req, res) => {
 
     // Check if token already exists
     const existingToken = await FCMToken.findOne({ token });
+    console.log('📱 FCM: Existing token found:', !!existingToken);
     
     if (existingToken) {
       // Update existing token
@@ -1051,18 +1068,20 @@ const saveFCMToken = async (req, res) => {
       existingToken.isActive = true;
       existingToken.lastUsed = new Date();
       await existingToken.save();
+      console.log('✅ FCM: Updated existing token');
     } else {
       // Create new token
-      await FCMToken.create({
+      const newToken = await FCMToken.create({
         userId,
         token,
         platform,
         isActive: true
       });
+      console.log('✅ FCM: Created new token', newToken._id);
     }
 
     // Deactivate old tokens for this user on the same platform
-    await FCMToken.updateMany(
+    const updateResult = await FCMToken.updateMany(
       { 
         userId, 
         platform, 
@@ -1071,6 +1090,7 @@ const saveFCMToken = async (req, res) => {
       },
       { isActive: false }
     );
+    console.log('📱 FCM: Deactivated old tokens:', updateResult.modifiedCount);
 
     res.json({ success: true, message: 'FCM token saved successfully' });
   } catch (error) {
