@@ -82,11 +82,9 @@ const UserGeneralInfo = forwardRef(({ _id }: UserGeneralInfoProps, ref) => {
   const [loading, setLoading] = useState(true);
   const [optimisticFriendRequestSent, setOptimisticFriendRequestSent] = useState(false);
   const tabRef = useRef<ProfileTabsHandle>(null);
-  console.log('userToView', userToView?.events);
   
   const isOwnProfile = userToView?._id === user?._id;
   const eventCount = useEventCount(userToView?.events, user?._id, friendshipStatus === 'friend', isOwnProfile);
-  console.log('eventCount', eventCount);
 
   const renderFriendActionButton = (userIdToView: string) => {
     if (userIdToView === user?._id) return null;
