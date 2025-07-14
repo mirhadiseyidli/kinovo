@@ -41,7 +41,8 @@ export const handleNotificationNavigation = (remoteMessage: any, navigation: any
       
     case 'event_invitation':
     case 'event_update':
-    case 'event_reminder':
+    case 'event_reminder_10_mins':
+    case 'event_reminder_1_hour':
       if (eventId) {
         navigation.navigate('(auth)', {
           screen: 'viewEvent',

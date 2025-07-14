@@ -83,7 +83,8 @@ export const useFCMTokenManager = () => {
           console.log('🔵 FCM: Token changed, sending to server');
           await sendTokenToServer(token);
         } else {
-          console.log('✅ FCM: Token already sent, skipping');
+          console.log('🔵 FCM: Token appears already sent, but verifying by sending anyway (debug mode)');
+          await sendTokenToServer(token);
         }
       } else {
         console.log('🔴 FCM: No token received');

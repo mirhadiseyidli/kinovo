@@ -226,14 +226,24 @@ const createEvent = async (req, res) => {
       }
     }
 
-    // Schedule 1-hour-before reminder using EventBridge Scheduler
+    // Schedule both 10-minute and 1-hour reminders using EventBridge Scheduler
     try {
-      const reminderTime = new Date(event.start_time.getTime() - 60 * 60 * 1000);
-      if (reminderTime > new Date()) {
-        await putSchedule(event._id.toString(), reminderTime);
+      const eventStartTime = event.start_time.getTime();
+      const now = new Date().getTime();
+      
+      // Schedule 1-hour reminder
+      const oneHourBefore = new Date(eventStartTime - 60 * 60 * 1000);
+      if (oneHourBefore.getTime() > now) {
+        await putSchedule(event._id.toString(), oneHourBefore, '1hour');
+      }
+      
+      // Schedule 10-minute reminder
+      const tenMinsBefore = new Date(eventStartTime - 10 * 60 * 1000);
+      if (tenMinsBefore.getTime() > now) {
+        await putSchedule(event._id.toString(), tenMinsBefore, '10min');
       }
     } catch (scheduleErr) {
-      console.error('Failed to create EventBridge reminder schedule:', scheduleErr);
+      console.error('Failed to create EventBridge reminder schedules:', scheduleErr);
       // Do not fail the request because of scheduling issues
     }
 
@@ -903,9 +913,9 @@ const cancelEvent = async (req, res) => {
     );
 
     try {
-      await deleteSchedule(eventId);
+      await deleteSchedule(eventId, 'all');
     } catch (scheduleErr) {
-      console.error('Failed to delete EventBridge schedule on event cancel:', scheduleErr);
+      console.error('Failed to delete EventBridge schedules on event cancel:', scheduleErr);
     }
 
     return res.status(200).json({ 
@@ -1626,18 +1636,32 @@ const updateEvent = async (req, res) => {
     const attendeeIds = event.attendees.map(attendee => attendee.user);
     await createEventUpdateNotification(eventId, req.user._id, attendeeIds);
 
-    // Update / remove reminder schedule if needed
+    // Update / remove reminder schedules if needed
     try {
       if (sanitizedData.status === 'cancelled') {
-        await deleteSchedule(eventId);
+        await deleteSchedule(eventId, 'all');
       } else if (Object.prototype.hasOwnProperty.call(sanitizedData, 'start_time')) {
-        const newReminderTime = new Date(event.start_time.getTime() - 60 * 60 * 1000);
-        if (newReminderTime > new Date()) {
-          await putSchedule(event._id.toString(), newReminderTime);
+        // Delete old schedules first
+        await deleteSchedule(eventId, 'all');
+        
+        // Create new schedules with updated time
+        const eventStartTime = event.start_time.getTime();
+        const now = new Date().getTime();
+        
+        // Schedule 1-hour reminder
+        const oneHourBefore = new Date(eventStartTime - 60 * 60 * 1000);
+        if (oneHourBefore.getTime() > now) {
+          await putSchedule(event._id.toString(), oneHourBefore, '1hour');
+        }
+        
+        // Schedule 10-minute reminder
+        const tenMinsBefore = new Date(eventStartTime - 10 * 60 * 1000);
+        if (tenMinsBefore.getTime() > now) {
+          await putSchedule(event._id.toString(), tenMinsBefore, '10min');
         }
       }
     } catch (scheduleErr) {
-      console.error('Failed to update EventBridge reminder schedule:', scheduleErr);
+      console.error('Failed to update EventBridge reminder schedules:', scheduleErr);
     }
     
     return res.status(200).json({
