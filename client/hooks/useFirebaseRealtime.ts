@@ -15,6 +15,7 @@ export function useFirebaseRealtimeData<T>(path: string, maxRetries = 3) {
   const retryCountRef = useRef(0);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
+  const notificationsRefRef = useRef<any>(null);
   
   // Check Firebase auth state
   useEffect(() => {
@@ -132,6 +133,14 @@ export function useFirebaseRealtimeData<T>(path: string, maxRetries = 3) {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
+      if (notificationsRefRef.current) {
+        try {
+          notificationsRefRef.current.keepSynced(false);
+        } catch (error) {
+          console.error('Error disabling keepSynced:', error);
+        }
+        notificationsRefRef.current = null;
+      }
       if (unsubscribe) {
         unsubscribe();
       }
@@ -178,6 +187,7 @@ export function useNotifications() {
   const { data, loading, error } = useFirebaseRealtimeData<Record<string, any>>('notifications');
   const { updateData } = useFirebaseUpdate();
   const { userId } = useAuthSession();
+  const notificationsRefRef = useRef<any>(null);
   
   // Force a refresh of the data when the component mounts
   useEffect(() => {
@@ -189,6 +199,7 @@ export function useNotifications() {
       try {
         // Force a refresh by detaching and reattaching the listener
         const notificationsRef = ref(db, `notifications/${userId}`);
+        notificationsRefRef.current = notificationsRef;
         
         // Request a refresh from the server immediately
         await notificationsRef.keepSynced(true);

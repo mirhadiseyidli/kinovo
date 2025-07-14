@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Alert } from 'react-native';
 import { EditUserProfileParams } from '@/types/allTypes';
 import api from '@/utils/api';
@@ -18,6 +18,23 @@ export const useEditUserProfile = ({
 }: EditUserProfileParams) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showSavedMessage, setShowSavedMessage] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const delayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      if (delayTimeoutRef.current) {
+        clearTimeout(delayTimeoutRef.current);
+        delayTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   const editMyProfile = async () => {
     setIsLoading(true);
@@ -55,11 +72,19 @@ export const useEditUserProfile = ({
     } finally {
       const elapsed = Date.now() - startTime;
       if (elapsed < 1000) {
-        await new Promise(resolve => setTimeout(resolve, 1000 - elapsed));
+        await new Promise(resolve => {
+          delayTimeoutRef.current = setTimeout(resolve, 1000 - elapsed) as ReturnType<typeof setTimeout>;
+        });
       }
-      setIsLoading(false);
-      setShowSavedMessage(true);
-      setTimeout(() => setShowSavedMessage(false), 2000);
+      if (mountedRef.current) {
+        setIsLoading(false);
+        setShowSavedMessage(true);
+        timeoutRef.current = setTimeout(() => {
+          if (mountedRef.current) {
+            setShowSavedMessage(false);
+          }
+        }, 2000) as ReturnType<typeof setTimeout>;
+      }
     }
   };
 

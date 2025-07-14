@@ -39,9 +39,33 @@ const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFini
   const lastScrolledDate = useRef<Date | null>(null);
   const previousView = useRef<string>(view);
   const isInitialLoad = useRef<boolean>(true);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timeoutRef2 = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timeoutRef3 = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
 
   // Create shared values for worklet-safe state
   const scrollOffset = useSharedValue(0);
+
+  // Cleanup effect
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      if (timeoutRef2.current) {
+        clearTimeout(timeoutRef2.current);
+        timeoutRef2.current = null;
+      }
+      if (timeoutRef3.current) {
+        clearTimeout(timeoutRef3.current);
+        timeoutRef3.current = null;
+      }
+    };
+  }, []);
 
   // Worklet-safe scroll handler
   const scrollToOffset = useCallback((offset: number, animated: boolean = true) => {
@@ -184,7 +208,11 @@ const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFini
     if (isViewChange && lastViewChangeSource === 'day_cell') {
       // Day cell was clicked - scroll directly to the selected date without animation
       if (currentDate) {
-        setTimeout(() => scrollToDate(currentDate, false), 50);
+        timeoutRef.current = setTimeout(() => {
+          if (mountedRef.current) {
+            scrollToDate(currentDate, false);
+          }
+        }, 50);
       }
       return; // Exit early to prevent other logic from running
     }
@@ -209,9 +237,11 @@ const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFini
       }
       
       if (targetDate) {
-        setTimeout(() => {
-          scrollToDate(targetDate!, true); // Animated scroll for view changes
-          isInitialLoad.current = false;
+        timeoutRef2.current = setTimeout(() => {
+          if (mountedRef.current) {
+            scrollToDate(targetDate!, true); // Animated scroll for view changes
+            isInitialLoad.current = false;
+          }
         }, 100);
       }
       return; // Exit early
@@ -219,7 +249,11 @@ const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFini
 
     // Handle date changes while already in schedule view (like current month selector clicks)
     if (!isViewChange && currentDate && (!lastScrolledDate.current || !isSameDay(currentDate, lastScrolledDate.current))) {
-      setTimeout(() => scrollToDate(currentDate, true), 50); // Animated for month selector
+      timeoutRef3.current = setTimeout(() => {
+        if (mountedRef.current) {
+          scrollToDate(currentDate, true);
+        }
+      }, 50); // Animated for month selector
     }
   }, [view, currentDate, listData.length, scrollToDate, lastViewChangeSource]);
 

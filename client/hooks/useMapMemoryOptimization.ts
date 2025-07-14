@@ -33,6 +33,7 @@ export const useMapMemoryOptimization = (
   const [currentMapInstances, setCurrentMapInstances] = useState(mapInstances.size);
   const mountedRef = useRef(true);
   const interactionTaskRef = useRef<any>(null);
+  const delayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const appStateRef = useRef(AppState.currentState);
 
   useEffect(() => {
@@ -42,6 +43,11 @@ export const useMapMemoryOptimization = (
       mountedRef.current = false;
       if (interactionTaskRef.current) {
         interactionTaskRef.current.cancel();
+        interactionTaskRef.current = null;
+      }
+      if (delayTimeoutRef.current) {
+        clearTimeout(delayTimeoutRef.current);
+        delayTimeoutRef.current = null;
       }
     };
   }, []);
@@ -78,7 +84,7 @@ export const useMapMemoryOptimization = (
     }
 
     interactionTaskRef.current = InteractionManager.runAfterInteractions(() => {
-      setTimeout(() => {
+      delayTimeoutRef.current = setTimeout(() => {
         if (mountedRef.current) {
           setShouldRenderMap(true);
           registerMap(mapId);
@@ -89,6 +95,11 @@ export const useMapMemoryOptimization = (
     return () => {
       if (interactionTaskRef.current) {
         interactionTaskRef.current.cancel();
+        interactionTaskRef.current = null;
+      }
+      if (delayTimeoutRef.current) {
+        clearTimeout(delayTimeoutRef.current);
+        delayTimeoutRef.current = null;
       }
       unregisterMap(mapId);
     };
@@ -106,7 +117,9 @@ export const useMapMemoryOptimization = (
         }
       } else if (nextAppState.match(/inactive|background/)) {
         // App went to background - clean up maps to save memory
-        setShouldRenderMap(false);
+        if (mountedRef.current) {
+          setShouldRenderMap(false);
+        }
       }
       
       appStateRef.current = nextAppState;
@@ -131,18 +144,30 @@ export const useMapMemoryOptimization = (
 // Hook for checking if device has sufficient memory for maps
 export const useMapMemoryCheck = () => {
   const [hasLowMemory, setHasLowMemory] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
+    mountedRef.current = true;
+    
     // Check available memory (iOS specific)
     const checkMemory = () => {
-      // This is a simple heuristic - in production you might use a native module
-      const isLowMemoryDevice = mapInstances.size > 2;
-      setHasLowMemory(isLowMemoryDevice);
+      if (mountedRef.current) {
+        // This is a simple heuristic - in production you might use a native module
+        const isLowMemoryDevice = mapInstances.size > 2;
+        setHasLowMemory(isLowMemoryDevice);
+      }
     };
 
-    const interval = setInterval(checkMemory, 5000); // Check every 5 seconds
+    intervalRef.current = setInterval(checkMemory, 5000); // Check every 5 seconds
     
-    return () => clearInterval(interval);
+    return () => {
+      mountedRef.current = false;
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
   }, []);
 
   return { hasLowMemory };
