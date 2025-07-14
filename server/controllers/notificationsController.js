@@ -634,6 +634,7 @@ const createEventReminderNotification = async (eventId) => {
 
         // Create in-app notification if enabled
         if (shouldReceiveInApp) {
+          console.log('Creating in-app notification for event reminder');
           notification = await createNotification({
             recipient: attendee._id,
             sender: event.creator._id,
@@ -652,6 +653,7 @@ const createEventReminderNotification = async (eventId) => {
 
         // Send push notification if enabled
         if (shouldReceivePush) {
+          console.log('Sending push notification for event reminder');
           sendPushNotification([attendee._id], 'event_reminder', {
             eventTitle: event.title,
             eventId: eventId
@@ -662,6 +664,7 @@ const createEventReminderNotification = async (eventId) => {
 
         // Send email notification if enabled
         if (shouldReceiveEmail && attendeeUser.email) {
+          console.log('Sending email notification for event reminder');
           await sendEmailNotification(attendeeUser.email, 'event_reminder', {
             eventTitle: event.title,
             eventLocation: event.location?.text || event.location?.city,
