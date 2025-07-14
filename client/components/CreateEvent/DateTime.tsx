@@ -22,6 +22,15 @@ const DateTime = () => {
   const [showEndPicker, setShowEndPicker] = useState<boolean>(false);
   const [tempStartDate, setTempStartDate] = useState<Date>(startDate);
   const [tempEndDate, setTempEndDate] = useState<Date>(endDate);
+  const mountedRef = React.useRef(true);
+
+  // Cleanup effect
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   // Update local state when context changes
   useEffect(() => {
@@ -51,15 +60,19 @@ const DateTime = () => {
   };
 
   const confirmStartDate = () => {
-    setStartDate(tempStartDate);
-    settingEventStartTime(tempStartDate);
-    setShowStartPicker(false);
+    if (mountedRef.current) {
+      setStartDate(tempStartDate);
+      settingEventStartTime(tempStartDate);
+      setShowStartPicker(false);
+    }
   };
 
   const confirmEndDate = () => {
-    setEndDate(tempEndDate);
-    settingEventEndTime(tempEndDate);
-    setShowEndPicker(false);
+    if (mountedRef.current) {
+      setEndDate(tempEndDate);
+      settingEventEndTime(tempEndDate);
+      setShowEndPicker(false);
+    }
   };
 
   return (
@@ -100,7 +113,11 @@ const DateTime = () => {
         {/* Start Date Picker Modal */}
         {showStartPicker && (
           <Modal transparent={true} animationType="fade" visible={showStartPicker}>
-            <TouchableWithoutFeedback onPress={() => setShowStartPicker(false)}>
+            <TouchableWithoutFeedback onPress={() => {
+              if (mountedRef.current) {
+                setShowStartPicker(false);
+              }
+            }}>
               <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}>
                 <View style={{ backgroundColor: themeColors.background, padding: 20, borderRadius: 10, minHeight: 280 }}>
                   <View style={{ minWidth: 280, width: '100%', alignItems: 'center' }}>
@@ -164,7 +181,11 @@ const DateTime = () => {
         {/* End Date Picker Modal */}
         {showEndPicker && (
           <Modal transparent={true} animationType="fade" visible={showEndPicker}>
-            <TouchableWithoutFeedback onPress={() => setShowEndPicker(false)}>
+            <TouchableWithoutFeedback onPress={() => {
+              if (mountedRef.current) {
+                setShowEndPicker(false);
+              }
+            }}>
               <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}>
                 <View style={{ backgroundColor: themeColors.background, padding: 20, borderRadius: 10, minHeight: 280 }}>
                   <View style={{ minWidth: 280, width: '100%', alignItems: 'center' }}>
