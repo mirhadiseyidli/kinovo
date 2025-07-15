@@ -116,7 +116,7 @@ const getUserNotifications = async (req, res) => {
 
     const notifications = await Notification.find({ recipient: userId })
       .populate('sender', 'full_name username profile_picture')
-      .populate('event', 'title category')
+      .populate('event', 'title category recurrence start_time end_time')
       .populate({
         path: 'friend_request',
         populate: {

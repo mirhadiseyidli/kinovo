@@ -1044,6 +1044,13 @@ export interface NotificationData {
     _id: string;
     title: string;
     category?: string;
+    recurrence?: {
+      checked: boolean;
+      frequency: string | null;
+      end_date: Date | null;
+    };
+    start_time: Date | null;
+    end_time: Date | null;
   };
   friend_request?: {
     _id: string;

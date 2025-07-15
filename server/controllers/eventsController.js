@@ -203,16 +203,6 @@ const createEvent = async (req, res) => {
       }
     }
 
-    // Send notifications to friends for all events (not just public)
-    if (creator.friends.length > 0) {
-      try {
-        const notifications = await createEventCreationNotificationForFriends(event._id, req.user._id, creator.friends);
-      } catch (notificationError) {
-        console.error('Error sending new event from friend notifications:', notificationError);
-        // Don't fail the event creation if notifications fail
-      }
-    }
-
     // Send nearby event notifications for public events
     if (visibility === 'public' && location?.coordinates?.lat && location?.coordinates?.lng) {
       try {

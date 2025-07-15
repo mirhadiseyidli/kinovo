@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleProp, ViewStyle } from 'react-native';
+import { View, TouchableOpacity, StyleProp, ViewStyle, ActivityIndicator } from 'react-native';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -43,10 +43,16 @@ const InvitationActionButtons: React.FC<InvitationActionButtonsProps> = ({
         disabled={loading}
         style={[buttonBaseStyle, { opacity: loading ? 0.6 : 1 }]}
       >
-        <Feather name="check" {...iconCommonProps} />
-        <ThemedText style={{ fontSize: 11, fontWeight: '600', color: themeColors.text }}>
-          Accept
-        </ThemedText>
+        {loading ? (
+          <ActivityIndicator size="small" color={themeColors.text} />
+        ) : (
+          <>
+            <Feather name="check" {...iconCommonProps} />
+            <ThemedText style={{ fontSize: 11, fontWeight: '600', color: themeColors.text }}>
+              Accept
+            </ThemedText>
+          </>
+        )}
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -54,10 +60,16 @@ const InvitationActionButtons: React.FC<InvitationActionButtonsProps> = ({
         disabled={loading}
         style={[buttonBaseStyle, { opacity: loading ? 0.6 : 1 }]}
       >
-        <MaterialIcons name="question-mark" {...iconCommonProps} />
-        <ThemedText style={{ fontSize: 11, fontWeight: '600', color: themeColors.text }}>
-          Maybe
-        </ThemedText>
+        {loading ? (
+          <ActivityIndicator size="small" color={themeColors.text} />
+        ) : (
+          <>
+            <MaterialIcons name="question-mark" {...iconCommonProps} />
+            <ThemedText style={{ fontSize: 11, fontWeight: '600', color: themeColors.text }}>
+              Maybe
+            </ThemedText>
+          </>
+        )}
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -65,10 +77,16 @@ const InvitationActionButtons: React.FC<InvitationActionButtonsProps> = ({
         disabled={loading}
         style={[buttonBaseStyle, { opacity: loading ? 0.6 : 1 }]}
       >
-        <Feather name="x" {...iconCommonProps} />
-        <ThemedText style={{ fontSize: 11, fontWeight: '600', color: themeColors.text }}>
-          Decline
-        </ThemedText>
+        {loading ? (
+          <ActivityIndicator size="small" color={themeColors.text} />
+        ) : (
+          <>
+            <Feather name="x" {...iconCommonProps} />
+            <ThemedText style={{ fontSize: 11, fontWeight: '600', color: themeColors.text }}>
+              Decline
+            </ThemedText>
+          </>
+        )}
       </TouchableOpacity>
     </View>
   );

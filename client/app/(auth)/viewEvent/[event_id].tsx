@@ -194,7 +194,7 @@ const ViewEvent = () => {
       </ThemedView>
     );
   }
-  
+
   // Show event details
   return (
     <CreateEventProvider>
@@ -221,7 +221,7 @@ const ViewEvent = () => {
               </View>
             </View>
             <View style={{ paddingVertical: 16, paddingHorizontal: 16 }}>
-              <EventDetailsSection event={displayEvent} />
+              <EventDetailsSection event={displayEvent} isRecurringOccurrence={displayEvent.isRecurringOccurrence} occurrence_start={displayEvent.start_time} />
             </View>
           </Animated.ScrollView>
         </ThemedView>
