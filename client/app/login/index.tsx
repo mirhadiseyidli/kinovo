@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Image, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Dimensions } from 'react-native';
 import EmailLogin from '@/components/Auth/emailPasswordLogin';
 import GoogleOAuth from '@/components/Auth/googleOAuth';
@@ -22,6 +22,18 @@ export default function Auth() {
   const themeColors = Colors[colorScheme ?? 'dark'];
   const insets = useSafeAreaInsets();
   const { signIn } = useAuthSession();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, []);
   
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -58,8 +70,10 @@ export default function Auth() {
     try {
       handleLoginSuccess();
       // Small delay to show success animation before navigation
-      setTimeout(() => {
-      signIn(accessToken, refreshToken, userId, firebaseToken);
+      timeoutRef.current = setTimeout(() => {
+        if (mountedRef.current) {
+          signIn(accessToken, refreshToken, userId, firebaseToken);
+        }
       }, 300);
     } catch (error) {
       console.error('Error storing tokens:', error);

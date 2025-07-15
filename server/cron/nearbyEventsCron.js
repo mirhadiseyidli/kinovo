@@ -1,7 +1,7 @@
 const cron = require('node-cron');
 const Event = require('../database/schemas/eventsSchema');
-const User = require('../database/schemas/userSchema');
-const { createNotification } = require('../utils/notificationUtils');
+const User = require('../database/schemas/usersSchema');
+const { createNearbyEventNotification, createEventCreationNotificationForFriends } = require('../controllers/notificationsController');
 const admin = require('../config/firebase-admin');
 
 // Helper function to find users within 50 miles using MongoDB's geospatial queries
@@ -33,41 +33,6 @@ const findUsersWithin50Miles = async (lat, lng, excludeUserId = null, creatorId 
   }
 };
 
-// Helper function to create a nearby event notification
-const createNearbyEventNotification = async (eventId, userIds) => {
-  try {
-    const notifications = userIds.map(userId => ({
-      user: userId,
-      type: 'nearby_event',
-      event: eventId,
-      created_at: new Date(),
-      is_seen: false
-    }));
-
-    await createNotification(notifications);
-    console.log(`Created ${notifications.length} nearby event notifications for event ${eventId}`);
-  } catch (error) {
-    console.error('Error creating nearby event notifications:', error);
-  }
-};
-
-// Helper function to create a friends event notification
-const createFriendsEventNotification = async (eventId, userIds) => {
-  try {
-    const notifications = userIds.map(userId => ({
-      user: userId,
-      type: 'friend_event',
-      event: eventId,
-      created_at: new Date(),
-      is_seen: false
-    }));
-
-    await createNotification(notifications);
-    console.log(`Created ${notifications.length} friends event notifications for event ${eventId}`);
-  } catch (error) {
-    console.error('Error creating friends event notifications:', error);
-  }
-};
 
 // Cron job that runs once daily to randomly send nearby event notifications
 const startNearbyEventsCron = () => {
@@ -190,7 +155,7 @@ const startFriendsEventsCron = () => {
 
           // Create notifications for each selected event
           for (const event of eventsToNotify) {
-            await createFriendsEventNotification(event._id, [user._id]);
+            await createEventCreationNotificationForFriends(event._id, event.creator._id, [user._id]);
           }
 
         } catch (error) {

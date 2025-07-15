@@ -63,7 +63,7 @@ const TabsLayout = React.memo(() => {
         <Tabs
           initialRouteName="index"
           backBehavior="history"
-          // detachInactiveScreens={true}
+          detachInactiveScreens={true}
           screenOptions={{
             tabBarButton: HapticTab,
             tabBarActiveTintColor: themeColors.tint,

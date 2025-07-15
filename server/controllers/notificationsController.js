@@ -58,22 +58,6 @@ const createFriendRequestNotification = async (friendRequestId, senderId, recipi
 
     let notification = null;
 
-    // Create in-app notification if enabled
-    // if (shouldReceiveInApp) {
-    //   notification = await createNotification({
-    //     recipient: recipientId,
-    //     sender: senderId,
-    //     friend_request: friendRequestId,
-    //     type: 'friend_request',
-    //     title: 'New Friend Request',
-    //     subtitle: `${sender.full_name} sent you a friend request`,
-    //     status: 'pending',
-    //     data: {
-    //       mutualFriendsCount: mutualFriendsCount
-    //     }
-    //   });
-    // }
-
     // Send email notification if enabled
     if (shouldReceiveEmail && recipient.email) {
       await sendEmailNotification(recipient.email, 'friend_request', {
@@ -132,7 +116,7 @@ const getUserNotifications = async (req, res) => {
 
     const notifications = await Notification.find({ recipient: userId })
       .populate('sender', 'full_name username profile_picture')
-      .populate('event', 'title category')
+      .populate('event', 'title category recurrence start_time end_time')
       .populate({
         path: 'friend_request',
         populate: {

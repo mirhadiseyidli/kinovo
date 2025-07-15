@@ -169,6 +169,14 @@ class FCMService {
     let data = { type };
 
     switch (type) {
+      case 'friend_request':
+        notification = {
+          title: 'New Friend Request',
+          body: `${payload.senderName} sent you a friend request`
+        };
+        data.userId = payload.senderId;
+        break;
+
       case 'friend_request_accepted':
         notification = {
           title: 'Friend Request Accepted',

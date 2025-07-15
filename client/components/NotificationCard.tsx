@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
@@ -11,10 +11,17 @@ import { ThemedText } from '@/components/ThemedText';
 import { getCategoryImage } from '@/constants/CategoryImages';
 import { Image } from 'expo-image';
 import { SkeletonBox } from './Skeleton';
+import { useEventContext } from '@/context/UserSessionContext';
+import { cacheManager } from '@/utils/homeScreenCache';
+import { useAuthSession } from '@/components/Auth/AuthProvider';
+
+type EventResponseStatus = 'accepted' | 'maybe' | 'rejected';
 
 const NotificationCard: React.FC<NotificationCardProps> = React.memo(({ notification, onPress, isMarking = false }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
+  const { invalidateEvent, refreshEvents } = useEventContext();
+  const { userId } = useAuthSession();
 
   const isUserNotification = ['friend_request_accepted', 'someone_from_contacts_joined'].includes(notification.type);
 
@@ -61,18 +68,46 @@ const NotificationCard: React.FC<NotificationCardProps> = React.memo(({ notifica
     return `${Math.floor(diffInMinutes / 1440)}d ago`;
   }, [notification.time, notification.created_at]);
 
-  const { respondToInvitation } = useEventInvitation();
-  const [loadingResponse, setLoadingResponse] = React.useState(false);
+  const { respondToInvitation, loading: respondToInvitationLoading } = useEventInvitation();
+  const [selectedResponse, setSelectedResponse] = useState<EventResponseStatus | null>(null);
 
-  const handleInvitationResponse = React.useCallback(async (status: 'accepted' | 'maybe' | 'rejected') => {
+  const handleInvitationResponse = React.useCallback(async (status: EventResponseStatus, options?: { modifyType: 'this_only' | 'all_future' }) => {
     if (!notification.event?._id) return;
     try {
-      setLoadingResponse(true);
-      await respondToInvitation(notification.event._id, status);
+      // Handle recurring events
+      const requestOptions: any = {};
+      
+      if (notification.event.recurrence?.checked && notification.event.start_time && options?.modifyType) {
+        requestOptions.occurrenceDate = notification.event.start_time;
+        requestOptions.modifyType = options.modifyType;
+      }
+      setSelectedResponse(status);
+      await respondToInvitation(notification.event._id, status, Object.keys(requestOptions).length > 0 ? requestOptions : undefined);
+
+      // IMPORTANT: Invalidate event from subscriptions and cache to prevent data override
+      invalidateEvent(notification.event._id);
+
+      // Refresh events to update calendar with fresh data
+      await refreshEvents(notification.event.start_time ? new Date(notification.event.start_time) : new Date(), 'Month');
     } catch (err) {
       // errors already handled in hook
-    } finally {
-      setLoadingResponse(false);
+    }
+  }, [notification.event?._id, respondToInvitation]);
+
+  const handleInvitationAlerts = React.useCallback(async (status: EventResponseStatus) => {
+    if (notification.event?.recurrence?.checked && notification.event?.start_time) {
+      const statusText = status === 'accepted' ? 'accept' : status === 'maybe' ? 'mark as maybe' : 'decline';
+      Alert.alert(
+        'Recurring Event',
+        `Do you want to ${statusText} this event only or all future events?`,
+        [
+          { text: 'This Event Only', onPress: () => { handleInvitationResponse(status, { modifyType: 'this_only' }); }},
+          { text: 'All Future Events', onPress: () => { handleInvitationResponse(status, { modifyType: 'all_future' }); }}, 
+          { text: 'Cancel', style: 'cancel', onPress: () => { }},
+        ]
+      );
+    } else {
+      handleInvitationResponse(status);
     }
   }, [notification.event?._id, respondToInvitation]);
 
@@ -110,10 +145,10 @@ const NotificationCard: React.FC<NotificationCardProps> = React.memo(({ notifica
     if (invitationStatus === 'pending') {
       return (
         <InvitationActionButtons
-          loading={loadingResponse}
-          onAccept={() => handleInvitationResponse('accepted').then(()=>setInvitationStatus('accepted'))}
-          onMaybe={() => handleInvitationResponse('maybe').then(()=>setInvitationStatus('maybe'))}
-          onDecline={() => handleInvitationResponse('rejected').then(()=>setInvitationStatus('rejected'))}
+          loading={respondToInvitationLoading}
+          onAccept={() => handleInvitationAlerts('accepted').finally(()=>setInvitationStatus('accepted'))}
+          onMaybe={() => handleInvitationAlerts('maybe').finally(()=>setInvitationStatus('maybe'))}
+          onDecline={() => handleInvitationAlerts('rejected').finally(()=>setInvitationStatus('rejected'))}
         />
       );
     }

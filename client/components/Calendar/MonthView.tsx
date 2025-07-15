@@ -56,8 +56,36 @@ const MonthView: React.FC<MonthViewComponentProps> = ({
   });
   const listRef = useRef<FlatList>(null);
   const tabBarHeight = useBottomTabBarHeight();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const mountedRef = useRef(true);
 
   const [isTransitioning, setIsTransitioning] = useState(false);
+
+  // Cleanup effect
+  useEffect(() => {
+    mountedRef.current = true;
+    
+    // Periodic cache cleanup
+    const cacheCleanupInterval = setInterval(() => {
+      if (dateCalculationCache.size > 20) {
+        dateCalculationCache.clear();
+      }
+    }, 5 * 60 * 1000); // Every 5 minutes
+    
+    return () => {
+      mountedRef.current = false;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      clearInterval(cacheCleanupInterval);
+    };
+  }, []);
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -104,10 +132,12 @@ const MonthView: React.FC<MonthViewComponentProps> = ({
     // Navigate to the middle month of the new array (which was the last month of the old array)
     navigateToMonth(lastMonth.month, lastMonth.year);
     
-    requestAnimationFrame(() => {
+    rafRef.current = requestAnimationFrame(() => {
       listRef.current?.scrollToIndex({ index: 1, animated: false });
-      setTimeout(() => {
-        setIsTransitioning(false);
+      timeoutRef.current = setTimeout(() => {
+        if (mountedRef.current) {
+          setIsTransitioning(false);
+        }
       }, 100);
     });
   };
@@ -127,10 +157,12 @@ const MonthView: React.FC<MonthViewComponentProps> = ({
     // Navigate to the middle month of the new array (which was the first month of the old array)
     navigateToMonth(firstMonth.month, firstMonth.year);
     
-    requestAnimationFrame(() => {
+    rafRef.current = requestAnimationFrame(() => {
       listRef.current?.scrollToIndex({ index: 1, animated: false });
-      setTimeout(() => {
-        setIsTransitioning(false);
+      timeoutRef.current = setTimeout(() => {
+        if (mountedRef.current) {
+          setIsTransitioning(false);
+        }
       }, 100);
     });
   };

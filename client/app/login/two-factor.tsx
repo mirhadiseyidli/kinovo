@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import TwoFactorAuth from '@/components/Auth/TwoFactorAuth';
 import LoginLoadingOverlay from '@/components/Auth/LoginLoadingOverlay';
@@ -18,6 +18,18 @@ export default function TwoFactorScreen() {
   const { email, phoneNumber, verifiedCredentials } = useLocalSearchParams();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, []);
   const insets = useSafeAreaInsets();
   const { signIn } = useAuthSession();
   
@@ -73,8 +85,10 @@ export default function TwoFactorScreen() {
         const { accessToken, refreshToken, user } = response.data;
         handleVerificationSuccessAnimation();
         // Small delay to show success animation before navigation
-        setTimeout(() => {
-        signIn(accessToken, refreshToken, user._id);
+        timeoutRef.current = setTimeout(() => {
+          if (mountedRef.current) {
+            signIn(accessToken, refreshToken, user._id);
+          }
         }, 300);
       } else {
         throw new Error(response.data.message || 'Failed to verify login');

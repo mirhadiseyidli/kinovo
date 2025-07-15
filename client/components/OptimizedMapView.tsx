@@ -92,6 +92,7 @@ const OptimizedMapView: React.FC<OptimizedMapViewProps> = ({
   const [shouldRender, setShouldRender] = useState(!lazy);
   const mountedRef = useRef(true);
   const interactionTaskRef = useRef<any>(null);
+  const mapLoadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mapRef = useRef<MapView>(null);
   const locationPermission = useLocation();
 
@@ -147,6 +148,12 @@ const OptimizedMapView: React.FC<OptimizedMapViewProps> = ({
   // Cleanup function for MapView resources
   const cleanupMapResources = useCallback(() => {
     try {
+      // Clear any pending timeouts
+      if (mapLoadTimeoutRef.current) {
+        clearTimeout(mapLoadTimeoutRef.current);
+        mapLoadTimeoutRef.current = null;
+      }
+      
       // Clear any map-specific resources
       if (mapRef.current) {
         // Force cleanup of map tiles and cache
@@ -158,8 +165,10 @@ const OptimizedMapView: React.FC<OptimizedMapViewProps> = ({
         unregisterMap(mapId);
       }
       
-      setIsMapReady(false);
-      setShouldRender(false);
+      if (mountedRef.current) {
+        setIsMapReady(false);
+        setShouldRender(false);
+      }
     } catch (error) {
       console.warn('Error cleaning up map resources:', error);
     }
@@ -175,7 +184,7 @@ const OptimizedMapView: React.FC<OptimizedMapViewProps> = ({
           setShouldRender(true);
           
           // Additional delay for VectorKit stability
-          setTimeout(() => {
+          mapLoadTimeoutRef.current = setTimeout(() => {
             if (mountedRef.current) {
               setIsMapReady(true);
             }
@@ -188,6 +197,11 @@ const OptimizedMapView: React.FC<OptimizedMapViewProps> = ({
       mountedRef.current = false;
       if (interactionTaskRef.current) {
         interactionTaskRef.current.cancel();
+        interactionTaskRef.current = null;
+      }
+      if (mapLoadTimeoutRef.current) {
+        clearTimeout(mapLoadTimeoutRef.current);
+        mapLoadTimeoutRef.current = null;
       }
     };
   }, [lazy, loadDelay, shouldRenderMap]);
@@ -201,6 +215,7 @@ const OptimizedMapView: React.FC<OptimizedMapViewProps> = ({
       // Cancel any pending tasks
       if (interactionTaskRef.current) {
         interactionTaskRef.current.cancel();
+        interactionTaskRef.current = null;
       }
     };
   }, [cleanupMapResources]);
@@ -262,39 +277,36 @@ const OptimizedMapView: React.FC<OptimizedMapViewProps> = ({
 export const useMapVisibility = (threshold: number = 100) => {
   const [isVisible, setIsVisible] = useState(false);
   const viewRef = useRef<View>(null);
-  const timeoutRef = useRef<number | undefined>(undefined);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
 
   const checkVisibility = useCallback(() => {
-    if (viewRef.current) {
+    if (viewRef.current && mountedRef.current) {
       viewRef.current.measureInWindow((x, y, width, height) => {
-        const windowHeight = Dimensions.get('window').height;
-        const isElementVisible = (
-          y < windowHeight + threshold &&
-          y + height > -threshold
-        );
-        setIsVisible(isElementVisible);
+        if (mountedRef.current) {
+          const windowHeight = Dimensions.get('window').height;
+          const isElementVisible = (
+            y < windowHeight + threshold &&
+            y + height > -threshold
+          );
+          setIsVisible(isElementVisible);
+        }
       });
     }
   }, [threshold]);
 
   useEffect(() => {
+    mountedRef.current = true;
     timeoutRef.current = setTimeout(checkVisibility, 100);
     
     return () => {
+      mountedRef.current = false;
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
       }
     };
   }, [checkVisibility]);
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, []);
 
   return {
     isVisible,

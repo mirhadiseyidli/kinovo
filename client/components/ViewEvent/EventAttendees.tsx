@@ -60,24 +60,24 @@ const AttendeeRow = React.memo<AttendeeRowProps>(({ attendee, isCreator, creator
     switch (attendee.status) {
       case 'accepted':
         return {
-          backgroundColor: themeColors.mountainGreen + '20',
+          backgroundColor: themeColors.mountainGreen,
           borderColor: themeColors.mountainGreen,
           borderWidth: 1,
-          color: themeColors.mountainGreen
+          color: themeColors.text
         };
       case 'maybe':
         return {
-          backgroundColor: 'orange' + '20',
-          borderColor: 'orange',
+          backgroundColor: themeColors.maybeStatusColor,
+          borderColor: themeColors.maybeStatusColor,
           borderWidth: 1,
-          color: 'orange'
+          color: themeColors.text
         };
       case 'rejected':
         return {
-          backgroundColor: 'red' + '20',
-          borderColor: 'red',
+          backgroundColor: themeColors.background + '20',
+          borderColor: themeColors.border,
           borderWidth: 1,
-          color: 'red'
+          color: themeColors.text
         };
       default:
         return {
@@ -173,6 +173,7 @@ const EventAttendees = ({ userId, event }: { userId: string | null, event: Event
   const { removeAttendee } = useEventInvitation();
   const { refreshEvents } = useEventContext();
   const { occurrence_start, is_occurrence } = useLocalSearchParams();
+  const [attendees, setAttendees] = useState<Event['attendees']>(event.attendees ?? []);
   
   // Check if this is a recurring occurrence
   const isRecurringOccurrence = is_occurrence === 'true' && occurrence_start;
@@ -201,6 +202,9 @@ const EventAttendees = ({ userId, event }: { userId: string | null, event: Event
       await removeAttendee(event._id!, id, Object.keys(requestOptions).length > 0 ? requestOptions : undefined);
       // Refresh events to update UI
       await refreshEvents(event.start_time ? new Date(event.start_time) : new Date(), 'Month');
+
+      // Update the attendees list
+      setAttendees(attendees?.filter(a => a.user._id !== id) ?? []);
       
       const message = options?.modifyType === 'this_only' 
         ? `${attendeeName} has been removed from this specific event occurrence.`
@@ -267,6 +271,10 @@ const EventAttendees = ({ userId, event }: { userId: string | null, event: Event
       overflow: 'hidden' as ViewStyle['overflow'],
     }));
 
+  useEffect(() => {
+    setAttendees(event.attendees ?? []);
+  }, [event.attendees]);
+
   return (
     <View style={{ paddingTop: 16, borderTopColor: themeColors.calendarBorderColor, borderTopWidth: 0.2, }}>
       <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginBottom: 12 }}>
@@ -325,7 +333,7 @@ const EventAttendees = ({ userId, event }: { userId: string | null, event: Event
           alignItems: 'center',
         }}>
         </View>
-        {(event?.attendees ?? []).map((attendee) => (
+        {(attendees ?? []).map((attendee) => (
           <AttendeeRow 
             key={attendee.user._id} 
             attendee={attendee} 

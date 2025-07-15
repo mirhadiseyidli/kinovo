@@ -26,7 +26,7 @@ import { useEventReport } from '@/hooks/useEventReport';
 import { useViewEventModal } from '@/context/ViewEventModalContext';
 import { cacheManager } from '@/utils/homeScreenCache';
 
-const EventDetailsSection: React.FC<EventProp> = ({ event }) => {
+const EventDetailsSection: React.FC<EventProp & { isRecurringOccurrence: boolean | undefined, occurrence_start: Date | null }> = ({ event, isRecurringOccurrence, occurrence_start }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [showAddAttendeesModal, setShowAddAttendeesModal] = useState(false);
@@ -36,9 +36,7 @@ const EventDetailsSection: React.FC<EventProp> = ({ event }) => {
   const { refreshEvents, invalidateEvent } = useEventContext();
   const { accessToken, userId } = useAuthSession();
   const router = useRouter();
-  const { occurrence_start, is_occurrence } = useLocalSearchParams();
   const loggedInUserId = accessToken?.current ? (jwtDecode(accessToken.current) as any)?._id : null;
-  const isRecurringOccurrence = is_occurrence === 'true' && occurrence_start;
   const { reportEvent: reportEventApi, loading: reportLoading } = useEventReport();
 
   // Check if event is in the past
@@ -75,9 +73,8 @@ const EventDetailsSection: React.FC<EventProp> = ({ event }) => {
       const requestOptions: any = {};
       
       // If this is a recurring occurrence and we have options, include them
-      if (isRecurringOccurrence && options?.modifyType && occurrence_start) {
-        const occurrenceDate = Array.isArray(occurrence_start) ? occurrence_start[0] : occurrence_start;
-        requestOptions.occurrenceDate = occurrenceDate;
+      if (event.isRecurringOccurrence && options?.modifyType && event.start_time) {
+        requestOptions.occurrenceDate = event.start_time;
         requestOptions.modifyType = options.modifyType;
       }
       
