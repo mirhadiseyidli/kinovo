@@ -90,7 +90,7 @@ const Options: React.FC<{ setLimit: (value: number | null) => void }> = ({ setLi
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ['Public', 'Private', 'Selected', 'Cancel'],
+          options: ['Public', 'Friends', 'Private', 'Cancel'],
           cancelButtonIndex: 3,
           title: 'Event Visibility',
           message: 'Selected: Only invited people can see the event',
@@ -104,11 +104,11 @@ const Options: React.FC<{ setLimit: (value: number | null) => void }> = ({ setLi
     } else {
       Alert.alert(
         'Select Visibility', 
-        'Selected: Only invited people can see the event',
+        'Private: Only invited people can see the event',
         [
           { text: 'Public', onPress: () => visibilitySelection('public') },
-          { text: 'Private', onPress: () => visibilitySelection('private') },
-          { text: 'Selected', onPress: () => visibilitySelection('selected') },
+          { text: 'Friends', onPress: () => visibilitySelection('private') },
+          { text: 'Private', onPress: () => visibilitySelection('selected') },
           { text: 'Cancel', style: 'cancel' },
         ]
       );
@@ -130,6 +130,13 @@ const Options: React.FC<{ setLimit: (value: number | null) => void }> = ({ setLi
       settingEventCapacity(num);
       setLimit(num);
     }
+  };
+
+  const interpretVisibility = (val: string) => {
+    if (val === 'public') return 'Public';
+    if (val === 'selected') return 'Private';
+    if (val === 'private') return 'Friends';
+    return 'Friends';
   };
 
   return (
@@ -174,7 +181,7 @@ const Options: React.FC<{ setLimit: (value: number | null) => void }> = ({ setLi
             }}
           >
             <ThemedText style={{ fontSize: 12, fontWeight: 'bold', color: themeColors.text }}>
-              {visibility.charAt(0).toUpperCase() + visibility.slice(1)}
+              {interpretVisibility(visibility)}
             </ThemedText>
           </TouchableOpacity>
         </View>
