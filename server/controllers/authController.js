@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const User = require('../database/schemas/usersSchema');
 const UserContacts = require('../database/schemas/userContactsSchema');
+const UserNotificationPreferences = require('../database/schemas/userNotificationPreferencesSchema');
 const { generateAccessToken, generateRefreshToken } = require('../utils/token');
 const { verifyIdToken } = require('../utils/googleAuth');
 const { admin } = require('../config/firebase-admin');
@@ -62,6 +63,12 @@ const googleAuth = async (req, res) => {
     }
 
     const userDataFromDB = await User.findOne({ google_id: userId }).select('-password');
+    if (!userDataFromDB) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    await createNotificationPreferences(userDataFromDB._id);
+
     const accessToken = generateAccessToken({ _id: userDataFromDB._id, email: user.email });
     const refreshToken = generateRefreshToken({ _id: userDataFromDB._id, email: user.email });
     const customToken = await admin.auth().createCustomToken(userDataFromDB._id.toString());
@@ -107,11 +114,6 @@ const appleAuth = async (req, res) => {
     const userEmail = email || user?.email;
     
     if (!userEmail) {
-      // console.log('No email provided from Apple');
-      // Use a random email as a fallback
-      // const randomEmail = `apple_${userId}@example.com`;
-      // console.log('Using fallback email:', randomEmail);
-      
       // You can either use a fallback email or return an error
       return res.status(400).json({ success: false, message: 'Email is required for account creation' });
     }
@@ -145,6 +147,8 @@ const appleAuth = async (req, res) => {
         apple_id: userId,
       });
     }
+
+    await createNotificationPreferences(existingUser._id);
 
     const accessToken = generateAccessToken({ _id: existingUser._id, email: existingUser.email });
     const refreshToken = generateRefreshToken({ _id: existingUser._id, email: existingUser.email });
@@ -284,6 +288,8 @@ const signup = async (req, res) => {
           // Don't fail signup if notification fails
         }
       }
+
+      await createNotificationPreferences(userDataFromDB._id);
 
       const accessToken = generateAccessToken({ _id: userDataFromDB._id, email: userDataFromDB.email });
       const refreshToken = generateRefreshToken({ _id: userDataFromDB._id, email: userDataFromDB.email });
@@ -917,6 +923,55 @@ const resetPassword = async (req, res) => {
       message: 'Failed to reset password'
     });
   }
+};
+
+const createNotificationPreferences = async (userId) => {
+  // ✅ Check if user already has preferences
+  const existing = await UserNotificationPreferences.findOne({ user: userId });
+  if (existing) return existing;
+
+  // ✅ If not, create with default settings
+  const defaults = {
+    user: userId,
+    notification_preferences: {
+      inApp: {
+        friend_request_accepted: true,
+        event_reminder_10_mins: true,
+        event_reminder_1_hour: true,
+        event_updated: true,
+        new_event_nearby: true,
+        event_attendance_confirmed: true,
+        new_event_from_friend: true,
+        event_invitation: true,
+        someone_from_contacts_joined: true
+      },
+      email: {
+        friend_request_accepted: false,
+        event_reminder_10_mins: true,
+        event_reminder_1_hour: true,
+        event_updated: false,
+        new_event_nearby: false,
+        event_attendance_confirmed: false,
+        new_event_from_friend: false,
+        event_invitation: false,
+        someone_from_contacts_joined: false
+      },
+      push: {
+        friend_request_accepted: true,
+        event_reminder_10_mins: true,
+        event_reminder_1_hour: true,
+        event_updated: true,
+        new_event_nearby: true,
+        event_attendance_confirmed: true,
+        new_event_from_friend: true,
+        event_invitation: true,
+        someone_from_contacts_joined: true
+      }
+    }
+  };
+
+  const created = await UserNotificationPreferences.create(defaults);
+  return created;
 };
 
 module.exports = {

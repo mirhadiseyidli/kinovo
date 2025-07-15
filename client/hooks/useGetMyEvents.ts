@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Alert } from 'react-native';
 import { ApiError, Event } from '@/types/allTypes';
 import api from '@/utils/api';
@@ -11,6 +11,18 @@ export const useGetMyEvents = () => {
   const [isFirstFetch, setIsFirstFetch] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { userId } = useAuthSession();
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+    };
+  }, []);
 
   const fetchMyEvents = useCallback(async (fromHomeScreen: boolean = false, forceRefresh: boolean = false) => {
     if (!userId) {
@@ -34,11 +46,20 @@ export const useGetMyEvents = () => {
       setIsFirstFetch(false);
     }
 
+    // Cancel any existing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    abortControllerRef.current = new AbortController();
+    
     setLoading(true);
     setError(null);
     try {
       const queryParams = fromHomeScreen ? '?from_home_screen=true' : '';
-      const response = await api.get(`/api/manageevents/eventslist/get/my/upcoming/events${queryParams}`);
+      const response = await api.get(`/api/manageevents/eventslist/get/my/upcoming/events${queryParams}`, {
+        signal: abortControllerRef.current.signal
+      });
       
       const events = response.data.events || [];
       
@@ -46,16 +67,28 @@ export const useGetMyEvents = () => {
       const cacheParams = { fromHomeScreen };
       upcomingEventsCache.set(userId, events, cacheParams);
       
-      setMyEventsList(events);
+      if (mountedRef.current) {
+        setMyEventsList(events);
+      }
       setIsFirstFetch(false); // First fetch completed
       return events;
     } catch (error) {
       const err = error as ApiError;
+      
+      // Don't show error for aborted requests
+      if (err.name === 'AbortError' || err.message?.includes('aborted')) {
+        return [];
+      }
+      
       console.error('❌ Failed to fetch upcoming events:', err.message);
-      setError(err.message);
+      if (mountedRef.current) {
+        setError(err.message);
+      }
       throw error;
     } finally {
-      setLoading(false);
+      if (mountedRef.current) {
+        setLoading(false);
+      }
     }
   }, [userId, myEventsList.length]);
 

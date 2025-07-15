@@ -41,6 +41,7 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
   const [userCoordinates, setUserCoordinates] = useState<Coordinates | null>(null);
   const mountedRef = useRef(true);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   
   const [selectedLocation, setSelectedLocation] = useState<SelectedLocation>(location?.text || null);
   const [mapVisible] = useState(new Animated.Value(location?.coordinates ? 1 : 0)); // Controls slide animation
@@ -74,7 +75,18 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
     getUserLocation();
     return () => {
       mountedRef.current = false;
-      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+      // Cancel any pending API requests
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+      // Clean up Animated.Value to prevent memory leak
+      mapVisible.stopAnimation();
+      mapVisible.removeAllListeners();
     };
   }, [userLocation]);
 
@@ -107,9 +119,21 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
       return;
     }
 
+    // Cancel any existing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     try {
       // Use our backend API instead of direct Google API call
-      let response = await api.post('/api/google/places/search', { textQuery: text, latitude: userCoordinates?.latitude, longitude: userCoordinates?.longitude });
+      let response = await api.post('/api/google/places/search', { 
+        textQuery: text, 
+        latitude: userCoordinates?.latitude, 
+        longitude: userCoordinates?.longitude 
+      }, {
+        signal: abortControllerRef.current.signal
+      });
       let results = response.data.places || [];
 
       // If no results AND input is not empty, use Geocoding API through our backend
@@ -117,7 +141,8 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
         response = await api.get('/api/google/geocode', {
           params: {
             address: text
-          }
+          },
+          signal: abortControllerRef.current.signal
         });
 
         results = response.data.results.map((item: GeocodingApiResult) => ({
@@ -131,7 +156,11 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
       if (!mountedRef.current) return;
       setSuggestions(results);
       setShowSuggestions(results.length > 0);
-    } catch (error) {
+    } catch (error: any) {
+      // Don't show error for aborted requests
+      if (error.name === 'AbortError' || error.message?.includes('aborted')) {
+        return;
+      }
       console.error("Error fetching address suggestions:", error);
     }
   };
@@ -200,9 +229,14 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
     
     setInputText(text);
     // Debounce network calls to avoid flooding
-    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
     debounceTimerRef.current = setTimeout(() => {
-      fetchAddressSuggestions(text);
+      if (mountedRef.current) {
+        fetchAddressSuggestions(text);
+      }
     }, 300);
   };
 

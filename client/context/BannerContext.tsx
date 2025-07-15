@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { Animated, Text } from 'react-native';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
@@ -17,6 +17,18 @@ export const BannerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const [message, setMessage] = useState<string | null>(null);
   const translateY = useRef(new Animated.Value(-100)).current;
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, []);
 
   const hideBanner = useCallback(() => {
     Animated.timing(translateY, {
@@ -39,8 +51,14 @@ export const BannerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }).start();
 
     // Auto hide after 2 seconds
-    setTimeout(() => {
-      hideBanner();
+    // Clear any existing timeout first
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = setTimeout(() => {
+      if (mountedRef.current) {
+        hideBanner();
+      }
     }, 2000);
   }, [translateY, hideBanner]);
 

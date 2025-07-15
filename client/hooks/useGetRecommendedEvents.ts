@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Alert } from 'react-native';
 import { ApiError, Event } from '@/types/allTypes';
 import api from '@/utils/api';
@@ -10,6 +10,18 @@ export const useGetRecommendedEvents = () => {
   const [isFirstFetch, setIsFirstFetch] = useState(true);
   const [hasDataBeenFetched, setHasDataBeenFetched] = useState(false);
   const { userId } = useAuthSession();
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+    };
+  }, []);
 
   const fetchRecommendedEvents = useCallback(async () => {
     // If we have fetched data before, this is not a first fetch
@@ -17,20 +29,42 @@ export const useGetRecommendedEvents = () => {
       setIsFirstFetch(false);
     }
 
+    // Cancel any existing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    abortControllerRef.current = new AbortController();
+    
     setLoading(true);
     setError(null);
     try {
-      const response = await api.get('/api/manageevents/eventslist/get/recommended');
-      setIsFirstFetch(false); // First fetch completed
-      setHasDataBeenFetched(true);
+      const response = await api.get('/api/manageevents/eventslist/get/recommended', {
+        signal: abortControllerRef.current.signal
+      });
+      
+      if (mountedRef.current) {
+        setIsFirstFetch(false); // First fetch completed
+        setHasDataBeenFetched(true);
+      }
       return response.data.events;
     } catch (error) {
       const err = error as ApiError;
+      
+      // Don't show error for aborted requests
+      if (err.name === 'AbortError' || err.message?.includes('aborted')) {
+        return [];
+      }
+      
       console.error('Failed to fetch recommended events:', err.message);
-      setError(err.message);
+      if (mountedRef.current) {
+        setError(err.message);
+      }
       throw error;
     } finally {
-      setLoading(false);
+      if (mountedRef.current) {
+        setLoading(false);
+      }
     }
   }, [hasDataBeenFetched]);
 

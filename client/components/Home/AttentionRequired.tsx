@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, TouchableOpacity, Alert } from 'react-native';
+import { View, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Event } from '@/types/allTypes';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useGetAttentionRequiredEvents } from '@/hooks/useGetAttentionRequiredEvents';
 import { useEventInvitation } from '@/hooks/useEventInvitation';
 import { useEventContext } from '@/context/UserSessionContext';
@@ -40,11 +40,12 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
   const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
   const { fetchAttentionRequiredEvents, loading, isFirstFetch, clearCache, attentionEventsList } = useGetAttentionRequiredEvents();
-  const { respondToInvitation } = useEventInvitation();
-  const { refreshing: contextRefreshing, invalidateEvent } = useEventContext();
+  const { respondToInvitation, loading: respondToInvitationLoading } = useEventInvitation();
+  const { refreshing: contextRefreshing, invalidateEvent, refreshEvents } = useEventContext();
   const { userId } = useAuthSession();
   const [localEventsList, setLocalEventsList] = useState<Event[]>(initialEvents || []);
   const [loadingResponses, setLoadingResponses] = useState<{ [key: string]: boolean }>({});
+  const [selectedResponse, setSelectedResponse] = useState<EventResponseStatus | null>(null);
 
   // Memoize expensive event filtering
   const futureEvents = React.useMemo(() => {
@@ -147,7 +148,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
     });
   }, [router]);
 
-  const handleResponse = React.useCallback(async (event: Event, status: EventResponseStatus) => {
+  const handleResponse = React.useCallback(async (event: Event, status: EventResponseStatus, options?: { modifyType?: 'this_only' | 'all_future' }) => {
     const eventId = event.originalEventId || event._id;
     if (!eventId) return;
 
@@ -157,9 +158,9 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
       // Handle recurring events
       const requestOptions: any = {};
       
-      if (event.isRecurringOccurrence && event.start_time) {
+      if (event.isRecurringOccurrence && event.start_time && options?.modifyType) {
         requestOptions.occurrenceDate = event.start_time;
-        requestOptions.modifyType = 'this_only';
+        requestOptions.modifyType = options.modifyType;
       }
 
       await respondToInvitation(
@@ -167,6 +168,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
         status, 
         Object.keys(requestOptions).length > 0 ? requestOptions : undefined
       );
+      setSelectedResponse(status);
 
       // IMPORTANT: Invalidate event from subscriptions and cache to prevent data override
       invalidateEvent(eventId);
@@ -184,13 +186,8 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
         cacheManager.updateEventAcrossCaches(eventId, eventWithNewStatus, userId);
       }
 
-      // Show success message
-      const statusMessages: Record<EventResponseStatus, string> = {
-        accepted: 'Accepted the event!',
-        maybe: 'Marked as maybe',
-        rejected: 'Declined the event'
-      };
-      Alert.alert('Success', statusMessages[status]);
+      // Refresh events to update calendar with fresh data
+      await refreshEvents(event.start_time ? new Date(event.start_time) : new Date(), 'Month');
 
     } catch (error) {
       console.error('Failed to respond to event:', error);
@@ -202,6 +199,23 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
       setLoadingResponses(prev => ({ ...prev, [eventId]: false }));
     }
   }, [respondToInvitation, invalidateEvent, localEventsList, userId]);
+
+  const handleResponseAlert = React.useCallback((event: Event, status: EventResponseStatus) => {
+    if (!event.isRecurringOccurrence && event.start_time) {
+      const statusText = status === 'accepted' ? 'accept' : status === 'maybe' ? 'mark as maybe' : 'decline';
+      Alert.alert(
+        'Recurring Event',
+        `Do you want to ${statusText} this event only or all future events?`,
+        [
+          { text: 'This Event Only', onPress: () => { handleResponse(event, status, { modifyType: 'this_only' }); }},
+          { text: 'All Future Events', onPress: () => { handleResponse(event, status, { modifyType: 'all_future' }); }},
+          { text: 'Cancel', style: 'cancel', onPress: () => { }},
+        ]
+      );
+    } else {
+      handleResponse(event, status);
+    }
+  }, [handleResponse]);
 
   const formatDate = React.useCallback((date: string | Date | null) => {
     if (!date) return '';
@@ -413,7 +427,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
                   left: 0,
                   right: 0,
                   paddingVertical: 4,
-                  backgroundColor: colorScheme === 'dark' ? 'rgba(50, 50, 50, 0.6)' : 'rgba(200, 200, 200, 0.6)',
+                  backgroundColor: themeColors.blurViewColor,
                 }}
               >
                 <ThemedText style={{ 
@@ -462,13 +476,13 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
             ) : (
               <>
                 <TouchableOpacity
-                  onPress={() => handleResponse(event, 'accepted')}
+                  onPress={() => handleResponseAlert(event, 'accepted')}
                   disabled={isLoading}
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    backgroundColor: themeColors.eventCardBackgroundColor,
+                    backgroundColor: selectedResponse === 'accepted' ? themeColors.mountainGreen : themeColors.eventCardBackgroundColor,
                     borderRadius: 6,
                     paddingHorizontal: 12,
                     paddingVertical: 8,
@@ -476,18 +490,24 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
                     flex: 1,
                   }}
                 >
-                  <Feather name="check" size={11} color={themeColors.text} style={{ marginRight: 4 }} />
-                  <ThemedText style={{ fontSize: 11, fontWeight: '600', color: themeColors.text }}>Accept</ThemedText>
+                  {respondToInvitationLoading ? (
+                    <ActivityIndicator size="small" color={themeColors.text} />
+                  ) : (
+                    <>
+                      <Feather name="check" size={11} color={themeColors.text} style={{ marginRight: 4 }} />
+                      <ThemedText style={{ fontSize: 11, fontWeight: '600', color: themeColors.text }}>Accept</ThemedText>
+                    </>
+                  )}
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPress={() => handleResponse(event, 'maybe')}
+                  onPress={() => handleResponseAlert(event, 'maybe')}
                   disabled={isLoading}
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    backgroundColor: themeColors.eventCardBackgroundColor,
+                    backgroundColor: selectedResponse === 'maybe' ? themeColors.maybeStatusColor : themeColors.eventCardBackgroundColor,
                     borderRadius: 6,
                     paddingHorizontal: 12,
                     paddingVertical: 8,
@@ -495,18 +515,26 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
                     flex: 1,
                   }}
                 >
-                  <MaterialIcons name="question-mark" size={11} color={themeColors.text} style={{ marginRight: 4 }} />
-                  <ThemedText style={{ fontSize: 11, fontWeight: '600', color: themeColors.text }}>Maybe</ThemedText>
+                  {respondToInvitationLoading ? (
+                    <ActivityIndicator size="small" color={themeColors.text} />
+                  ) : (
+                    <>
+                      <MaterialIcons name="question-mark" size={11} color={themeColors.text} style={{ marginRight: 4 }} />
+                      <ThemedText style={{ fontSize: 11, fontWeight: '600', color: themeColors.text }}>Maybe</ThemedText>
+                    </>
+                  )}
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPress={() => handleResponse(event, 'rejected')}
+                  onPress={() => handleResponseAlert(event, 'rejected')}
                   disabled={isLoading}
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    backgroundColor: themeColors.eventCardBackgroundColor,
+                    backgroundColor: selectedResponse === 'rejected' ? themeColors.background : themeColors.eventCardBackgroundColor,
+                    borderColor: selectedResponse === 'rejected' ? themeColors.border : 'transparent',
+                    borderWidth: 1,
                     borderRadius: 6,
                     paddingHorizontal: 12,
                     paddingVertical: 8,
@@ -514,8 +542,14 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
                     flex: 1,
                   }}
                 >
-                  <Feather name="x" size={11} color={themeColors.text} style={{ marginRight: 4 }} />
-                  <ThemedText style={{ fontSize: 11, fontWeight: '600', color: themeColors.text }}>Decline</ThemedText>
+                  {respondToInvitationLoading ? (
+                    <ActivityIndicator size="small" color={themeColors.text} />
+                  ) : (
+                    <>
+                      <Feather name="x" size={11} color={themeColors.text} style={{ marginRight: 4 }} />
+                      <ThemedText style={{ fontSize: 11, fontWeight: '600', color: themeColors.text }}>Decline</ThemedText>
+                    </>
+                  )}
                 </TouchableOpacity>
               </>
             )}

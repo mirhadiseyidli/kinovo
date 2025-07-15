@@ -38,6 +38,7 @@ export const Colors = {
     card: '#f7f7f7',
     eventCardCategoryColor: 'rgba(146, 146, 146, 0.3)',
     eventCardCategoryBorderColor: 'rgba(146, 146, 146, 0.3)',
+    blurViewColor: 'rgba(200, 200, 200, 0.6)'
   },
   dark: {
     text: '#ECEDEE',
@@ -69,5 +70,6 @@ export const Colors = {
     card: '#222527',
     eventCardCategoryColor: 'rgba(255, 255, 255, 0.3)',
     eventCardCategoryBorderColor: 'rgba(255, 255, 255, 0.3)',
+    blurViewColor: 'rgba(50, 50, 50, 0.6)'
   },
 };
