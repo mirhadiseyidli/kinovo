@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, TouchableOpacity, Alert } from 'react-native';
+import { View, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
@@ -40,11 +40,12 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
   const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
   const { fetchAttentionRequiredEvents, loading, isFirstFetch, clearCache, attentionEventsList } = useGetAttentionRequiredEvents();
-  const { respondToInvitation } = useEventInvitation();
+  const { respondToInvitation, loading: respondToInvitationLoading } = useEventInvitation();
   const { refreshing: contextRefreshing, invalidateEvent } = useEventContext();
   const { userId } = useAuthSession();
   const [localEventsList, setLocalEventsList] = useState<Event[]>(initialEvents || []);
   const [loadingResponses, setLoadingResponses] = useState<{ [key: string]: boolean }>({});
+  const [selectedResponse, setSelectedResponse] = useState<EventResponseStatus | null>(null);
 
   // Memoize expensive event filtering
   const futureEvents = React.useMemo(() => {
@@ -167,6 +168,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
         status, 
         Object.keys(requestOptions).length > 0 ? requestOptions : undefined
       );
+      setSelectedResponse(status);
 
       // IMPORTANT: Invalidate event from subscriptions and cache to prevent data override
       invalidateEvent(eventId);
@@ -183,14 +185,6 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
         };
         cacheManager.updateEventAcrossCaches(eventId, eventWithNewStatus, userId);
       }
-
-      // Show success message
-      const statusMessages: Record<EventResponseStatus, string> = {
-        accepted: 'Accepted the event!',
-        maybe: 'Marked as maybe',
-        rejected: 'Declined the event'
-      };
-      Alert.alert('Success', statusMessages[status]);
 
     } catch (error) {
       console.error('Failed to respond to event:', error);
@@ -413,7 +407,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
                   left: 0,
                   right: 0,
                   paddingVertical: 4,
-                  backgroundColor: colorScheme === 'dark' ? 'rgba(50, 50, 50, 0.6)' : 'rgba(200, 200, 200, 0.6)',
+                  backgroundColor: themeColors.blurViewColor,
                 }}
               >
                 <ThemedText style={{ 
@@ -468,7 +462,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
                     flexDirection: 'row',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    backgroundColor: themeColors.eventCardBackgroundColor,
+                    backgroundColor: selectedResponse === 'accepted' ? themeColors.mountainGreen : themeColors.eventCardBackgroundColor,
                     borderRadius: 6,
                     paddingHorizontal: 12,
                     paddingVertical: 8,
@@ -476,8 +470,14 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
                     flex: 1,
                   }}
                 >
-                  <Feather name="check" size={11} color={themeColors.text} style={{ marginRight: 4 }} />
-                  <ThemedText style={{ fontSize: 11, fontWeight: '600', color: themeColors.text }}>Accept</ThemedText>
+                  {respondToInvitationLoading ? (
+                    <ActivityIndicator size="small" color={themeColors.text} />
+                  ) : (
+                    <>
+                      <Feather name="check" size={11} color={themeColors.text} style={{ marginRight: 4 }} />
+                      <ThemedText style={{ fontSize: 11, fontWeight: '600', color: themeColors.text }}>Accept</ThemedText>
+                    </>
+                  )}
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -487,7 +487,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
                     flexDirection: 'row',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    backgroundColor: themeColors.eventCardBackgroundColor,
+                    backgroundColor: selectedResponse === 'maybe' ? themeColors.maybeStatusColor : themeColors.eventCardBackgroundColor,
                     borderRadius: 6,
                     paddingHorizontal: 12,
                     paddingVertical: 8,
@@ -506,7 +506,9 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
                     flexDirection: 'row',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    backgroundColor: themeColors.eventCardBackgroundColor,
+                    backgroundColor: selectedResponse === 'rejected' ? themeColors.background : themeColors.eventCardBackgroundColor,
+                    borderColor: selectedResponse === 'rejected' ? themeColors.border : 'transparent',
+                    borderWidth: 1,
                     borderRadius: 6,
                     paddingHorizontal: 12,
                     paddingVertical: 8,
