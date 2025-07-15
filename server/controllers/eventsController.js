@@ -90,7 +90,8 @@ const {
   findUsersWithin50Miles,
   
   // Recurring event date utilities
-  generateRecurringEventDates
+  generateRecurringEventDates,
+  findNextRecurringOccurrence
 } = require('../utils/eventUtils');
 
 const createEvent = async (req, res) => {
@@ -1247,9 +1248,15 @@ const getAttentionRequiredEvents = async (req, res) => {
         userStatus: userEvent.status || 'pending' // Normalize undefined/null to 'pending'
       }));
 
-    // Process events with recurrence using utility - limit to 30 days for attention required
-    const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    const processedEvents = processEventsWithRecurrence(attentionEvents, now, thirtyDaysFromNow);
+    // Process events with recurrence using utility - find the next occurrence of each event from now
+    const processedEvents = attentionEvents.map(event => {
+      if (event.recurrence?.checked && event.recurrence?.frequency && event.recurrence.frequency !== 'none') {
+        // For recurring events, find the next occurrence
+        return findNextRecurringOccurrence(event, now);
+      }
+      // For non-recurring events, return as-is
+      return event;
+    }).filter(event => event !== null); // Remove any null results (e.g., expired recurring events)
 
     // Apply home screen limits and get metadata
     const result = applyHomeScreenLimits(processedEvents, fromHomeScreen, 3);
