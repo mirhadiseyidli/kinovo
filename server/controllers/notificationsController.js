@@ -618,7 +618,6 @@ const createEventReminderNotification = async (eventId, reminderType = 'event_re
 
         // Create in-app notification if enabled
         if (shouldReceiveInApp) {
-          console.log('Creating in-app notification for event reminder');
           const timeText = reminderType === 'event_reminder_10_mins' ? '10 minutes' : '1 hour';
           notification = await createNotification({
             recipient: attendee._id,

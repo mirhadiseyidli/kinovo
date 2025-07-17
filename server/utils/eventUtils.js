@@ -39,7 +39,6 @@ const buildEventFilter = (filterData, options = {}) => {
     userId,
     startDate,
     endDate,
-    excludeUserEvents = false
   } = options;
 
   const baseFilter = {
@@ -65,13 +64,25 @@ const buildEventFilter = (filterData, options = {}) => {
   // Add city filter
   if (city) baseFilter.city = city;
 
-  // Build visibility rules
-  const visibilityRules = [{ visibility: 'public' }];
+  // Build visibility rules conditionally
+  const visibilityRules = [];
+
+  if (options.includePublic) {
+    visibilityRules.push({ visibility: 'public' });
+  }
   
   if (includePrivateFriends && filterData.friends?.length > 0) {
     visibilityRules.push({
       visibility: 'private',
       creator: { $in: filterData.friends }
+    });
+  }
+  
+  // ✅ Include user's own private and selected events
+  if (userId) {
+    visibilityRules.push({
+      visibility: { $in: ['private', 'selected'] },
+      creator: userId
     });
   }
   
@@ -81,15 +92,12 @@ const buildEventFilter = (filterData, options = {}) => {
       'attendees.user': userId
     });
   }
+  
+  if (visibilityRules.length > 0) {
+    baseFilter.$and = [{ $or: visibilityRules }];
+  }
 
   baseFilter.$and = [{ $or: visibilityRules }];
-
-  // Exclude events user is already attending
-  if (excludeUserEvents && userId) {
-    baseFilter.$and.push({
-      'attendees.user': { $ne: userId }
-    });
-  }
 
   return baseFilter;
 };
@@ -176,6 +184,46 @@ const generateRecurringOccurrences = (event, startRange, endRange) => {
 };
 
 /**
+ * Calculate optimal lookback window (in days) for a recurring event
+ * based on its duration. Adds a buffer and clamps within min/max limits.
+ *
+ * @param {Object} event - The event object containing start_time and end_time
+ * @returns {number} Lookback window in days
+ */
+const calculateOptimalLookback = (event) => {
+  const eventDuration = new Date(event.end_time) - new Date(event.start_time);
+  const durationHours = eventDuration / (1000 * 60 * 60);
+
+  const bufferMultiplier = 1.5;
+  const minLookback = 1;
+  const maxLookback = 14;
+
+  const calculatedDays = Math.ceil((durationHours / 24) * bufferMultiplier);
+  return Math.max(minLookback, Math.min(maxLookback, calculatedDays));
+};
+
+/**
+ * Categorize a single event or occurrence as 'live', 'upcoming', or 'past'
+ * based on the current time and the event's start and end.
+ *
+ * @param {Object} occurrence - Event or occurrence object with start_time and end_time
+ * @param {Date} now - Current timestamp to compare against
+ * @returns {Object} Object containing status ('live' | 'upcoming' | 'past') and isLive (boolean)
+ */
+const categorizeEventStatus = (occurrence, now) => {
+  const occurrenceStart = new Date(occurrence.start_time);
+  const occurrenceEnd = new Date(occurrence.end_time);
+
+  if (now >= occurrenceStart && now <= occurrenceEnd) {
+    return { timeStatus: 'live', isLive: true };
+  } else if (now < occurrenceStart) {
+    return { timeStatus: 'upcoming', isLive: false };
+  } else {
+    return { timeStatus: 'past', isLive: false };
+  }
+};
+
+/**
  * Process events to handle recurring events and generate occurrences
  * @param {Array} events - Array of events
  * @param {Date} startRange - Start of date range (default: now)
@@ -183,57 +231,63 @@ const generateRecurringOccurrences = (event, startRange, endRange) => {
  * @param {Object} options - Processing options
  * @returns {Array} Processed events with recurring occurrences
  */
-const processEventsWithRecurrence = (events, startRange = null, endRange = null, options = {}) => {
+const processEventsWithRecurrence = (events, startRange = null, endRange = null) => {
   const now = new Date();
   const defaultEndRange = new Date(now.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year
   
   const start = startRange || now;
   const end = endRange || defaultEndRange;
-  const { excludeUserAttending = false, userId = null } = options;
 
   const processedEvents = [];
 
   for (const event of events) {
-    // Skip if user is attending and we want to exclude those
-    if (excludeUserAttending && userId) {
-      const isUserAttending = event.attendees?.some(a => a.user.toString() === userId.toString());
-      if (isUserAttending) continue;
-    }
-
-    const isRecurring = event.recurrence?.checked &&
-                       event.recurrence?.frequency &&
-                       event.recurrence?.frequency !== 'none';
+    const isRecurring = isRecurringEvent(event);
 
     if (isRecurring) {
       // To catch live recurring events, we generate occurrences from a recent past date
       // and then filter to keep only those that haven't ended yet.
       // We look back 7 days to reasonably catch events that might still be ongoing.
-      const lookBehindStartDate = new Date(start.getTime() - 7 * 24 * 60 * 60 * 1000);
-      
+      const lookbackDays = calculateOptimalLookback(event);
+      const lookBehindStartDate = new Date(start.getTime() - lookbackDays * 24 * 60 * 60 * 1000);
+
       const allPossibleOccurrences = generateRecurringOccurrences(event, lookBehindStartDate, end);
-      
-      const upcomingAndLiveOccurrences = allPossibleOccurrences.filter(occurrence => {
-        const occurrenceEnd = new Date(occurrence.end_time);
-        return occurrenceEnd >= start;
-      });
-      
-      processedEvents.push(...upcomingAndLiveOccurrences);
+
+      const relevantOccurrences = allPossibleOccurrences
+        .map(occurrence => {
+          const eventStatus = categorizeEventStatus(occurrence, now);
+          return {
+            ...occurrence,
+            ...eventStatus,
+            occurrenceStatus: eventStatus.timeStatus
+          };
+        })
+        .filter(occurrence =>
+          occurrence.timeStatus === 'live' ||
+          (occurrence.timeStatus === 'upcoming' && new Date(occurrence.start_time) >= start)
+        );
+
+      processedEvents.push(...relevantOccurrences);
     } else {
-      // For non-recurring events, check if they haven't ended
-      const eventEnd = new Date(event.end_time);
-      if (eventEnd >= start) {
-        const eventObj = event.toObject ? event.toObject() : event;
+      const eventStatus = categorizeEventStatus(event, now);
+      if (
+        eventStatus.timeStatus === 'live' ||
+        (eventStatus.timeStatus === 'upcoming' && new Date(event.start_time) >= start)
+      ) {
         processedEvents.push({
-          ...eventObj,
+          ...(event.toObject ? event.toObject() : event),
+          ...eventStatus,
           isRecurringOccurrence: false,
-          userStatus: event.userStatus // Preserve userStatus if it exists
+          userStatus: event.userStatus,
         });
       }
     }
   }
 
-  // Sort events by start time
-  processedEvents.sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+  processedEvents.sort((a, b) => {
+    if (a.isLive && !b.isLive) return -1;
+    if (!a.isLive && b.isLive) return 1;
+    return new Date(a.start_time) - new Date(b.start_time);
+  });
 
   return processedEvents;
 };
@@ -594,11 +648,13 @@ const updateEventAttendee = async (event, userId, status) => {
  */
 const removeAttendeeFromEvent = async (event, userId) => {
   const attendeeIndex = findAttendeeIndex(event, userId);
-  
-  if (attendeeIndex !== -1) {
-    event.attendees.splice(attendeeIndex, 1);
-    await event.save();
+
+  if (attendeeIndex === -1) {
+    return event; // No changes
   }
+  
+  event.attendees.splice(attendeeIndex, 1);
+  await event.save();
   
   return event;
 };
@@ -643,11 +699,13 @@ const removeUserEvent = async (userId, eventId) => {
   }
   
   const userEventIndex = findUserEventIndex(user, eventId);
-  
-  if (userEventIndex !== -1) {
-    user.events.splice(userEventIndex, 1);
-    await user.save();
+
+  if (userEventIndex === -1) {
+    return user; // No changes
   }
+
+  user.events.splice(userEventIndex, 1);
+  await user.save();
   
   return user;
 };
@@ -732,22 +790,26 @@ const handleRecurringEventModification = async (event, occurrenceDate, modifyTyp
 const validateInputParams = (params, required) => {
   const missing = [];
   const invalid = [];
-  
+
   for (const param of required) {
-    if (!params[param]) {
+    if (!(param in params)) {
       missing.push(param);
     }
   }
-  
+
   // Specific validations
-  if (params.status && !['accepted', 'maybe', 'rejected', 'pending'].includes(params.status)) {
+  if ('status' in params && !['accepted', 'maybe', 'rejected', 'pending'].includes(params.status)) {
     invalid.push({ param: 'status', message: 'Invalid status value' });
   }
-  
-  if (params.eventId && typeof params.eventId !== 'string') {
+
+  if ('eventId' in params && typeof params.eventId !== 'string') {
     invalid.push({ param: 'eventId', message: 'Event ID must be a string' });
   }
-  
+
+  if ('attendeeId' in params && typeof params.attendeeId !== 'string') {
+    invalid.push({ param: 'attendeeId', message: 'Attendee ID must be a string' });
+  }
+
   return {
     isValid: missing.length === 0 && invalid.length === 0,
     missing,
@@ -834,7 +896,14 @@ const handleEventInvitationResponse = async (eventId, userId, status, options = 
 // =============================================================================
 
 /**
- * Standard populate configuration for user events with full details
+ * Returns the standard Mongoose populate configuration for user events.
+ * It filters out cancelled events and populates both the creator and attendees' user details.
+ * 
+ * - Populates `events.event` where `status !== 'cancelled'`
+ * - Populates `creator` excluding sensitive fields like `password`
+ * - Populates each attendee's `user` excluding `password`
+ *
+ * @returns {Object} Mongoose populate config
  */
 const getStandardEventPopulateConfig = () => ({
   path: 'events.event',
@@ -1062,7 +1131,7 @@ const processEventsWithRecurrenceEnhanced = (events, startDate, endDate, include
  * @returns {boolean} True if user is the creator, false otherwise
  */
 const validateEventCreatorPermission = (event, userId) => {
-  return event.creator.toString() === userId.toString();
+  return event?.creator?.toString?.() === userId?.toString?.();
 };
 
 /**
@@ -1156,6 +1225,13 @@ const createSeparateOccurrenceEvent = async (originalEvent, occurrenceDate, modi
  */
 const splitRecurringEvent = async (originalEvent, splitDate, modifications = {}) => {
   const splitStartDate = new Date(splitDate);
+
+  // Check if split date is before the first occurrence
+  const firstOccurrence = new Date(originalEvent.start_time);
+  if (splitStartDate.getTime() <= firstOccurrence.getTime()) {
+    // Cannot split at or before the first occurrence — just return the original event
+    return originalEvent;
+  }
   
   // Preserve original recurrence before making any modifications so we can
   // safely reuse it for the future event. Clone to avoid shared references.
@@ -1215,6 +1291,16 @@ const splitRecurringEvent = async (originalEvent, splitDate, modifications = {})
     }
   }
 
+  // Calculate the correct end time for the future event
+  const originalStartTime = new Date(originalEvent.start_time);
+  const originalEndTime = new Date(originalEvent.end_time);
+  const eventDuration = originalEndTime.getTime() - originalStartTime.getTime();
+  
+  // Use modified end time if provided, otherwise calculate based on duration
+  const futureEndTime = modifications.end_time 
+    ? new Date(modifications.end_time)
+    : new Date(splitStartDate.getTime() + eventDuration);
+
   const futureEventData = {
     creator: originalEvent.creator,
     event_picture: modifications.event_picture || originalEvent.event_picture,
@@ -1223,7 +1309,7 @@ const splitRecurringEvent = async (originalEvent, splitDate, modifications = {})
     description: modifications.description || originalEvent.description,
     location: modifications.location || originalEvent.location,
     start_time: splitStartDate,
-    end_time: modifications.end_time || originalEvent.end_time,
+    end_time: futureEndTime,
     capacity: modifications.capacity !== undefined ? modifications.capacity : originalEvent.capacity,
     recurrence: futureRecurrence,
     attendees: modifications.attendees || originalEvent.attendees,
@@ -1578,12 +1664,7 @@ const processEventsForDiscovery = (events, options = {}) => {
   const processedEvents = [];
 
   for (const event of events) {
-    // Skip if user is attending and we want to exclude those
-    if (excludeUserAttending && userId) {
-      const isUserAttending = event.attendees?.some(a => a.user.toString() === userId.toString());
-      if (isUserAttending) continue;
-    }
-
+    if (event.status === 'cancelled') continue;
     const isRecurring = event.recurrence?.checked &&
                        event.recurrence?.frequency &&
                        event.recurrence?.frequency !== 'none';
@@ -1640,45 +1721,282 @@ const findNextRecurringOccurrence = (event, fromDate = new Date()) => {
   const rule = new RRule(ruleOptions);
   
   // Get the next occurrence after fromDate
-  const nextOccurrenceDate = rule.after(fromDate, false); // false = exclude fromDate itself
-  
-  if (!nextOccurrenceDate) return null;
-
-  // Check if this date is excluded
-  if (isDateExcluded(nextOccurrenceDate, event.excludedDates)) {
-    // If excluded, find the next one after this
-    const nextAfterExcluded = rule.after(nextOccurrenceDate, false);
-    if (!nextAfterExcluded || isDateExcluded(nextAfterExcluded, event.excludedDates)) {
-      return null; // Could implement recursive check, but for discovery this should suffice
-    }
-    // Use the next occurrence after the excluded one
-    const eventDuration = eventEndTime.getTime() - eventStartTime.getTime();
-    const occurrenceEndTime = new Date(nextAfterExcluded.getTime() + eventDuration);
-
-    return {
-      ...(event.toObject ? event.toObject() : event),
-      start_time: nextAfterExcluded,
-      end_time: occurrenceEndTime,
-      _id: buildOccurrenceId(event._id, nextAfterExcluded),
-      originalEventId: event._id,
-      isRecurringOccurrence: true,
-      userStatus: event.userStatus // Preserve userStatus if it exists
-    };
+  let nextDate = rule.after(fromDate, false);
+  const excludedSet = new Set(event.excludedDates.map(d => new Date(d).toDateString()));
+  while (nextDate && excludedSet.has(nextDate.toDateString())) {
+    const prev = nextDate;
+    nextDate = rule.after(prev, false);
   }
 
-  // Calculate end time for this occurrence
+  if (!nextDate) return null;
+
+  // Use the next occurrence after the excluded one
   const eventDuration = eventEndTime.getTime() - eventStartTime.getTime();
-  const occurrenceEndTime = new Date(nextOccurrenceDate.getTime() + eventDuration);
+  const occurrenceEndTime = new Date(nextDate.getTime() + eventDuration);
 
   return {
     ...(event.toObject ? event.toObject() : event),
-    start_time: nextOccurrenceDate,
+    start_time: nextDate,
     end_time: occurrenceEndTime,
-    _id: buildOccurrenceId(event._id, nextOccurrenceDate),
+    _id: buildOccurrenceId(event._id, nextDate),
     originalEventId: event._id,
     isRecurringOccurrence: true,
     userStatus: event.userStatus // Preserve userStatus if it exists
   };
+};
+
+/**
+ * Ensure the creator is included in the attendees list
+ * @param {Array} attendees - Array of attendee objects
+ * @param {string} userId - Creator's user ID
+ * @returns {Array} Updated attendees array with creator included
+ */
+const ensureCreatorIsAttendee = (attendees, userId) => {
+  const processedAttendees = [...attendees];
+  const creatorIncluded = processedAttendees.some(
+    att => att.user && att.user._id && att.user._id.toString() === userId
+  );
+
+  if (!creatorIncluded) {
+    processedAttendees.unshift({ user: { _id: userId } });
+  }
+
+  return processedAttendees;
+};
+
+/**
+ * Upsert an event into a user's events list with the specified status.
+ * Removes any existing entry for the same event before inserting the new one.
+ *
+ * @param {string} userId - The ID of the user.
+ * @param {string} eventId - The ID of the event to upsert.
+ * @param {string} [status='accepted'] - The attendance status to set ('accepted', 'maybe', etc.).
+ */
+const upsertUserEvent = async (userId, eventId, status = 'accepted') => {
+  // Remove any existing event entry first
+  await User.updateOne(
+    { _id: userId },
+    { $pull: { events: { event: eventId } } }
+  );
+
+  // Then safely add it back
+  await User.updateOne(
+    { _id: userId },
+    { $push: { events: { event: eventId, status } } }
+  );
+};
+
+/**
+ * Add an event to multiple users' events lists with a specified status.
+ * Uses $addToSet to avoid duplicates.
+ *
+ * @param {Array<string>} userIds - Array of user IDs.
+ * @param {string} eventId - The ID of the event to add.
+ * @param {string} [status='pending'] - The attendance status to set.
+ */
+const addEventToUsers = async (userIds, eventId, status = 'pending') => {
+  if (!userIds || userIds.length === 0) return;
+
+  const usersWithoutEvent = await User.find({
+    _id: { $in: userIds },
+    'events.event': { $ne: eventId }
+  }).select('_id');
+
+  const filteredIds = usersWithoutEvent.map(u => u._id);
+
+  if (filteredIds.length > 0) {
+    await User.updateMany(
+      { _id: { $in: filteredIds } },
+      {
+        $addToSet: {
+          events: { event: eventId, status }
+        }
+      }
+    );
+  }
+};
+
+/**
+ * Schedule 1-hour and 10-minute reminders for an event using EventBridge
+ * @param {string} eventId - Event ID
+ * @param {Date} startTime - Event start time
+ */
+const scheduleEventReminders = async (eventId, startTime) => {
+  try {
+    const eventStartTime = startTime.getTime();
+    const now = Date.now();
+
+    // Schedule 1-hour reminder
+    const oneHourBefore = new Date(eventStartTime - 60 * 60 * 1000);
+    if (oneHourBefore > now) {
+      await putSchedule(eventId.toString(), oneHourBefore, '1hour');
+    }
+
+    // Schedule 10-minute reminder
+    const tenMinutesBefore = new Date(eventStartTime - 10 * 60 * 1000);
+    if (tenMinutesBefore > now) {
+      await putSchedule(eventId.toString(), tenMinutesBefore, '10min');
+    }
+  } catch (err) {
+    console.error('Failed to create EventBridge reminder schedules:', err);
+    // Don't throw – scheduling failure shouldn't block event creation
+  }
+};
+
+/**
+ * Filter attention required events
+ * @param {Array} events - Array of events
+ * @param {Array} reportedEventIds - Array of reported event IDs
+ * @param {Array} notInterestedEventIds - Array of not interested event IDs
+ * @param {Date} now - Current date
+ * @returns {Array} Filtered events
+ */
+const filterAttentionRequiredEvents = (events, reportedEventIds, notInterestedEventIds, now) => {
+  return events.filter(userEvent => {
+    // Make sure the event exists and hasn't been cancelled
+    if (!userEvent.event || userEvent.event.status === 'cancelled') {
+      return false;
+    }
+    
+    // Filter out reported events and not interested events
+    if (reportedEventIds.includes(userEvent.event._id.toString()) || 
+        notInterestedEventIds.includes(userEvent.event._id.toString())) {
+      return false;
+    }
+
+    // For non-recurring events, check if they are in the future or ongoing.
+    // For recurring events, we let them pass and filter occurrences later.
+    const isRecurring = userEvent.event.recurrence?.checked;
+    if (!isRecurring) {
+      const eventEndTime = new Date(userEvent.event.end_time);
+      if (eventEndTime < now) {
+        return false;
+      }
+    } else {
+      const eventRecurrenceEndTime = new Date(userEvent.event.recurrence.end_date);
+      if (eventRecurrenceEndTime < now) {
+        return false;
+      }
+    }
+
+    // Include if status is pending (undefined, null, or explicitly 'pending') or rejected
+    return (
+      userEvent.status === undefined ||
+      userEvent.status === null ||
+      userEvent.status === 'pending' ||
+      userEvent.status === 'rejected'
+    );
+  })
+  .map(userEvent => ({
+    ...userEvent.event.toObject(),
+    userStatus: userEvent.status || 'pending' // Normalize undefined/null to 'pending'
+  }));
+};
+
+/**
+ * Base query for recommended events
+ * @param {Object} user - User object
+ * @param {Date} now - Current date
+ * @param {Array} friendIds - Array of friend IDs
+ * @returns {Object} Base query
+ */
+const recommendedEventsBaseQuery = async (user, now, friendIds, userActivities) => {
+  const { reportedEventIds, notInterestedEventIds } = await getUserFilterData(user._id);
+
+  // Base query for upcoming events that are either public or private from friends
+  const baseQuery = {
+    status: { $ne: 'cancelled' },
+    // For recurring events, we need to check programmatically, so include events that either:
+    // 1. Haven't ended yet (non-recurring), OR
+    // 2. Are recurring (we'll filter them later)
+    $or: [
+      // Non-recurring events that haven't ended
+      {
+        'recurrence.checked': { $ne: true },
+        end_time: { $gte: now }
+      },
+      // Recurring events (filter later programmatically)
+      {
+        'recurrence.checked': true
+      }
+    ],
+    $and: [
+      {
+        $or: [
+          { visibility: 'public' },
+          { visibility: 'private', creator: { $in: friendIds } },
+          { visibility: 'selected', 'attendees.user': user._id },
+          { creator: user._id }
+        ]
+      },
+      // Exclude reported events
+      {
+        _id: { $nin: reportedEventIds }
+      },
+      // Exclude not interested events
+      {
+        _id: { $nin: notInterestedEventIds }
+      }
+    ]
+  };
+
+  // Add category matching if user has favorite activities
+  if (userActivities.length > 0) {
+    baseQuery.category = { $in: userActivities };
+  }
+
+  return baseQuery;
+}
+
+/**
+ * Base query for friends events
+ * @param {Object} user - User object
+ * @param {Date} now - Current date
+ * @param {Array} friends - Array of friends
+ * @param {Object} filterData - Filter data
+ * @returns {Object} Base query
+ */
+const buildFriendsEventsBaseQuery = async (userId, now, friends, filterData) => {
+  return {
+    status: { $ne: 'cancelled' },
+    // For recurring events, we need to check programmatically, so include events that either:
+    // 1. Haven't ended yet (non-recurring), OR
+    // 2. Are recurring (we'll filter them later)
+    $or: [
+      // Non-recurring events that haven't ended
+      {
+        'recurrence.checked': { $ne: true },
+        end_time: { $gte: now }
+      },
+      // Recurring events (filter later programmatically)
+      {
+        'recurrence.checked': true
+      }
+    ],
+    _id: { $nin: [...filterData.reportedEventIds, ...filterData.notInterestedEventIds] },
+    $and: [
+      {
+        $or: [
+          // Public events created by friends
+          { 
+            visibility: 'public',
+            creator: { $in: friends }
+          },
+          // Private events created by friends
+          { 
+            visibility: 'private',
+            creator: { $in: friends },
+          },
+          // Selected events created by friends if user is invited
+          {
+            visibility: 'selected',
+            creator: { $in: friends },
+            'attendees.user': userId
+          }
+        ]
+      }
+    ]
+  }
 };
 
 // =============================================================================
@@ -1686,49 +2004,49 @@ const findNextRecurringOccurrence = (event, fromDate = new Date()) => {
 // =============================================================================
 
 module.exports = {
-  getUserFilterData,
-  buildEventFilter,
+  getUserFilterData, // reviewed
+  buildEventFilter, // reviewed
   getFrequencyMapping,
-  isDateExcluded,
+  isDateExcluded, // reviewed
   generateRecurringOccurrences,
-  processEventsWithRecurrence,
+  processEventsWithRecurrence, // reviewed
   enrichEventsWithUserData,
-  filterUserEvents,
+  filterUserEvents, // reviewed
   filterUserToViewEvents,
-  createSeparateOccurrenceData,
+  createSeparateOccurrenceData, // reviewed
   addExcludedDate,
-  findAttendeeIndex,
+  findAttendeeIndex, // reviewed
   findUserEventIndex,
   findEventById,
   validateEventPermission,
   updateEventAttendee,
-  removeAttendeeFromEvent,
+  removeAttendeeFromEvent, // reviewed
   updateUserEventStatus,
-  removeUserEvent,
-  addUserNotInterestedEvent,
-  handleRecurringEventModification,
-  validateInputParams,
+  removeUserEvent, // reviewed
+  addUserNotInterestedEvent, // reviewed
+  handleRecurringEventModification, // reviewed
+  validateInputParams, // reviewed
   createApiResponse,
   handleEventInvitationResponse,
-  getStandardEventPopulateConfig,
+  getStandardEventPopulateConfig, // reviewed
   getEventWithCreatorAndAttendeesPopulate,
   commonValidations,
   addUserReportedEvent,
-  getDateRanges,
+  getDateRanges, // reviewed
   applyHomeScreenLimits,
-  processEventsWithRecurrenceEnhanced,
-  validateEventCreatorPermission,
-  isRecurringEvent,
+  processEventsWithRecurrenceEnhanced, // reviewed
+  validateEventCreatorPermission, // reviewed
+  isRecurringEvent, // reviewed
   sanitizeEventUpdateData,
-  getUserAttendanceStatus,
-  createSeparateOccurrenceEvent,
-  splitRecurringEvent,
-  synchronizeUserEventList,
-  removeUserFromEvent,
-  synchronizeAttendeesWithNewEvent,
+  getUserAttendanceStatus, // reviewed
+  createSeparateOccurrenceEvent, // reviewed
+  splitRecurringEvent, // reviewed
+  synchronizeUserEventList, // reviewed
+  removeUserFromEvent, // reviewed
+  synchronizeAttendeesWithNewEvent, // reviewed
   sendEventUpdateNotifications,
-  removeAttendeeFromEventArray,
-  createAttendeesListWithoutUser,
+  removeAttendeeFromEventArray, // reviewed
+  createAttendeesListWithoutUser, // reviewed
   handleThisOccurrenceOnlyUpdate,
   handleThisAndFutureUpdate,
   handleAllInstancesUpdate,
@@ -1739,5 +2057,12 @@ module.exports = {
   findUsersWithin50Miles,
   generateRecurringEventDates,
   processEventsForDiscovery,
-  findNextRecurringOccurrence
+  findNextRecurringOccurrence,
+  ensureCreatorIsAttendee, // reviewed
+  upsertUserEvent, // reviewed
+  addEventToUsers, // reviewed
+  scheduleEventReminders, // reviewed
+  filterAttentionRequiredEvents, // reviewed
+  recommendedEventsBaseQuery, // reviewed
+  buildFriendsEventsBaseQuery // reviewed
 }; 
