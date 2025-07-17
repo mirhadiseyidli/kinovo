@@ -39,40 +39,37 @@ const accountSettings = () => {
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
   const [show2FA, setShow2FA] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [loaddingPage, setLoaddingPage] = useState(false);
 
-  const loadData = useCallback(async () => {
-    setLoaddingPage(true);
-    const userData = await fetchUserData();
-    if (userData) {
-      setUser(userData);
-      setEmail(userData.email || '');
-      setPhoneNumber(userData.phone_number?.full_num || '');
-      setUsername(userData.username || '');
-      setLoaddingPage(false);
-    }
-
-    // Check permissions
-    const { status: locStatus } = await Location.getForegroundPermissionsAsync();
-    setLocationPermission(locStatus === 'granted' ? 'Enabled' : 'Disabled');
-
-    const { status: contactStatus } = await Contacts.getPermissionsAsync();
-    setContactsPermission(contactStatus === 'granted' ? 'Enabled' : 'Disabled');
-
-    const { status: photoStatus } = await ImagePicker.getMediaLibraryPermissionsAsync();
-    setPhotoPermission(photoStatus === 'granted' ? 'Enabled' : 'Disabled');
-
-    const { status: calendarStatus } = await Calendar.getCalendarPermissionsAsync();
-    setCalendarPermission(calendarStatus === 'granted' ? 'Enabled' : 'Disabled');
-  }, []);
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
+  const loadData = useCallback(async (fromPullToRefresh = false) => {
     try {
-      await loadData();
+      setRefreshing(true);
+      const userData = await fetchUserData();
+      if (userData) {
+        setUser(userData);
+        setEmail(userData.email || '');
+        setPhoneNumber(userData.phone_number?.full_num || '');
+        setUsername(userData.username || '');
+      }
+
+      // Check permissions
+      const { status: locStatus } = await Location.getForegroundPermissionsAsync();
+      setLocationPermission(locStatus === 'granted' ? 'Enabled' : 'Disabled');
+
+      const { status: contactStatus } = await Contacts.getPermissionsAsync();
+      setContactsPermission(contactStatus === 'granted' ? 'Enabled' : 'Disabled');
+
+      const { status: photoStatus } = await ImagePicker.getMediaLibraryPermissionsAsync();
+      setPhotoPermission(photoStatus === 'granted' ? 'Enabled' : 'Disabled');
+
+      const { status: calendarStatus } = await Calendar.getCalendarPermissionsAsync();
+      setCalendarPermission(calendarStatus === 'granted' ? 'Enabled' : 'Disabled');
     } finally {
       setRefreshing(false);
     }
+  }, []);
+
+  const onRefresh = useCallback(async () => {
+      await loadData(true);
   }, [loadData]);
 
   // Replace useEffect with useFocusEffect to reload data when screen comes into focus
@@ -290,14 +287,6 @@ const accountSettings = () => {
     );
   }
 
-  if (loaddingPage) {
-    return (
-      <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color={themeColors.mountainGreen} style={{ marginTop: 32 }}/>
-      </ThemedView>
-    );
-  }
-
   return (
     <ThemedView style={{ flex: 1 }}>
       <ScrollView
@@ -309,7 +298,7 @@ const accountSettings = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={themeColors.text}
+            tintColor={themeColors.mountainGreen}
             colors={[themeColors.mountainGreen]}
             progressBackgroundColor={themeColors.background}
           />

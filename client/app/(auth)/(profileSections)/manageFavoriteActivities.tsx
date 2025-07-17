@@ -13,6 +13,7 @@ import { ACTIVITIES } from '@/constants/Activities';
 import type { Activity } from '@/constants/Activities';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getCategoryIcon, getCategoryColor } from '@/utils/categoryIcons';
+import { SkeletonBox } from '@/components/Skeleton';
 
 const ManageFavoriteActivities = () => {
   const colorScheme = useColorScheme();
@@ -20,6 +21,7 @@ const ManageFavoriteActivities = () => {
   const { loading, activities, fetchActivities, addActivity, removeActivity } = useFavoriteActivities();
   const [showPicker, setShowPicker] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<Activity>(ACTIVITIES[0]);
+  const [isFirstFetch, setIsFirstFetch] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   // Animation for the slide-up effect
@@ -43,13 +45,30 @@ const ManageFavoriteActivities = () => {
   }, [showPicker]);
 
   useEffect(() => {
-    fetchActivities();
+    const load = async () => {
+      try {
+        await fetchActivities(); // ✅ Wait for actual fetch to complete
+      } catch (error) {
+        console.error('Error fetching activities:', error);
+      } finally {
+        setIsFirstFetch(false); // ✅ Only set false once done
+      }
+    };
+  
+    load();
   }, []);
 
   const onRefresh = React.useCallback(async () => {
-    setRefreshing(true);
-    await fetchActivities();
-    setRefreshing(false);
+    try {
+      setRefreshing(true);
+      setIsFirstFetch(false);
+      await fetchActivities();
+      setRefreshing(false);
+    } catch (error) {
+      console.error('Error refreshing activities:', error);
+    } finally {
+      setRefreshing(false);
+    }
   }, [fetchActivities]);
 
   const handleAddActivity = async () => {
@@ -78,10 +97,12 @@ const ManageFavoriteActivities = () => {
     );
   };
 
-  if (loading) {
+  if (isFirstFetch) {
     return (
-      <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color={themeColors.mountainGreen} style={{ marginTop: 32 }}/>
+      <ThemedView style={{ flex: 1, alignItems: 'center', padding: 16, gap: 16 }}>
+        <SkeletonBox width={'100%'} height={60} borderRadius={16}/>
+        <SkeletonBox width={'100%'} height={60} borderRadius={16}/>
+        <SkeletonBox width={'100%'} height={60} borderRadius={16}/>
       </ThemedView>
     );
   }
@@ -100,9 +121,7 @@ const ManageFavoriteActivities = () => {
           />
         }
       >
-        {loading && !refreshing ? (
-          <ThemedText style={{ textAlign: 'center', marginTop: 20 }}>Loading...</ThemedText>
-        ) : activities.length > 0 ? (
+        {activities.length > 0 ? (
           activities.map((activity: Activity, index) => {
             const iconName = getCategoryIcon(activity);
             const iconColor = getCategoryColor(activity);
@@ -168,7 +187,7 @@ const ManageFavoriteActivities = () => {
                 opacity: 0.8
               }}
             >
-              Tap the plus button to add your favorite activities! 🏃‍♂️
+              Tap the plus button to add your favorite activities!
             </ThemedText>
           </View>
         )}

@@ -310,7 +310,7 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
           <SkeletonBox width={140} height={20} borderRadius={4} />
         ) : (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Feather name="map-pin" size={16} color={Colors[colorScheme ?? 'dark'].tint} />
+            <Feather name="map-pin" size={16} color={themeColors.tint} />
             <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>{userLocation.city}, {userLocation.state}</ThemedText>
           </View>
         )}
@@ -323,7 +323,7 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
           }}
         >
           <ThemedText style={{ fontSize: 14 }}>City</ThemedText>
-          <Feather name="globe" size={16} color={Colors[colorScheme ?? 'dark'].tint} />
+          <Feather name="globe" size={16} color={themeColors.tint} />
         </TouchableOpacity>
       </ThemedView>
 
@@ -337,7 +337,7 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
             <ThemedText style={{ fontSize: 16, marginRight: 8 }}>
               {`${selectedDistance} miles`}
             </ThemedText>
-            <Feather name="map" size={14} color={Colors[colorScheme ?? 'dark'].tint} />
+            <Feather name="map" size={14} color={themeColors.tint} />
           </View>
         </TouchableOpacity>
       </ThemedView>
@@ -362,7 +362,10 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
       {/* Show placeholder when no events */}
       {shouldShowSkeleton ? (
         <ThemedView style={{ paddingHorizontal: 16 }}>
-          <SkeletonBox width={'100%'} height={140} borderRadius={16} />
+          <SkeletonBox width={'100%'} height={172} borderRadius={16} />
+          <View style={{ width: '100%', alignItems: 'center', justifyContent: 'center', marginTop: 24 }}>
+            <SkeletonBox width={22} height={8} borderRadius={999} />
+          </View>
         </ThemedView>
       ) : (
         nearbyEvents.length === 0 ? (
@@ -373,18 +376,19 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
               flexDirection: 'row', 
               alignItems: 'center', 
               paddingHorizontal: 16, 
-              width: screenWidth 
+              width: screenWidth,
+              marginTop: 8
             }}
             onPress={fetchEvents}
           >
             <ThemedView style={{
               flex: 1,
-              height: 140,
-              backgroundColor: Colors[colorScheme ?? 'dark'].background,
+              height: 164,
+              backgroundColor: themeColors.background,
               borderRadius: 12,
               borderWidth: 2,
               borderStyle: 'dashed',
-              borderColor: Colors[colorScheme ?? 'dark'].border,
+              borderColor: themeColors.border,
               alignItems: 'center',
               justifyContent: 'center',
               padding: 16,
@@ -392,13 +396,13 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
               <IconSymbol
                 name="map.fill"
                 size={32}
-                color={Colors[colorScheme ?? 'dark'].placeholderTextColor}
+                color={themeColors.placeholderTextColor}
               />
               <ThemedText style={{ 
                 fontSize: 16, 
                 textAlign: 'center', 
                 marginTop: 12,
-                color: Colors[colorScheme ?? 'dark'].textSecondary 
+                color: themeColors.textSecondary 
               }}>
                 No nearby events found
               </ThemedText>
@@ -406,12 +410,20 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
                 fontSize: 14, 
                 textAlign: 'center', 
                 marginTop: 8,
-                color: Colors[colorScheme ?? 'dark'].textThird 
+                color: themeColors.textThird 
               }}>
                 Tap to refresh
               </ThemedText>
             </ThemedView>
           </TouchableOpacity>
+          <View style={{
+            height: 8,
+            width: 22,
+            backgroundColor: themeColors.inputBackgroundColor,
+            marginTop: 24,
+            borderRadius: 999,
+            alignSelf: 'center'
+          }} />
         </ThemedView>
       ) :
         <>
@@ -480,7 +492,7 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
           </ThemedView>
 
           {/* Pagination Dots */}
-          {totalItems > 1 && (
+          {totalItems > 0 && (
             <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8 }}>
               {Array.from({ length: totalItems }, (_, index) => (
                 <TouchableOpacity 
