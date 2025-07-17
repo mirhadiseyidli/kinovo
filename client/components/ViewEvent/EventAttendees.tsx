@@ -67,10 +67,10 @@ const AttendeeRow = React.memo<AttendeeRowProps>(({ attendee, isCreator, creator
         };
       case 'maybe':
         return {
-          backgroundColor: themeColors.maybeStatusColor,
+          backgroundColor: themeColors.maybeStatusColor + '50',
           borderColor: themeColors.maybeStatusColor,
           borderWidth: 1,
-          color: themeColors.text
+          color: 'white'
         };
       case 'rejected':
         return {

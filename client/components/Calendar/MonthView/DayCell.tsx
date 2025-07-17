@@ -53,7 +53,7 @@ const DayCell: React.FC<DayCellProps> = ({
         };
       case 'maybe':
         return {
-          backgroundColor: themeColors.maybeStatusColor,
+          backgroundColor: themeColors.maybeStatusColor + '50',
           borderColor: themeColors.maybeStatusColor,
           color: 'white'
         };

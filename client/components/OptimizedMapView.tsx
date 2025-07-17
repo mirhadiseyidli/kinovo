@@ -138,7 +138,7 @@ const OptimizedMapView: React.FC<OptimizedMapViewProps> = ({
 
   // Memoized map event handlers to prevent recreation
   const handleMapReady = useCallback(() => {
-    console.log('Map is ready');
+    // Optional: Handle Map Ready changes if needed
   }, []);
 
   const handleRegionChangeComplete = useCallback(() => {
@@ -258,6 +258,8 @@ const OptimizedMapView: React.FC<OptimizedMapViewProps> = ({
         // Memory optimization props
         cacheEnabled={true}
         loadingEnabled={true}
+        loadingIndicatorColor={themeColors.mountainGreen}
+        loadingBackgroundColor={themeColors.background}
         // Limit tile loading for better performance
         mapPadding={{ top: 0, right: 0, bottom: 0, left: 0 }}
       >

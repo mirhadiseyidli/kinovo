@@ -87,7 +87,7 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
       case 'pending':
         return themeColors.background;
       case 'maybe':
-        return themeColors.maybeStatusColor;
+        return themeColors.maybeStatusColor + '50';
       case 'accepted':
         return themeColors.mountainGreen;
       case 'rejected':

@@ -115,7 +115,7 @@ const WeekGrid: React.FC<WeekGridProps> = ({ hours, weekDates, gridRef, loading,
         color: themeColors.text,
       };
     } else if (userStatus === 'maybe') {
-      backgroundColor = themeColors.maybeStatusColor;
+      backgroundColor = themeColors.maybeStatusColor + '50';
       borderColor = themeColors.maybeStatusColor;
       borderWidth = 1;
       textStyle = {
