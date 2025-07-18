@@ -21,6 +21,9 @@ import '@/utils/backgroundNotificationHandler';
 import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
 import { BannerProvider } from '@/context/BannerContext';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { queryClient } from '@/utils/queryClient';
 
 // Configure how notifications are handled when the app is in the foreground
 Notifications.setNotificationHandler({
@@ -37,13 +40,16 @@ registerRootComponent(RootLayout);
 
 export default function RootLayout(): ReactNode {
   return (
-    <AuthProvider>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <KeyboardProvider>
-          <InnerLayout />
-        </KeyboardProvider>
-      </GestureHandlerRootView>
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <KeyboardProvider>
+            <InnerLayout />
+          </KeyboardProvider>
+        </GestureHandlerRootView>
+      </AuthProvider>
+      {__DEV__ && <ReactQueryDevtools initialIsOpen={false} />}
+    </QueryClientProvider>
   );
 }
 
