@@ -163,6 +163,8 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
   const { fetchNearByEventsPreview, loading, isFirstFetch } = useGetNearByEvents();
   const fetchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isDataReady, setIsDataReady] = useState(false);
+  const shouldShowSkeleton = isFirstFetch && (!isDataReady || loading);
+  const shouldShowNoEvents = !isFirstFetch && nearbyEvents.length === 0;
 
   const fetchEvents = useCallback(async () => {
     if (userLocation.lat !== null && userLocation.lng !== null) {
@@ -249,8 +251,6 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
     }, [debouncedFetch, userLocation])
   );
 
-  const shouldShowSkeleton = isFirstFetch && loading;
-
   const handleScrollEndDrag = (event: ScrollHandlerEvent) => {
     const offsetX = event.nativeEvent.contentOffset.x;
     const index = Math.round(offsetX / screenWidth);
@@ -299,6 +299,38 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
     });
   };
 
+  if (shouldShowSkeleton) {
+    return (
+      <ThemedView style={{ flex: 1, width: '100%' }}>
+        <ThemedView style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Feather name="map-pin" size={16} color={themeColors.tint} />
+            <SkeletonBox width={120} height={20} borderRadius={16} />
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <ThemedText style={{ fontSize: 14 }}>City</ThemedText>
+            <Feather name="globe" size={16} color={themeColors.tint} />
+          </View>
+        </ThemedView>
+        <ThemedView style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+          <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>Nearby Events</ThemedText>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <ThemedText style={{ fontSize: 16, marginRight: 8 }}>
+                {`${selectedDistance} miles`}
+              </ThemedText>
+              <Feather name="map" size={14} color={themeColors.tint} />
+            </View>
+          </View>
+        </ThemedView>
+        <SkeletonBox width={'100%'} height={164} borderRadius={16} />
+        <View style={{ width: '100%', alignItems: 'center', justifyContent: 'center', marginTop: 24 }}>
+          <SkeletonBox width={22} height={8} borderRadius={999} />
+        </View>
+      </ThemedView>
+    );
+  }
+
   // Calculate total items for pagination (5 events + see more if there are more than 5)
   const totalItems = nearbyEvents.length + (totalEventCount > 5 ? 1 : 0);
 
@@ -306,14 +338,10 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
     <ThemedView style={{ flex: 1, width: screenWidth }}>
       {/* Header */}
       <ThemedView style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, paddingHorizontal: 16 }}>
-        {shouldShowSkeleton ? (
-          <SkeletonBox width={140} height={20} borderRadius={4} />
-        ) : (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Feather name="map-pin" size={16} color={themeColors.tint} />
-            <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>{userLocation.city}, {userLocation.state}</ThemedText>
-          </View>
-        )}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <Feather name="map-pin" size={16} color={themeColors.tint} />
+          <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>{userLocation.city}, {userLocation.state}</ThemedText>
+        </View>
         <TouchableOpacity
           onPress={() => setCityModalVisible(true)}
           style={{
@@ -360,15 +388,7 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
       />
 
       {/* Show placeholder when no events */}
-      {shouldShowSkeleton ? (
-        <ThemedView style={{ paddingHorizontal: 16 }}>
-          <SkeletonBox width={'100%'} height={172} borderRadius={16} />
-          <View style={{ width: '100%', alignItems: 'center', justifyContent: 'center', marginTop: 24 }}>
-            <SkeletonBox width={22} height={8} borderRadius={999} />
-          </View>
-        </ThemedView>
-      ) : (
-        nearbyEvents.length === 0 ? (
+      {shouldShowNoEvents ? (
         <ThemedView style={{ width: screenWidth }}>
           <TouchableOpacity 
             style={{ 
@@ -425,7 +445,7 @@ const NearbyEvents: React.FC<NearbyEventsProps> = ({ refreshing, onFinishRefresh
             alignSelf: 'center'
           }} />
         </ThemedView>
-      ) :
+      ) : (
         <>
           {/* Horizontal Carousel */}
           <ThemedView style={{ width: screenWidth }}>
