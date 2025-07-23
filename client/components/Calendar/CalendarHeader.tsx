@@ -20,6 +20,8 @@ import { useCalendarViewContext } from '@/context/CalendarViewContext';
 import { useCalendarContext } from '@/context/CalendarProvider.v2';
 import { useNotifications } from '@/hooks/useNotifications';
 import { Feather } from '@expo/vector-icons';
+import { useCalendarError } from '@/context/CalendarErrorContext';
+import { CalendarErrorMessage } from './CalendarErrorMessage';
 
 interface CalendarHeaderProps {
   refreshing: boolean;
@@ -31,6 +33,7 @@ const CalendarHeaderMonthView: React.FC<CalendarHeaderProps> = ({ refreshing, on
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { view, setView } = useCalendarViewContext();
   const { currentDate, setCurrentDate, navigateToToday } = useCalendarContext();
+  const { errors, hasAnyError } = useCalendarError();
   const [monthListOpen, setMonthListOpen] = useState(false);
   const screenWidth = Dimensions.get('window').width;
   const CELL_SIZE = screenWidth / 7;
@@ -275,6 +278,16 @@ const CalendarHeaderMonthView: React.FC<CalendarHeaderProps> = ({ refreshing, on
           handleMomentumScrollEnd={handleMomentumScrollEnd}
         />
       </Animated.View>
+      
+      {/* Error Message */}
+      {hasAnyError && (
+        <CalendarErrorMessage 
+          errors={errors} 
+          showCachedDataWarning={true} 
+          currentView={view as 'Month' | 'Week' | 'Schedule'}
+        />
+      )}
+      
       <ThemedView style={{ 
         paddingHorizontal: 16, 
         marginBottom: 8, 

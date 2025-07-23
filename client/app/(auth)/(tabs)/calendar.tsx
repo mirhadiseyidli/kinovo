@@ -15,6 +15,7 @@ import { CalendarProvider, useCalendarContext } from '@/context/CalendarProvider
 import WeekView from '@/components/Calendar/WeekView';
 import FlashListScheduleView from '@/components/Calendar/ScheduleView/FlashListScheduleView';
 import MonthView from '@/components/Calendar/MonthView';
+import { CalendarErrorProvider } from '@/context/CalendarErrorContext';
 
 function RenderedCalendarView({
   refreshing,
@@ -118,18 +119,22 @@ export default function Calendar() {
       : 'Month';
 
     return (
-      <CalendarProvider initialView={initialView}>
-        <CalendarContent />
-      </CalendarProvider>
+      <CalendarErrorProvider>
+        <CalendarProvider initialView={initialView}>
+          <CalendarContent />
+        </CalendarProvider>
+      </CalendarErrorProvider>
     );
   } catch (error) {
     console.error('Error in Calendar component:', error);
     
     // Fallback to basic calendar without context
     return (
-      <CalendarProvider initialView="Month">
-        <CalendarContent />
-      </CalendarProvider>
+      <CalendarErrorProvider>
+        <CalendarProvider initialView="Month">
+          <CalendarContent />
+        </CalendarProvider>
+      </CalendarErrorProvider>
     );
   }
 };

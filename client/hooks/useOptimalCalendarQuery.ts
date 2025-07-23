@@ -28,6 +28,11 @@ interface OptimalCalendarQueryResult {
   occurrences: EventOccurrence[];
   loading: boolean;
   refreshing: boolean;
+  eventsError: boolean;
+  occurrencesError: boolean;
+  hasAnyError: boolean;
+  eventsErrorObject: any;
+  occurrencesErrorObject: any;
   refetch: () => Promise<any>;
   refreshOccurrences: () => Promise<any>;
   invalidateCalendarQueries: () => void;
@@ -196,6 +201,11 @@ export const useOptimalCalendarQuery = (
     occurrences: occurrencesQuery.data || [],
     loading: eventsQuery.isLoading || occurrencesQuery.isLoading,
     refreshing: eventsQuery.isFetching || occurrencesQuery.isFetching,
+    eventsError: eventsQuery.isError,
+    occurrencesError: occurrencesQuery.isError,
+    hasAnyError: eventsQuery.isError || occurrencesQuery.isError,
+    eventsErrorObject: eventsQuery.error,
+    occurrencesErrorObject: occurrencesQuery.error,
     refetch: async () => {
       // Refetch only this view's data without affecting other views
       const [eventsResult, occurrencesResult] = await Promise.all([

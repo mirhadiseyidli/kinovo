@@ -9,6 +9,7 @@ import { useRouter } from 'expo-router';
 import { useInfiniteFriendsEventsQuery, Event } from '@/hooks/useInfiniteEventsQuery';
 import EventComponent from '@/components/Event';
 import { SkeletonBox } from '../Skeleton';
+import { useDiscoverError } from '@/context/DiscoverErrorContext';
 
 /**
  * Friends Events Component with Infinite Query
@@ -39,6 +40,7 @@ const FriendsEventsInfinite: React.FC<FriendsEventsInfiniteProps> = React.memo((
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
+  const { setComponentError } = useDiscoverError();
 
   // Use infinite query for friends events
   const {
@@ -63,6 +65,11 @@ const FriendsEventsInfinite: React.FC<FriendsEventsInfiniteProps> = React.memo((
       onFinishRefresh?.();
     },
   });
+
+  // Report errors to centralized error handling
+  React.useEffect(() => {
+    setComponentError('friendsEvents', Boolean(error));
+  }, [error, setComponentError]);
 
   // Handle refresh
   React.useEffect(() => {
@@ -132,63 +139,7 @@ const FriendsEventsInfinite: React.FC<FriendsEventsInfiniteProps> = React.memo((
     </ThemedView>
   );
 
-  // Error state component
-  const ErrorState = () => (
-    <ThemedView style={{
-      backgroundColor: themeColors.background,
-      borderRadius: 12,
-      padding: 16,
-      borderWidth: 2,
-      borderColor: themeColors.specialRed,
-      width: '100%',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: 120,
-    }}>
-      <View style={{ marginBottom: 12 }}>
-        <IconSymbol
-          name="exclamationmark.triangle.fill"
-          size={32}
-          color={themeColors.specialRed}
-        />
-      </View>
-      <ThemedText style={{
-        fontSize: 16,
-        color: themeColors.specialRed,
-        textAlign: 'center',
-        marginBottom: 4,
-        fontWeight: '600'
-      }}>
-        Failed to load friends' events
-      </ThemedText>
-      <ThemedText style={{
-        fontSize: 14,
-        color: themeColors.placeholderTextColor,
-        textAlign: 'center',
-        opacity: 0.8,
-        marginBottom: 12,
-      }}>
-        Please check your connection and try again
-      </ThemedText>
-      <TouchableOpacity
-        style={{
-          backgroundColor: themeColors.mountainGreen,
-          paddingHorizontal: 16,
-          paddingVertical: 8,
-          borderRadius: 6,
-        }}
-        onPress={() => refetch()}
-      >
-        <ThemedText style={{
-          color: '#fff',
-          fontSize: 14,
-          fontWeight: 'bold',
-        }}>
-          Try Again
-        </ThemedText>
-      </TouchableOpacity>
-    </ThemedView>
-  );
+  // Error state handling is now centralized via DiscoverErrorMessage
 
   return (
     <ThemedView style={{ flex: 1, width: '100%' }}>
@@ -229,8 +180,6 @@ const FriendsEventsInfinite: React.FC<FriendsEventsInfiniteProps> = React.memo((
       <View style={{ flex: 1 }}>
         {showSkeleton ? (
           <SkeletonBox width={'100%'} height={120} borderRadius={16} />
-        ) : error ? (
-          <ErrorState />
         ) : friendsEvents.length > 0 ? (
           <View style={{ gap: 16 }}>
             {friendsEvents.slice(0, maxItems).map((event, index) => 

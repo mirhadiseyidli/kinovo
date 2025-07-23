@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { Feather } from '@expo/vector-icons';
+import { CityErrorProvider } from '@/context/CityErrorContext';
 
 /**
  * TanStack React Query version of City page with InfiniteEventsList
@@ -47,41 +48,43 @@ export default function City() {
   }
 
   return (
-    <ThemedView style={{ flex: 1 }}>
-      <Stack.Screen 
-        options={{
-          headerTitle: city as string,
-          headerTintColor: themeColors.text,
-          headerStyle: {
-            backgroundColor: themeColors.background,
-          },
-          headerShadowVisible: false,
-          headerShown: true,
-          headerBackButtonDisplayMode: 'minimal',
-          headerLeft: () => (
-            <TouchableOpacity 
-              onPress={goBack}
-            >
-              <Feather name="chevron-left" size={24} color={themeColors.text} />
-            </TouchableOpacity>
-          ),
-          headerRight: () => (
-            <TouchableOpacity
-              onPress={() => router.push('/(auth)/(createEvent)/EventDetails')}
-            >
-              <Feather name="plus-circle" size={24} color={themeColors.text} />
-            </TouchableOpacity>
-          ),
-        }} 
-      />
-      <StatusBar
-        barStyle="light-content"
-        translucent
-        backgroundColor="transparent"
-      />
-      {/* <CityPage /> */}
-      <CityPageV2 />
-    </ThemedView>
+    <CityErrorProvider>
+      <ThemedView style={{ flex: 1 }}>
+        <Stack.Screen 
+          options={{
+            headerTitle: city as string,
+            headerTintColor: themeColors.text,
+            headerStyle: {
+              backgroundColor: themeColors.background,
+            },
+            headerShadowVisible: false,
+            headerShown: true,
+            headerBackButtonDisplayMode: 'minimal',
+            headerLeft: () => (
+              <TouchableOpacity 
+                onPress={goBack}
+              >
+                <Feather name="chevron-left" size={24} color={themeColors.text} />
+              </TouchableOpacity>
+            ),
+            headerRight: () => (
+              <TouchableOpacity
+                onPress={() => router.push('/(auth)/(createEvent)/EventDetails')}
+              >
+                <Feather name="plus-circle" size={24} color={themeColors.text} />
+              </TouchableOpacity>
+            ),
+          }} 
+        />
+        <StatusBar
+          barStyle="light-content"
+          translucent
+          backgroundColor="transparent"
+        />
+        {/* <CityPage /> */}
+        <CityPageV2 />
+      </ThemedView>
+    </CityErrorProvider>
   );
 }
 

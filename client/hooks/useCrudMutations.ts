@@ -34,10 +34,10 @@ export interface CreateEventData {
   start_time: string | Date;
   end_time: string | Date;
   location: {
-    text: string;
-    city?: string | null;
-    state?: string | null;
-    coordinates?: {
+    text: string | null;
+    city: string | null | undefined;
+    state: string | null | undefined;
+    coordinates: {
       lat: number | null;
       lng: number | null;
     };
@@ -148,8 +148,8 @@ export const useCreateEventMutation = (config: CrudMutationConfig = {}) => {
         end_time: new Date(eventData.end_time as Date),
         location: {
           text: eventData.location.text,
-          city: eventData.location.city || null,
-          state: eventData.location.state || null,
+          city: eventData.location.city ?? null,
+          state: eventData.location.state ?? null,
           coordinates: {
             lat: eventData.location.coordinates?.lat || null,
             lng: eventData.location.coordinates?.lng || null,
@@ -213,7 +213,7 @@ export const useCreateEventMutation = (config: CrudMutationConfig = {}) => {
       return { context, optimisticEvent };
     },
 
-    onSuccess: (data, variables, context) => {
+    onSuccess: (data, variables, _context) => {
       if (invalidateQueries) {
         // Invalidate relevant queries
         if (userId) {
@@ -239,7 +239,7 @@ export const useCreateEventMutation = (config: CrudMutationConfig = {}) => {
       onSuccess?.(data);
     },
 
-    onError: (error, variables, context) => {
+    onError: (error, _variables, context) => {
       // Rollback optimistic updates
       if (enableOptimisticUpdates && context?.context && context?.optimisticEvent?._id) {
         rollbackOptimisticUpdate(queryClient, context.optimisticEvent._id, context.context);
@@ -282,14 +282,25 @@ export const useUpdateEventMutation = (config: CrudMutationConfig = {}) => {
     onMutate: async (eventData) => {
       if (!enableOptimisticUpdates) return;
 
-      // Prepare optimistic update data
-      const optimisticUpdate = {
-        ...eventData,
-        // Convert dates if provided
-        ...(eventData.start_time && { start_time: new Date(eventData.start_time as Date) }),
-        ...(eventData.end_time && { end_time: new Date(eventData.end_time as Date) }),
+      // Prepare optimistic update data with proper type conversion
+      const optimisticUpdate: Partial<Event> = {
+        // Spread all properties except dates first
+        ...Object.fromEntries(
+          Object.entries(eventData).filter(([key]) => key !== 'start_time' && key !== 'end_time')
+        ),
+        // Convert dates if provided, ensuring proper types
+        ...(eventData.start_time && { 
+          start_time: eventData.start_time instanceof Date 
+            ? eventData.start_time 
+            : new Date(eventData.start_time) 
+        }),
+        ...(eventData.end_time && { 
+          end_time: eventData.end_time instanceof Date 
+            ? eventData.end_time 
+            : new Date(eventData.end_time) 
+        }),
         updated_at: new Date(),
-      };
+      } as Partial<Event>;
 
       // Use new optimistic update system
       const context = updateEventOptimistically(
@@ -302,7 +313,7 @@ export const useUpdateEventMutation = (config: CrudMutationConfig = {}) => {
       return { context };
     },
 
-    onSuccess: (data, variables, context) => {
+    onSuccess: (data, variables, _context) => {
       if (invalidateQueries) {
         // Invalidate relevant queries
         queryClient.invalidateQueries({ queryKey: queryKeys.eventById(variables.id) });
@@ -375,7 +386,7 @@ export const useDeleteEventMutation = (config: CrudMutationConfig = {}) => {
       return { context };
     },
 
-    onSuccess: (data, variables, context) => {
+    onSuccess: (data, variables, _context) => {
       if (invalidateQueries) {
         // Invalidate relevant queries
         if (userId) {
@@ -469,7 +480,7 @@ export const useJoinEventMutation = (config: CrudMutationConfig = {}) => {
       return { previousEventData };
     },
 
-    onSuccess: (data, variables, context) => {
+    onSuccess: (data, variables, _context) => {
       if (invalidateQueries) {
         // Invalidate relevant queries
         queryClient.invalidateQueries({ queryKey: queryKeys.eventById(variables.eventId) });
@@ -556,7 +567,7 @@ export const useLeaveEventMutation = (config: CrudMutationConfig = {}) => {
       return { previousEventData };
     },
 
-    onSuccess: (data, variables, context) => {
+    onSuccess: (data, variables, _context) => {
       if (invalidateQueries) {
         // Invalidate relevant queries
         queryClient.invalidateQueries({ queryKey: queryKeys.eventById(variables.eventId) });

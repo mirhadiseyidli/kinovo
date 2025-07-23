@@ -210,8 +210,18 @@ export const createEvent = async (eventData: Partial<Event>): Promise<{success: 
 };
 
 // Update event
-export const updateEvent = async (eventId: string, eventData: Partial<Event>): Promise<{success: boolean, event: Event}> => {
-  const response = await api.put(`/api/manageevents/eventslist/update/${eventId}`, eventData);
+export const updateEvent = async (
+  eventId: string, 
+  eventData: Partial<Event>, 
+  options?: { occurrenceDate?: Date; modifyType?: 'this_only' | 'all_instances' }
+): Promise<{success: boolean, event: Event}> => {
+  const requestBody = {
+    ...eventData,
+    ...(options?.occurrenceDate && { occurrenceDate: options.occurrenceDate }),
+    ...(options?.modifyType && { modifyType: options.modifyType })
+  };
+  
+  const response = await api.put(`/api/manageevents/eventslist/update/${eventId}`, requestBody);
   return response.data;
 };
 

@@ -8,16 +8,15 @@ import { Event } from '@/types/allTypes';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAttentionRequiredQuery } from '@/hooks/useAttentionRequiredQuery';
-import { useEventInvitation } from '@/hooks/useEventInvitation';
-import { useEventContext } from '@/context/UserSessionContext';
+import { useEventMutations } from '@/hooks/useEventMutations';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { getCategoryImage } from '@/constants/CategoryImages';
 import { EventCardSkeleton } from '../Skeleton';
 import { truncateName } from '@/utils/truncateName';
 import { Image } from 'expo-image';
-import { cacheManager } from '@/utils/homeScreenCache';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
+import { useHomeError } from '@/context/HomeErrorContext';
 
 /**
  * TanStack React Query version of AttentionRequired component
@@ -57,9 +56,10 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
-  const { respondToInvitation, loading: respondToInvitationLoading } = useEventInvitation();
-  const { refreshing: contextRefreshing, invalidateEvent, refreshEvents } = useEventContext();
+  const { respondToInvitation, loading: respondToInvitationLoading } = useEventMutations();
+  // Removed contextRefreshing - TanStack Query handles refresh coordination automatically
   const { userId } = useAuthSession();
+  const { setComponentError } = useHomeError();
   const [loadingResponses, setLoadingResponses] = React.useState<{ [key: string]: boolean }>({});
   const [selectedResponse, setSelectedResponse] = React.useState<EventResponseStatus | null>(null);
 
@@ -68,8 +68,6 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
     data: eventsData,
     isLoading,
     isError,
-    error,
-    isFetching,
     refetch,
     isFirstFetch,
   } = useAttentionRequiredQuery({
@@ -77,7 +75,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
     displayMode: 'homeScreen',
     limit: initialEvents ? undefined : 3, // Limit to 3 events for home screen
     onFinishRefresh,
-    contextRefreshing,
+    // contextRefreshing removed - not needed with TanStack Query
     enableSmoothTransitions: true,
     usePlaceholderData: true,
     enabled: !initialEvents // Only fetch if no initialEvents provided
@@ -129,6 +127,11 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
     }
   }, [refreshing, refetch, initialEvents]);
 
+  // Report errors to centralized error handling
+  React.useEffect(() => {
+    setComponentError('attentionRequired', isError);
+  }, [isError, setComponentError]);
+
   const handleViewEvent = React.useCallback((event: Event) => {
     const eventId = event.originalEventId || event._id;
     if (!eventId) return;
@@ -167,24 +170,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
       await respondToInvitation(requestOptions);
       setSelectedResponse(status);
 
-      // IMPORTANT: Invalidate event from subscriptions and cache to prevent data override
-      invalidateEvent(eventId);
-
-      // Update the event with new status and update across caches
-      const updatedEvent = events.find(event => 
-        event._id === eventId || event.originalEventId === eventId
-      );
-      
-      if (updatedEvent && userId) {
-        const eventWithNewStatus = {
-          ...updatedEvent,
-          userStatus: status
-        };
-        cacheManager.updateEventAcrossCaches(eventId, eventWithNewStatus, userId);
-      }
-
-      // Refresh events to update calendar with fresh data
-      await refreshEvents(event.start_time ? new Date(event.start_time) : new Date(), 'Month');
+      // Cache invalidation and optimistic updates handled automatically by useEventMutations
 
     } catch (error) {
       console.error('Failed to respond to event:', error);
@@ -195,10 +181,10 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
     } finally {
       setLoadingResponses(prev => ({ ...prev, [eventId]: false }));
     }
-  }, [respondToInvitation, invalidateEvent, events, userId, refreshEvents]);
+  }, [respondToInvitation, events, userId]);
 
   const handleResponseAlert = React.useCallback((event: Event, status: EventResponseStatus) => {
-    if (!event.isRecurringOccurrence && event.start_time) {
+    if (event.isRecurringOccurrence && event.start_time) {
       const statusText = status === 'accepted' ? 'accept' : status === 'maybe' ? 'mark as maybe' : 'decline';
       Alert.alert(
         'Recurring Event',
@@ -589,103 +575,12 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
       )}
 
       <ThemedView style={{ paddingHorizontal: showHeader ? 16 : 0, gap: 16 }}>
-        {/* Enhanced Error State with retry option */}
-        {!initialEvents && isError && (
-          <View style={{
-            backgroundColor: themeColors.background,
-            borderRadius: 12,
-            padding: 16,
-            marginBottom: 16,
-            borderWidth: 1,
-            borderColor: '#ff6b6b',
-          }}>
-            <ThemedText style={{ 
-              color: '#ff6b6b',
-              fontSize: 16,
-              fontWeight: '600',
-              marginBottom: 8 
-            }}>
-              Unable to load attention required events
-            </ThemedText>
-            <ThemedText style={{ 
-              color: themeColors.text,
-              fontSize: 14,
-              opacity: 0.8,
-              marginBottom: 12
-            }}>
-              {error?.message || 'Something went wrong while loading your attention required events.'}
-            </ThemedText>
-            <TouchableOpacity
-              onPress={() => refetch()}
-              style={{
-                backgroundColor: themeColors.mountainGreen,
-                paddingHorizontal: 16,
-                paddingVertical: 8,
-                borderRadius: 8,
-                alignSelf: 'flex-start',
-              }}
-            >
-              <ThemedText style={{ 
-                color: themeColors.text,
-                fontSize: 14,
-                fontWeight: '600'
-              }}>
-                Try Again
-              </ThemedText>
-            </TouchableOpacity>
-          </View>
-        )}
-
         {/* Show skeleton, events, or nothing */}
         {showSkeleton ? (
           <EventCardSkeleton count={2} />
         ) : (
           <>
-            {/* Show stale data indicator when there's an error but we have cached data */}
-            {!initialEvents && isError && futureEvents.length > 0 && (
-              <View style={{
-                backgroundColor: 'rgba(255, 193, 7, 0.1)',
-                borderRadius: 8,
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                marginBottom: 8,
-                borderWidth: 1,
-                borderColor: 'rgba(255, 193, 7, 0.3)',
-              }}>
-                <ThemedText style={{ 
-                  color: '#f59e0b',
-                  fontSize: 12,
-                  fontWeight: '500',
-                  textAlign: 'center'
-                }}>
-                  ⚠️ Showing cached data - tap "Try Again" above to refresh
-                </ThemedText>
-              </View>
-            )}
-            
-            {/* Transitioning indicator for smooth UI */}
-            {/* {!initialEvents && isTransitioning && (
-              <View style={{
-                position: 'absolute',
-                top: -8,
-                right: 0,
-                zIndex: 10,
-                backgroundColor: themeColors.tint,
-                borderRadius: 12,
-                paddingHorizontal: 8,
-                paddingVertical: 4,
-              }}>
-                <ThemedText style={{ 
-                  color: '#fff',
-                  fontSize: 10,
-                  fontWeight: '600'
-                }}>
-                  Updating...
-                </ThemedText>
-              </View>
-            )} */}
-            
-            <View style={{ opacity: !initialEvents && isError ? 0.8 : 1 }}>
+            <View>
               {futureEvents.map((event, index) => renderEventCard(event, loadingResponses[event._id || ''] || false, event.userStatus === 'rejected', index))}
             </View>
           </>

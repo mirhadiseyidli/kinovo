@@ -20,6 +20,8 @@ import { User, Event as EventType } from '@/types/allTypes';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import Animated, { useSharedValue, withTiming, useAnimatedStyle } from 'react-native-reanimated';
+import { useDiscoverError } from '@/context/DiscoverErrorContext';
+import { DiscoverErrorMessage } from '@/components/Explore/DiscoverErrorMessage';
 
 /**
  * Discover Screen v2 - Using FlashList for all content
@@ -40,6 +42,7 @@ import Animated, { useSharedValue, withTiming, useAnimatedStyle } from 'react-na
 
 type SectionType = 
   | 'header'
+  | 'errorMessage'
   | 'searchBar'
   | 'nearbyEvents'
   | 'friendsEvents'
@@ -65,6 +68,7 @@ const DiscoverScreenV2 = () => {
   const tabBarHeight = useBottomTabBarHeight();
   const [refreshing, setRefreshing] = useState(false);
   const { fetchDiscoverySearchResults, loading } = useSearchEverythingDiscovery();
+  const { errors, hasAnyError, setComponentError } = useDiscoverError();
   const [suggestions, setSuggestions] = useState<{ users: User[]; events: EventType[] }>({ users: [], events: [] });
   const [isSearchActive, setIsSearchActive] = useState(false);
 
@@ -148,6 +152,11 @@ const DiscoverScreenV2 = () => {
     staleTime: 1000 * 60 * 5,
   });
 
+  // Report recommended events errors to centralized error handling
+  React.useEffect(() => {
+    setComponentError('recommendedEvents', isErrorRecommended);
+  }, [isErrorRecommended, setComponentError]);
+
   // Search functionality
   const searchResults = async () => {
     const results = await fetchDiscoverySearchResults(searchQuery);
@@ -212,6 +221,11 @@ const DiscoverScreenV2 = () => {
     // Header as first item in the list
     sections.push({ id: 'header', type: 'header' });
     
+    // Error message if any component has errors
+    if (hasAnyError) {
+      sections.push({ id: 'errorMessage', type: 'errorMessage' });
+    }
+    
     // Search bar
     sections.push({ id: 'searchBar', type: 'searchBar' });
 
@@ -251,7 +265,7 @@ const DiscoverScreenV2 = () => {
     }
 
     return sections;
-  }, [recommendedEvents, isLoadingRecommended, isErrorRecommended, hasMoreRecommended, isFetchingNextPage]);
+  }, [recommendedEvents, isLoadingRecommended, isErrorRecommended, hasMoreRecommended, isFetchingNextPage, hasAnyError]);
 
   // Render item based on section type
   const renderItem = useCallback(({ item }: ListRenderItemInfo<SectionItem>) => {
@@ -277,6 +291,9 @@ const DiscoverScreenV2 = () => {
             <Header />
           </Animated.View>
         );
+
+      case 'errorMessage':
+        return <DiscoverErrorMessage errors={errors} showCachedDataWarning={true} />;
 
       case 'searchBar':
         return (
@@ -495,6 +512,7 @@ const DiscoverScreenV2 = () => {
     onFinishRefreshFriendsEvents,
     onFinishRefreshCategories,
     onFinishRefreshCities,
+    errors,
   ]);
 
   // Get item type for FlashList optimization

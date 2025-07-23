@@ -15,16 +15,13 @@ import EventTimeAndDate from './EventTimeAndDate';
 import EventRecurrence from './EventRecurrence';
 import EventLocationInfo from './EventLocationInfo';
 import EventVisibilityInfo from './EventVisibilityInfo';
-import { useEventInvitation } from '@/hooks/useEventInvitation';
-import { useEventContext } from '@/context/UserSessionContext';
+import { useEventMutations } from '@/hooks/useEventMutations';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import AddAttendeesModal from './AddAttendeesModal';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
 import { jwtDecode } from 'jwt-decode';
-import { useCreateEventContext } from '@/context/CreateEventContext';
 import { useEventReport } from '@/hooks/useEventReport';
 import { useViewEventModal } from '@/context/ViewEventModalContext';
-import { cacheManager } from '@/utils/homeScreenCache';
 
 const EventDetailsSection: React.FC<EventProp & { isRecurringOccurrence: boolean | undefined, occurrence_start: Date | null }> = ({ event, isRecurringOccurrence, occurrence_start }) => {
   const colorScheme = useColorScheme();
@@ -32,8 +29,7 @@ const EventDetailsSection: React.FC<EventProp & { isRecurringOccurrence: boolean
   const [showAddAttendeesModal, setShowAddAttendeesModal] = useState(false);
   const { showModal } = useViewEventModal();
 
-  const { respondToInvitation, joinEvent, markNotInterested, cancelEvent: cancelEventApi } = useEventInvitation();
-  const { refreshEvents, invalidateEvent } = useEventContext();
+  const { respondToInvitation, joinEvent, markNotInterested, cancelEvent: cancelEventApi } = useEventMutations();
   const { accessToken, userId } = useAuthSession();
   const router = useRouter();
   const loggedInUserId = accessToken?.current ? (jwtDecode(accessToken.current) as any)?._id : null;
@@ -83,24 +79,11 @@ const EventDetailsSection: React.FC<EventProp & { isRecurringOccurrence: boolean
       
       await respondToInvitation(requestOptions);
       
-      // IMPORTANT: Invalidate event from subscriptions and cache to prevent data override
-      invalidateEvent(event._id);
-      
-      // Update the event with new status and update across caches
-      if (userId) {
-        const eventWithNewStatus = {
-          ...event,
-          userStatus: status
-        };
-        cacheManager.updateEventAcrossCaches(event._id, eventWithNewStatus, userId);
-      }
-      
-      // Refresh events to update calendar with fresh data
-      await refreshEvents(event.start_time ? new Date(event.start_time) : new Date(), 'Month');
+      // Cache invalidation handled automatically by useEventMutations
     } catch (error) {
       console.error('Failed to respond to invitation:', error);
     }
-  }, [event, respondToInvitation, refreshEvents, invalidateEvent, isRecurringOccurrence, occurrence_start, userId]);
+  }, [event, respondToInvitation, isRecurringOccurrence, occurrence_start, userId]);
 
   const handleJoinEvent = useCallback(async (status: 'accepted' | 'maybe') => {
     if (!event._id) return;
@@ -111,24 +94,11 @@ const EventDetailsSection: React.FC<EventProp & { isRecurringOccurrence: boolean
         status
       });
       
-      // IMPORTANT: Invalidate event from subscriptions and cache to prevent data override
-      invalidateEvent(event._id);
-      
-      // Update the event with new status and update across caches
-      if (userId) {
-        const eventWithNewStatus = {
-          ...event,
-          userStatus: status
-        };
-        cacheManager.updateEventAcrossCaches(event._id, eventWithNewStatus, userId);
-      }
-      
-      // Refresh events to update calendar with fresh data
-      await refreshEvents(event.start_time ? new Date(event.start_time) : new Date(), 'Month');
+      // Cache invalidation handled automatically by useEventMutations
     } catch (error) {
       console.error('Failed to join event:', error);
     }
-  }, [event, joinEvent, refreshEvents, invalidateEvent, userId]);
+  }, [event, joinEvent, userId]);
 
   const handleStatusChange = useCallback((status: 'accepted' | 'maybe' | 'rejected') => {
     // Check if the user is invited to this event
@@ -158,26 +128,13 @@ const EventDetailsSection: React.FC<EventProp & { isRecurringOccurrence: boolean
         eventId: event._id
       });
       
-      // IMPORTANT: Invalidate event from subscriptions and cache to prevent data override
-      invalidateEvent(event._id);
-      
-      // Update the event with new status and update across caches
-      if (userId) {
-        const eventWithNewStatus = {
-          ...event,
-          userStatus: 'rejected' as const // Mark as rejected to remove from caches
-        };
-        cacheManager.updateEventAcrossCaches(event._id, eventWithNewStatus, userId);
-      }
-      
-      // Refresh events to update calendar with fresh data
-      await refreshEvents(event.start_time ? new Date(event.start_time) : new Date(), 'Month');
+      // Cache invalidation handled automatically by useEventMutations
       // Use the centralized navigation system instead of direct router.back()
       showModal('not_interested_success', { message: 'Event marked as not interested.' });
     } catch (error) {
       console.error('Failed to mark event as not interested:', error);
     }
-  }, [event, markNotInterested, refreshEvents, invalidateEvent, showModal, userId]);
+  }, [event, markNotInterested, showModal, userId]);
 
   const acceptInvitation = useCallback(() => {
     handleStatusChange('accepted');
@@ -221,11 +178,9 @@ const EventDetailsSection: React.FC<EventProp & { isRecurringOccurrence: boolean
   }, []);
 
   const handleInviteSuccess = useCallback(() => {
-    // Refresh event data after successful invite
-    if (event._id) {
-      refreshEvents(event.start_time ? new Date(event.start_time) : new Date(), 'Month');
-    }
-  }, [event._id, refreshEvents]);
+    // Event data will be updated automatically through cache invalidation
+    // No manual refresh needed with TanStack Query
+  }, []);
 
   const handleReportEvent = useCallback(async (reason: string, details?: string) => {
     if (!event._id) return;
@@ -266,8 +221,7 @@ const EventDetailsSection: React.FC<EventProp & { isRecurringOccurrence: boolean
       
       await cancelEventApi(requestOptions);
       
-      // Refresh events to update calendar
-      await refreshEvents(event.start_time ? new Date(event.start_time) : new Date(), 'Month');
+      // Cache invalidation handled automatically by useEventMutations
       
       const message = options?.modifyType === 'this_only' 
           ? 'This event occurrence has been cancelled successfully.'
@@ -280,7 +234,7 @@ const EventDetailsSection: React.FC<EventProp & { isRecurringOccurrence: boolean
     } catch (error) {
       console.error('Failed to cancel event:', error);
     }
-  }, [event._id, cancelEventApi, refreshEvents, isRecurringOccurrence, occurrence_start, showModal]);
+  }, [event._id, cancelEventApi, isRecurringOccurrence, occurrence_start, showModal]);
 
   const cancelEvent = useCallback(() => {
     // If this is a recurring event occurrence, show the alert to choose modification type

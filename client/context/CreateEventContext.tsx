@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { CreateEventContextType, Event, AttendeeFriend } from '@/types/allTypes';
-import { useCreateEvent } from '@/hooks/useCreateEvent';
+import { useCreateEventMutation, useUpdateEventMutation } from '@/hooks/useCreateEventMutation';
+import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Stack, useNavigation } from 'expo-router';
 
 type AttendeeStatus = 'pending' | 'maybe' | 'accepted' | 'rejected';
 
@@ -23,7 +23,6 @@ const CreateEventContext = createContext<CreateEventContextType | null>(null);
 
 export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Event data state
-  const [event, setEvent] = useState<Event | null>(null);
   const [title, setTitle] = useState<string>('');
   const [category, setCategory] = useState<string | null>(null);
   const [description, setDescription] = useState<string | null>(null);
@@ -63,8 +62,9 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
   const [eventId, setEventId] = useState<string | null>(null);
 
-  // API hook
-  const { postCreateEvent, updateEvent } = useCreateEvent();
+  // TanStack Query mutations
+  const createEventMutation = useCreateEventMutation();
+  const updateEventMutation = useUpdateEventMutation();
 
   // Define loadEventForEdit separately first
   const loadEventForEdit = (eventToEdit: Event) => {
@@ -229,7 +229,6 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Reset function
   const resetEventForm = () => {
-    setEvent(null);
     setTitle('');
     setCategory(null);
     setDescription(null);
@@ -273,7 +272,6 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
       visibility,
     } as Partial<Event>;
 
-    setEvent(compiledEvent as Event);
     return compiledEvent;
   };
 
@@ -292,11 +290,11 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
       
       // Call API based on whether we're creating or editing
       if (isEditMode && eventId) {
-        // Use the new updateEvent function for editing
-        response = await updateEvent(eventId, eventData);
+        // Use TanStack Query mutation for editing
+        response = await updateEventMutation.mutateAsync({ eventId, updates: eventData });
       } else {
-        // Create new event
-        response = await postCreateEvent(eventData);
+        // Create new event with TanStack Query mutation
+        response = await createEventMutation.mutateAsync(eventData);
         console.log('ehre is htg', response)
       }
       
@@ -307,8 +305,16 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setLoading(false);
       return response;
     } catch (err: any) {
-      setError(err.message || 'Failed to save event');
+      const errorMessage = err.message || 'Failed to save event';
+      setError(errorMessage);
       setLoading(false);
+      
+      // Show error alert
+      Alert.alert(
+        'Error',
+        errorMessage
+      );
+      
       return { success: false };
     }
   };

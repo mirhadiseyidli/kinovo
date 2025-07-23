@@ -8,9 +8,9 @@ import { useUpcomingEventsQuery } from '@/hooks/useUpcomingEventsQuery';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { useRouter } from 'expo-router';
-import { useEventContext } from '@/context/UserSessionContext';
 import { EventCardSkeleton } from '../Skeleton';
 import { Event } from '@/types/allTypes';
+import { useHomeError } from '@/context/HomeErrorContext';
 
 /**
  * TanStack React Query version of UpcomingEvents component
@@ -44,7 +44,8 @@ const UpcomingEvents: React.FC<UpcomingEventsProps> = React.memo(({
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
-  const { refreshing: contextRefreshing } = useEventContext();
+  const { setComponentError } = useHomeError();
+  // Removed contextRefreshing - TanStack Query handles refresh coordination automatically
 
   // TanStack React Query hook - replaces useGetMyEvents and all manual state management
   const {
@@ -60,7 +61,7 @@ const UpcomingEvents: React.FC<UpcomingEventsProps> = React.memo(({
     displayMode: 'homeScreen',
     limit: 3, // Home screen optimization - limit to 3 events
     onFinishRefresh,
-    contextRefreshing,
+    // contextRefreshing removed - not needed with TanStack Query
     enableSmoothTransitions: true,
     usePlaceholderData: true
   });
@@ -83,6 +84,11 @@ const UpcomingEvents: React.FC<UpcomingEventsProps> = React.memo(({
       refetch();
     }
   }, [refreshing, refetch]);
+
+  // Report errors to centralized error handling
+  React.useEffect(() => {
+    setComponentError('upcomingEvents', isError);
+  }, [isError, setComponentError]);
 
   // Show skeleton only on first fetch, not on refreshes
   // This matches the legacy behavior exactly
@@ -125,103 +131,12 @@ const UpcomingEvents: React.FC<UpcomingEventsProps> = React.memo(({
         <EventCardSkeleton count={2} />
       ) : (
         <View style={{ flex: 1 }}>
-          {/* Error State - Enhanced error handling with retry option */}
-          {isError && (
-            <View style={{
-              backgroundColor: themeColors.background,
-              borderRadius: 12,
-              padding: 16,
-              marginBottom: 16,
-              borderWidth: 1,
-              borderColor: '#ff6b6b',
-            }}>
-              <ThemedText style={{ 
-                color: '#ff6b6b',
-                fontSize: 16,
-                fontWeight: '600',
-                marginBottom: 8 
-              }}>
-                Unable to load events
-              </ThemedText>
-              <ThemedText style={{ 
-                color: themeColors.text,
-                fontSize: 14,
-                opacity: 0.8,
-                marginBottom: 12
-              }}>
-                {error?.message || 'Something went wrong while loading your events.'}
-              </ThemedText>
-              <TouchableOpacity
-                onPress={() => refetch()}
-                style={{
-                  backgroundColor: themeColors.mountainGreen,
-                  paddingHorizontal: 16,
-                  paddingVertical: 8,
-                  borderRadius: 8,
-                  alignSelf: 'flex-start',
-                }}
-              >
-                <ThemedText style={{ 
-                  color: themeColors.text,
-                  fontSize: 14,
-                  fontWeight: '600'
-                }}>
-                  Try Again
-                </ThemedText>
-              </TouchableOpacity>
-            </View>
-          )}
-
           {/* Events or Empty State */}
           {events && events.length > 0 ? (
             <View style={{ gap: 16 }}>
-              {/* Show stale data indicator when there's an error but we have cached data */}
-              {isError && (
-                <View style={{
-                  backgroundColor: 'rgba(255, 193, 7, 0.1)',
-                  borderRadius: 8,
-                  paddingHorizontal: 12,
-                  paddingVertical: 8,
-                  marginBottom: 8,
-                  borderWidth: 1,
-                  borderColor: 'rgba(255, 193, 7, 0.3)',
-                }}>
-                  <ThemedText style={{ 
-                    color: '#f59e0b',
-                    fontSize: 12,
-                    fontWeight: '500',
-                    textAlign: 'center'
-                  }}>
-                    ⚠️ Showing cached data - tap "Try Again" above to refresh
-                  </ThemedText>
-                </View>
-              )}
-              
-              {/* Transitioning indicator for smooth UI */}
-              {/* {isTransitioning && (
-                <View style={{
-                  position: 'absolute',
-                  top: -8,
-                  right: 0,
-                  zIndex: 10,
-                  backgroundColor: themeColors.tint,
-                  borderRadius: 12,
-                  paddingHorizontal: 8,
-                  paddingVertical: 4,
-                }}>
-                  <ThemedText style={{ 
-                    color: '#fff',
-                    fontSize: 10,
-                    fontWeight: '600'
-                  }}>
-                    Updating...
-                  </ThemedText>
-                </View>
-              )} */}
               
               {events.map((event, index) => (
                 <View key={`${event._id}-${index}`} style={{ 
-                  opacity: isError ? 0.8 : 1 
                 }}>
                   <EventComponent 
                     event={event} 
