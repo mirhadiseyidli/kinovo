@@ -65,7 +65,6 @@ const FriendsEventsInfinitePage = () => {
           alignItems: 'center',
           backgroundColor: themeColors.background,
           marginBottom: 16,
-          paddingHorizontal: 16,
         }}>
           <DefaultProfilePicture
             profilePicture={event.creator.profile_picture}
@@ -84,7 +83,7 @@ const FriendsEventsInfinitePage = () => {
         </View>
         
         {/* Event Card */}
-        <View style={{ paddingHorizontal: 16 }}>
+        <View>
           <EventComponent event={event} loading={false} />
         </View>
       </ThemedView>
@@ -262,6 +261,7 @@ const FriendsEventsInfinitePage = () => {
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 16,
+        marginTop: 16
       }}>
         <View style={{ alignItems: 'center', marginVertical: 8 }}>
           <View style={{ marginBottom: 8 }}>

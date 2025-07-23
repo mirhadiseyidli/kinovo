@@ -524,8 +524,10 @@ const NearbyEvents: React.FC<NearbyEventsProps> = React.memo(({ refreshing, onFi
               ref={scrollRef}
               horizontal
               pagingEnabled
+              snapToInterval={screenWidth}
+              decelerationRate={Platform.OS === 'ios' ? 'fast' : 0.9}
               showsHorizontalScrollIndicator={false}
-              onScrollEndDrag={handleScrollEndDrag}
+              // onScrollEndDrag={handleScrollEndDrag}
               onMomentumScrollEnd={handleMomentumScrollEnd}
               scrollEventThrottle={16}
               style={{ marginBottom: 16 }}
