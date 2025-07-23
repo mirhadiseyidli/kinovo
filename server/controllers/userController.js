@@ -2,6 +2,7 @@ const User = require('../database/schemas/usersSchema');
 const FriendRequests = require('../database/schemas/friendRequestsSchema');
 const { sendEmail } = require('../utils/emailService'); // Make sure this exists
 const { extractS3KeyFromUrl, deleteFromS3, invalidateCloudFront } = require('../utils/cdnUtils');
+const sharp = require('sharp');
 
 require('dotenv').config();
 
@@ -898,7 +899,7 @@ const getUserImages = async (req, res) => {
   }
 };
 
-// Generate default profile picture using SVG
+// Generate default profile picture using PNG
 const generateDefaultProfilePicture = async (req, res) => {
   try {
     const { initials, backgroundColor } = req.body;
@@ -911,24 +912,35 @@ const generateDefaultProfilePicture = async (req, res) => {
     }
 
     const size = 400;
-    const fontSize = size * 0.35;
+    const fontSize = Math.floor(size * 0.35);
     
-    // Create SVG string
+    // Create SVG string with precise text centering
+    // Calculate text position to ensure perfect centering
+    const centerX = size / 2;
+    const centerY = size / 2;
+    // Adjust Y position slightly for better visual centering (accounts for font metrics)
+    const textY = centerY + (fontSize * 0.1); // Small upward adjustment
+    
     const svg = `
       <svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="${size / 2}" cy="${size / 2}" r="${size / 2}" fill="${backgroundColor}" />
-        <text x="${size / 2}" y="${size / 2}" 
-              font-family="Arial, sans-serif" 
+        <circle cx="${centerX}" cy="${centerY}" r="${size / 2}" fill="${backgroundColor}" />
+        <text x="${centerX}" y="${centerY}" 
+              font-family="Arial, Helvetica, sans-serif" 
               font-size="${fontSize}" 
               font-weight="bold" 
               fill="white" 
               text-anchor="middle" 
-              dominant-baseline="central">${initials}</text>
+              dy=".35em">${initials}</text>
       </svg>
     `.trim();
     
-    // Convert SVG to base64 data URI
-    const dataUri = `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
+    // Convert SVG to PNG using Sharp
+    const pngBuffer = await sharp(Buffer.from(svg))
+      .png()
+      .toBuffer();
+    
+    // Convert PNG buffer to base64 data URI
+    const dataUri = `data:image/png;base64,${pngBuffer.toString('base64')}`;
     
     res.status(200).json({
       success: true,

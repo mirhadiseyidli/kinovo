@@ -1,10 +1,9 @@
 import React, { useRef, useEffect } from 'react';
-import { View, TextInput, Dimensions } from 'react-native';
+import { View, TextInput } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import { useCreateEvent } from '@/hooks/useCreateEvent';
 import { useCreateEventContext } from '@/context/CreateEventContext';
 
 const EventName: React.FC = () => {
@@ -12,7 +11,6 @@ const EventName: React.FC = () => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { title, settingEventTitle } = useCreateEventContext();
-  const { width } = Dimensions.get('window');
   
   const debounceRef = useRef<number | null>(null);
 

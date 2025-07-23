@@ -15,8 +15,7 @@ import Animated, {
 import { Feather } from '@expo/vector-icons';
 import { useViewEventModal } from '@/context/ViewEventModalContext';
 import DefaultProfilePicture from '../DefaultProfilePicture';
-import { useEventInvitation } from '@/hooks/useEventInvitation';
-import { useEventContext } from '@/context/UserSessionContext';
+import { useEventMutations } from '@/hooks/useEventMutations';
 import { useLocalSearchParams } from 'expo-router';
 
 type AttendeeAvatarProps = {
@@ -170,8 +169,8 @@ const EventAttendees = ({ userId, event }: { userId: string | null, event: Event
   const [isExpanded, setIsExpanded] = useState(false);
   const attendeeCount = (event?.attendees ?? []).length || 0;
   const { showModal } = useViewEventModal();
-  const { removeAttendee } = useEventInvitation();
-  const { refreshEvents } = useEventContext();
+  const { removeAttendee } = useEventMutations();
+  // Cache invalidation handled automatically by useEventMutations
   const { occurrence_start, is_occurrence } = useLocalSearchParams();
   const [attendees, setAttendees] = useState<Event['attendees']>(event.attendees ?? []);
   
@@ -199,9 +198,12 @@ const EventAttendees = ({ userId, event }: { userId: string | null, event: Event
         requestOptions.modifyType = options.modifyType;
       }
       
-      await removeAttendee(event._id!, id, Object.keys(requestOptions).length > 0 ? requestOptions : undefined);
-      // Refresh events to update UI
-      await refreshEvents(event.start_time ? new Date(event.start_time) : new Date(), 'Month');
+      await removeAttendee({
+        eventId: event._id!,
+        attendeeId: id,
+        ...requestOptions
+      });
+      // Cache invalidation handled automatically by useEventMutations
 
       // Update the attendees list
       setAttendees(attendees?.filter(a => a.user._id !== id) ?? []);
@@ -216,7 +218,7 @@ const EventAttendees = ({ userId, event }: { userId: string | null, event: Event
     } catch (error) {
       console.error('Failed to remove attendee:', error);
     }
-  }, [event._id, event.attendees, removeAttendee, refreshEvents, isRecurringOccurrence, occurrence_start]);
+  }, [event._id, event.attendees, removeAttendee, isRecurringOccurrence, occurrence_start]);
 
   const handleRemove = useCallback(async (id: string) => {
     const attendee = event.attendees?.find(a => a.user._id === id);

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useEffect } from 'react';
 import { View, TouchableOpacity } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -13,6 +13,8 @@ import EventComponent from '@/components/Event';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { getCityByName, getStateByCity, getCityDescription } from '@/constants/Cities';
 import { EventCardSkeleton } from '@/components/Skeleton';
+import { useCityError } from '@/context/CityErrorContext';
+import { CityErrorMessage } from '@/components/Explore/CityErrorMessage';
 
 /**
  * TanStack React Query version of CityPage with InfiniteEventsList
@@ -44,6 +46,7 @@ const CityPageV2: React.FC = () => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
+  const { errors, hasAnyError, setComponentError } = useCityError();
 
   // Get city info from constants
   const cityInfo = getCityByName(city as string);
@@ -51,12 +54,17 @@ const CityPageV2: React.FC = () => {
   const cityDescription = getCityDescription(city as string);
 
   // Get event count for the header - using the same query as InfiniteEventsList
-  const { events, totalCount, isFetchingNextPage } = useInfiniteEventsQuery({
+  const { events, totalCount, isFetchingNextPage, isError: isEventsError } = useInfiniteEventsQuery({
     eventType: 'city',
     city: city as string,
     pageSize: 10,
     enabled: Boolean(city),
   });
+
+  // Report events errors to centralized error handling
+  useEffect(() => {
+    setComponentError('events', isEventsError);
+  }, [isEventsError, setComponentError]);
 
   const navigateToCreateEvent = useCallback(() => {
     // Navigate to the create event screen
@@ -101,6 +109,17 @@ const CityPageV2: React.FC = () => {
 
       {/* Events Section Header */}
       <ThemedView style={{ paddingHorizontal: 16 }}>
+        {/* Error Message */}
+        {hasAnyError && (
+          <View style={{ marginHorizontal: -16, marginTop: 16 }}>
+            <CityErrorMessage 
+              errors={errors} 
+              showCachedDataWarning={true} 
+              cityName={city as string}
+            />
+          </View>
+        )}
+        
         <ThemedView style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 16, marginTop: 16 }}>
           <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>
             Events in {city}
@@ -111,7 +130,7 @@ const CityPageV2: React.FC = () => {
         </ThemedView>
       </ThemedView>
     </View>
-  ), [city, cityInfo, stateName, cityDescription, themeColors, events.length]);
+  ), [city, cityInfo, stateName, cityDescription, themeColors, events.length, hasAnyError, errors]);
 
   // Custom event item renderer
   const renderEventItem = useCallback((event: InfiniteEvent, index: number) => {
@@ -191,7 +210,6 @@ const CityPageV2: React.FC = () => {
       <View style={{ paddingHorizontal: 16 }}>
         {/* Error State */}
         <TouchableOpacity
-          onPress={navigateToCreateEvent}
           style={{
             backgroundColor: themeColors.background,
             borderRadius: 12,

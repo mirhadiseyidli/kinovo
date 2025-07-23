@@ -16,6 +16,8 @@ import { usePastEventsInfiniteQuery } from '@/hooks/usePastEventsInfiniteQuery';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import Animated, { useSharedValue, withTiming, useAnimatedStyle } from 'react-native-reanimated';
+import { useHomeError } from '@/context/HomeErrorContext';
+import { HomeErrorMessage } from '@/components/Home/HomeErrorMessage';
 
 /**
  * HomeScreen v2 - Using FlashList for all content with infinite scroll for past events
@@ -36,18 +38,17 @@ import Animated, { useSharedValue, withTiming, useAnimatedStyle } from 'react-na
  * - pastEvent: Individual past event
  * - pastEventsFooter: Loading indicator for infinite scroll
  * - pastEventsEmpty: Empty state for past events
- * - pastEventsError: Error state for past events
  */
 
 type SectionType = 
   | 'header'
+  | 'errorMessage'
   | 'upcomingEvents'
   | 'attentionRequired'
   | 'pastEventsHeader'
   | 'pastEvent'
   | 'pastEventsFooter'
-  | 'pastEventsEmpty'
-  | 'pastEventsError';
+  | 'pastEventsEmpty';
 
 interface SectionItem {
   id: string;
@@ -61,6 +62,7 @@ const HomeScreenV2 = () => {
   const flashListRef = useRef<FlashList<SectionItem>>(null);
   const tabBarHeight = useBottomTabBarHeight();
   const [refreshing, setRefreshing] = useState(false);
+  const { errors, hasAnyError, clearAllErrors, setComponentError } = useHomeError();
 
   // Refresh states for individual sections
   const [refreshingUpcomingEvents, setRefreshingUpcomingEvents] = useState(false);
@@ -144,7 +146,10 @@ const HomeScreenV2 = () => {
     staleTime: 1000 * 60 * 5, // 5 minutes cache
   });
 
-
+  // Report past events errors to centralized error handling
+  React.useEffect(() => {
+    setComponentError('pastEvents', isErrorPastEvents);
+  }, [isErrorPastEvents, setComponentError]);
 
   // Refresh handlers
   const onRefresh = useCallback(async () => {
@@ -152,19 +157,32 @@ const HomeScreenV2 = () => {
     setRefreshingUpcomingEvents(true);
     setRefreshingAttentionRequired(true);
     
-    // Refresh past events
-    await refetchPastEvents();
-    
-    // Other sections will handle their own refresh
-    setRefreshing(false);
+    try {
+      // Refresh past events
+      await refetchPastEvents();
+      
+      // Note: Error clearing happens automatically via useEffect hooks in each component
+      // When refetch succeeds, isError becomes false and components report success
+      // When refetch fails, isError remains true and components report failure
+    } catch (error) {
+      // If past events refresh fails, the error will be reported by the useEffect
+      console.error('Past events refresh failed:', error);
+    } finally {
+      // Other sections will handle their own refresh
+      setRefreshing(false);
+    }
   }, [refetchPastEvents]);
 
   const onFinishRefreshUpcomingEvents = useCallback(() => {
     setRefreshingUpcomingEvents(false);
+    // Clear errors when individual component refresh finishes successfully
+    // The component's useEffect will set the error state based on the result
   }, []);
 
   const onFinishRefreshAttentionRequired = useCallback(() => {
     setRefreshingAttentionRequired(false);
+    // Clear errors when individual component refresh finishes successfully
+    // The component's useEffect will set the error state based on the result
   }, []);
 
   // Generate filter label for past events header
@@ -196,6 +214,11 @@ const HomeScreenV2 = () => {
     // Header as first item in the list
     sections.push({ id: 'header', type: 'header' });
     
+    // Error message if any component has errors
+    if (hasAnyError) {
+      sections.push({ id: 'errorMessage', type: 'errorMessage' });
+    }
+    
     // Upcoming Events section
     sections.push({ id: 'upcomingEvents', type: 'upcomingEvents' });
     
@@ -209,9 +232,6 @@ const HomeScreenV2 = () => {
     if (isLoadingPastEvents && pastEvents.length === 0) {
       // Show skeleton
       sections.push({ id: 'pastEventsLoading', type: 'pastEventsEmpty', data: 'loading' });
-    } else if (isErrorPastEvents && pastEvents.length === 0) {
-      // Show error
-      sections.push({ id: 'pastEventsError', type: 'pastEventsError' });
     } else if (pastEvents.length === 0) {
       // Show empty state
       sections.push({ id: 'pastEventsEmpty', type: 'pastEventsEmpty', data: 'empty' });
@@ -232,7 +252,7 @@ const HomeScreenV2 = () => {
     }
 
     return sections;
-  }, [pastEvents, isLoadingPastEvents, isErrorPastEvents, hasMorePastEvents, isFetchingNextPagePastEvents]);
+  }, [pastEvents, isLoadingPastEvents, isErrorPastEvents, hasMorePastEvents, isFetchingNextPagePastEvents, hasAnyError]);
 
   // Render item based on section type
   const renderItem = useCallback(({ item }: ListRenderItemInfo<SectionItem>) => {
@@ -258,6 +278,9 @@ const HomeScreenV2 = () => {
             <Header />
           </Animated.View>
         );
+
+      case 'errorMessage':
+        return <HomeErrorMessage errors={errors} showCachedDataWarning={true} />;
 
       case 'upcomingEvents':
         return (
@@ -398,52 +421,6 @@ const HomeScreenV2 = () => {
           </TouchableOpacity>
         );
 
-      case 'pastEventsError':
-        return (
-          <TouchableOpacity
-            style={{
-              backgroundColor: themeColors.background,
-              borderRadius: 12,
-              padding: 16,
-              borderWidth: 2,
-              borderStyle: 'dashed',
-              borderColor: themeColors.border,
-              marginHorizontal: 16,
-              alignItems: 'center',
-              justifyContent: 'center',
-              minHeight: 120,
-            }}
-            onPress={() => refetchPastEvents()}
-          >
-            <View style={{ marginBottom: 12 }}>
-              <IconSymbol
-                name="exclamationmark.triangle.fill"
-                size={32}
-                color={themeColors.placeholderTextColor}
-              />
-            </View>
-            <ThemedText
-              style={{
-                fontSize: 16,
-                textAlign: 'center',
-                color: themeColors.textSecondary,
-                marginBottom: 8,
-              }}
-            >
-              Unable to load past events
-            </ThemedText>
-            <ThemedText
-              style={{
-                fontSize: 14,
-                textAlign: 'center',
-                color: themeColors.textThird,
-              }}
-            >
-              Tap to try again
-            </ThemedText>
-          </TouchableOpacity>
-        );
-
       case 'pastEventsFooter':
         return (
           <View style={{ 
@@ -475,6 +452,7 @@ const HomeScreenV2 = () => {
     themeColors,
     refetchPastEvents,
     getPastEventsFilterLabel,
+    errors,
   ]);
 
   // Get item type for FlashList optimization

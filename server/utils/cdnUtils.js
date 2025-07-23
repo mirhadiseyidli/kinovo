@@ -207,7 +207,6 @@ const uploadToS3 = async (buffer, key, contentType, options = {}) => {
   const {
     CacheControl = 'max-age=31536000', // 1 year cache
     Metadata = {},
-    ACL = 'public-read',
     ...additionalOptions
   } = options;
 
@@ -218,7 +217,6 @@ const uploadToS3 = async (buffer, key, contentType, options = {}) => {
     ContentType: contentType,
     CacheControl,
     Metadata,
-    ACL,
     ...additionalOptions
   };
 

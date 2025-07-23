@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useEffect } from 'react';
 import { View, TouchableOpacity } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -12,6 +12,8 @@ import { useInfiniteEventsQuery, InfiniteEvent } from '@/hooks/useInfiniteEvents
 import EventComponent from '@/components/Event';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useCategoryError } from '@/context/CategoryErrorContext';
+import { CategoryErrorMessage } from '@/components/Explore/CategoryErrorMessage';
 
 /**
  * TanStack React Query version of CategoryPage with InfiniteEventsList
@@ -43,14 +45,20 @@ const CategoryPageV2: React.FC = () => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
+  const { errors, hasAnyError, setComponentError } = useCategoryError();
 
   // Get event count for the header - using the same query as InfiniteEventsList
-  const { events, totalCount, isFetchingNextPage } = useInfiniteEventsQuery({
+  const { events, totalCount, isFetchingNextPage, isError: isEventsError } = useInfiniteEventsQuery({
     eventType: 'category',
     category: category as string,
     pageSize: 10,
     enabled: Boolean(category),
   });
+
+  // Report events errors to centralized error handling
+  useEffect(() => {
+    setComponentError('events', isEventsError);
+  }, [isEventsError, setComponentError]);
 
   const navigateToCreateEvent = useCallback(async () => {
     // Store the selected category in AsyncStorage
@@ -97,6 +105,15 @@ const CategoryPageV2: React.FC = () => {
         </View>
       </ThemedView>
 
+      {/* Error Message */}
+      {hasAnyError && (
+        <CategoryErrorMessage 
+          errors={errors} 
+          showCachedDataWarning={true} 
+          categoryName={category as string}
+        />
+      )}
+
       {/* Section Header */}
       <ThemedView style={{
         flexDirection: 'row',
@@ -105,7 +122,7 @@ const CategoryPageV2: React.FC = () => {
         marginBottom: 16,
       }}>
         <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>
-          Upcoming Events
+          {category} Events
         </ThemedText>
         
         {/* Show event count with loading indicator */}
@@ -138,7 +155,7 @@ const CategoryPageV2: React.FC = () => {
         </View>
       </ThemedView>
     </View>
-  ), [category, themeColors, events.length, totalCount, isFetchingNextPage]);
+  ), [category, themeColors, events.length, totalCount, isFetchingNextPage, hasAnyError, errors]);
 
   // Custom event item renderer
   const renderEventItem = useCallback((event: InfiniteEvent, index: number) => {
@@ -249,90 +266,90 @@ const CategoryPageV2: React.FC = () => {
   }, [category, themeColors]);
 
   // Custom error state
-  const renderErrorState = useCallback((error: any, retry: () => void) => {
-    return (
-      <View style={{ flex: 1, padding: 16 }}>
-        {/* Error State */}
-        <View style={{
-          flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
-          paddingVertical: 60,
-        }}>
-          <View style={{
-            width: 60,
-            height: 60,
-            borderRadius: 30,
-            backgroundColor: themeColors.background,
-            justifyContent: 'center',
-            alignItems: 'center',
-            marginBottom: 20,
-          }}>
-            <IconSymbol
-              name="exclamationmark.triangle.fill"
-              size={24}
-              color={themeColors.text}
-            />
-          </View>
-          <ThemedText style={{
-            fontSize: 18,
-            fontWeight: 'bold',
-            color: themeColors.text,
-            marginBottom: 8,
-            textAlign: 'center',
-          }}>
-            Unable to load {category} events
-          </ThemedText>
-          <ThemedText style={{
-            fontSize: 14,
-            color: themeColors.textSecondary,
-            textAlign: 'center',
-            marginBottom: 20,
-            lineHeight: 20,
-          }}>
-            {error?.message || 'An unexpected error occurred.'}
-            {'\n'}Please check your connection and try again.
-          </ThemedText>
-          <View style={{ flexDirection: 'row', gap: 12 }}>
-            <TouchableOpacity
-              style={{
-                backgroundColor: themeColors.background,
-                paddingHorizontal: 20,
-                paddingVertical: 12,
-                borderRadius: 8,
-              }}
-              onPress={retry}
-            >
-              <ThemedText style={{
-                color: themeColors.text,
-                fontSize: 16,
-                fontWeight: 'bold',
-              }}>
-                Try Again
-              </ThemedText>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={{
-                backgroundColor: getCategoryColor(category as string),
-                paddingHorizontal: 20,
-                paddingVertical: 12,
-                borderRadius: 8,
-              }}
-              onPress={navigateToCreateEvent}
-            >
-              <ThemedText style={{
-                color: 'white',
-                fontSize: 16,
-                fontWeight: 'bold',
-              }}>
-                Create Event
-              </ThemedText>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    );
-  }, [category, themeColors, navigateToCreateEvent]);
+  // const renderErrorState = useCallback((error: any, retry: () => void) => {
+  //   return (
+  //     <View style={{ flex: 1, padding: 16 }}>
+  //       {/* Error State */}
+  //       <View style={{
+  //         flex: 1,
+  //         justifyContent: 'center',
+  //         alignItems: 'center',
+  //         paddingVertical: 60,
+  //       }}>
+  //         <View style={{
+  //           width: 60,
+  //           height: 60,
+  //           borderRadius: 30,
+  //           backgroundColor: themeColors.background,
+  //           justifyContent: 'center',
+  //           alignItems: 'center',
+  //           marginBottom: 20,
+  //         }}>
+  //           <IconSymbol
+  //             name="exclamationmark.triangle.fill"
+  //             size={24}
+  //             color={themeColors.text}
+  //           />
+  //         </View>
+  //         <ThemedText style={{
+  //           fontSize: 18,
+  //           fontWeight: 'bold',
+  //           color: themeColors.text,
+  //           marginBottom: 8,
+  //           textAlign: 'center',
+  //         }}>
+  //           Unable to load {category} events
+  //         </ThemedText>
+  //         <ThemedText style={{
+  //           fontSize: 14,
+  //           color: themeColors.textSecondary,
+  //           textAlign: 'center',
+  //           marginBottom: 20,
+  //           lineHeight: 20,
+  //         }}>
+  //           {error?.message || 'An unexpected error occurred.'}
+  //           {'\n'}Please check your connection and try again.
+  //         </ThemedText>
+  //         <View style={{ flexDirection: 'row', gap: 12 }}>
+  //           <TouchableOpacity
+  //             style={{
+  //               backgroundColor: themeColors.background,
+  //               paddingHorizontal: 20,
+  //               paddingVertical: 12,
+  //               borderRadius: 8,
+  //             }}
+  //             onPress={retry}
+  //           >
+  //             <ThemedText style={{
+  //               color: themeColors.text,
+  //               fontSize: 16,
+  //               fontWeight: 'bold',
+  //             }}>
+  //               Try Again
+  //             </ThemedText>
+  //           </TouchableOpacity>
+  //           <TouchableOpacity
+  //             style={{
+  //               backgroundColor: getCategoryColor(category as string),
+  //               paddingHorizontal: 20,
+  //               paddingVertical: 12,
+  //               borderRadius: 8,
+  //             }}
+  //             onPress={navigateToCreateEvent}
+  //           >
+  //             <ThemedText style={{
+  //               color: 'white',
+  //               fontSize: 16,
+  //               fontWeight: 'bold',
+  //             }}>
+  //               Create Event
+  //             </ThemedText>
+  //           </TouchableOpacity>
+  //         </View>
+  //       </View>
+  //     </View>
+  //   );
+  // }, [category, themeColors, navigateToCreateEvent]);
 
   if (!category) {
     return (
@@ -352,7 +369,7 @@ const CategoryPageV2: React.FC = () => {
         renderItem={renderEventItem}
         renderEmptyState={renderEmptyState}
         renderLoadingState={renderLoadingState}
-        renderErrorState={renderErrorState}
+        // renderErrorState={renderErrorState}
         ListHeaderComponent={renderListHeader}
         estimatedItemSize={200}
         onEndReachedThreshold={0.5}

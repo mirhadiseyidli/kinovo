@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
 import { useOptimalCalendarQuery } from '@/hooks/useOptimalCalendarQuery';
 import { Event } from '@/types/allTypes';
@@ -9,6 +9,7 @@ import {
   addWeeks, 
   subWeeks 
 } from 'date-fns';
+import { useCalendarError } from './CalendarErrorContext';
 
 /**
  * CalendarProvider.v2 - TanStack Query-based Calendar Provider
@@ -81,11 +82,24 @@ export const CalendarProvider: React.FC<CalendarProviderProps> = ({
   const { userId } = useAuthSession();
   const [currentDate, setCurrentDate] = useState(initialDate);
   const [currentView, setCurrentView] = useState(initialView);
+  const { setComponentError, clearAllErrors } = useCalendarError();
 
   // Single optimal hook call
   const calendarQuery = useOptimalCalendarQuery(currentDate, currentView, {
     staleTime: currentView === 'Month' ? 10 * 60 * 1000 : currentView === 'Week' ? 3 * 60 * 1000 : 5 * 60 * 1000,
   });
+
+  // Report errors to centralized error handling - unified approach
+  useEffect(() => {
+    // If both queries are successful, clear all errors
+    if (!calendarQuery.eventsError && !calendarQuery.occurrencesError && !calendarQuery.loading) {
+      clearAllErrors();
+    } else {
+      // Otherwise, report current error states
+      setComponentError('calendarData', calendarQuery.eventsError);
+      setComponentError('occurrences', calendarQuery.occurrencesError);
+    }
+  }, [calendarQuery.eventsError, calendarQuery.occurrencesError, calendarQuery.loading, setComponentError, clearAllErrors]);
 
   // Navigation functions
   const navigateToToday = useCallback(() => {

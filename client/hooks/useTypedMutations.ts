@@ -76,7 +76,7 @@ export const useAdvancedEventMutation = () => {
         text: eventData.location?.text || 'TBD',
         city: eventData.location?.city,
         state: eventData.location?.state,
-        coordinates: eventData.location?.coordinates
+        coordinates: eventData.location?.coordinates || { lat: null, lng: null }
       },
       category: eventData.category || 'other',
       visibility: eventData.visibility || 'public',
@@ -174,7 +174,7 @@ export const useBatchEventMutations = () => {
             text: event.location?.text || 'TBD',
             city: event.location?.city,
             state: event.location?.state,
-            coordinates: event.location?.coordinates
+            coordinates: event.location?.coordinates || { lat: null, lng: null }
           },
           category: event.category || 'other',
           visibility: event.visibility || 'public',
@@ -212,7 +212,7 @@ export const useBatchEventMutations = () => {
             text: update.updates.location.text || 'TBD',
             city: update.updates.location.city,
             state: update.updates.location.state,
-            coordinates: update.updates.location.coordinates
+            coordinates: update.updates.location.coordinates || { lat: null, lng: null }
           } : {
             text: 'TBD',
             city: null,
@@ -378,7 +378,7 @@ export const useExampleEventCreation = () => {
           text: eventData.location.text || 'TBD',
           city: eventData.location.city,
           state: eventData.location.state,
-          coordinates: eventData.location.coordinates
+          coordinates: eventData.location.coordinates || { lat: null, lng: null }
         } : {
           text: 'TBD',
           city: null,

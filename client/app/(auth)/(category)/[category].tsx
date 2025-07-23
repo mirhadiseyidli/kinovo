@@ -8,6 +8,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { CategoryErrorProvider } from '@/context/CategoryErrorContext';
 
 /**
  * TanStack React Query version of Category page with InfiniteEventsList
@@ -61,35 +62,37 @@ export default function CategoryV2() {
   }
 
   return (
-    <ThemedView style={{ flex: 1 }}>
-      <Stack.Screen 
-        options={{
-          headerTitle: category as string,
-          headerTintColor: themeColors.text,
-          headerStyle: {
-            backgroundColor: themeColors.background,
-          },
-          headerShadowVisible: false,
-          headerShown: true,
-          headerBackButtonDisplayMode: 'minimal',
-          headerLeft: () => (
-            <TouchableOpacity 
-              onPress={goBack}
-            >
-              <Feather name="chevron-left" size={24} color={themeColors.text} />
-            </TouchableOpacity>
-          ),
-          headerRight: () => (
-            <TouchableOpacity
-              onPress={handleCreateEvent}
-            >
-              <Feather name="plus-circle" size={24} color={themeColors.text} />
-            </TouchableOpacity>
-          ),
-        }} 
-      />
-      <CategoryPageV2 />
-    </ThemedView>
+    <CategoryErrorProvider>
+      <ThemedView style={{ flex: 1 }}>
+        <Stack.Screen 
+          options={{
+            headerTitle: category as string,
+            headerTintColor: themeColors.text,
+            headerStyle: {
+              backgroundColor: themeColors.background,
+            },
+            headerShadowVisible: false,
+            headerShown: true,
+            headerBackButtonDisplayMode: 'minimal',
+            headerLeft: () => (
+              <TouchableOpacity 
+                onPress={goBack}
+              >
+                <Feather name="chevron-left" size={24} color={themeColors.text} />
+              </TouchableOpacity>
+            ),
+            headerRight: () => (
+              <TouchableOpacity
+                onPress={handleCreateEvent}
+              >
+                <Feather name="plus-circle" size={24} color={themeColors.text} />
+              </TouchableOpacity>
+            ),
+          }} 
+        />
+        <CategoryPageV2 />
+      </ThemedView>
+    </CategoryErrorProvider>
   );
 }
 

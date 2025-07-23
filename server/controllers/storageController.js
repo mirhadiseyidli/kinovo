@@ -63,6 +63,7 @@ const uploadProfilePicture = async (req, res) => {
       s3Key,
       'image/jpeg'
     );
+    console.log(uploadResult)
 
     if (!uploadResult.success) {
       return res.status(500).json({ 

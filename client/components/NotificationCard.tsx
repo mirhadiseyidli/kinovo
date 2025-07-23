@@ -6,13 +6,11 @@ import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import DefaultProfilePicture from './DefaultProfilePicture';
 import { NotificationCardProps } from '@/types/allTypes';
 import InvitationActionButtons from './InvitationActionButtons';
-import { useEventInvitation } from '@/hooks/useEventInvitation';
+import { useEventMutations } from '@/hooks/useEventMutations';
 import { ThemedText } from '@/components/ThemedText';
 import { getCategoryImage } from '@/constants/CategoryImages';
 import { Image } from 'expo-image';
 import { SkeletonBox } from './Skeleton';
-import { useEventContext } from '@/context/UserSessionContext';
-import { cacheManager } from '@/utils/homeScreenCache';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
 
 type EventResponseStatus = 'accepted' | 'maybe' | 'rejected';
@@ -20,7 +18,7 @@ type EventResponseStatus = 'accepted' | 'maybe' | 'rejected';
 const NotificationCard: React.FC<NotificationCardProps> = React.memo(({ notification, onPress, isMarking = false }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const { invalidateEvent, refreshEvents } = useEventContext();
+  // Cache invalidation handled automatically by useEventMutations
   const { userId } = useAuthSession();
 
   const isUserNotification = ['friend_request_accepted', 'someone_from_contacts_joined'].includes(notification.type);
@@ -68,7 +66,7 @@ const NotificationCard: React.FC<NotificationCardProps> = React.memo(({ notifica
     return `${Math.floor(diffInMinutes / 1440)}d ago`;
   }, [notification.time, notification.created_at]);
 
-  const { respondToInvitation, loading: respondToInvitationLoading } = useEventInvitation();
+  const { respondToInvitation, loading: respondToInvitationLoading } = useEventMutations();
   const [selectedResponse, setSelectedResponse] = useState<EventResponseStatus | null>(null);
 
   const handleInvitationResponse = React.useCallback(async (status: EventResponseStatus, options?: { modifyType: 'this_only' | 'all_future' }) => {
@@ -87,11 +85,7 @@ const NotificationCard: React.FC<NotificationCardProps> = React.memo(({ notifica
       setSelectedResponse(status);
       await respondToInvitation(requestOptions);
 
-      // IMPORTANT: Invalidate event from subscriptions and cache to prevent data override
-      invalidateEvent(notification.event._id);
-
-      // Refresh events to update calendar with fresh data
-      await refreshEvents(notification.event.start_time ? new Date(notification.event.start_time) : new Date(), 'Month');
+      // Cache invalidation and optimistic updates handled automatically by useEventMutations
     } catch (err) {
       // errors already handled in hook
     }

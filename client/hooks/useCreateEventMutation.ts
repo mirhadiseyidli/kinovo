@@ -154,12 +154,19 @@ export const useUpdateEventMutation = () => {
 
   return useMutation({
     mutationKey: ['events', 'update'],
-    mutationFn: async (variables: { eventId: string; updates: Partial<Event> }) => {
+    mutationFn: async (variables: { eventId: string; updates: Partial<Event>; occurrenceDate?: Date; modifyType?: 'this_only' | 'all_instances' }) => {
       const { updateEvent } = await import('@/utils/queryFunctions');
-      return updateEvent(variables.eventId, variables.updates);
+      const { eventId, updates, occurrenceDate, modifyType } = variables;
+      
+      // Pass recurring event options if provided
+      if (occurrenceDate && modifyType) {
+        return updateEvent(eventId, updates, { occurrenceDate, modifyType });
+      }
+      
+      return updateEvent(eventId, updates);
     },
 
-    onMutate: async (variables) => {
+    onMutate: async ({ eventId, updates }) => {
       if (!userId) return;
 
       // Cancel outgoing refetches
@@ -179,8 +186,8 @@ export const useUpdateEventMutation = () => {
           if (!oldEvents) return oldEvents;
           
           return oldEvents.map(event =>
-            event._id === variables.eventId
-              ? { ...event, ...variables.updates, updatedAt: new Date() }
+            event._id === eventId
+              ? { ...event, ...updates, updatedAt: new Date() }
               : event
           );
         }
@@ -189,7 +196,7 @@ export const useUpdateEventMutation = () => {
       return { previousEvents };
     },
 
-    onError: (error, variables, context) => {
+    onError: (error, _variables, context) => {
       console.error('Update event mutation failed:', error);
       
       // Rollback optimistic update
@@ -201,7 +208,7 @@ export const useUpdateEventMutation = () => {
       }
     },
 
-    onSuccess: (response, variables) => {
+    onSuccess: (response, { eventId }) => {
       console.log('Event updated successfully:', response);
       
       // Extract the event from the response
@@ -215,7 +222,7 @@ export const useUpdateEventMutation = () => {
             if (!oldEvents) return oldEvents;
             
             return oldEvents.map(event =>
-              event._id === variables.eventId ? updatedEvent : event
+              event._id === eventId ? updatedEvent : event
             );
           }
         );
@@ -295,7 +302,7 @@ export const useDeleteEventMutation = () => {
       return { previousEvents, deletedEventId: eventId };
     },
 
-    onError: (error, variables, context) => {
+    onError: (error, _variables, context) => {
       console.error('Delete event mutation failed:', error);
       
       // Rollback optimistic update
@@ -307,7 +314,7 @@ export const useDeleteEventMutation = () => {
       }
     },
 
-    onSuccess: (result, eventId) => {
+    onSuccess: (_result, eventId) => {
       console.log('Event deleted successfully:', eventId);
       
       // Invalidate related queries

@@ -13,6 +13,7 @@ import { TabFlashList } from '@/components/CollapsibleTab/tab-flash-list';
 import { Route } from '@/components/CollapsibleTab';
 import { SkeletonBox, EventCardSkeleton } from '@/components/Skeleton';
 import { Event } from '@/types/allTypes';
+import PastEvent from '@/components/Home/PastEvent';
 
 /**
  * UsersEvents.v2 - TanStack Query-based User Events Component
@@ -86,7 +87,8 @@ export default React.memo(function UserEvents({ userId, route, refreshing }: Use
   const renderItem = ({ item }: { item: Event }) => {
     return (
       <View style={{ marginBottom: 16 }}>
-        <EventView key={item._id} event={item} loading={false} />
+        <PastEvent key={item._id} event={item} loading={false} /> 
+        {/* <EventView key={item._id} event={item} loading={false} /> */}
       </View>
     );
   };

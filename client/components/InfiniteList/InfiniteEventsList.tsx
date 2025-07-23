@@ -18,6 +18,9 @@ import {
 } from '@/hooks/useInfiniteEventsQuery';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { IconSymbol } from '@/components/ui/IconSymbol';
+import { ThemedText } from '@/components/ThemedText';
+
 
 /**
  * Infinite Events List Component
@@ -177,46 +180,53 @@ const DefaultErrorState: React.FC<{
   const colors = Colors[colorScheme];
   
   return (
-    <View style={{
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingVertical: 60,
-    }}>
-      <Text style={{
-        fontSize: 18,
-        color: colors.text,
-        textAlign: 'center',
-        marginBottom: 8,
-      }}>
-        Failed to load events
-      </Text>
-      <Text style={{
-        fontSize: 14,
-        color: colors.textSecondary,
-        textAlign: 'center',
-        marginBottom: 16,
-      }}>
-        {error?.message || 'An unexpected error occurred'}
-      </Text>
-      <TouchableOpacity
-        style={{
-          backgroundColor: colors.background,
-          paddingHorizontal: 20,
-          paddingVertical: 10,
-          borderRadius: 6,
-        }}
-        onPress={retry}
-      >
-        <Text style={{
-          color: colors.text,
-          fontSize: 14,
-          fontWeight: 'bold',
-        }}>
-          Try Again
-        </Text>
-      </TouchableOpacity>
-    </View>
+    <View style={{ paddingHorizontal: 16 }}>
+        {/* Error State */}
+        <TouchableOpacity
+          style={{
+            backgroundColor: colors.background,
+            borderRadius: 12,
+            padding: 16,
+            borderWidth: 2,
+            borderStyle: 'dashed',
+            borderColor: colors.border,
+            width: '100%',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: 120,
+            marginTop: 8,
+          }}
+        >
+          <View style={{ marginBottom: 12 }}>
+            <IconSymbol
+              name="calendar"
+              size={32}
+              color={colors.placeholderTextColor}
+            />
+          </View>
+          <ThemedText 
+            style={{ 
+              fontSize: 16, 
+              color: colors.placeholderTextColor,
+              textAlign: 'center',
+              marginBottom: 4,
+              fontWeight: '600'
+            }}
+          >
+            Unable to load events
+          </ThemedText>
+          <ThemedText 
+            style={{ 
+              fontSize: 14, 
+              color: colors.placeholderTextColor,
+              textAlign: 'center',
+              opacity: 0.8
+            }}
+          >
+            Pull to refresh or check your connection
+          </ThemedText>
+        </TouchableOpacity>
+      </View>
   );
 };
 

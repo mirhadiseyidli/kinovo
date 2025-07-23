@@ -10,7 +10,7 @@ import { ScrollView, View, Text, ActivityIndicator, Alert, TouchableOpacity, Ima
 import { Feather } from '@expo/vector-icons';
 import type { CreateEventTabParamList, AttendeeFriend } from '@/types/allTypes';
 import { useCreateEventContext } from '@/context/CreateEventContext';
-import { useCreateEvent } from '@/hooks/useCreateEvent';
+import { useUpdateEventMutation } from '@/hooks/useCreateEventMutation';
 import { format } from 'date-fns';
 import DefaultProfilePicture from '@/components/DefaultProfilePicture';
 import { CreateEventScrollContext } from '@/context/CreateEventScrollContext';
@@ -27,7 +27,7 @@ export default React.memo(function EventAttendeesAndOptions() {
   const [suggestions, setSuggestions] = useState<AttendeeFriend[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const suggestionSelectRef = useRef<((item: any) => void) | null>(null);
-  const { updateEvent } = useCreateEvent();
+  const updateEventMutation = useUpdateEventMutation();
   const router = useRouter();
   const { bounceCompleted, wasDraggingAtTop, isDismissing, handleDismiss } = useContext(CreateEventScrollContext);
   const { 
@@ -123,14 +123,12 @@ export default React.memo(function EventAttendeesAndOptions() {
       
       try {
         const eventData = compileEventData();
-        const response = await updateEvent(
-          eventId, 
-          eventData, 
-          {
-            occurrenceDate: startTime!,
-            modifyType: recurringOption
-          }
-        );
+        const response = await updateEventMutation.mutateAsync({
+          eventId,
+          updates: eventData,
+          occurrenceDate: startTime!,
+          modifyType: recurringOption
+        });
         
         if (response?.success) {
           resetEventForm();
@@ -147,10 +145,8 @@ export default React.memo(function EventAttendeesAndOptions() {
         setLoading(false);
       }
     } else {
-      console.log('-------')
       // Normal flow - create new event or update non-recurring event
       const response = await createOrUpdateEvent();
-      console.log(response)
       
       if (response?.success) {
         console.log('hdsfjdhsj')

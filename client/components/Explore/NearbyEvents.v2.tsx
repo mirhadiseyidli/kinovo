@@ -16,6 +16,7 @@ import CityLocationModal from './CityLocationModal';
 import { EventCardSkeleton, SkeletonBox } from '../Skeleton';
 import { useRouter } from 'expo-router';
 import { useNearbyEventsQuery } from '@/hooks/useNearbyEventsQuery';
+import { useDiscoverError } from '@/context/DiscoverErrorContext';
 
 /**
  * TanStack React Query version of NearbyEvents component
@@ -170,6 +171,7 @@ const NearbyEvents: React.FC<NearbyEventsProps> = React.memo(({ refreshing, onFi
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
+  const { setComponentError } = useDiscoverError();  
   const [userLocation, setUserLocation] = useState<{ 
     city: string; 
     state: string; 
@@ -208,6 +210,11 @@ const NearbyEvents: React.FC<NearbyEventsProps> = React.memo(({ refreshing, onFi
     usePlaceholderData: true,
     enabled: Boolean(userLocation.lat && userLocation.lng) // Only fetch when we have coordinates
   });
+
+  // Report errors to centralized error handling
+  React.useEffect(() => {
+    setComponentError('nearbyEvents', isError);
+  }, [isError, setComponentError]);
 
   // Initial location fetch
   useEffect(() => {
@@ -373,53 +380,7 @@ const NearbyEvents: React.FC<NearbyEventsProps> = React.memo(({ refreshing, onFi
         </TouchableOpacity>
       </ThemedView>
 
-      {/* Enhanced Error State with retry option */}
-      {isError && (
-        <View style={{
-          backgroundColor: themeColors.background,
-          borderRadius: 12,
-          padding: 16,
-          marginBottom: 16,
-          marginHorizontal: 16,
-          borderWidth: 1,
-          borderColor: '#ff6b6b',
-        }}>
-          <ThemedText style={{ 
-            color: '#ff6b6b',
-            fontSize: 16,
-            fontWeight: '600',
-            marginBottom: 8 
-          }}>
-            Unable to load nearby events
-          </ThemedText>
-          <ThemedText style={{ 
-            color: themeColors.text,
-            fontSize: 14,
-            opacity: 0.8,
-            marginBottom: 12
-          }}>
-            {error?.message || 'Something went wrong while loading nearby events.'}
-          </ThemedText>
-          <TouchableOpacity
-            onPress={() => refetch()}
-            style={{
-              backgroundColor: themeColors.mountainGreen,
-              paddingHorizontal: 16,
-              paddingVertical: 8,
-              borderRadius: 8,
-              alignSelf: 'flex-start',
-            }}
-          >
-            <ThemedText style={{ 
-              color: themeColors.text,
-              fontSize: 14,
-              fontWeight: '600'
-            }}>
-              Try Again
-            </ThemedText>
-          </TouchableOpacity>
-        </View>
-      )}
+      {/* Error handling is done centrally via DiscoverErrorMessage */}
 
       <DistanceModal
         visible={distanceModalVisible}
@@ -495,29 +456,6 @@ const NearbyEvents: React.FC<NearbyEventsProps> = React.memo(({ refreshing, onFi
         </ThemedView>
       ) : (
         <>
-          {/* Show stale data indicator when there's an error but we have cached data */}
-          {isError && nearbyEvents.length > 0 && (
-            <View style={{
-              backgroundColor: 'rgba(255, 193, 7, 0.1)',
-              borderRadius: 8,
-              paddingHorizontal: 12,
-              paddingVertical: 8,
-              marginBottom: 8,
-              marginHorizontal: 16,
-              borderWidth: 1,
-              borderColor: 'rgba(255, 193, 7, 0.3)',
-            }}>
-              <ThemedText style={{ 
-                color: '#f59e0b',
-                fontSize: 12,
-                fontWeight: '500',
-                textAlign: 'center'
-              }}>
-                ⚠️ Showing cached data - tap "Try Again" above to refresh
-              </ThemedText>
-            </View>
-          )}
-
           {/* Horizontal Carousel */}
           <ThemedView style={{ width: screenWidth, opacity: isError ? 0.8 : 1 }}>
             <ScrollView
