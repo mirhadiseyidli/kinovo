@@ -1,6 +1,7 @@
 import { StyleSheet, Image, StatusBar } from 'react-native';
 import { ThemedView } from '@/components/ThemedView'
-import DiscoverScreen from '@/components/Explore/Discover';
+// import DiscoverScreen from '@/components/Explore/Discover';
+import DiscoverScreenV2 from '@/components/Explore/Discover.v2';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColorScheme } from '../../../hooks/useColorScheme';
 import React from 'react';
@@ -16,7 +17,7 @@ export default React.memo(function Explore() {
       <StatusBar
         barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'}
       />
-        <DiscoverScreen />
+        <DiscoverScreenV2 />
     </ThemedView>
   );
 });

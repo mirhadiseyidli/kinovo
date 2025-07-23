@@ -17,10 +17,9 @@ import MonthChipView from './CalendarHeader/MonthChipView';
 import MonthSmallView from './CalendarHeader/MonthSmallView';
 import { generateMonthGrid } from './CalendarHeader/utils';
 import { useCalendarViewContext } from '@/context/CalendarViewContext';
-import { useCalendarContext } from '@/context/CalendarContext';
+import { useCalendarContext } from '@/context/CalendarProvider.v2';
 import { useNotifications } from '@/hooks/useNotifications';
 import { Feather } from '@expo/vector-icons';
-import { useEventContext } from '@/context/UserSessionContext';
 
 interface CalendarHeaderProps {
   refreshing: boolean;
@@ -31,7 +30,7 @@ const CalendarHeaderMonthView: React.FC<CalendarHeaderProps> = ({ refreshing, on
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { view, setView } = useCalendarViewContext();
-  const { currentDate, navigateToMonth, resetToToday } = useCalendarContext();
+  const { currentDate, setCurrentDate, navigateToToday } = useCalendarContext();
   const [monthListOpen, setMonthListOpen] = useState(false);
   const screenWidth = Dimensions.get('window').width;
   const CELL_SIZE = screenWidth / 7;
@@ -129,14 +128,14 @@ const CalendarHeaderMonthView: React.FC<CalendarHeaderProps> = ({ refreshing, on
           isSelected={isSelected}
           onMonthYearChange={(month, year, day, fromDropdown) => {
             fromChipRef.current = fromDropdown;
-            navigateToMonth(month, year);
+            setCurrentDate(new Date(year, month, 1));
           }}
           CHIP_WIDTH={CHIP_WIDTH}
           fromChipRef={fromChipRef}
         />
       );
     },
-    [selectedKey, navigateToMonth]
+    [selectedKey, setCurrentDate]
   );
 
   // Update shared values without accessing during render
@@ -214,7 +213,7 @@ const CalendarHeaderMonthView: React.FC<CalendarHeaderProps> = ({ refreshing, on
   const handleViewChange = (selectedView: string) => {
     if (selectedView !== view) {
       setView(selectedView, 'header_picker');
-      resetToToday();
+      navigateToToday();
     }
   };
 
@@ -262,7 +261,7 @@ const CalendarHeaderMonthView: React.FC<CalendarHeaderProps> = ({ refreshing, on
             setWrapperHeight={setWrapperHeight}
             onMonthYearChange={(month, year, day, fromDropdown) => {
               fromChipRef.current = fromDropdown;
-              navigateToMonth(month, year);
+              setCurrentDate(new Date(year, month, 1));
             }}
             fromChipRef={fromChipRef}
           />

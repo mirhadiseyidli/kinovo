@@ -75,14 +75,17 @@ const NotificationCard: React.FC<NotificationCardProps> = React.memo(({ notifica
     if (!notification.event?._id) return;
     try {
       // Handle recurring events
-      const requestOptions: any = {};
+      const requestOptions: any = {
+        eventId: notification.event._id,
+        status
+      };
       
       if (notification.event.recurrence?.checked && notification.event.start_time && options?.modifyType) {
         requestOptions.occurrenceDate = notification.event.start_time;
         requestOptions.modifyType = options.modifyType;
       }
       setSelectedResponse(status);
-      await respondToInvitation(notification.event._id, status, Object.keys(requestOptions).length > 0 ? requestOptions : undefined);
+      await respondToInvitation(requestOptions);
 
       // IMPORTANT: Invalidate event from subscriptions and cache to prevent data override
       invalidateEvent(notification.event._id);

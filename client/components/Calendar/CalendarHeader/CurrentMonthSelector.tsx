@@ -6,7 +6,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { format } from 'date-fns';
 import { useCalendarViewContext } from '@/context/CalendarViewContext';
-import { useCalendarContext } from '@/context/CalendarContext';
+import { useCalendarContext } from '@/context/CalendarProvider.v2';
 
 interface CurrentMonthSelectorProps {
   currentDate: Date;
@@ -22,7 +22,7 @@ const CurrentMonthSelector: React.FC<CurrentMonthSelectorProps> = ({
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { view } = useCalendarViewContext();
-  const { navigateToMonth, navigateToWeek, navigateToDay } = useCalendarContext();
+  const { setCurrentDate, navigateToToday } = useCalendarContext();
   
   const key = `${today.getFullYear()}-${today.getMonth()}`;
   const [selectedDateKey, setSelectedDateKey] = useState(`${currentDate.getFullYear()}-${currentDate.getMonth()}`);
@@ -64,17 +64,8 @@ const CurrentMonthSelector: React.FC<CurrentMonthSelectorProps> = ({
   const handlePress = () => {
     fromChipRef.current = true;
     
-    const viewType = view.toLowerCase();
-    if (viewType === 'month') {
-      // Navigate to current month
-      navigateToMonth(today.getMonth(), today.getFullYear());
-    } else if (viewType === 'week') {
-      // Navigate to current week (week containing today)
-      navigateToWeek(today);
-    } else {
-      // Schedule view - navigate to today
-      navigateToDay(today);
-    }
+    // All views should navigate to today, which is the purpose of this button
+    navigateToToday();
   };
 
   return (

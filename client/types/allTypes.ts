@@ -764,6 +764,7 @@ export interface Event {
   event_picture?: string | null;
   status: string;
   created_at?: Date;
+  updated_at?: Date;
   title: string;
   category: string | null;
   description?: string | null;
@@ -779,6 +780,11 @@ export interface Event {
   start_time: Date | null;
   end_time: Date | null;
   capacity?: number | null;
+  maxParticipants?: number;
+  participants?: string[];
+  images?: string[];
+  isRecurring?: boolean;
+  recurringPattern?: any;
   recurrence?: {
     checked: boolean;
     frequency: string | null;

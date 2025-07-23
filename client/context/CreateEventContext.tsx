@@ -297,6 +297,7 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
       } else {
         // Create new event
         response = await postCreateEvent(eventData);
+        console.log('ehre is htg', response)
       }
       
       if (response?.success) {

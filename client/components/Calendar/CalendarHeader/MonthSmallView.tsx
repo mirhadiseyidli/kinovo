@@ -5,7 +5,7 @@ import { generateMonthGrid } from '../CalendarHeader/utils';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import { useEventContext } from '@/context/UserSessionContext';
+import { useCalendarContext } from '@/context/CalendarProvider.v2';
 import { Event } from '@/types/allTypes';
 
 const screenWidth = Dimensions.get('window').width;
@@ -47,7 +47,7 @@ const MonthPage: React.FC<MonthPageProps> = ({ monthDate, selectedDate }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const today = new Date();
-  const { getOccurrencesForDateRange } = useEventContext();
+  const { getOccurrencesForDateRange } = useCalendarContext();
   
   // Get events for the entire month at once using the context
   const monthEvents = useMemo(() => {

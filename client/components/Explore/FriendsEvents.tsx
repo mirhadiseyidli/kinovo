@@ -25,7 +25,7 @@ const FriendsEvents: React.FC<FriendsEventsProps> = React.memo(({ refreshing, on
   const router = useRouter();
 
   const navigateToAllFriendsEvents = () => {
-    router.push('/(auth)/friends-events');
+    router.push('/(auth)/friends-events-infinite');
   }
 
   const fetchEvents = async () => {

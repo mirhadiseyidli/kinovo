@@ -70,7 +70,10 @@ const EventDetailsSection: React.FC<EventProp & { isRecurringOccurrence: boolean
     if (!event._id) return;
     
     try {
-      const requestOptions: any = {};
+      const requestOptions: any = {
+        eventId: event._id,
+        status
+      };
       
       // If this is a recurring occurrence and we have options, include them
       if (event.isRecurringOccurrence && options?.modifyType && event.start_time) {
@@ -78,7 +81,7 @@ const EventDetailsSection: React.FC<EventProp & { isRecurringOccurrence: boolean
         requestOptions.modifyType = options.modifyType;
       }
       
-      await respondToInvitation(event._id, status, Object.keys(requestOptions).length > 0 ? requestOptions : undefined);
+      await respondToInvitation(requestOptions);
       
       // IMPORTANT: Invalidate event from subscriptions and cache to prevent data override
       invalidateEvent(event._id);
@@ -103,7 +106,10 @@ const EventDetailsSection: React.FC<EventProp & { isRecurringOccurrence: boolean
     if (!event._id) return;
     
     try {
-      await joinEvent(event._id, status);
+      await joinEvent({
+        eventId: event._id,
+        status
+      });
       
       // IMPORTANT: Invalidate event from subscriptions and cache to prevent data override
       invalidateEvent(event._id);
@@ -148,7 +154,9 @@ const EventDetailsSection: React.FC<EventProp & { isRecurringOccurrence: boolean
     if (!event._id) return;
     
     try {
-      await markNotInterested(event._id);
+      await markNotInterested({
+        eventId: event._id
+      });
       
       // IMPORTANT: Invalidate event from subscriptions and cache to prevent data override
       invalidateEvent(event._id);
@@ -245,7 +253,9 @@ const EventDetailsSection: React.FC<EventProp & { isRecurringOccurrence: boolean
     if (!event._id) return;
     
     try {
-      const requestOptions: any = {};
+      const requestOptions: any = {
+        eventId: event._id
+      };
       
       // If this is a recurring occurrence and we have options, include them
       if (isRecurringOccurrence && options?.modifyType) {
@@ -254,7 +264,7 @@ const EventDetailsSection: React.FC<EventProp & { isRecurringOccurrence: boolean
         requestOptions.modifyType = options.modifyType;
       }
       
-      await cancelEventApi(event._id, Object.keys(requestOptions).length > 0 ? requestOptions : undefined);
+      await cancelEventApi(requestOptions);
       
       // Refresh events to update calendar
       await refreshEvents(event.start_time ? new Date(event.start_time) : new Date(), 'Month');

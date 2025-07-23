@@ -23,7 +23,10 @@ import * as Linking from 'expo-linking';
 import { BannerProvider } from '@/context/BannerContext';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { queryClient } from '@/utils/queryClient';
+import { queryClient, setupOfflineQueue, setupGlobalErrorHandlers } from '@/utils/queryClient';
+import { PersistQueryClientProvider, asyncStoragePersister } from '@/utils/persistedQueryClient';
+import { initializeDevTools, getDevToolsConfig } from '@/utils/devtools';
+import { initializeAppTelemetry } from '@/utils/telemetrySetup';
 
 // Configure how notifications are handled when the app is in the foreground
 Notifications.setNotificationHandler({
@@ -40,16 +43,31 @@ registerRootComponent(RootLayout);
 
 export default function RootLayout(): ReactNode {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <KeyboardProvider>
-            <InnerLayout />
-          </KeyboardProvider>
-        </GestureHandlerRootView>
-      </AuthProvider>
-      {__DEV__ && <ReactQueryDevtools initialIsOpen={false} />}
-    </QueryClientProvider>
+    <AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        <PersistQueryClientProvider
+          client={queryClient}
+          persistOptions={{ persister: asyncStoragePersister }}
+        >
+          <GestureHandlerRootView style={{ flex: 1, backgroundColor: 'transparent' }}>
+            <KeyboardProvider statusBarTranslucent={false}>
+              <InnerLayout />
+            </KeyboardProvider>
+          </GestureHandlerRootView>
+     {/*     {__DEV__ && getDevToolsConfig().enabled && (
+            <ReactQueryDevtools 
+              initialIsOpen={!getDevToolsConfig().minimized}
+              position={getDevToolsConfig().position}
+              panelProps={{
+                style: {
+                  height: getDevToolsConfig().panelHeight,
+                },
+              }}
+            />
+          )} */}
+        </PersistQueryClientProvider>
+      </QueryClientProvider>
+    </AuthProvider>
   );
 }
 
@@ -73,11 +91,53 @@ function InnerLayout() {
         setIsFirebaseInitialized(true);
       } catch (error) {
         console.error('Failed to initialize Firebase:', error);
+        // Don't block app loading on Firebase error
+        setIsFirebaseInitialized(true);
       }
     };
     
     initializeFirebase();
   }, []);
+
+  // Initialize TanStack utilities after auth is ready and Firebase is initialized
+  useEffect(() => {
+    if (isFirebaseInitialized && !isLoading) {
+      const initializeTanStackUtilities = async () => {
+        try {
+          const initializeOfflineQueue = async () => {
+            await setupOfflineQueue();
+            console.log('Offline queue initialized successfully');
+          };
+          
+          const initializeDevToolsSetup = async () => {
+            await initializeDevTools(queryClient);
+            console.log('DevTools initialized successfully');
+          };
+          
+          const initializeErrorHandlers = () => {
+            setupGlobalErrorHandlers();
+            console.log('Error handlers initialized successfully');
+          };
+          
+          const initializeTelemetry = () => {
+            initializeAppTelemetry(queryClient);
+            console.log('Telemetry initialized successfully');
+          };
+          
+          // Initialize in sequence to avoid conflicts
+          await initializeOfflineQueue();
+          await initializeDevToolsSetup();
+          initializeErrorHandlers();
+          initializeTelemetry();
+          
+        } catch (error) {
+          console.error('Failed to initialize TanStack utilities:', error);
+        }
+      };
+      
+      initializeTanStackUtilities();
+    }
+  }, [isFirebaseInitialized, isLoading]);
 
   useEffect(() => {
     async function prepare() {
@@ -132,7 +192,7 @@ function InnerLayout() {
   );
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: 'transparent' }}>
       {innerContent}
     </View>
   );
