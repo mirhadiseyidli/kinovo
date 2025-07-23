@@ -9,6 +9,12 @@ import {
   invalidateInfiniteQueries 
 } from '@/utils/infiniteQueryUtils';
 import { Event } from '@/hooks/useInfiniteEventsQuery';
+import { 
+  createEventOptimistically,
+  updateEventOptimistically, 
+  deleteEventOptimistically,
+  rollbackOptimisticUpdate
+} from '@/utils/optimisticUpdates';
 
 /**
  * CRUD Mutation Hooks for Events
@@ -133,10 +139,7 @@ export const useCreateEventMutation = (config: CrudMutationConfig = {}) => {
     onMutate: async (eventData) => {
       if (!enableOptimisticUpdates) return;
 
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: queryKeys.invalidation.allEventQueries() });
-
-      // Create optimistic event
+      // Create optimistic event with temporary ID
       const optimisticEvent: Event = {
         _id: `temp-${Date.now()}`,
         title: eventData.title,
@@ -200,19 +203,14 @@ export const useCreateEventMutation = (config: CrudMutationConfig = {}) => {
         recurringPattern: eventData.recurringPattern,
       };
 
-      // Add to relevant infinite query caches
-      if (userId) {
-        updateInfiniteQueryCache(queryClient, 'upcoming', optimisticEvent, userId);
-        updateInfiniteQueryCache(queryClient, 'recommended', optimisticEvent, userId);
-        
-        // Add to nearby events if location is provided
-        if (eventData.location.coordinates?.lat && eventData.location.coordinates?.lng) {
-          updateInfiniteQueryCache(queryClient, 'nearby', optimisticEvent, userId);
-        }
-      }
+      // Use new optimistic create function
+      const context = createEventOptimistically(
+        queryClient,
+        optimisticEvent,
+        userId
+      );
 
-      // Return context for potential rollback
-      return { optimisticEvent };
+      return { context, optimisticEvent };
     },
 
     onSuccess: (data, variables, context) => {
@@ -242,9 +240,9 @@ export const useCreateEventMutation = (config: CrudMutationConfig = {}) => {
     },
 
     onError: (error, variables, context) => {
-      // Rollback optimistic updates by invalidating queries
-      if (enableOptimisticUpdates && invalidateQueries) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.invalidation.allEventQueries() });
+      // Rollback optimistic updates
+      if (enableOptimisticUpdates && context?.context && context?.optimisticEvent?._id) {
+        rollbackOptimisticUpdate(queryClient, context.optimisticEvent._id, context.context);
       }
 
       console.error('Create event mutation failed:', error);
@@ -284,27 +282,24 @@ export const useUpdateEventMutation = (config: CrudMutationConfig = {}) => {
     onMutate: async (eventData) => {
       if (!enableOptimisticUpdates) return;
 
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: queryKeys.invalidation.allEventQueries() });
-
-      // Get previous event data
-      const previousEventData = queryClient.getQueryData(queryKeys.eventById(eventData.id));
-
-      // Update event in infinite query caches
-      if (userId) {
-        ['upcoming', 'past', 'nearby', 'friends', 'recommended'].forEach(eventType => {
-          updateInfiniteQueryCacheItem(queryClient, eventType, eventData.id, eventData, userId);
-        });
-      }
-
-      // Update single event query
-      queryClient.setQueryData(queryKeys.eventById(eventData.id), (old: any) => ({
-        ...old,
+      // Prepare optimistic update data
+      const optimisticUpdate = {
         ...eventData,
+        // Convert dates if provided
+        ...(eventData.start_time && { start_time: new Date(eventData.start_time as Date) }),
+        ...(eventData.end_time && { end_time: new Date(eventData.end_time as Date) }),
         updated_at: new Date(),
-      }));
+      };
 
-      return { previousEventData };
+      // Use new optimistic update system
+      const context = updateEventOptimistically(
+        queryClient,
+        eventData.id,
+        optimisticUpdate,
+        userId
+      );
+
+      return { context };
     },
 
     onSuccess: (data, variables, context) => {
@@ -329,12 +324,8 @@ export const useUpdateEventMutation = (config: CrudMutationConfig = {}) => {
 
     onError: (error, variables, context) => {
       // Rollback optimistic updates
-      if (enableOptimisticUpdates && context && context.previousEventData) {
-        queryClient.setQueryData(queryKeys.eventById(variables.id), context.previousEventData);
-      }
-
-      if (invalidateQueries) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.invalidation.allEventQueries() });
+      if (enableOptimisticUpdates && context?.context) {
+        rollbackOptimisticUpdate(queryClient, variables.id, context.context);
       }
 
       console.error('Update event mutation failed:', error);
@@ -374,23 +365,14 @@ export const useDeleteEventMutation = (config: CrudMutationConfig = {}) => {
     onMutate: async (deleteData) => {
       if (!enableOptimisticUpdates) return;
 
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: queryKeys.invalidation.allEventQueries() });
+      // Use new optimistic delete function
+      const context = deleteEventOptimistically(
+        queryClient,
+        deleteData.id,
+        userId
+      );
 
-      // Get previous event data for rollback
-      const previousEventData = queryClient.getQueryData(queryKeys.eventById(deleteData.id));
-
-      // Remove from infinite query caches
-      if (userId) {
-        ['upcoming', 'past', 'nearby', 'friends', 'recommended'].forEach(eventType => {
-          removeFromInfiniteQueryCache(queryClient, eventType, deleteData.id, userId);
-        });
-      }
-
-      // Remove single event query
-      queryClient.removeQueries({ queryKey: queryKeys.eventById(deleteData.id) });
-
-      return { previousEventData };
+      return { context };
     },
 
     onSuccess: (data, variables, context) => {
@@ -415,9 +397,9 @@ export const useDeleteEventMutation = (config: CrudMutationConfig = {}) => {
     },
 
     onError: (error, variables, context) => {
-      // Rollback optimistic updates by invalidating queries
-      if (enableOptimisticUpdates && invalidateQueries) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.invalidation.allEventQueries() });
+      // Rollback optimistic delete
+      if (enableOptimisticUpdates && context?.context) {
+        rollbackOptimisticUpdate(queryClient, variables.id, context.context);
       }
 
       console.error('Delete event mutation failed:', error);

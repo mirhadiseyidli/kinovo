@@ -3,6 +3,14 @@ import { useAuthSession } from '@/components/Auth/AuthProvider';
 import { queryKeys } from '@/utils/queryKeys';
 import api from '@/utils/api';
 import { Alert } from 'react-native';
+import { 
+  updateEventOptimistically, 
+  deleteEventOptimistically,
+  rollbackOptimisticUpdate, 
+  predictOptimisticEventState,
+  OptimisticUpdateContext 
+} from '@/utils/optimisticUpdates';
+import { Event } from '@/types/allTypes';
 
 /**
  * TanStack Query mutations for all event-related actions
@@ -38,8 +46,37 @@ export const useRespondToInvitationMutation = () => {
       return response.data;
     },
     
+    onMutate: async (variables) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: queryKeys.eventById(variables.eventId) });
+      
+      // Get current event data
+      const currentEvent = queryClient.getQueryData<Event>(queryKeys.eventById(variables.eventId));
+      
+      if (currentEvent) {
+        // Predict optimistic state
+        const optimisticEvent = predictOptimisticEventState(
+          currentEvent, 
+          'respond', 
+          { userId, response: variables.status }
+        );
+        
+        // Apply optimistic update
+        const context = updateEventOptimistically(
+          queryClient,
+          variables.eventId,
+          optimisticEvent,
+          userId
+        );
+        
+        return { context };
+      }
+      
+      return {};
+    },
+    
     onSuccess: () => {
-      // Invalidate all relevant queries
+      // Background refetch for eventual consistency - optimistic updates already applied
       if (userId) {
         queryClient.invalidateQueries({ queryKey: queryKeys.upcomingEvents(userId, false) });
         queryClient.invalidateQueries({ queryKey: queryKeys.infiniteUpcoming(userId, {}) });
@@ -53,7 +90,12 @@ export const useRespondToInvitationMutation = () => {
       }
     },
     
-    onError: (error: any) => {
+    onError: (error: any, variables, context) => {
+      // Rollback optimistic updates on error
+      if (context?.context) {
+        rollbackOptimisticUpdate(queryClient, variables.eventId, context.context);
+      }
+      
       const errorMessage = error.response?.data?.message || error.message || 'Failed to respond to invitation';
       Alert.alert('Error', errorMessage);
     },
@@ -78,11 +120,40 @@ export const useJoinEventMutation = () => {
       return response.data;
     },
     
+    onMutate: async (variables) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: queryKeys.eventById(variables.eventId) });
+      
+      // Get current event data
+      const currentEvent = queryClient.getQueryData<Event>(queryKeys.eventById(variables.eventId));
+      
+      if (currentEvent) {
+        // Predict optimistic state
+        const optimisticEvent = predictOptimisticEventState(
+          currentEvent, 
+          'join', 
+          { userId, status: variables.status }
+        );
+        
+        // Apply optimistic update
+        const context = updateEventOptimistically(
+          queryClient,
+          variables.eventId,
+          optimisticEvent,
+          userId
+        );
+        
+        return { context };
+      }
+      
+      return {};
+    },
+    
     onSuccess: () => {
       if (userId) {
         queryClient.invalidateQueries({ queryKey: queryKeys.upcomingEvents(userId, false) });
         queryClient.invalidateQueries({ queryKey: queryKeys.infiniteUpcoming(userId, {}) });
-        queryClient.invalidateQueries({ queryKey: queryKeys.infiniteNearby() });
+        queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'infinite', 'nearby'] });
         queryClient.invalidateQueries({ queryKey: queryKeys.infiniteRecommended(userId, {}) });
         
         // Invalidate calendar cache - joining events adds them to calendar
@@ -91,7 +162,12 @@ export const useJoinEventMutation = () => {
       }
     },
     
-    onError: (error: any) => {
+    onError: (error: any, variables, context) => {
+      // Rollback optimistic updates on error
+      if (context?.context) {
+        rollbackOptimisticUpdate(queryClient, variables.eventId, context.context);
+      }
+      
       const errorMessage = error.response?.data?.message || error.message || 'Failed to join event';
       Alert.alert('Error', errorMessage);
     },
@@ -113,12 +189,27 @@ export const useMarkNotInterestedMutation = () => {
       return response.data;
     },
     
+    onMutate: async (variables) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: queryKeys.eventById(variables.eventId) });
+      
+      // For "not interested", we optimistically remove the event from all lists
+      // This provides instant feedback that the event is hidden
+      const context = deleteEventOptimistically(
+        queryClient,
+        variables.eventId,
+        userId
+      );
+      
+      return { context };
+    },
+    
     onSuccess: () => {
       if (userId) {
-        // Invalidate all event queries to hide the event from lists
+        // Background refetch for eventual consistency
         queryClient.invalidateQueries({ queryKey: queryKeys.upcomingEvents(userId, false) });
         queryClient.invalidateQueries({ queryKey: queryKeys.infiniteUpcoming(userId, {}) });
-        queryClient.invalidateQueries({ queryKey: queryKeys.infiniteNearby() });
+        queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'infinite', 'nearby'] });
         queryClient.invalidateQueries({ queryKey: queryKeys.infiniteRecommended(userId, {}) });
         queryClient.invalidateQueries({ queryKey: queryKeys.infiniteFriends(userId, {}) });
         
@@ -128,7 +219,12 @@ export const useMarkNotInterestedMutation = () => {
       }
     },
     
-    onError: (error: any) => {
+    onError: (error: any, variables, context) => {
+      // Rollback optimistic deletion on error
+      if (context?.context) {
+        rollbackOptimisticUpdate(queryClient, variables.eventId, context.context);
+      }
+      
       const errorMessage = error.response?.data?.message || error.message || 'Failed to mark event as not interested';
       Alert.alert('Error', errorMessage);
     },
@@ -156,25 +252,37 @@ export const useCancelEventMutation = () => {
     
     onMutate: async (variables) => {
       // Cancel outgoing refetches
-      if (userId) {
-        await queryClient.cancelQueries({ queryKey: queryKeys.upcomingEvents(userId, false) });
+      await queryClient.cancelQueries({ queryKey: queryKeys.eventById(variables.eventId) });
+      
+      // Get current event data
+      const currentEvent = queryClient.getQueryData<Event>(queryKeys.eventById(variables.eventId));
+      
+      if (currentEvent) {
+        // Predict optimistic state (cancelled)
+        const optimisticEvent = predictOptimisticEventState(
+          currentEvent, 
+          'cancel', 
+          {}
+        );
+        
+        // Apply optimistic update
+        const context = updateEventOptimistically(
+          queryClient,
+          variables.eventId,
+          optimisticEvent,
+          userId
+        );
+        
+        return { context };
       }
       
-      // Snapshot previous value for rollback
-      const previousEvents = userId 
-        ? queryClient.getQueryData(queryKeys.upcomingEvents(userId, false))
-        : null;
-      
-      return { previousEvents };
+      return {};
     },
     
     onError: (error: any, variables, context) => {
-      // Rollback on error
-      if (context?.previousEvents && userId) {
-        queryClient.setQueryData(
-          queryKeys.upcomingEvents(userId, false),
-          context.previousEvents
-        );
+      // Rollback optimistic updates on error
+      if (context?.context) {
+        rollbackOptimisticUpdate(queryClient, variables.eventId, context.context);
       }
       
       const errorMessage = error.response?.data?.message || error.message || 'Failed to cancel event';
@@ -186,7 +294,7 @@ export const useCancelEventMutation = () => {
         // Invalidate all relevant queries
         queryClient.invalidateQueries({ queryKey: queryKeys.upcomingEvents(userId, false) });
         queryClient.invalidateQueries({ queryKey: queryKeys.infiniteUpcoming(userId, {}) });
-        queryClient.invalidateQueries({ queryKey: queryKeys.pastEvents(userId, false) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.pastEvents(userId) });
         queryClient.invalidateQueries({ queryKey: queryKeys.infinitePast(userId, {}) });
         queryClient.invalidateQueries({ queryKey: queryKeys.userEvents(userId) });
         
@@ -219,6 +327,41 @@ export const useRemoveAttendeeMutation = () => {
       return response.data;
     },
     
+    onMutate: async (variables) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: queryKeys.eventById(variables.eventId) });
+      
+      // Get current event data
+      const currentEvent = queryClient.getQueryData<Event>(queryKeys.eventById(variables.eventId));
+      
+      if (currentEvent) {
+        // Predict optimistic state (remove attendee from list)
+        const optimisticEvent = {
+          ...currentEvent,
+          attendees: currentEvent.attendees.filter((attendee: any) => 
+            attendee.user._id !== variables.attendeeId
+          ),
+          // If removing self, update user status
+          ...(variables.attendeeId === userId && {
+            isUserAttending: false,
+            userStatus: null
+          })
+        };
+        
+        // Apply optimistic update
+        const context = updateEventOptimistically(
+          queryClient,
+          variables.eventId,
+          optimisticEvent,
+          userId
+        );
+        
+        return { context };
+      }
+      
+      return {};
+    },
+    
     onSuccess: (data, variables) => {
       if (userId) {
         // Invalidate event queries
@@ -237,7 +380,12 @@ export const useRemoveAttendeeMutation = () => {
       }
     },
     
-    onError: (error: any) => {
+    onError: (error: any, variables, context) => {
+      // Rollback optimistic updates on error
+      if (context?.context) {
+        rollbackOptimisticUpdate(queryClient, variables.eventId, context.context);
+      }
+      
       const errorMessage = error.response?.data?.message || error.message || 'Failed to remove attendee';
       Alert.alert('Error', errorMessage);
     },

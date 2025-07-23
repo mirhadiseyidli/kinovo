@@ -73,7 +73,7 @@ const FriendsEventsInfinite: React.FC<FriendsEventsInfiniteProps> = React.memo((
 
   // Navigate to all friends events
   const navigateToAllFriendsEvents = useCallback(() => {
-    router.push('/(auth)/friends-events');
+    router.push('/(auth)/friends-events-infinite');
   }, [router]);
 
   // Custom event renderer with loading state
@@ -215,15 +215,6 @@ const FriendsEventsInfinite: React.FC<FriendsEventsInfiniteProps> = React.memo((
               <ThemedText style={{ fontSize: 16, marginRight: 4 }}>
                 View All
               </ThemedText>
-              {totalCount > 0 && (
-                <ThemedText style={{
-                  fontSize: 12,
-                  color: themeColors.placeholderTextColor,
-                  marginRight: 4,
-                }}>
-                  ({totalCount})
-                </ThemedText>
-              )}
               <IconSymbol
                 name="chevron.right"
                 size={12}
