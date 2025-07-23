@@ -12,6 +12,9 @@ import { Colors } from '@/constants/Colors';
 import { cacheManager } from '@/utils/homeScreenCache';
 import { useFocusEffect } from '@react-navigation/native';
 import CacheDebugInfo from './CacheDebugInfo';
+import UpcomingEventsV2 from './UpcomingEvents.v2';
+import AttentionRequiredV2 from './AttentionRequired.v2';
+import PastEventsV2 from './PastEvents.v2';
 
 // Simple loading state manager
 interface LoadingState {
@@ -128,17 +131,29 @@ const HomeScreen = React.memo(() => {
         </ThemedView>
         <ThemedView style={{ display: 'flex', flex: 1, flexDirection: 'column', gap: 24, paddingBottom: tabBarHeight }}>
           <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }}>
-            <UpcomingEvents 
+            {/* <UpcomingEvents 
+              refreshing={isLoading('upcomingEvents')} 
+              onFinishRefresh={onFinishRefreshUpcomingEvents} 
+            /> */}
+            <UpcomingEventsV2 
               refreshing={isLoading('upcomingEvents')} 
               onFinishRefresh={onFinishRefreshUpcomingEvents} 
             />
           </ThemedView>
-          <AttentionRequired 
+          {/* <AttentionRequired 
+            refreshing={isLoading('attentionRequired')} 
+            onFinishRefresh={onFinishRefreshAttentionRequired} 
+          /> */}
+          <AttentionRequiredV2 
             refreshing={isLoading('attentionRequired')} 
             onFinishRefresh={onFinishRefreshAttentionRequired} 
           />
           <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }}>
-            <PastEvents 
+            {/* <PastEvents 
+              refreshing={isLoading('pastEvents')} 
+              onFinishRefresh={onFinishRefreshPastEvents}
+            /> */}
+            <PastEventsV2 
               refreshing={isLoading('pastEvents')} 
               onFinishRefresh={onFinishRefreshPastEvents}
             />

@@ -22,7 +22,7 @@ export const createQueryFunction = <T>(
     try {
       return await apiCall();
     } catch (error) {
-      handleQueryError(error);
+      return handleQueryError(error);
     }
   };
 };
@@ -132,6 +132,21 @@ export const getEventById = async (eventId: string): Promise<Event> => {
   return response.data.event;
 };
 
+// Get calendar events for date range (used by EventContext)
+export const getCalendarEventsForDateRange = async (
+  startDate: Date,
+  endDate: Date,
+  forceRefresh?: boolean
+): Promise<Event[]> => {
+  const cacheParam = forceRefresh ? `&_t=${Date.now()}` : '';
+  const start = startDate.toISOString().split('T')[0]; // Format as yyyy-MM-dd
+  const end = endDate.toISOString().split('T')[0]; // Format as yyyy-MM-dd
+  const response = await api.get(
+    `/api/manageevents/eventslist/get/my/events/range?start=${start}&end=${end}${cacheParam}`
+  );
+  return response.data.events || [];
+};
+
 // Get calendar events
 export const getCalendarEvents = async (
   userId: string,
@@ -189,20 +204,20 @@ export const getFriendsNewEventsCount = async (userId: string): Promise<number> 
  */
 
 // Create event
-export const createEvent = async (eventData: Partial<Event>): Promise<Event> => {
-  const response = await api.post('/api/manageevents/createevent', eventData);
-  return response.data.event;
+export const createEvent = async (eventData: Partial<Event>): Promise<{success: boolean, event: Event}> => {
+  const response = await api.post('/api/manageevents/eventslist/create/new/event', eventData);
+  return response.data;
 };
 
 // Update event
-export const updateEvent = async (eventId: string, eventData: Partial<Event>): Promise<Event> => {
-  const response = await api.put(`/api/manageevents/updateevent/${eventId}`, eventData);
-  return response.data.event;
+export const updateEvent = async (eventId: string, eventData: Partial<Event>): Promise<{success: boolean, event: Event}> => {
+  const response = await api.put(`/api/manageevents/eventslist/update/${eventId}`, eventData);
+  return response.data;
 };
 
-// Delete event
+// Delete event (actually cancels the event)
 export const deleteEvent = async (eventId: string): Promise<void> => {
-  await api.delete(`/api/manageevents/deleteevent/${eventId}`);
+  await api.post(`/api/manageevents/eventslist/cancel/event`, { eventId });
 };
 
 // Respond to event invitation

@@ -112,6 +112,7 @@ const {
 } = require('../utils/eventUtils');
 
 const createEvent = async (req, res) => {
+  console.log('creating')
   try {
     const {
       event_picture,
@@ -171,7 +172,7 @@ const createEvent = async (req, res) => {
     }
 
     // Schedule both 10-minute and 1-hour reminders using EventBridge Scheduler
-    await scheduleEventReminders(event._id, new Date(start_time));
+    // await scheduleEventReminders(event._id, new Date(start_time));
 
     res.status(201).json({ success: true, event });
   } catch (error) {
@@ -215,7 +216,7 @@ const getMyEventsCalendarMonthView = async (req, res) => {
       .populate({
         path: 'events.event',
         match: { status: { $ne: 'cancelled' } },
-        select: 'title start_time recurrence status'
+        select: 'title start_time end_time recurrence status'
       })
       .select('events reported_events not_interested_events');
 
@@ -248,6 +249,7 @@ const getMyEventsCalendarMonthView = async (req, res) => {
     const uniqueMap = new Map();
     filtered.forEach(evt => uniqueMap.set(evt._id.toString(), evt));
     const uniqueEvents = Array.from(uniqueMap.values());
+    console.log('&&&&&&&&&&&&', uniqueEvents)
 
     return res.status(200).json({ events: uniqueEvents });
   } catch (error) {
@@ -366,6 +368,15 @@ const getMyUpcomingEvents = async (req, res) => {
 
 const getMyPastEvents = async (req, res) => {
   try {
+    // Extract pagination parameters
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 5;
+    const skip = (page - 1) * limit;
+
+    // Extract filter parameters
+    const year = req.query.year ? parseInt(req.query.year) : null;
+    const month = req.query.month ? parseInt(req.query.month) : null; // 0-11 (JavaScript month format)
+
     // Use standard populate configuration
     const populateConfig = getStandardEventPopulateConfig();
     const user = await User.findById(req.user._id)
@@ -382,7 +393,7 @@ const getMyPastEvents = async (req, res) => {
     const { now } = getDateRanges();
 
     // Filter for accepted and maybe past events using custom logic for past events
-    const pastEvents = (user.events || []).filter(e => {
+    let pastEvents = (user.events || []).filter(e => {
       const isAccepted = e.status === 'accepted' || e.status === 'maybe';
       const hasEvent = !!e.event;
       const isPast = hasEvent && new Date(e.event.end_time) < now;
@@ -392,11 +403,58 @@ const getMyPastEvents = async (req, res) => {
       return isAccepted && isPast && !isReported && !isNotInterested;
     }).map(e => e.event); // return the populated event
 
-    if (!pastEvents || pastEvents.length === 0) {
-      return res.status(201).json({ message: 'No events found', past_events: [] });
+    // Apply month/year filters if provided
+    if (year !== null || month !== null) {
+      pastEvents = pastEvents.filter(event => {
+        if (!event.start_time) return false;
+        const eventDate = new Date(event.start_time);
+        
+        // Apply year filter
+        if (year !== null && eventDate.getFullYear() !== year) {
+          return false;
+        }
+        
+        // Apply month filter (if both year and month are provided)
+        if (month !== null && year !== null && eventDate.getMonth() !== month) {
+          return false;
+        }
+        
+        return true;
+      });
     }
 
-    res.status(200).json({ past_events: pastEvents });
+    // Sort by start_time (most recent first)
+    pastEvents.sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime());
+
+    // Calculate total count before pagination
+    const totalCount = pastEvents.length;
+
+    // Apply pagination
+    const paginatedEvents = pastEvents.slice(skip, skip + limit);
+
+    // Calculate pagination metadata
+    const hasMore = skip + limit < totalCount;
+    const currentPage = page;
+    const totalPages = Math.ceil(totalCount / limit);
+
+    // Return consistent format similar to other paginated endpoints
+    const result = {
+      events: paginatedEvents,
+      totalCount,
+      hasMore,
+      currentPage,
+      totalPages,
+      // Legacy format for backward compatibility
+      past_events: paginatedEvents
+    };
+
+    // Handle empty results
+    if (totalCount === 0) {
+      result.message = 'No events found';
+      return res.status(201).json(result);
+    }
+
+    res.status(200).json(result);
   } catch (error) {
     console.error('Error in getMyPastEvents:', error);
     res.status(500).json({ message: 'Server error' });
@@ -517,7 +575,7 @@ const getNearbyEvents = async (req, res) => {
     const eventFilter = buildEventFilter(filterData, { 
       includePublic: true,
       includePrivateFriends: true,
-      includeSelected: false, // Nearby events don't include selected events
+      includeSelected: true, // Nearby events don't include selected events
       userId: req.user._id
     });
 
@@ -960,6 +1018,7 @@ const getEventsByCategory = async (req, res) => {
     // Build event filter using utility
     const eventFilter = buildEventFilter(filterData, { 
       category,
+      includePublic: true,
       includePrivateFriends: true,
       includeSelected: true,
       userId: req.user._id
@@ -977,6 +1036,7 @@ const getEventsByCategory = async (req, res) => {
 
     // Add user-specific fields using utility
     const eventsWithUserStatus = enrichEventsWithUserData(processedEvents, req.user._id, friends);
+    console.log(eventsWithUserStatus)
 
     res.status(200).json(eventsWithUserStatus);
   } catch (error) {
@@ -1001,6 +1061,7 @@ const getEventsByCity = async (req, res) => {
     // Build event filter using utility
     const eventFilter = buildEventFilter(filterData, { 
       city,
+      includePublic: true,
       includePrivateFriends: true,
       includeSelected: true,
       userId: req.user._id
@@ -1074,6 +1135,11 @@ const getAttentionRequiredEvents = async (req, res) => {
 
 const getRecommendedEvents = async (req, res) => {
   try {
+    // Extract pagination parameters
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 5;
+    const skip = (page - 1) * limit;
+
     // Get user's preferences, friends, and exclusion lists
     const user = await User.findById(req.user._id)
       .select('favorite_activities location friends reported_events not_interested_events')
@@ -1143,11 +1209,27 @@ const getRecommendedEvents = async (req, res) => {
       };
     });
 
-    // Sort by relevance score and limit to 10 events
+    // Sort by relevance score
     processedEvents.sort((a, b) => b.relevanceScore - a.relevanceScore);
-    const recommendedEvents = processedEvents.slice(0, 10);
+    
+    // Calculate total count before pagination
+    const totalCount = processedEvents.length;
+    
+    // Apply pagination
+    const recommendedEvents = processedEvents.slice(skip, skip + limit);
+    
+    // Calculate if there are more pages
+    const hasMore = skip + limit < totalCount;
+    const currentPage = page;
+    const totalPages = Math.ceil(totalCount / limit);
 
-    res.status(200).json({ events: recommendedEvents });
+    res.status(200).json({ 
+      events: recommendedEvents,
+      totalCount,
+      hasMore,
+      currentPage,
+      totalPages
+    });
   } catch (error) {
     console.error('Error in getRecommendedEvents:', error);
     res.status(500).json({ message: 'Server error' });

@@ -156,18 +156,17 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
 
     try {
       // Handle recurring events
-      const requestOptions: any = {};
+      const requestOptions: any = {
+        eventId,
+        status
+      };
       
       if (event.isRecurringOccurrence && event.start_time && options?.modifyType) {
         requestOptions.occurrenceDate = event.start_time;
         requestOptions.modifyType = options.modifyType;
       }
 
-      await respondToInvitation(
-        eventId, 
-        status, 
-        Object.keys(requestOptions).length > 0 ? requestOptions : undefined
-      );
+      await respondToInvitation(requestOptions);
       setSelectedResponse(status);
 
       // IMPORTANT: Invalidate event from subscriptions and cache to prevent data override

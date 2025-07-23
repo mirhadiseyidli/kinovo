@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColorScheme } from '../../../hooks/useColorScheme';
 import HomeScreen from '../../../components/Home/HomeScreen';
 import { ThemedView } from '@/components/ThemedView';
+import HomeScreenV2 from '@/components/Home/HomeScreen.v2';
 
 export default React.memo(function Home() {
   const insets = useSafeAreaInsets();
@@ -16,7 +17,8 @@ export default React.memo(function Home() {
       <StatusBar
         barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'}
       />
-        <HomeScreen />
+        {/* <HomeScreen /> */}
+        <HomeScreenV2 />
     </ThemedView>
   );
 });

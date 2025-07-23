@@ -62,7 +62,7 @@ const buildEventFilter = (filterData, options = {}) => {
   if (category) baseFilter.category = category;
   
   // Add city filter
-  if (city) baseFilter.city = city;
+  if (city) baseFilter['location.city'] = city;
 
   // Build visibility rules conditionally
   const visibilityRules = [];
@@ -1665,9 +1665,7 @@ const processEventsForDiscovery = (events, options = {}) => {
 
   for (const event of events) {
     if (event.status === 'cancelled') continue;
-    const isRecurring = event.recurrence?.checked &&
-                       event.recurrence?.frequency &&
-                       event.recurrence?.frequency !== 'none';
+    const isRecurring = isRecurringEvent(event);
 
     if (isRecurring) {
       // For recurring events, find only the NEXT upcoming occurrence
@@ -1677,8 +1675,10 @@ const processEventsForDiscovery = (events, options = {}) => {
       }
     } else {
       // For non-recurring events, include if they're in the future
-      const eventEnd = new Date(event.end_time);
-      if (eventEnd >= now) {
+      console.log(event)
+      console.log(event.end_time)
+      if (event.end_time >= now) {
+        console.log('sdhfjskjdhf')
         const eventObj = event.toObject ? event.toObject() : event;
         processedEvents.push({
           ...eventObj,
@@ -1688,6 +1688,7 @@ const processEventsForDiscovery = (events, options = {}) => {
       }
     }
   }
+  console.log('this', processedEvents)
 
   // Sort events by start time
   processedEvents.sort((a, b) => new Date(a.start_time) - new Date(b.start_time));

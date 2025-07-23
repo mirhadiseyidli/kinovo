@@ -101,11 +101,6 @@ export default React.memo(function EventAttendeesAndOptions() {
           style: 'default',
         },
         {
-          text: 'This and Future Occurrences',
-          onPress: () => saveEvent('this_and_future'),
-          style: 'default',
-        },
-        {
           text: 'All Occurrences',
           onPress: () => saveEvent('all_instances'),
           style: 'default',
@@ -118,8 +113,10 @@ export default React.memo(function EventAttendeesAndOptions() {
     );
   };
 
-  const saveEvent = async (recurringOption?: 'this_only' | 'this_and_future' | 'all_instances') => {
+  const saveEvent = async (recurringOption?: 'this_only' | 'all_instances') => {
+    console.log('happening')
     if (isEditMode && eventId && recurringOption) {
+      console.log('jshdfkjdsfjhsd')
       // Handle recurring event update with the selected option
       setLoading(true);
       setError(null);
@@ -150,10 +147,13 @@ export default React.memo(function EventAttendeesAndOptions() {
         setLoading(false);
       }
     } else {
+      console.log('-------')
       // Normal flow - create new event or update non-recurring event
       const response = await createOrUpdateEvent();
+      console.log(response)
       
       if (response?.success) {
+        console.log('hdsfjdhsj')
         navigation.getParent()?.goBack(); // This will close the modal
         Alert.alert(
           'Success', 

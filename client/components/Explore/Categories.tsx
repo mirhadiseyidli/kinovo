@@ -64,7 +64,7 @@ const Categories: React.FC<CategoriesProps> = ({ refreshing, onFinishRefresh }) 
   );
 
   const handleCategoryPress = (category: string) => {
-    router.push(`/(auth)/(category)/${category}`);
+    router.push(`/(auth)/(category)/${encodeURIComponent(category)}`);
   };
 
   const getIconForCategory = (categoryName: string): FeatherIconName => {

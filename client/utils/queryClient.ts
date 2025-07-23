@@ -1,4 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
+import { shouldPersistQuery } from './persistedQueryClient';
+import { setupGlobalErrorHandling } from './errorHandling';
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -6,7 +8,7 @@ export const queryClient = new QueryClient({
       // Stale time - how long data stays fresh (no refetch)
       staleTime: 1000 * 60 * 2, // 2 minutes default
       // Cache time - how long data stays in memory when not in use
-      cacheTime: 1000 * 60 * 10, // 10 minutes default
+      gcTime: 1000 * 60 * 10, // 10 minutes default
       // Retry failed requests
       retry: (failureCount, error) => {
         // Don't retry on 401, 403, or 404 errors
@@ -26,18 +28,16 @@ export const queryClient = new QueryClient({
       refetchOnReconnect: true,
       // Background refetch interval (disabled by default)
       refetchInterval: false,
-      // Error handling
-      onError: (error) => {
-        console.error('Query error:', error);
+      // Persistence control - only persist queries that should be cached offline
+      meta: {
+        persist: (query: any) => shouldPersistQuery(query.queryKey),
       },
     },
     mutations: {
-      // Retry failed mutations
-      retry: 1,
-      // Error handling
-      onError: (error) => {
-        console.error('Mutation error:', error);
-      },
+      // Enhanced retry with offline queue support (will be set up after initialization)
+      retry: 3,
+      // Network mode for offline support
+      networkMode: 'offlineFirst',
     },
   },
 });
@@ -53,3 +53,54 @@ if (__DEV__) {
     },
   });
 }
+
+// Set up offline mutation queue after queryClient is created
+let offlineQueueCleanup: (() => void) | null = null;
+
+export const setupOfflineQueue = async () => {
+  try {
+    const { startOfflineQueue } = await import('./offlineMutationQueue');
+    
+    // Update the default retry function to use offline queue
+    queryClient.setDefaultOptions({
+      mutations: {
+        ...queryClient.getDefaultOptions().mutations,
+        retry: (failureCount: number, error: Error) => {
+          // Don't retry for certain HTTP status codes
+          if (error && typeof error === 'object' && 'status' in error) {
+            const status = (error as any).status as number;
+            if ([400, 401, 403, 404, 422].includes(status)) {
+              return false;
+            }
+          }
+          return failureCount < 3;
+        },
+      },
+    });
+
+    // Start the offline queue system
+    offlineQueueCleanup = await startOfflineQueue(queryClient);
+    
+    console.log('Offline mutation queue initialized');
+  } catch (error) {
+    console.error('Failed to initialize offline mutation queue:', error);
+  }
+};
+
+// Set up global error handling
+export const setupGlobalErrorHandlers = () => {
+  try {
+    setupGlobalErrorHandling(queryClient);
+    console.log('Global error handling initialized');
+  } catch (error) {
+    console.error('Failed to initialize global error handling:', error);
+  }
+};
+
+// Cleanup function for offline queue
+export const cleanupOfflineQueue = () => {
+  if (offlineQueueCleanup) {
+    offlineQueueCleanup();
+    offlineQueueCleanup = null;
+  }
+};

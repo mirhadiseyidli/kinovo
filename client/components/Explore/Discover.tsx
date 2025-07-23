@@ -5,11 +5,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Header from '@/components/Header';
 import { ThemedView } from '@/components/ThemedView';
 import DiscoverSearchBar from '@/components/DiscoverSearchBar';
-import EventSuggestions from '@/components/Explore/EventSuggestions';
+// import EventSuggestions from '@/components/Explore/EventSuggestions';
+import EventSuggestionsV2 from '@/components/Explore/EventSuggestions.v2';
 import Categories from '@/components/Explore/Categories';
 import Cities from '@/components/Explore/Cities';
 import NearbyEvents from '@/components/Explore/NearbyEvents';
 import FriendsEvents from '@/components/Explore/FriendsEvents';
+import FriendsEventsInfinite from '@/components/Explore/FriendsEventsInfinite';
 import useSearchEverythingDiscovery from '@/hooks/useSearchEverythingDiscovery';
 import { User, Event } from '@/types/allTypes';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -190,7 +192,7 @@ const DiscoverScreen = () => {
             />
           </ThemedView>
           <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }}>
-            <EventSuggestions 
+            <EventSuggestionsV2 
               refreshing={refreshing}
               onFinishRefresh={onFinishRefreshEventSuggestions}
             />

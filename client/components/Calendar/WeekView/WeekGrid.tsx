@@ -3,7 +3,7 @@ import React from 'react';
 import { FlatList, View, Dimensions, Text, TouchableOpacity } from 'react-native';
 import { useColorScheme } from '../../../hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import { useEventContext } from '@/context/UserSessionContext';
+import { useCalendarContext } from '@/context/CalendarProvider.v2';
 import { format, isSameDay } from 'date-fns';
 import { useRouter } from 'expo-router';
 
@@ -20,7 +20,7 @@ interface WeekGridProps {
 const WeekGrid: React.FC<WeekGridProps> = ({ hours, weekDates, gridRef, loading, refreshing }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const { getOccurrencesForDate } = useEventContext();
+  const { getOccurrencesForDate } = useCalendarContext();
   const router = useRouter();
 
   // Performance optimization: Cache event positions to prevent recalculation
