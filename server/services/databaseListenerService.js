@@ -91,17 +91,24 @@ const initializeChangeStreams = () => {
           const recipientId = change.fullDocument.recipient._id.toString();
           const updatedFields = change.updateDescription.updatedFields;
           
-          // If notification is being marked as seen, do NOT sync to Firebase
-          // If notification is being marked as unseen (rare), sync to Firebase
+          // Check if this update involves marking notifications as seen
           if (updatedFields.hasOwnProperty('is_seen')) {
+            // If notification is becoming unseen (rare case), sync to Firebase
             if (!updatedFields.is_seen) {
-              // Notification becoming unseen - sync to Firebase
+              console.log(`🔄 Syncing notification ${change.fullDocument._id} to Firebase (becoming unseen)`);
               await syncNotification(recipientId, change.fullDocument);
+            } else {
+              console.log(`🚫 Skipping Firebase sync for notification ${change.fullDocument._id} (marked as seen)`);
             }
+            // If is_seen is being set to true, do NOT sync to Firebase - this prevents Firebase trails
+            // This also applies when is_seen is updated along with other fields like updated_at
           } else {
-            // Other field updates - only sync if notification is still unseen
+            // For updates that don't involve is_seen, only sync if notification is still unseen
             if (!change.fullDocument.is_seen) {
+              console.log(`🔄 Syncing notification ${change.fullDocument._id} to Firebase (other update, still unseen)`);
               await syncNotification(recipientId, change.fullDocument);
+            } else {
+              console.log(`🚫 Skipping Firebase sync for notification ${change.fullDocument._id} (already seen)`);
             }
           }
         }

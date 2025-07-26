@@ -7,6 +7,7 @@ import Header from '@/components/Header';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import DiscoverSearchBar from '@/components/DiscoverSearchBar';
+import DiscoverSearchBarSuggestions from '@/components/DiscoverSearchBarSuggestions';
 import Categories from '@/components/Explore/Categories';
 import Cities from '@/components/Explore/Cities';
 import NearbyEvents from '@/components/Explore/NearbyEvents.v2';
@@ -19,9 +20,11 @@ import { useInfiniteEventsQuery } from '@/hooks/useInfiniteEventsQuery';
 import { User, Event as EventType } from '@/types/allTypes';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
+import { useRouter } from 'expo-router';
 import Animated, { useSharedValue, withTiming, useAnimatedStyle } from 'react-native-reanimated';
 import { useDiscoverError } from '@/context/DiscoverErrorContext';
 import { DiscoverErrorMessage } from '@/components/Explore/DiscoverErrorMessage';
+import { queryClient } from '@/utils/queryClient';
 
 /**
  * Discover Screen v2 - Using FlashList for all content
@@ -63,6 +66,7 @@ interface SectionItem {
 const DiscoverScreenV2 = () => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const flashListRef = useRef<FlashList<SectionItem>>(null);
   const tabBarHeight = useBottomTabBarHeight();
@@ -71,6 +75,7 @@ const DiscoverScreenV2 = () => {
   const { errors, hasAnyError, setComponentError } = useDiscoverError();
   const [suggestions, setSuggestions] = useState<{ users: User[]; events: EventType[] }>({ users: [], events: [] });
   const [isSearchActive, setIsSearchActive] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   // Refresh states for individual sections
   const [refreshingNearbyEvents, setRefreshingNearbyEvents] = useState(false);
@@ -175,6 +180,7 @@ const DiscoverScreenV2 = () => {
       } else {
         setSuggestions({ users: [], events: [] });
         setIsSearchActive(false);
+        setShowSuggestions(false);
       }
     }, 300);
 
@@ -182,6 +188,11 @@ const DiscoverScreenV2 = () => {
       clearTimeout(handler);
     };
   }, [searchQuery]);
+
+  // Show suggestions when there are results and search is active
+  useEffect(() => {
+    setShowSuggestions(isSearchActive && (suggestions.users.length > 0 || suggestions.events.length > 0));
+  }, [isSearchActive, suggestions.users.length, suggestions.events.length]);
 
   // Refresh handlers
   const onRefresh = useCallback(async () => {
@@ -191,11 +202,23 @@ const DiscoverScreenV2 = () => {
     setRefreshingCategories(true);
     setRefreshingCities(true);
     
-    // Refresh recommended events
-    await refetchRecommended();
-    
-    // Other sections will handle their own refresh
-    setRefreshing(false);
+    try {
+      // Invalidate all event-related queries to force fresh data
+      await queryClient.invalidateQueries({ queryKey: ['events'] });
+      await queryClient.invalidateQueries({ queryKey: ['nearbyEvents'] });
+      await queryClient.invalidateQueries({ queryKey: ['friendsEvents'] });
+      await queryClient.invalidateQueries({ queryKey: ['categories'] });
+      await queryClient.invalidateQueries({ queryKey: ['cities'] });
+      await queryClient.invalidateQueries({ queryKey: ['recommendedEvents'] });
+      
+      // Refresh recommended events
+      await refetchRecommended();
+    } catch (error) {
+      console.error('Discover refresh failed:', error);
+    } finally {
+      // Other sections will handle their own refresh
+      setRefreshing(false);
+    }
   }, [refetchRecommended]);
 
   const onFinishRefreshNearbyEvents = useCallback(() => {
@@ -213,6 +236,35 @@ const DiscoverScreenV2 = () => {
   const onFinishRefreshCities = useCallback(() => {
     setRefreshingCities(false);
   }, []);
+
+  // Suggestions handlers
+  const handleUserPress = useCallback((user: User) => {
+    router.push({
+      pathname: "/(auth)/profile/[_id]" as const,
+      params: { _id: user._id }
+    });
+    setSearchQuery('');
+    setIsSearchActive(false);
+    setShowSuggestions(false);
+  }, [router]);
+
+  const handleEventPress = useCallback((event: EventType) => {
+    if (event._id) {
+      router.push({
+        pathname: "/(auth)/viewEvent/[event_id]" as const,
+        params: { event_id: event._id }
+      });
+    }
+    setSearchQuery('');
+    setIsSearchActive(false);
+    setShowSuggestions(false);
+  }, [router]);
+
+  const handleBackdropPress = useCallback(() => {
+    setShowSuggestions(false);
+    setIsSearchActive(false);
+  }, []);
+
 
   // Build sections data
   const buildSections = useCallback((): SectionItem[] => {
@@ -553,10 +605,19 @@ const DiscoverScreenV2 = () => {
         contentContainerStyle={{
           paddingBottom: tabBarHeight + 20,
         }}
-        estimatedItemSize={200}
+        estimatedItemSize={300}
         removeClippedSubviews={true}
         drawDistance={200}
         onScroll={handleScroll}
+      />
+
+      {/* Suggestions component rendered outside FlashList */}
+      <DiscoverSearchBarSuggestions
+        visible={showSuggestions}
+        suggestions={suggestions}
+        onUserPress={handleUserPress}
+        onEventPress={handleEventPress}
+        onBackdropPress={handleBackdropPress}
       />
     </ThemedView>
   );

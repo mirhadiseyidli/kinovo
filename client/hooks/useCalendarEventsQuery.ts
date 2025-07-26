@@ -52,19 +52,17 @@ export const useCalendarEventsQuery = (
   const query = useQuery({
     queryKey,
     queryFn: async () => {
+      console.log('useCalendarEventsQuery refetching events...');
       const events = await getCalendarEventsForDateRange(startDate, endDate, forceRefresh);
+      console.log('Raw events from server:', events.length);
+      console.log('Events with userStatus Calendar:', events.map(e => ({
+        id: e._id,
+        title: e.title,
+        userStatus: e.userStatus
+      })));
       
-      // SECURITY: Filter to only events where user is an attendee (matches EventContext behavior)
-      if (!userId) return [];
-      
-      return events.filter((event: Event) => {
-        if (!event.attendees) return false;
-        
-        return event.attendees.some((attendee: { user: any; status: string }) => {
-          const attendeeId = attendee.user._id || attendee.user;
-          return attendeeId.toString() === userId.toString();
-        });
-      });
+      // Server already filters to user's events and provides userStatus
+      return events;
     },
     enabled: enabled && !!userId,
     staleTime,

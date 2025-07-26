@@ -10,7 +10,7 @@ import type { AttendeeFriend } from '@/types/allTypes';
 import { ApiError } from '@/types/allTypes';
 import SearchUsersFriendsBar from '../SearchUsersFriendsBar';
 import { useCreateEventContext } from '@/context/CreateEventContext';
-import { useUserData } from '@/hooks/useUserData';
+import { useUserDataLegacy as useUserData } from '@/hooks/useUserData';
 import api from '@/utils/api';
 
 // Define EventAttendee type locally to match context usage

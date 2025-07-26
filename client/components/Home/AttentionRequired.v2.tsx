@@ -61,7 +61,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
   const { userId } = useAuthSession();
   const { setComponentError } = useHomeError();
   const [loadingResponses, setLoadingResponses] = React.useState<{ [key: string]: boolean }>({});
-  const [selectedResponse, setSelectedResponse] = React.useState<EventResponseStatus | null>(null);
+  const [selectedResponses, setSelectedResponses] = React.useState<{ [key: string]: EventResponseStatus }>({});
 
   // TanStack React Query hook - replaces useGetAttentionRequiredEvents and all manual state management
   const {
@@ -168,7 +168,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
       }
 
       await respondToInvitation(requestOptions);
-      setSelectedResponse(status);
+      setSelectedResponses(prev => ({ ...prev, [eventId]: status }));
 
       // Cache invalidation and optimistic updates handled automatically by useEventMutations
 
@@ -217,6 +217,8 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
   const showSkeleton = !initialEvents && isFirstFetch && isLoading;
 
   const renderEventCard = React.useCallback((event: Event, isLoading: boolean, isRejected: boolean, index: number) => {
+    const eventId = event.originalEventId || event._id;
+    const eventSelectedResponse = selectedResponses[eventId || ''];
     const timeLeft = getTimeLeft(event.start_time, event.end_time);
 
     // Don't render if the event is in the past or ongoing
@@ -460,7 +462,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
                     flexDirection: 'row',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    backgroundColor: selectedResponse === 'accepted' ? themeColors.mountainGreen : themeColors.eventCardBackgroundColor,
+                    backgroundColor: eventSelectedResponse === 'accepted' ? themeColors.mountainGreen : themeColors.eventCardBackgroundColor,
                     borderRadius: 6,
                     paddingHorizontal: 12,
                     paddingVertical: 8,
@@ -485,8 +487,8 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
                     flexDirection: 'row',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    backgroundColor: selectedResponse === 'maybe' ? themeColors.maybeStatusColor + '20' : themeColors.eventCardBackgroundColor,
-                    borderColor: selectedResponse === 'maybe' ? themeColors.border : 'transparent',
+                    backgroundColor: eventSelectedResponse === 'maybe' ? themeColors.maybeStatusColor + '20' : themeColors.eventCardBackgroundColor,
+                    borderColor: eventSelectedResponse === 'maybe' ? themeColors.border : 'transparent',
                     borderWidth: 1,
                     borderRadius: 6,
                     paddingHorizontal: 12,
@@ -512,8 +514,8 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
                     flexDirection: 'row',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    backgroundColor: selectedResponse === 'rejected' ? themeColors.background : themeColors.eventCardBackgroundColor,
-                    borderColor: selectedResponse === 'rejected' ? themeColors.border : 'transparent',
+                    backgroundColor: eventSelectedResponse === 'rejected' ? themeColors.background : themeColors.eventCardBackgroundColor,
+                    borderColor: eventSelectedResponse === 'rejected' ? themeColors.border : 'transparent',
                     borderWidth: 1,
                     borderRadius: 6,
                     paddingHorizontal: 12,
@@ -537,7 +539,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
         </View>
       </TouchableOpacity>
     );
-  }, [getTimeLeft, themeColors, handleViewEvent, handleResponseAlert, formatDate, selectedResponse, respondToInvitationLoading]);
+  }, [getTimeLeft, themeColors, handleViewEvent, handleResponseAlert, formatDate, selectedResponses, respondToInvitationLoading]);
 
   // Don't render if no future events
   if (futureEvents.length === 0) {

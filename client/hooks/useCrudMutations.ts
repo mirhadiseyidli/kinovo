@@ -13,7 +13,9 @@ import {
   createEventOptimistically,
   updateEventOptimistically, 
   deleteEventOptimistically,
-  rollbackOptimisticUpdate
+  rollbackOptimisticUpdate,
+  invalidateEventQueries,
+  invalidateEventQueriesForUpdate
 } from '@/utils/optimisticUpdates';
 
 /**
@@ -232,6 +234,7 @@ export const useCreateEventMutation = (config: CrudMutationConfig = {}) => {
         queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'calendar-range'] });
         queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'calendar-occurrences'] });
         if (userId) {
+          queryClient.invalidateQueries({ queryKey: [...queryKeys.userEvents(userId), 'calendar'] });
           queryClient.invalidateQueries({ queryKey: ['recurring-event-modifications', userId] });
         }
       }
@@ -302,32 +305,34 @@ export const useUpdateEventMutation = (config: CrudMutationConfig = {}) => {
         updated_at: new Date(),
       } as Partial<Event>;
 
-      // Use new optimistic update system
+      // Use simplified optimistic update system
       const context = updateEventOptimistically(
         queryClient,
         eventData.id,
-        optimisticUpdate,
-        userId
+        optimisticUpdate
       );
 
       return { context };
     },
 
     onSuccess: (data, variables, _context) => {
-      if (invalidateQueries) {
-        // Invalidate relevant queries
-        queryClient.invalidateQueries({ queryKey: queryKeys.eventById(variables.id) });
-        
-        if (userId) {
-          invalidateInfiniteQueries({ queryClient, userId });
-        }
-        
-        // Invalidate calendar cache - updated events need to refresh in calendar
-        queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'calendar-range'] });
-        queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'calendar-occurrences'] });
-        if (userId) {
-          queryClient.invalidateQueries({ queryKey: ['recurring-event-modifications', userId] });
-        }
+      // Debug: Check what the server response looks like
+      console.log('Update event server response:', data);
+      console.log('Event ID:', variables.id);
+      
+      // Update the individual event cache with the actual server response
+      if (data && data.event) {
+        console.log('Updating event cache with:', data.event);
+        queryClient.setQueryData(queryKeys.eventById(variables.id), data.event);
+      } else if (data) {
+        // Maybe the server returns the event directly, not wrapped in { event: ... }
+        console.log('Updating event cache with direct data:', data);
+        queryClient.setQueryData(queryKeys.eventById(variables.id), data);
+      }
+      
+      if (invalidateQueries && userId) {
+        // Use invalidation that excludes individual events since we just updated it above
+        invalidateEventQueriesForUpdate(queryClient, userId);
       }
 
       onSuccess?.(data);
@@ -400,6 +405,7 @@ export const useDeleteEventMutation = (config: CrudMutationConfig = {}) => {
         queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'calendar-range'] });
         queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'calendar-occurrences'] });
         if (userId) {
+          queryClient.invalidateQueries({ queryKey: [...queryKeys.userEvents(userId), 'calendar'] });
           queryClient.invalidateQueries({ queryKey: ['recurring-event-modifications', userId] });
         }
       }

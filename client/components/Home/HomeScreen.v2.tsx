@@ -18,6 +18,7 @@ import { Colors } from '@/constants/Colors';
 import Animated, { useSharedValue, withTiming, useAnimatedStyle } from 'react-native-reanimated';
 import { useHomeError } from '@/context/HomeErrorContext';
 import { HomeErrorMessage } from '@/components/Home/HomeErrorMessage';
+import { queryClient } from '@/utils/queryClient';
 
 /**
  * HomeScreen v2 - Using FlashList for all content with infinite scroll for past events
@@ -158,6 +159,12 @@ const HomeScreenV2 = () => {
     setRefreshingAttentionRequired(true);
     
     try {
+      // Invalidate all event-related queries to force fresh data
+      await queryClient.invalidateQueries({ queryKey: ['events'] });
+      await queryClient.invalidateQueries({ queryKey: ['upcomingEvents'] });
+      await queryClient.invalidateQueries({ queryKey: ['attentionRequired'] });
+      await queryClient.invalidateQueries({ queryKey: ['pastEvents'] });
+      
       // Refresh past events
       await refetchPastEvents();
       

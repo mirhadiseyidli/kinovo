@@ -5,9 +5,10 @@ import api from '@/utils/api';
 import { Alert } from 'react-native';
 import { 
   updateEventOptimistically, 
-  deleteEventOptimistically,
   rollbackOptimisticUpdate, 
   predictOptimisticEventState,
+  invalidateEventQueries,
+  deleteEventOptimistically,
   OptimisticUpdateContext 
 } from '@/utils/optimisticUpdates';
 import { Event } from '@/types/allTypes';
@@ -61,12 +62,11 @@ export const useRespondToInvitationMutation = () => {
           { userId, response: variables.status }
         );
         
-        // Apply optimistic update
+        // Apply simple optimistic update
         const context = updateEventOptimistically(
           queryClient,
           variables.eventId,
-          optimisticEvent,
-          userId
+          optimisticEvent
         );
         
         return { context };
@@ -76,18 +76,8 @@ export const useRespondToInvitationMutation = () => {
     },
     
     onSuccess: () => {
-      // Background refetch for eventual consistency - optimistic updates already applied
-      if (userId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.upcomingEvents(userId, false) });
-        queryClient.invalidateQueries({ queryKey: queryKeys.infiniteUpcoming(userId, {}) });
-        queryClient.invalidateQueries({ queryKey: queryKeys.attentionRequiredEvents(userId, false) });
-        queryClient.invalidateQueries({ queryKey: queryKeys.infiniteEvents('attention-required', {}) });
-        
-        // Invalidate calendar cache - event invitation responses affect calendar display
-        queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'calendar-range'] });
-        queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'calendar-occurrences'] });
-        queryClient.invalidateQueries({ queryKey: ['recurring-event-modifications', userId] });
-      }
+      // Invalidate all relevant queries for background consistency
+      invalidateEventQueries(queryClient, userId);
     },
     
     onError: (error: any, variables, context) => {
@@ -135,12 +125,11 @@ export const useJoinEventMutation = () => {
           { userId, status: variables.status }
         );
         
-        // Apply optimistic update
+        // Apply simple optimistic update
         const context = updateEventOptimistically(
           queryClient,
           variables.eventId,
-          optimisticEvent,
-          userId
+          optimisticEvent
         );
         
         return { context };
@@ -150,16 +139,9 @@ export const useJoinEventMutation = () => {
     },
     
     onSuccess: () => {
-      if (userId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.upcomingEvents(userId, false) });
-        queryClient.invalidateQueries({ queryKey: queryKeys.infiniteUpcoming(userId, {}) });
-        queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'infinite', 'nearby'] });
-        queryClient.invalidateQueries({ queryKey: queryKeys.infiniteRecommended(userId, {}) });
-        
-        // Invalidate calendar cache - joining events adds them to calendar
-        queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'calendar-range'] });
-        queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'calendar-occurrences'] });
-      }
+      invalidateEventQueries(queryClient, userId);
+      // Also invalidate nearby queries (need lat/lng parameters)
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'infinite', 'nearby'] });
     },
     
     onError: (error: any, variables, context) => {
@@ -193,36 +175,30 @@ export const useMarkNotInterestedMutation = () => {
       // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: queryKeys.eventById(variables.eventId) });
       
-      // For "not interested", we optimistically remove the event from all lists
-      // This provides instant feedback that the event is hidden
-      const context = deleteEventOptimistically(
-        queryClient,
-        variables.eventId,
-        userId
-      );
+      // For "not interested", we remove the event from individual cache
+      // Lists will be updated via invalidation
+      const eventQueryKey = queryKeys.eventById(variables.eventId);
+      const previousEvent = queryClient.getQueryData<Event>(eventQueryKey);
       
-      return { context };
+      // Remove the event from cache immediately
+      queryClient.removeQueries({ queryKey: eventQueryKey });
+      
+      return { context: { previousEvent } };
     },
     
     onSuccess: () => {
+      invalidateEventQueries(queryClient, userId);
+      // Also invalidate nearby and friends queries
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'infinite', 'nearby'] });
       if (userId) {
-        // Background refetch for eventual consistency
-        queryClient.invalidateQueries({ queryKey: queryKeys.upcomingEvents(userId, false) });
-        queryClient.invalidateQueries({ queryKey: queryKeys.infiniteUpcoming(userId, {}) });
-        queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'infinite', 'nearby'] });
-        queryClient.invalidateQueries({ queryKey: queryKeys.infiniteRecommended(userId, {}) });
         queryClient.invalidateQueries({ queryKey: queryKeys.infiniteFriends(userId, {}) });
-        
-        // Invalidate calendar cache - marking not interested removes events from calendar
-        queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'calendar-range'] });
-        queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'calendar-occurrences'] });
       }
     },
     
     onError: (error: any, variables, context) => {
-      // Rollback optimistic deletion on error
-      if (context?.context) {
-        rollbackOptimisticUpdate(queryClient, variables.eventId, context.context);
+      // Restore the event if we had one
+      if (context?.context?.previousEvent) {
+        queryClient.setQueryData(queryKeys.eventById(variables.eventId), context.context.previousEvent);
       }
       
       const errorMessage = error.response?.data?.message || error.message || 'Failed to mark event as not interested';
@@ -258,18 +234,11 @@ export const useCancelEventMutation = () => {
       const currentEvent = queryClient.getQueryData<Event>(queryKeys.eventById(variables.eventId));
       
       if (currentEvent) {
-        // Predict optimistic state (cancelled)
-        const optimisticEvent = predictOptimisticEventState(
-          currentEvent, 
-          'cancel', 
-          {}
-        );
-        
-        // Apply optimistic update
-        const context = updateEventOptimistically(
+        // For cancel/delete, we should remove the event entirely from cache
+        // This is better UX than just marking it as cancelled
+        const context = deleteEventOptimistically(
           queryClient,
           variables.eventId,
-          optimisticEvent,
           userId
         );
         
@@ -290,18 +259,11 @@ export const useCancelEventMutation = () => {
     },
     
     onSuccess: () => {
+      invalidateEventQueries(queryClient, userId);
+      // Also invalidate user events and past events specifically for cancel
       if (userId) {
-        // Invalidate all relevant queries
-        queryClient.invalidateQueries({ queryKey: queryKeys.upcomingEvents(userId, false) });
-        queryClient.invalidateQueries({ queryKey: queryKeys.infiniteUpcoming(userId, {}) });
-        queryClient.invalidateQueries({ queryKey: queryKeys.pastEvents(userId) });
-        queryClient.invalidateQueries({ queryKey: queryKeys.infinitePast(userId, {}) });
         queryClient.invalidateQueries({ queryKey: queryKeys.userEvents(userId) });
-        
-        // Invalidate calendar cache - canceling events removes them from calendar
-        queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'calendar-range'] });
-        queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'calendar-occurrences'] });
-        queryClient.invalidateQueries({ queryKey: ['recurring-event-modifications', userId] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.infinitePast(userId, {}) });
       }
     },
     
@@ -338,22 +300,21 @@ export const useRemoveAttendeeMutation = () => {
         // Predict optimistic state (remove attendee from list)
         const optimisticEvent = {
           ...currentEvent,
-          attendees: currentEvent.attendees.filter((attendee: any) => 
+          attendees: currentEvent.attendees?.filter((attendee: any) => 
             attendee.user._id !== variables.attendeeId
-          ),
+          ) || [],
           // If removing self, update user status
           ...(variables.attendeeId === userId && {
             isUserAttending: false,
-            userStatus: null
+            userStatus: undefined
           })
         };
         
-        // Apply optimistic update
+        // Apply simple optimistic update
         const context = updateEventOptimistically(
           queryClient,
           variables.eventId,
-          optimisticEvent,
-          userId
+          optimisticEvent
         );
         
         return { context };
@@ -362,22 +323,8 @@ export const useRemoveAttendeeMutation = () => {
       return {};
     },
     
-    onSuccess: (data, variables) => {
-      if (userId) {
-        // Invalidate event queries
-        queryClient.invalidateQueries({ queryKey: queryKeys.upcomingEvents(userId, false) });
-        queryClient.invalidateQueries({ queryKey: queryKeys.infiniteUpcoming(userId, {}) });
-        
-        // If removing self, also invalidate attention required
-        if (variables.attendeeId === userId) {
-          queryClient.invalidateQueries({ queryKey: queryKeys.attentionRequiredEvents(userId, false) });
-          queryClient.invalidateQueries({ queryKey: queryKeys.infiniteEvents('attention-required', {}) });
-        }
-        
-        // Invalidate calendar cache - removing attendees affects calendar display
-        queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'calendar-range'] });
-        queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'calendar-occurrences'] });
-      }
+    onSuccess: () => {
+      invalidateEventQueries(queryClient, userId);
     },
     
     onError: (error: any, variables, context) => {
@@ -387,6 +334,92 @@ export const useRemoveAttendeeMutation = () => {
       }
       
       const errorMessage = error.response?.data?.message || error.message || 'Failed to remove attendee';
+      Alert.alert('Error', errorMessage);
+    },
+    
+    retry: 3,
+    networkMode: 'offlineFirst',
+  });
+};
+
+// Invite attendees mutation
+export const useInviteAttendeesMutation = () => {
+  const { userId } = useAuthSession();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationKey: ['events', 'inviteAttendees'],
+    mutationFn: async (variables: {
+      eventId: string;
+      invitees: string[];
+      occurrenceDate?: string;
+      modifyType?: 'this_only' | 'all_future';
+    }) => {
+      const response = await api.post(`/api/manageevents/eventslist/${variables.eventId}/invite`, {
+        invitees: variables.invitees,
+        occurrence_start: variables.occurrenceDate,
+        modifyType: variables.modifyType
+      });
+      return response.data;
+    },
+    
+    onMutate: async (variables) => {
+      // Cancel outgoing refetches for the event
+      await queryClient.cancelQueries({ queryKey: queryKeys.eventById(variables.eventId) });
+      
+      // Get current event data for rollback
+      const currentEvent = queryClient.getQueryData<Event>(queryKeys.eventById(variables.eventId));
+      
+      // Optimistically add new attendees with pending status
+      if (currentEvent) {
+        // Try to get user data from friends cache for better optimistic updates
+        const friendsQuery = queryClient.getQueryData(['friends', userId]) as any;
+        const friendsData = friendsQuery?.pages?.flatMap((page: any) => page.friends) || [];
+        
+        const newAttendees = variables.invitees.map(inviteeId => {
+          // Try to find user data in friends cache
+          const friendData = friendsData.find((friend: any) => friend._id === inviteeId);
+          
+          return {
+            user: friendData || { 
+              _id: inviteeId,
+              first_name: 'Loading...',
+              last_name: '',
+              profile_picture: null
+            },
+            status: 'pending',
+            invited_by: userId
+          };
+        });
+        
+        const optimisticEvent = {
+          ...currentEvent,
+          attendees: [...(currentEvent.attendees || []), ...newAttendees]
+        };
+        
+        queryClient.setQueryData(queryKeys.eventById(variables.eventId), optimisticEvent);
+      }
+      
+      return { previousEvent: currentEvent };
+    },
+    
+    onSuccess: (data, variables) => {
+      // Update the event cache with the full server response if available
+      if (data && data.event) {
+        queryClient.setQueryData(queryKeys.eventById(variables.eventId), data.event);
+      }
+      
+      // Invalidate all relevant queries
+      invalidateEventQueries(queryClient, userId);
+    },
+    
+    onError: (error: any, variables, context) => {
+      // Rollback optimistic updates on error
+      if (context?.previousEvent) {
+        queryClient.setQueryData(queryKeys.eventById(variables.eventId), context.previousEvent);
+      }
+      
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to invite attendees';
       Alert.alert('Error', errorMessage);
     },
     
@@ -405,6 +438,7 @@ export const useEventMutations = () => {
   const notInterestedMutation = useMarkNotInterestedMutation();
   const cancelMutation = useCancelEventMutation();
   const removeAttendeeMutation = useRemoveAttendeeMutation();
+  const inviteAttendeesMutation = useInviteAttendeesMutation();
 
   return {
     // Maintain backward compatibility with async functions
@@ -413,6 +447,7 @@ export const useEventMutations = () => {
     markNotInterested: notInterestedMutation.mutateAsync,
     cancelEvent: cancelMutation.mutateAsync,
     removeAttendee: removeAttendeeMutation.mutateAsync,
+    inviteAttendees: inviteAttendeesMutation.mutateAsync,
     
     // Expose mutations for direct access
     respondMutation,
@@ -420,6 +455,7 @@ export const useEventMutations = () => {
     notInterestedMutation,
     cancelMutation,
     removeAttendeeMutation,
+    inviteAttendeesMutation,
     
     // Combined loading state
     loading: 
@@ -427,7 +463,8 @@ export const useEventMutations = () => {
       joinMutation.isPending ||
       notInterestedMutation.isPending ||
       cancelMutation.isPending ||
-      removeAttendeeMutation.isPending,
+      removeAttendeeMutation.isPending ||
+      inviteAttendeesMutation.isPending,
     
     // Combined error state
     error: 
@@ -435,6 +472,7 @@ export const useEventMutations = () => {
       joinMutation.error ||
       notInterestedMutation.error ||
       cancelMutation.error ||
-      removeAttendeeMutation.error,
+      removeAttendeeMutation.error ||
+      inviteAttendeesMutation.error,
   };
 };

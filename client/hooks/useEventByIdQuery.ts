@@ -67,6 +67,7 @@ export const useEventByIdQuery = (
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
   });
 
+
   return {
     event: query.data || null,
     loading: query.isLoading,

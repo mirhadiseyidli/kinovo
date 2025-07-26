@@ -7,7 +7,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { Feather } from '@expo/vector-icons';
 import { ThemedText } from '@/components/ThemedText';
 import TwoFactorAuth from '@/components/Auth/TwoFactorAuth';
-import { useUserData } from '@/hooks/useUserData';
+import { useUserDataLegacy as useUserData } from '@/hooks/useUserData';
 import api from '@/utils/api';
 import LabeledInput from '@/components/ProfileAndSettings/Profile/LabeledInput';
 import { initiatePhoneAuth } from '@/config/firebase';

@@ -113,6 +113,14 @@ export const useCreateEventMutation = () => {
       queryClient.invalidateQueries({ 
         queryKey: queryKeys.infiniteUpcoming(userId || '', {}) 
       });
+      
+      // Invalidate calendar cache - new events need to appear in calendar
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'calendar-range'] });
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'calendar-occurrences'] });
+      if (userId) {
+        queryClient.invalidateQueries({ queryKey: [...queryKeys.userEvents(userId), 'calendar'] });
+        queryClient.invalidateQueries({ queryKey: ['recurring-event-modifications', userId] });
+      }
     },
 
     // Always called after success or error
@@ -214,6 +222,11 @@ export const useUpdateEventMutation = () => {
       // Extract the event from the response
       const updatedEvent = response.event;
       
+      // CRITICAL: Update the individual event cache for ViewEvent screen
+      if (updatedEvent) {
+        queryClient.setQueryData(queryKeys.eventById(eventId), updatedEvent);
+      }
+      
       // Update cache with real data
       if (userId) {
         queryClient.setQueryData<Event[]>(
@@ -228,7 +241,7 @@ export const useUpdateEventMutation = () => {
         );
       }
 
-      // Invalidate related queries
+      // Invalidate related queries (but NOT individual event since we just updated it)
       queryClient.invalidateQueries({ 
         queryKey: queryKeys.userEvents(userId || '') 
       });
@@ -237,6 +250,14 @@ export const useUpdateEventMutation = () => {
       queryClient.invalidateQueries({ 
         queryKey: queryKeys.infiniteUpcoming(userId || '', {}) 
       });
+      
+      // Invalidate calendar cache - updated events need to be reflected in calendar
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'calendar-range'] });
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'calendar-occurrences'] });
+      if (userId) {
+        queryClient.invalidateQueries({ queryKey: [...queryKeys.userEvents(userId), 'calendar'] });
+        queryClient.invalidateQueries({ queryKey: ['recurring-event-modifications', userId] });
+      }
     },
 
     onSettled: () => {

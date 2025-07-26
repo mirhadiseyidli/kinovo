@@ -6,6 +6,50 @@ const sharp = require('sharp');
 
 require('dotenv').config();
 
+// Helper function to generate default profile picture data URI
+const createDefaultProfileImage = async (firstName, lastName) => {
+  try {
+    const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+    
+    // Generate a consistent color based on the user's name
+    const colors = [
+      '#6366f1', '#8b5cf6', '#ec4899', '#ef4444', '#f97316',
+      '#eab308', '#22c55e', '#10b981', '#06b6d4', '#3b82f6'
+    ];
+    const colorIndex = (firstName.charCodeAt(0) + lastName.charCodeAt(0)) % colors.length;
+    const backgroundColor = colors[colorIndex];
+    
+    const size = 400;
+    const fontSize = Math.floor(size * 0.35);
+    const centerX = size / 2;
+    const centerY = size / 2;
+    
+    const svg = `
+      <svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="${centerX}" cy="${centerY}" r="${size / 2}" fill="${backgroundColor}" />
+        <text x="${centerX}" y="${centerY}" 
+              font-family="Arial, Helvetica, sans-serif" 
+              font-size="${fontSize}" 
+              font-weight="bold" 
+              fill="white" 
+              text-anchor="middle" 
+              dy=".35em">${initials}</text>
+      </svg>
+    `.trim();
+    
+    // Convert SVG to PNG using Sharp
+    const pngBuffer = await sharp(Buffer.from(svg))
+      .png()
+      .toBuffer();
+    
+    // Convert PNG buffer to base64 data URI
+    return `data:image/png;base64,${pngBuffer.toString('base64')}`;
+  } catch (error) {
+    console.error('Error creating default profile image:', error);
+    return null;
+  }
+};
+
 const getUserProfile = async (req, res) => {
   try {
     // Check for friend request in both directions
@@ -1015,5 +1059,6 @@ module.exports = {
   getUserImages,
   generateDefaultProfilePicture,
   bypassTwoFactorAuth,
-  getBypassTwoFactorAuth
+  getBypassTwoFactorAuth,
+  createDefaultProfileImage  // Export the helper function
 };

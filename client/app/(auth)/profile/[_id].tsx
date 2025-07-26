@@ -14,7 +14,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Colors } from "@/constants/Colors";
 import { TabBar } from "react-native-tab-view";
 import { useManageFriends } from "@/hooks/useManageFriends";
-import { useUserData } from "@/hooks/useUserData";
+import { useUserDataLegacy as useUserData } from "@/hooks/useUserData";
 import api from "@/utils/api";
 import ContextMenuWithTrigger from "@/components/ContextMenuWithTrigger";
 import { Feather } from "@expo/vector-icons";

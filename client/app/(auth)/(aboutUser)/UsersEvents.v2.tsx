@@ -73,6 +73,7 @@ export default React.memo(function UserEvents({ userId, route, refreshing }: Use
 
   // Filter and sort events
   const filteredEvents = useMemo(() => {
+    console.log(eventsList)
     return eventsList
       .filter(event => 
         event.title.toLowerCase().includes(searchQuery.toLowerCase())

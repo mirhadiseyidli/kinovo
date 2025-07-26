@@ -165,9 +165,6 @@ const eventsApiMap: Record<string, EventsApiFunction> = {
       params: { page, limit, ...params }
     });
     
-    // Log the response to debug
-    console.log('Friends events API response:', response.data);
-    
     // Handle both response formats
     if (Array.isArray(response.data)) {
       // If response.data is an array directly (old format)
@@ -394,13 +391,9 @@ export const useInfiniteEventsQuery = (config: UseInfiniteEventsQueryConfig = {}
       
       let events = data.pages.flatMap(page => page.events);
       
-      
-      // Log for debugging friends events
+      // Filter out events without creators for friends events
       if (eventType === 'friends') {
-        console.log('Select - Friends events before filter:', events.length, events);
-        const validEvents = events.filter(event => event && event.creator);
-        console.log('Select - Friends events after filter:', validEvents.length);
-        events = validEvents;
+        events = events.filter(event => event && event.creator);
       }
       
       const totalCount = data.pages[0]?.totalCount || 0;
@@ -448,23 +441,15 @@ export const useInfiniteEventsQuery = (config: UseInfiniteEventsQueryConfig = {}
   const allEvents = useMemo(() => {
     let events = query.data?.pages.flatMap(page => page.events) || [];
     
-    // Log events for debugging
-    if (eventType === 'friends' && events.length > 0) {
-      console.log('Friends events data:', events);
-    }
-    
     // Filter out events without creators for friends events
     if (eventType === 'friends') {
-      const validEvents = events.filter(event => {
+      events = events.filter(event => {
         if (!event || !event.creator) {
           console.warn('Friends event missing creator:', event);
           return false;
         }
         return true;
       });
-      
-      console.log(`Friends events: ${events.length} total, ${validEvents.length} with creators`);
-      events = validEvents;
     }
     
     return events;

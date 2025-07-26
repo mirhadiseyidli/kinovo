@@ -88,6 +88,17 @@ export type CreateEventTabParamList = {
 
 export interface LocationContextProps {
   locationPermission: boolean | null;
+  currentLocation: {
+    city: string;
+    state: string;
+    lat: number | null;
+    lng: number | null;
+    text: string;
+  } | null;
+  isLoadingLocation: boolean;
+  locationError: string | null;
+  refreshLocation: () => Promise<void>;
+  setCustomLocation: (location: { city: string; state: string; lat: number; lng: number; text: string }) => void;
 }
 
 // =========================

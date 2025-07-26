@@ -7,6 +7,8 @@ import { View } from 'react-native';
 import { ApiError, AuthContextType, TokenTypes } from '@/types/allTypes';
 import { signInWithFirebaseToken } from '@/config/firebase';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
+import { queryClient } from '@/utils/queryClient';
+import { asyncStoragePersister } from '@/utils/persistedQueryClient';
 
 const AuthContext = createContext<AuthContextType>({
   signIn: () => null,
@@ -152,7 +154,7 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
         // Firebase authentication happens in background after navigation
         setTimeout(async () => {
           try {
-            const result = await signInWithFirebaseToken(firebaseToken);
+            await signInWithFirebaseToken(firebaseToken);
             setIsFirebaseAuthenticated(true);
           } catch (error: any) {
             console.error('Background Firebase authentication failed:', error.code, error.message);
@@ -170,6 +172,50 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
 
   const signOut = useCallback(async () => {
     fadeTransition(async () => {
+      // Clear all TanStack Query cache (in-memory)  
+      queryClient.clear();
+      
+      // Force complete cache reset by invalidating everything
+      await queryClient.invalidateQueries();
+      
+      // Remove all queries from cache
+      queryClient.removeQueries();
+      
+      // Clear persistent cache from AsyncStorage
+      try {
+        // Primary method: Clear all AsyncStorage keys that might contain cached data
+        const allKeys = await AsyncStorage.getAllKeys();
+        const cacheKeys = allKeys.filter(key => 
+          key.includes('cache') || 
+          key.includes('query') || 
+          key.includes('events') ||
+          key.includes('KINOVO') ||
+          key.includes('REACT_QUERY')
+        );
+        
+        if (cacheKeys.length > 0) {
+          await AsyncStorage.multiRemove(cacheKeys);
+        }
+        
+        // Also try the persister method as secondary cleanup
+        try {
+          await asyncStoragePersister.removeClient();
+        } catch (persisterError) {
+          // Ignore persister errors - the manual cleanup above should handle it
+        }
+        
+      } catch (error) {
+        console.error('Error clearing cache keys:', error);
+        
+        // Ultimate fallback: try to clear the main cache key directly
+        try {
+          await AsyncStorage.removeItem('KINOVO_REACT_QUERY_OFFLINE_CACHE');
+        } catch (fallbackError) {
+          console.error('Ultimate fallback cache clearing also failed:', fallbackError);
+        }
+      }
+      
+      // Clear all stored tokens and data
       await SecureStore.deleteItemAsync('accessToken');
       await AsyncStorage.removeItem('userId');
       await SecureStore.deleteItemAsync('refreshToken');
@@ -179,6 +225,7 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
       firebaseTokenRef.current = null;
       setUserId(undefined);
       setIsFirebaseAuthenticated(false);
+      
       router.replace('/login');
     });
   }, []);

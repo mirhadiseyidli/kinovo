@@ -206,6 +206,12 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = React.memo(({ ev
   };
 
   const handleViewEvent = () => {
+    // Check if event is cancelled - this is a safety check since cancelled events 
+    // should already be filtered out from most lists
+    if (event.status === 'cancelled') {
+      return; // Don't navigate to cancelled events
+    }
+
     // For recurring event occurrences, use the originalEventId, otherwise use the regular _id
     const eventId = event.originalEventId || event._id;
     if (!eventId) return;

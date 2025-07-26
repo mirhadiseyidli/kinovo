@@ -39,14 +39,6 @@ const FriendsEventsInfinitePage = () => {
     enabled: Boolean(userId),
   });
 
-  const goBack = useCallback(() => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace('/');
-    }
-  }, [router]);
-
   // Custom event item renderer with friend info
   const renderEventItem = useCallback((event: Event, index: number) => {
     // Ensure event and creator exist
@@ -54,8 +46,44 @@ const FriendsEventsInfinitePage = () => {
       console.warn('Event or creator is missing:', event);
       return null;
     }
+
+    // Check if event is in the past
+    const isEventPast = event.end_time ? new Date(event.end_time) < new Date() : false;
     
-    const isCreator = userId && event.creator._id === userId;
+    // Find which friend this event relates to
+    // The friend could be the creator or could be an attendee
+    let displayedFriend = null;
+    let friendIsCreator = false;
+    
+    // First check if the creator is the friend we should display
+    if (event.creator && event.creator._id !== userId) {
+      displayedFriend = event.creator;
+      friendIsCreator = true;
+    } else {
+      // If creator is current user, find the friend attendee to display
+      const friendAttendee = event.attendees?.find(attendee => 
+        attendee.user && attendee.user._id !== userId
+      );
+      if (friendAttendee) {
+        displayedFriend = friendAttendee.user;
+        friendIsCreator = false;
+      }
+    }
+    
+    // If no friend found to display, fallback to creator
+    if (!displayedFriend) {
+      displayedFriend = event.creator;
+      friendIsCreator = true;
+    }
+    
+    // Determine attendance status text for the friend
+    const getAttendanceStatus = () => {
+      if (friendIsCreator) {
+        return isEventPast ? 'hosted' : 'is hosting';
+      } else {
+        return isEventPast ? 'attended' : 'is attending';
+      }
+    };
     
     return (
       <ThemedView style={{ overflow: 'hidden', marginBottom: 32 }}>
@@ -67,17 +95,17 @@ const FriendsEventsInfinitePage = () => {
           marginBottom: 16,
         }}>
           <DefaultProfilePicture
-            profilePicture={event.creator.profile_picture}
-            fullName={event.creator.full_name}
+            profilePicture={displayedFriend.profile_picture}
+            fullName={displayedFriend.full_name}
             size={40}
             borderRadius={20}
           />
           <View style={{ marginLeft: 12 }}>
             <ThemedText style={{ fontWeight: 'bold' }}>
-              {event.creator.full_name || 'Unknown User'}
+              {displayedFriend.full_name || 'Unknown User'}
             </ThemedText>
             <ThemedText style={{ fontSize: 14, color: themeColors.textSecondary }}>
-              {isCreator ? 'is hosting' : 'is attending'}
+              {getAttendanceStatus()}
             </ThemedText>
           </View>
         </View>
@@ -88,7 +116,7 @@ const FriendsEventsInfinitePage = () => {
         </View>
       </ThemedView>
     );
-  }, [userId, themeColors]);
+  }, [userId]);
 
   // Custom empty state
   const renderEmptyState = useCallback(() => {
@@ -135,7 +163,7 @@ const FriendsEventsInfinitePage = () => {
         </ThemedView>
       </View>
     );
-  }, [themeColors]);
+  }, []);
 
   // Custom loading state
   const renderLoadingState = useCallback(() => {
@@ -181,7 +209,7 @@ const FriendsEventsInfinitePage = () => {
         </View>
       </View>
     );
-  }, [themeColors]);
+  }, []);
 
   // Custom error state
   const renderErrorState = useCallback((error: any, retry: () => void) => {
@@ -248,7 +276,7 @@ const FriendsEventsInfinitePage = () => {
         </View>
       </View>
     );
-  }, [themeColors]);
+  }, []);
 
   // Header component that will be part of the scrollable content (when there are events)
   const renderListHeader = useCallback(() => (
@@ -332,7 +360,7 @@ const FriendsEventsInfinitePage = () => {
         </View>
       </ThemedView>
     </View>
-  ), [themeColors, events.length, totalCount, isFetchingNextPage]);
+  ), [events.length, totalCount, isFetchingNextPage]);
 
   if (!userId) {
     return (
