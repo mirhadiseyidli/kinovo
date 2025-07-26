@@ -110,11 +110,16 @@ export const useOptimalCalendarQuery = (
   const eventsQuery = useQuery({
     queryKey: queryConfig.queryKey,
     queryFn: async () => {
+      let events: Event[];
+      
       if (queryConfig.view === 'Month') {
-        return await getCalendarEvents(userId || 'anonymous', currentDate.getMonth(), currentDate.getFullYear());
+        events = await getCalendarEvents(userId || 'anonymous', currentDate.getMonth(), currentDate.getFullYear());
       } else {
-        return await getCalendarEventsForDateRange(queryConfig.startDate, queryConfig.endDate, false);
+        events = await getCalendarEventsForDateRange(queryConfig.startDate, queryConfig.endDate, false);
       }
+      
+      // The server already provides userStatus for calendar events, no client processing needed
+      return events;
     },
     staleTime: queryConfig.staleTime,
     gcTime: 15 * 60 * 1000, // 15 minutes
@@ -122,113 +127,106 @@ export const useOptimalCalendarQuery = (
   });
 
   // Single occurrences query
-  const occurrencesQuery = useQuery({
-    queryKey: queryConfig.occurrenceKey,
-    queryFn: async () => {
-      const events = eventsQuery.data || [];
-      if (!events.length) return [];
+  const occurrences = useMemo(() => {
+    const events = eventsQuery.data || [];
+    console.log('🔄 Occurrences useMemo Recalculating from updated events:', {
+      eventsCount: events.length,
+      view: queryConfig.view,
+      sampleEvent: events.find(e => e.title === 'Calendar')
+    });
+    
+    if (!events.length) return [];
 
-      // Handle mixed backend processing:
-      // - Month view: Backend returns raw events, need frontend expansion
-      // - Week/Schedule views: Backend returns expanded occurrences, convert to occurrence format
+    // Handle mixed backend processing:
+    // - Month view: Backend returns raw events, need frontend expansion
+    // - Week/Schedule views: Backend returns expanded occurrences, convert to occurrence format
+    
+    if (queryConfig.view === 'Month') {
+      // Month view: Backend returns raw events that need expansion
+      const allOccurrences: EventOccurrence[] = [];
       
-      if (queryConfig.view === 'Month') {
-        // Month view: Backend returns raw events that need expansion
-        const allOccurrences: EventOccurrence[] = [];
-        
-        for (const event of events) {
-          const occurrences = expandRecurringEvent(event, queryConfig.startDate, queryConfig.endDate, []);
-          allOccurrences.push(...occurrences);
-        }
-        
-        // Sort by date
-        allOccurrences.sort((a, b) => a.date.getTime() - b.date.getTime());
-        return allOccurrences;
-      } else {
-        // Week/Schedule views: Backend already returns expanded occurrences, convert to occurrence format
-        const occurrences: EventOccurrence[] = events.map(event => ({
-          id: event._id || `${event._id}-${Date.now()}`,
-          originalEventId: event._id || '',
-          date: typeof event.start_time === 'string' ? new Date(event.start_time) : event.start_time || new Date(),
-          event: event,
-          isModified: false,
-          isCancelled: false,
-        }));
-        
-        return occurrences;
+      for (const event of events) {
+        const occurrences = expandRecurringEvent(event, queryConfig.startDate, queryConfig.endDate, []);
+        allOccurrences.push(...occurrences);
       }
-    },
-    staleTime: queryConfig.staleTime,
-    gcTime: 15 * 60 * 1000,
-    enabled: !!eventsQuery.data,
-  });
+      
+      // Sort by date
+      allOccurrences.sort((a, b) => a.date.getTime() - b.date.getTime());
+      return allOccurrences;
+    } else {
+      // Week/Schedule views: Backend already returns expanded occurrences, convert to occurrence format
+      const occurrences: EventOccurrence[] = events.map(event => ({
+        id: event._id || `${event._id}-${Date.now()}`,
+        originalEventId: event._id || '',
+        date: typeof event.start_time === 'string' ? new Date(event.start_time) : event.start_time || new Date(),
+        event: event,
+        isModified: false,
+        isCancelled: false,
+      }));
+      
+      return occurrences;
+    }
+  }, [eventsQuery.data, queryConfig.view, queryConfig.startDate, queryConfig.endDate]);
 
   // Memoized helper functions
   const getOccurrencesForDate = useMemo(() => {
     return (date: Date): EventOccurrence[] => {
-      const occurrences = occurrencesQuery.data || [];
       const targetDate = format(date, 'yyyy-MM-dd');
       
       return occurrences.filter(occurrence => 
         format(occurrence.date, 'yyyy-MM-dd') === targetDate
       );
     };
-  }, [occurrencesQuery.data]);
+  }, [occurrences]);
 
   const getOccurrencesForDateRange = useMemo(() => {
     return (startDate: Date, endDate: Date): EventOccurrence[] => {
-      const occurrences = occurrencesQuery.data || [];
-      
       return occurrences.filter(occurrence =>
         isWithinInterval(occurrence.date, { start: startDate, end: endDate })
       );
     };
-  }, [occurrencesQuery.data]);
+  }, [occurrences]);
 
   const groupedByDate = useMemo(() => {
-    const occurrences = occurrencesQuery.data || [];
     return occurrences.reduce((acc, occurrence) => {
       const dateKey = format(occurrence.date, 'yyyy-MM-dd');
       if (!acc[dateKey]) acc[dateKey] = [];
       acc[dateKey].push(occurrence);
       return acc;
     }, {} as Record<string, EventOccurrence[]>);
-  }, [occurrencesQuery.data]);
+  }, [occurrences]);
 
   // Memoized result
   return useMemo(() => ({
     events: eventsQuery.data || [],
-    occurrences: occurrencesQuery.data || [],
-    loading: eventsQuery.isLoading || occurrencesQuery.isLoading,
-    refreshing: eventsQuery.isFetching || occurrencesQuery.isFetching,
+    occurrences: occurrences,
+    loading: eventsQuery.isLoading,
+    refreshing: eventsQuery.isFetching,
     eventsError: eventsQuery.isError,
-    occurrencesError: occurrencesQuery.isError,
-    hasAnyError: eventsQuery.isError || occurrencesQuery.isError,
+    occurrencesError: false, // No longer a separate query
+    hasAnyError: eventsQuery.isError,
     eventsErrorObject: eventsQuery.error,
-    occurrencesErrorObject: occurrencesQuery.error,
+    occurrencesErrorObject: null, // No longer a separate query
     refetch: async () => {
-      // Refetch only this view's data without affecting other views
-      const [eventsResult, occurrencesResult] = await Promise.all([
-        eventsQuery.refetch(),
-        occurrencesQuery.refetch()
-      ]);
-      return { eventsResult, occurrencesResult };
+      // Refetch only the events query - occurrences will update automatically via useMemo
+      const eventsResult = await eventsQuery.refetch();
+      return { eventsResult, occurrencesResult: eventsResult };
     },
-    refreshOccurrences: () => occurrencesQuery.refetch(),
+    refreshOccurrences: () => eventsQuery.refetch(), // Refresh events, occurrences will update automatically
     invalidateCalendarQueries: () => {
       // Only invalidate the specific query for this view, not all calendar queries
       queryClient.invalidateQueries({ queryKey: queryConfig.queryKey });
     },
     invalidateOccurrences: () => {
-      // Only invalidate the specific occurrence query for this view
-      queryClient.invalidateQueries({ queryKey: queryConfig.occurrenceKey });
+      // Invalidate events query since occurrences are derived from events
+      queryClient.invalidateQueries({ queryKey: queryConfig.queryKey });
     },
     getOccurrencesForDate,
     getOccurrencesForDateRange,
     groupedByDate,
   }), [
     eventsQuery,
-    occurrencesQuery,
+    occurrences,
     queryClient,
     getOccurrencesForDate,
     getOccurrencesForDateRange,

@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { EditUserProfilePhotosProps } from '@/types/allTypes';
 import { useCDNImageUpload } from '@/hooks/useCDNImageUpload';
-import { useUserData } from '@/hooks/useUserData';
+import { useUserDataLegacy as useUserData } from '@/hooks/useUserData';
 import { useDefaultProfilePicture } from '@/hooks/useDefaultProfilePicture';
 import { getInitials, getRandomColor } from '@/utils/profilePictureGenerator';
 import { Image } from 'expo-image';

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect, useMemo } from 'react';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
 import { useOptimalCalendarQuery } from '@/hooks/useOptimalCalendarQuery';
 import { Event } from '@/types/allTypes';
@@ -150,7 +150,7 @@ export const CalendarProvider: React.FC<CalendarProviderProps> = ({
     calendarQuery.invalidateOccurrences();
   }, [calendarQuery]);
 
-  const value: CalendarContextType = {
+  const value: CalendarContextType = useMemo(() => ({
     // Current view state
     currentDate,
     currentView,
@@ -183,7 +183,25 @@ export const CalendarProvider: React.FC<CalendarProviderProps> = ({
     
     // TanStack Query specific
     calendarQuery,
-  };
+  }), [
+    currentDate,
+    currentView,
+    calendarQuery.events,
+    calendarQuery.occurrences,
+    calendarQuery.loading,
+    calendarQuery.refreshing,
+    calendarQuery.getOccurrencesForDate,
+    calendarQuery.getOccurrencesForDateRange,
+    calendarQuery.groupedByDate,
+    setCurrentDate,
+    setCurrentView,
+    navigateToToday,
+    navigateNext,
+    navigatePrevious,
+    refreshEvents,
+    invalidateCalendarCache,
+    calendarQuery,
+  ]);
 
   return (
     <CalendarContext.Provider value={value}>

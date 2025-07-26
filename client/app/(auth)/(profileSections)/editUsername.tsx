@@ -6,7 +6,7 @@ import { Colors } from '@/constants/Colors';
 import { ThemedView } from '@/components/ThemedView';
 import { Feather } from '@expo/vector-icons';
 import { ThemedText } from '@/components/ThemedText';
-import { useUserData } from '@/hooks/useUserData';
+import { useUserDataLegacy as useUserData } from '@/hooks/useUserData';
 import api from '@/utils/api';
 import LabeledInput from '@/components/ProfileAndSettings/Profile/LabeledInput';
 

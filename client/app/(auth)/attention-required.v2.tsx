@@ -12,6 +12,7 @@ import AttentionRequiredCard from '@/components/Home/AttentionRequired.v2';
 import { InfiniteEventsList } from '@/components/InfiniteList/InfiniteEventsList';
 import { useInfiniteEventsQuery } from '@/hooks/useInfiniteEventsQuery';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
+import { HomeErrorProvider } from '@/context/HomeErrorContext';
 import type { Event } from '@/types/allTypes';
 
 /**
@@ -265,25 +266,27 @@ export default function AttentionRequiredScreen() {
   ), [themeColors, isFetchingNextPage, futureEventsCount, totalCount]);
 
   return (
-    <ThemedView style={{ flex: 1, paddingHorizontal: 16 }}>
-      {/* Infinite Events List with scrollable header */}
-      <InfiniteEventsList
-        eventType="attention-required"
-        userId={userId}
-        pageSize={10}
-        enabled={Boolean(userId)}
-        renderItem={renderAttentionRequiredItem}
-        renderEmptyState={renderEmptyState}
-        renderErrorState={renderErrorState}
-        useFlashList={false} // Use regular FlatList for better compatibility
-        ListHeaderComponent={renderListHeader}
-        contentContainerStyle={{ 
-          paddingTop: 0, // Remove top padding since header handles spacing
-        }}
-        containerStyle={{ flex: 1 }}
-        testID="attention-required-infinite-list"
-      />
-    </ThemedView>
+    <HomeErrorProvider>
+      <ThemedView style={{ flex: 1, paddingHorizontal: 16 }}>
+        {/* Infinite Events List with scrollable header */}
+        <InfiniteEventsList
+          eventType="attention-required"
+          userId={userId}
+          pageSize={10}
+          enabled={Boolean(userId)}
+          renderItem={renderAttentionRequiredItem}
+          renderEmptyState={renderEmptyState}
+          renderErrorState={renderErrorState}
+          useFlashList={false} // Use regular FlatList for better compatibility
+          ListHeaderComponent={renderListHeader}
+          contentContainerStyle={{ 
+            paddingTop: 0, // Remove top padding since header handles spacing
+          }}
+          containerStyle={{ flex: 1 }}
+          testID="attention-required-infinite-list"
+        />
+      </ThemedView>
+    </HomeErrorProvider>
   );
 }
 

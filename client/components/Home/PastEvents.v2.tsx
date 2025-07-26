@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { View, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import PastEvent from '@/components/Home/PastEvent';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
@@ -12,6 +11,8 @@ import { DateFilter } from '@/components/Home/EventFilters';
 import EventFilters from './EventFilters';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { EventCardSkeleton } from '../Skeleton';
+import { groupEventsByYearAndMonth, sortYearEntries, sortMonthEntries } from '@/utils/eventGrouping';
+import { GroupedEventsList, FlatEventsList } from './EventListComponents';
 
 /**
  * TanStack React Query version of PastEvents component
@@ -35,63 +36,6 @@ import { EventCardSkeleton } from '../Skeleton';
  * - Integrated date filtering with query caching
  */
 
-const THIS_MONTH = 'This Month';
-const LAST_MONTH = 'Last Month';
-
-interface GroupedEvents {
-  [key: string]: {
-    [key: string]: Event[];
-  };
-}
-
-const groupEventsByYearAndMonth = (events: Event[]) => {
-  if (!events || events.length === 0) return {};
-
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth();
-
-  const grouped: GroupedEvents = {};
-
-  // Sort events from newest to oldest
-  const sortedEvents = [...events].sort((a, b) => {
-    const dateA = new Date(a.start_time || 0);
-    const dateB = new Date(b.start_time || 0);
-    return dateB.getTime() - dateA.getTime();
-  });
-
-  sortedEvents.forEach(event => {
-    if (!event.start_time) return;
-    
-    const eventDate = new Date(event.start_time);
-    const eventYear = eventDate.getFullYear();
-    const eventMonth = eventDate.getMonth();
-    
-    // Initialize year if not exists
-    if (!grouped[eventYear]) {
-      grouped[eventYear] = {};
-    }
-
-    // Determine month label
-    let monthLabel: string;
-    if (eventYear === currentYear && eventMonth === currentMonth) {
-      monthLabel = THIS_MONTH;
-    } else if (eventYear === currentYear && eventMonth === currentMonth - 1) {
-      monthLabel = LAST_MONTH;
-    } else {
-      monthLabel = eventDate.toLocaleString('default', { month: 'long' });
-    }
-
-    // Initialize month if not exists
-    if (!grouped[eventYear][monthLabel]) {
-      grouped[eventYear][monthLabel] = [];
-    }
-
-    grouped[eventYear][monthLabel].push(event);
-  });
-
-  return grouped;
-};
 
 const PastEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }> = React.memo(({ 
   refreshing, 
@@ -108,7 +52,6 @@ const PastEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }>
     isLoading: loading,
     isError,
     error,
-    isFetching,
     refetch,
     isFirstFetch,
   } = usePastEventsQuery({
@@ -171,24 +114,6 @@ const PastEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }>
           onPress={() => setFilterModalVisible(true)}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            {/* Show update indicator when transitioning */}
-            {/* {isTransitioning && (
-              <View style={{
-                backgroundColor: themeColors.mountainGreen,
-                borderRadius: 6,
-                paddingHorizontal: 4,
-                paddingVertical: 2,
-                marginRight: 8,
-              }}>
-                <ThemedText style={{ 
-                  color: themeColors.text,
-                  fontSize: 8,
-                  fontWeight: '600'
-                }}>
-                  Updating...
-                </ThemedText>
-              </View>
-            )} */}
             <ThemedText style={{ fontSize: 16, marginRight: 8 }}>
               {getFilterLabel()}
             </ThemedText>
@@ -317,80 +242,22 @@ const PastEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }>
             </View>
           )}
           
-          {/* Transitioning indicator for smooth UI */}
-          {/* {isTransitioning && (
-            <View style={{
-              position: 'absolute',
-              top: -8,
-              right: 0,
-              zIndex: 10,
-              backgroundColor: themeColors.tint,
-              borderRadius: 12,
-              paddingHorizontal: 8,
-              paddingVertical: 4,
-            }}>
-              <ThemedText style={{ 
-                color: '#fff',
-                fontSize: 10,
-                fontWeight: '600'
-              }}>
-                Loading filtered events...
-              </ThemedText>
-            </View>
-          )} */}
-          
           {activeFilter.type === 'all' ? (
-            Object.entries(groupedEvents)
-              .sort(([yearA], [yearB]) => Number(yearB) - Number(yearA))
-              .map(([year, months]) => (
-                <View key={year} style={{ marginBottom: 16 }}>
-                  {/* Year Header */}
-                  <ThemedText style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8 }}>
-                    {year}
-                  </ThemedText>
-                  
-                  {/* Months */}
-                  {Object.entries(months)
-                    .sort(([monthA], [monthB]) => {
-                      if (monthA === THIS_MONTH) return -1;
-                      if (monthB === THIS_MONTH) return 1;
-                      if (monthA === LAST_MONTH) return -1;
-                      if (monthB === LAST_MONTH) return 1;
-                      return 0;
-                    })
-                    .map(([month, monthEvents], monthIndex, monthsArray) => (
-                      <View key={`${year}-${month}`} style={{ marginBottom: monthIndex === monthsArray.length - 1 ? 0 : 16 }}>
-                        {/* Month Header */}
-                        <ThemedText style={{ fontSize: 14, fontWeight: '600', marginBottom: 12, color: themeColors.tint }}>
-                          {month}
-                        </ThemedText>
-                        
-                        {/* Month Events */}
-                        <View style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingBottom: 8 }}>
-                          {monthEvents.map((event) => (
-                            <View key={event._id} style={{ opacity: isError ? 0.8 : 1 }}>
-                              <PastEvent
-                                key={event._id}
-                                event={event}
-                                loading={refreshing || loading}
-                              />
-                            </View>
-                          ))}
-                        </View>
-                      </View>
-                    ))}
-                </View>
-              ))
+            <GroupedEventsList
+              groupedEvents={groupedEvents}
+              isError={isError}
+              refreshing={refreshing}
+              loading={loading}
+              sortYearEntries={sortYearEntries}
+              sortMonthEntries={sortMonthEntries}
+            />
           ) : (
-            (myPastEventsList || []).map((event) => (
-              <View key={event._id} style={{ opacity: isError ? 0.8 : 1 }}>
-                <PastEvent
-                  key={event._id}
-                  event={event}
-                  loading={refreshing || loading}
-                />
-              </View>
-            ))
+            <FlatEventsList
+              events={myPastEventsList || []}
+              isError={isError}
+              refreshing={refreshing}
+              loading={loading}
+            />
           )}
         </View>
       )}

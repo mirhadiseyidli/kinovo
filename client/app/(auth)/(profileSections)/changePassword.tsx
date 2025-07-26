@@ -8,7 +8,7 @@ import { Feather } from '@expo/vector-icons';
 import PasswordInput from '@/components/ProfileAndSettings/Profile/PasswordInput';
 import { ThemedText } from '@/components/ThemedText';
 import TwoFactorAuth from '@/components/Auth/TwoFactorAuth';
-import { useUserData } from '@/hooks/useUserData';
+import { useUserDataLegacy as useUserData } from '@/hooks/useUserData';
 import api from '@/utils/api';
 
 const ChangePassword = () => {

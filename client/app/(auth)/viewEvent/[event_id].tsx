@@ -18,6 +18,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { shareContent } from '@/utils/shareUtils';
 import { Feather } from '@expo/vector-icons';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { ViewEventModalProvider } from '@/context/ViewEventModalContext';
 
 const ShareEventButton = ({ event_id }: { event_id: string }) => {
@@ -29,6 +30,10 @@ const ShareEventButton = ({ event_id }: { event_id: string }) => {
     try {
       if (!event?._id || !event?.title) {
         throw new Error('Event data is incomplete');
+      }
+      if (event.status === 'cancelled') {
+        Alert.alert('Unable to Share', 'This event has been cancelled and cannot be shared.');
+        return;
       }
       await shareContent('event', event._id, event.title);
     } catch (error) {
@@ -155,6 +160,49 @@ const ViewEvent = () => {
     return (
       <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <Text style={{ color: themeColors.text }}>Event not found</Text>
+      </ThemedView>
+    );
+  }
+
+  // Show cancelled event alert
+  if (displayEvent.status === 'cancelled') {
+    return (
+      <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }}>
+        <View style={{ alignItems: 'center', marginBottom: 24 }}>
+          <FontAwesome name="calendar-times-o" size={64} color={themeColors.tint} style={{ marginBottom: 16 }} />
+          <Text style={{ 
+            color: themeColors.text, 
+            fontSize: 24, 
+            fontWeight: 'bold', 
+            textAlign: 'center',
+            marginBottom: 8 
+          }}>
+            Event Cancelled
+          </Text>
+          <Text style={{ 
+            color: themeColors.text, 
+            fontSize: 16, 
+            textAlign: 'center',
+            opacity: 0.7,
+            lineHeight: 24
+          }}>
+            This event has been cancelled by the organizer and is no longer available.
+          </Text>
+        </View>
+        
+        <TouchableOpacity 
+          style={{
+            backgroundColor: themeColors.inputBackgroundColor,
+            paddingHorizontal: 24,
+            paddingVertical: 12,
+            borderRadius: 8,
+          }}
+          onPress={handleDismiss}
+        >
+          <Text style={{ color: themeColors.text, fontSize: 16, fontWeight: '600' }}>
+            Go Back
+          </Text>
+        </TouchableOpacity>
       </ThemedView>
     );
   }

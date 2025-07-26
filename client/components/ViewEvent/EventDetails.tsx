@@ -256,7 +256,7 @@ const EventDetailsSection: React.FC<EventProp & { isRecurringOccurrence: boolean
       )}
 
       <EventStatusActionButtons 
-          currentUserStatus={event.attendees?.find(att => 
+          currentUserStatus={event.userStatus ?? event.attendees?.find(att => 
             att.user?._id === loggedInUserId
           )?.status ?? null}
         onAccept={acceptInvitation}

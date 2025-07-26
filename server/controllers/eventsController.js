@@ -974,7 +974,7 @@ const inviteEventAttendees = async (req, res) => {
     // Add event to new invitees' events list
     for (const invitee of invitees) {
       // Update attendee status in master event
-      await updateEventAttendee(eventId, invitee, 'pending');
+      await updateEventAttendee(event, invitee, 'pending');
     
       // Update user's event status
       await updateUserEventStatus(invitee, eventId, 'pending');
@@ -988,11 +988,14 @@ const inviteEventAttendees = async (req, res) => {
       // Don't fail the invitation if notification fails
     }
 
-    const updatedEvent = await Events.findById(eventId).populate('attendees.user');
+    const updatedEvent = await Events.findById(eventId)
+      .populate('attendees.user')
+      .populate('creator');
 
     return res.status(200).json({
       success: true,
       message: 'Invitations sent successfully',
+      event: updatedEvent,
       attendees: updatedEvent.attendees
     });
 
@@ -1254,7 +1257,7 @@ const getFriendsEvents = async (req, res) => {
     const events = await Events.find(baseQuery)
     .populate(getEventWithCreatorAndAttendeesPopulate())
     .lean() // Convert to plain objects
-    .sort({ start_time: 1 });
+    .sort({ start_time: -1 }); // Sort newest to oldest (descending)
 
     // Process events for discovery - show only next occurrence of recurring events
     const processedEvents = processEventsForDiscovery(events, {
@@ -1665,10 +1668,14 @@ const updateEvent = async (req, res) => {
       console.error('Failed to update EventBridge reminder schedules:', scheduleErr);
     }
     
+    // Populate the final event with creator and attendees data before returning
+    const populatedEvent = await Events.findById(finalEventId)
+      .populate(getEventWithCreatorAndAttendeesPopulate());
+    
     return res.status(200).json({
       success: true,
       message: 'Event updated successfully',
-      event: finalEvent,
+      event: populatedEvent || finalEvent,
       ...(finalEventId !== eventId && { updatedEventId: finalEventId })
     });
   } catch (error) {

@@ -17,7 +17,7 @@ import AddFriendButton from '@/components/AddFriendButton';
 import ShareUserProfileButton from '@/components/ShareUserProfileButton';
 import AlreadyFriendsAndUnfriendButton from '@/components/AlreadyFriendsAndUnfriendButton';
 import { User, UserGeneralInfoProps } from '@/types/allTypes';
-import { useUserData } from '@/hooks/useUserData';
+import { useUserDataLegacy as useUserData } from '@/hooks/useUserData';
 import { FriendRequestStatusProps } from '@/types/allTypes';
 import PendingFriendRequestButton from '@/components/PendingFriendRequestButton';
 import api from '@/utils/api';

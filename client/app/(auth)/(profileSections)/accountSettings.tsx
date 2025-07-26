@@ -11,7 +11,7 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { router, Stack } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import DeleteAccountComponent from '@/components/ProfileAndSettings/Settings/DeleteAccountButton';
-import { useUserData } from '@/hooks/useUserData';
+import { useUserDataLegacy as useUserData } from '@/hooks/useUserData';
 import { useAccountDeletion } from '@/hooks/useAccountDeletion';
 import { User } from '@/types/allTypes';
 import * as Location from 'expo-location';

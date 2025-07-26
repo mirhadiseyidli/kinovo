@@ -3,7 +3,7 @@ import { View, Text, Image, Button, SafeAreaView, TouchableOpacity, TextInput, D
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { useFocusEffect } from '@react-navigation/native';
-import { useUserData } from '@/hooks/useUserData';
+import { useUserDataLegacy as useUserData } from '@/hooks/useUserData';
 import { useEditUserProfile } from '@/hooks/useEditUserData';
 import UserNameEdit from '@/components/ProfileAndSettings/Profile/EditUserName';
 import { EditUserLocation } from '@/components/ProfileAndSettings/Profile/EditLocation';
@@ -154,6 +154,7 @@ const EditUserGeneralInfo = () => {
         style={{ flex: 1, width: '100%' }}
         scrollEventThrottle={16}
         scrollEnabled={true}
+        nestedScrollEnabled={true}
         showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         refreshControl={

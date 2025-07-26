@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { View, TouchableOpacity, ScrollView, Dimensions, Platform, Modal, Animated } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, TouchableOpacity, ScrollView, Dimensions, Platform } from 'react-native';
 import EventCardView from '@/components/Explore/EventCardView';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
@@ -9,14 +9,14 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Feather } from '@expo/vector-icons';
 import { Event } from '@/types/allTypes';
 import { ScrollHandlerEvent } from '@/types/allTypes';
-import * as Location from 'expo-location';
-import { Picker } from '@react-native-picker/picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CityLocationModal from './CityLocationModal';
+import DistanceModal from './DistanceModal';
 import { EventCardSkeleton, SkeletonBox } from '../Skeleton';
 import { useRouter } from 'expo-router';
 import { useNearbyEventsQuery } from '@/hooks/useNearbyEventsQuery';
 import { useDiscoverError } from '@/context/DiscoverErrorContext';
+import { useLocation } from '@/context/LocationContext';
 
 /**
  * TanStack React Query version of NearbyEvents component
@@ -44,122 +44,6 @@ interface NearbyEventsProps {
   onFinishRefresh: () => void;
 }
 
-const DistanceModal: React.FC<{
-  visible: boolean;
-  onClose: () => void;
-  selectedDistance: number;
-  onSelectDistance: (distance: number) => void;
-  colorScheme: 'light' | 'dark';
-}> = ({ visible, onClose, selectedDistance, onSelectDistance, colorScheme }) => {
-  const insets = useSafeAreaInsets();
-  const themeColors = Colors[colorScheme];
-  const [tempDistance, setTempDistance] = useState(selectedDistance);
-  const slideAnim = useRef(new Animated.Value(300)).current;
-
-  // Handle modal animation
-  useEffect(() => {
-    if (visible) {
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        useNativeDriver: true,
-        tension: 100,
-        friction: 8,
-      }).start();
-    } else {
-      Animated.timing(slideAnim, {
-        toValue: 300,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [visible, slideAnim]);
-
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <TouchableOpacity 
-        style={{ 
-          flex: 1, 
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          justifyContent: 'flex-end'
-        }}
-        activeOpacity={1}
-        onPress={onClose}
-      >
-        <TouchableOpacity 
-          activeOpacity={1} 
-          onPress={(e) => e.stopPropagation()}
-        >
-          <Animated.View
-            style={{
-              transform: [{ translateY: slideAnim }],
-            }}
-          >
-            <ThemedView style={{
-              borderTopLeftRadius: 20,
-              borderTopRightRadius: 20,
-              paddingBottom: insets.bottom,
-            }}>
-              {/* Drag handle indicator */}
-              <View style={{
-                alignSelf: 'center',
-                width: 50,
-                height: 5,
-                backgroundColor: themeColors.placeholderTextColor,
-                borderRadius: 3,
-                marginTop: 8,
-                marginBottom: 8,
-                opacity: 0.7,
-              }} />
-
-              <View style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: 16,
-                borderBottomWidth: 1,
-                borderBottomColor: themeColors.border,
-              }}>
-                <TouchableOpacity onPress={onClose}>
-                  <ThemedText>Cancel</ThemedText>
-                </TouchableOpacity>
-                <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>Distance</ThemedText>
-                <TouchableOpacity onPress={() => {
-                  onSelectDistance(tempDistance);
-                  onClose();
-                }}>
-                  <ThemedText style={{ color: themeColors.mountainGreen }}>Apply</ThemedText>
-                </TouchableOpacity>
-              </View>
-
-              <Picker
-                selectedValue={tempDistance}
-                onValueChange={setTempDistance}
-                style={{ 
-                  width: '100%',
-                  backgroundColor: themeColors.background,
-                }}
-              >
-                {[10, 25, 50, 100, 150, 200].map((distance) => (
-                  <Picker.Item 
-                    key={distance} 
-                    label={`${distance} miles`} 
-                    value={distance}
-                    color={themeColors.text}
-                  />
-                ))}
-              </Picker>
-            </ThemedView>
-          </Animated.View>
-        </TouchableOpacity>
-      </TouchableOpacity>
-    </Modal>
-  );
-};
 
 const NearbyEvents: React.FC<NearbyEventsProps> = React.memo(({ refreshing, onFinishRefresh }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -171,20 +55,8 @@ const NearbyEvents: React.FC<NearbyEventsProps> = React.memo(({ refreshing, onFi
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
-  const { setComponentError } = useDiscoverError();  
-  const [userLocation, setUserLocation] = useState<{ 
-    city: string; 
-    state: string; 
-    lat: number | null; 
-    lng: number | null; 
-    text?: string 
-  }>({
-    city: 'San Francisco',
-    state: 'CA',
-    lat: 37.7749,
-    lng: -122.4194,
-    text: 'San Francisco, CA'
-  });
+  const { setComponentError } = useDiscoverError();
+  const { currentLocation, setCustomLocation } = useLocation();
 
   // TanStack React Query hook - replaces useGetNearByEvents and all manual state management
   const {
@@ -198,73 +70,32 @@ const NearbyEvents: React.FC<NearbyEventsProps> = React.memo(({ refreshing, onFi
     isFirstFetch,
     isTransitioning
   } = useNearbyEventsQuery({
-    latitude: userLocation.lat,
-    longitude: userLocation.lng,
+    latitude: currentLocation?.lat,
+    longitude: currentLocation?.lng,
     distance: selectedDistance,
     previewMode: true,
     previewLimit: 5,
     displayMode: 'homeScreen',
     onFinishRefresh,
-    locationText: userLocation.text,
+    locationText: currentLocation?.text,
     enableSmoothTransitions: true,
     usePlaceholderData: true,
-    enabled: Boolean(userLocation.lat && userLocation.lng) // Only fetch when we have coordinates
+    enabled: Boolean(currentLocation?.lat && currentLocation?.lng) // Only fetch when we have coordinates
   });
 
   // Report errors to centralized error handling
-  React.useEffect(() => {
+  useEffect(() => {
     setComponentError('nearbyEvents', isError);
   }, [isError, setComponentError]);
 
-  // Initial location fetch
-  useEffect(() => {
-    (async () => {
-      try {
-        let { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          // If location permission not granted, use default San Francisco location
-          return;
-        }
-        
-        let location = await Location.getCurrentPositionAsync({});
-        let geocode = await Location.reverseGeocodeAsync(location.coords);
-        
-        if (geocode.length > 0) {
-          setUserLocation({
-            city: geocode[0].city || 'San Francisco',
-            state: geocode[0].region || 'CA',
-            lat: location.coords.latitude,
-            lng: location.coords.longitude,
-            text: `${geocode[0].city || 'San Francisco'}, ${geocode[0].region || 'CA'}`
-          });
-        }
-      } catch (error) {
-        console.error('Error getting location:', error);
-        // Use default San Francisco location on error
-      }
-    })();
-  }, []);
+  // Location is now managed by LocationContext - removed local location fetching
 
   // Handle refresh when pull-to-refresh is triggered
-  React.useEffect(() => {
+  useEffect(() => {
     if (refreshing) {
       refetch();
     }
   }, [refreshing, refetch]);
-
-  const handleScrollEndDrag = (event: ScrollHandlerEvent) => {
-    const offsetX = event.nativeEvent.contentOffset.x;
-    const index = Math.round(offsetX / screenWidth);
-
-    if (scrollRef.current) {
-      scrollRef.current.scrollTo({
-        x: index * screenWidth,
-        animated: true,
-      });
-    }
-
-    setCurrentIndex(index);
-  };
 
   const handleMomentumScrollEnd = (event: ScrollHandlerEvent) => {
     const offsetX = event.nativeEvent.contentOffset.x;
@@ -283,8 +114,8 @@ const NearbyEvents: React.FC<NearbyEventsProps> = React.memo(({ refreshing, onFi
   };
 
   const handleSelectLocation = (location: { city: string; state: string; lat: number; lng: number; text: string }) => {
-    setUserLocation(location);
-    // Events will be fetched automatically by React Query when userLocation changes
+    setCustomLocation(location);
+    // Events will be fetched automatically by React Query when location changes
   };
 
   const handleSeeMorePress = () => {
@@ -292,10 +123,10 @@ const NearbyEvents: React.FC<NearbyEventsProps> = React.memo(({ refreshing, onFi
       pathname: '/(auth)/(nearbyEvents)/[distance]',
       params: {
         distance: selectedDistance.toString(),
-        lat: userLocation.lat?.toString() || '',
-        lng: userLocation.lng?.toString() || '',
-        city: userLocation.city,
-        state: userLocation.state
+        lat: currentLocation?.lat?.toString() || '',
+        lng: currentLocation?.lng?.toString() || '',
+        city: currentLocation?.city || '',
+        state: currentLocation?.state || ''
       }
     });
   };
@@ -350,7 +181,7 @@ const NearbyEvents: React.FC<NearbyEventsProps> = React.memo(({ refreshing, onFi
       <ThemedView style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, paddingHorizontal: 16 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
           <Feather name="map-pin" size={16} color={themeColors.tint} />
-          <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>{userLocation.city}, {userLocation.state}</ThemedText>
+          <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>{currentLocation?.city || 'Loading'}, {currentLocation?.state || ''}</ThemedText>
         </View>
         <TouchableOpacity
           onPress={() => setCityModalVisible(true)}
@@ -465,7 +296,6 @@ const NearbyEvents: React.FC<NearbyEventsProps> = React.memo(({ refreshing, onFi
               snapToInterval={screenWidth}
               decelerationRate={Platform.OS === 'ios' ? 'fast' : 0.9}
               showsHorizontalScrollIndicator={false}
-              // onScrollEndDrag={handleScrollEndDrag}
               onMomentumScrollEnd={handleMomentumScrollEnd}
               scrollEventThrottle={16}
               style={{ marginBottom: 16 }}

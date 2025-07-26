@@ -1,9 +1,10 @@
-import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useQueryClient, InfiniteData } from '@tanstack/react-query';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
 import { queryKeys } from '@/utils/queryKeys';
 import { Event } from '@/types/allTypes';
 import api from '@/utils/api';
 import { useMemo } from 'react';
+import { useUserData } from '@/hooks/useUserData';
 
 /**
  * TanStack Query hooks for user profile events
@@ -49,6 +50,7 @@ const filterEventsByPrivacy = (
   viewerRelationship: ViewerRelationship,
   viewerId: string
 ): Event[] => {
+  console.log('viewer relationship', viewerRelationship)
   return events.filter(event => {
     // User can always see their own events
     if (viewerRelationship === 'self') {
@@ -62,7 +64,8 @@ const filterEventsByPrivacy = (
       case 'friends':
         return viewerRelationship === 'friend';
       case 'private':
-        return false;
+        // Private events are visible if the viewer is in the attendee list
+        return event.attendees?.some(attendee => attendee.user._id === viewerId) || false;
       default:
         // Default to public for events without explicit visibility
         return true;
@@ -78,6 +81,7 @@ export const useUserEventsQuery = (
   options: UseUserEventsQueryOptions = {}
 ) => {
   const { userId: viewerId } = useAuthSession();
+  const { user: currentUser } = useUserData();
   const queryClient = useQueryClient();
 
   const {
@@ -87,14 +91,15 @@ export const useUserEventsQuery = (
     refetchOnWindowFocus = false
   } = options;
 
-  // Determine viewer relationship
+  // Determine viewer relationship with proper friend checking
   const viewerRelationship: ViewerRelationship = useMemo(() => {
     if (!viewerId) return 'stranger';
     if (viewerId === targetUserId) return 'self';
-    // TODO: Add friend relationship check from friends context/API
-    // For now, assume strangers - this should be enhanced with actual friend status
-    return 'stranger';
-  }, [viewerId, targetUserId]);
+    
+    // Check if users are friends (bidirectional check)
+    const areFriends = currentUser?.friends?.includes(targetUserId) || false;
+    return areFriends ? 'friend' : 'stranger';
+  }, [viewerId, targetUserId, currentUser?.friends]);
 
   const query = useQuery({
     queryKey: queryKeys.specificUserEvents(viewerId || 'anonymous', targetUserId),
@@ -143,6 +148,7 @@ export const useUserEventsInfiniteQuery = (
   options: UseUserEventsQueryOptions = {}
 ) => {
   const { userId: viewerId } = useAuthSession();
+  const { user: currentUser } = useUserData();
   const queryClient = useQueryClient();
 
   const {
@@ -152,27 +158,42 @@ export const useUserEventsInfiniteQuery = (
     refetchOnWindowFocus = false
   } = options;
 
-  // Determine viewer relationship
+  // Determine viewer relationship with proper friend checking
   const viewerRelationship: ViewerRelationship = useMemo(() => {
     if (!viewerId) return 'stranger';
     if (viewerId === targetUserId) return 'self';
-    // TODO: Add friend relationship check
-    return 'stranger';
-  }, [viewerId, targetUserId]);
+    
+    // Check if users are friends (bidirectional check)
+    const areFriends = currentUser?.friends?.includes(targetUserId) || false;
+    return areFriends ? 'friend' : 'stranger';
+  }, [viewerId, targetUserId, currentUser?.friends]);
 
-  const infiniteQuery = useInfiniteQuery({
+  const infiniteQuery = useInfiniteQuery<
+    InfiniteUserEventsResponse,
+    Error,
+    InfiniteData<InfiniteUserEventsResponse>,
+    readonly unknown[],
+    number
+  >({
     queryKey: queryKeys.infiniteUser(viewerId || 'anonymous', targetUserId, {}),
-    queryFn: async ({ pageParam = 1 }): Promise<InfiniteUserEventsResponse> => {
+    queryFn: async ({ pageParam }): Promise<InfiniteUserEventsResponse> => {
       const response = await api.get(
         `/api/manageevents/eventslist/get/user/events?_id=${targetUserId}&page=${pageParam}&limit=10`
       );
       
-      const allEvents = response.data.events || [];
-      const totalCount = response.data.totalCount || allEvents.length;
-      const hasMore = response.data.hasMore || false;
+      const data = response.data as {
+        events?: Event[];
+        totalCount?: number;
+        hasMore?: boolean;
+      };
+      
+      const allEvents = data.events || [];
+      const totalCount = data.totalCount || allEvents.length;
+      const hasMore = data.hasMore || false;
       
       // Apply privacy filtering
       const filteredEvents = filterEventsByPrivacy(allEvents, viewerRelationship, viewerId || '');
+      console.log('this', filteredEvents)
       
       return {
         events: filteredEvents,
@@ -181,6 +202,7 @@ export const useUserEventsInfiniteQuery = (
         nextPage: hasMore ? pageParam + 1 : undefined
       };
     },
+    initialPageParam: 1,
     getNextPageParam: (lastPage) => lastPage.nextPage,
     enabled: enabled && !!targetUserId,
     staleTime,
@@ -191,12 +213,12 @@ export const useUserEventsInfiniteQuery = (
     structuralSharing: true,
     
     // Network mode for offline support
-    networkMode: 'offlineFirst'
+    networkMode: 'offlineFirst' as const
   });
 
   // Flatten events from all pages
   const allEvents = useMemo(() => {
-    return infiniteQuery.data?.pages.flatMap(page => page.events) || [];
+    return infiniteQuery.data?.pages.flatMap((page) => page.events) || [];
   }, [infiniteQuery.data]);
 
   // Helper function to invalidate infinite user events queries
@@ -214,7 +236,7 @@ export const useUserEventsInfiniteQuery = (
     invalidateInfiniteUserEvents,
     viewerRelationship,
     canViewEvents: viewerRelationship !== 'stranger' || true,
-    totalCount: infiniteQuery.data?.pages[0]?.totalCount || 0,
+    totalCount: infiniteQuery.data?.pages?.[0]?.totalCount || 0,
     hasMore: infiniteQuery.hasNextPage || false,
     loadMore: infiniteQuery.fetchNextPage,
     isLoadingMore: infiniteQuery.isFetchingNextPage
@@ -250,19 +272,22 @@ export const useMyEventsInfiniteQuery = (options: UseUserEventsQueryOptions = {}
  */
 export const useCanViewUserEvents = (targetUserId: string) => {
   const { userId: viewerId } = useAuthSession();
+  const { user: currentUser } = useUserData();
   
   const viewerRelationship: ViewerRelationship = useMemo(() => {
     if (!viewerId) return 'stranger';
     if (viewerId === targetUserId) return 'self';
-    // TODO: Add friend relationship check
-    return 'stranger';
-  }, [viewerId, targetUserId]);
+    
+    // Check if users are friends (bidirectional check)
+    const areFriends = currentUser?.friends?.includes(targetUserId) || false;
+    return areFriends ? 'friend' : 'stranger';
+  }, [viewerId, targetUserId, currentUser?.friends]);
   
   return {
     canView: viewerRelationship !== 'stranger' || true, // Allow public events
     relationship: viewerRelationship,
     isOwner: viewerRelationship === 'self',
-    isFriend: viewerRelationship === 'friend',
+    isFriend: (viewerRelationship as string) === 'friend',
     isStranger: viewerRelationship === 'stranger'
   };
 };
@@ -272,14 +297,21 @@ export const useCanViewUserEvents = (targetUserId: string) => {
  */
 export const useEventPrivacyFilter = () => {
   const { userId } = useAuthSession();
+  const { user: currentUser } = useUserData();
   
   return {
     filterEvents: (events: Event[], targetUserId: string) => {
-      const viewerRelationship: ViewerRelationship = !userId 
-        ? 'stranger' 
-        : userId === targetUserId 
-        ? 'self' 
-        : 'stranger'; // TODO: Add friend check
+      let viewerRelationship: ViewerRelationship = 'stranger';
+      
+      if (!userId) {
+        viewerRelationship = 'stranger';
+      } else if (userId === targetUserId) {
+        viewerRelationship = 'self';
+      } else {
+        // Check if users are friends
+        const areFriends = currentUser?.friends?.includes(targetUserId) || false;
+        viewerRelationship = areFriends ? 'friend' : 'stranger';
+      }
       
       return filterEventsByPrivacy(events, viewerRelationship, userId || '');
     }
