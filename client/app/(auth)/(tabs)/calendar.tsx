@@ -67,6 +67,7 @@ function CalendarContent() {
     }
   }, [view, setCurrentView]);
 
+
   // Stabilize layout on mount
   useEffect(() => {
     const timer = setTimeout(() => {

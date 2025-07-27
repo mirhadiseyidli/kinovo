@@ -83,6 +83,7 @@ export const CalendarProvider: React.FC<CalendarProviderProps> = ({
   const [currentDate, setCurrentDate] = useState(initialDate);
   const [currentView, setCurrentView] = useState(initialView);
   const { setComponentError, clearAllErrors } = useCalendarError();
+  console.log(currentDate)
 
   // Single optimal hook call
   const calendarQuery = useOptimalCalendarQuery(currentDate, currentView, {
