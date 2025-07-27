@@ -55,12 +55,14 @@ const WeekView: React.FC<WeekViewProps> = ({ refreshing, onFinishRefresh }) => {
   const pagesListRef = useRef<FlatList>(null);
   const gridListRef = useRef<FlatList>(null);
   const tabBarHeight = useBottomTabBarHeight();
-  const sharedX = React.useRef(new RNAnimated.Value(0)).current;
+  const sharedX = React.useRef(new RNAnimated.Value(screenWidth - 50)).current;
   
   // Use CalendarContext for state management and data
   const { currentDate, setCurrentDate, refreshEvents, loading } = useCalendarContext();
+  console.log('this changed', currentDate)
   
   const weekPages = React.useMemo(() => buildWeekPages(currentDate), [currentDate]);
+
 
   useEffect(() => {
     // When the currentDate changes (e.g., from the picker), reset the view to the center page.

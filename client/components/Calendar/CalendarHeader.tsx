@@ -131,7 +131,9 @@ const CalendarHeaderMonthView: React.FC<CalendarHeaderProps> = ({ refreshing, on
           isSelected={isSelected}
           onMonthYearChange={(month, year, day, fromDropdown) => {
             fromChipRef.current = fromDropdown;
-            setCurrentDate(new Date(year, month, 1));
+            // Preserve current day when changing month/year, especially important for week view
+            const currentDay = view === 'Week' ? currentDate.getDate() : 1;
+            setCurrentDate(new Date(year, month, currentDay));
           }}
           CHIP_WIDTH={CHIP_WIDTH}
           fromChipRef={fromChipRef}
@@ -216,7 +218,10 @@ const CalendarHeaderMonthView: React.FC<CalendarHeaderProps> = ({ refreshing, on
   const handleViewChange = (selectedView: string) => {
     if (selectedView !== view) {
       setView(selectedView, 'header_picker');
-      navigateToToday();
+      // Navigate to today when explicitly switching to week view via picker
+      if (selectedView === 'Week') {
+        navigateToToday();
+      }
     }
   };
 
@@ -264,7 +269,9 @@ const CalendarHeaderMonthView: React.FC<CalendarHeaderProps> = ({ refreshing, on
             setWrapperHeight={setWrapperHeight}
             onMonthYearChange={(month, year, day, fromDropdown) => {
               fromChipRef.current = fromDropdown;
-              setCurrentDate(new Date(year, month, 1));
+              // Preserve current day when changing month/year, especially important for week view
+              const currentDay = view === 'Week' ? currentDate.getDate() : 1;
+              setCurrentDate(new Date(year, month, currentDay));
             }}
             fromChipRef={fromChipRef}
           />
