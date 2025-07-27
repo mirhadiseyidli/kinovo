@@ -410,10 +410,16 @@ const filterUserEvents = (userEvents, reportedEventIds, notInterestedEventIds, a
     .filter(userEvent => {
       if (!userEvent.event) return false;
       
-      const eventId = userEvent.event._id.toString();
+      const event = userEvent.event;
+      const eventId = event._id.toString();
       const isReported = reportedEventIds.includes(eventId);
       const isNotInterested = notInterestedEventIds.includes(eventId);
       const hasAllowedStatus = allowedStatuses.includes(userEvent.status);
+      
+      // Filter out cancelled events
+      if (event.status === 'cancelled') {
+        return false;
+      }
       
       return hasAllowedStatus && !isReported && !isNotInterested;
     })
@@ -446,14 +452,20 @@ const filterUserToViewEvents = (
   return (userEvents || [])
     .filter(userEvent => {
       if (!userEvent.event) return false;
-        
-      const eventId = userEvent.event._id.toString();
+      
+      const event = userEvent.event;
+      const eventId = event._id.toString();
       const isReported = reportedEventIds.includes(eventId);
       const isNotInterested = notInterestedEventIds.includes(eventId);
       const hasAllowedStatus = allowedStatuses.includes(userEvent.status);
       
       // Basic filtering (status, reports, not interested)
       if (!hasAllowedStatus || isReported || isNotInterested) {
+        return false;
+      }
+
+      // Filter out cancelled events
+      if (event.status === 'cancelled') {
         return false;
       }
 
@@ -464,27 +476,36 @@ const filterUserToViewEvents = (
       }
 
       // For other users, apply visibility filtering
-      const event = userEvent.event;
       
       // If user is not a friend, only show public events
       if (!isFriend) {
         return event.visibility === 'public';
       }
       
-      // If user is a friend, show public and private events
-      if (event.visibility === 'public' || event.visibility === 'private') {
-        return true;
+      // Handle visibility based on event type
+      switch (event.visibility) {
+        case 'public':
+          return true;
+        case 'private':
+          // Private events are visible to friends OR if current user is an attendee
+          if (isFriend) {
+            return true;
+          }
+          // Even if not friends, show private events if user is an attendee
+          const isAttendeeInPrivate = event.attendees?.some(
+            attendee => attendee.user.toString() === currentUserId.toString()
+          );
+          return isAttendeeInPrivate;
+        case 'selected':
+          // Selected events are only visible if current user is an attendee
+          const currentUserIsAttendee = event.attendees?.some(
+            attendee => attendee.user.toString() === currentUserId.toString()
+          );
+          return currentUserIsAttendee;
+        default:
+          // Default to false for unknown visibility types
+          return false;
       }
-      
-      // For selected events, only show if current user is an attendee
-      if (event.visibility === 'selected' && currentUserId) {
-        const currentUserIsAttendee = event.attendees?.some(
-          attendee => attendee.user.toString() === currentUserId.toString()
-        );
-        return currentUserIsAttendee;
-      }
-      
-      return false;
     })
     .map(userEvent => ({
       ...userEvent.event.toObject(),
@@ -1817,32 +1838,8 @@ const addEventToUsers = async (userIds, eventId, status = 'pending') => {
   }
 };
 
-/**
- * Schedule 1-hour and 10-minute reminders for an event using EventBridge
- * @param {string} eventId - Event ID
- * @param {Date} startTime - Event start time
- */
-const scheduleEventReminders = async (eventId, startTime) => {
-  try {
-    const eventStartTime = startTime.getTime();
-    const now = Date.now();
-
-    // Schedule 1-hour reminder
-    const oneHourBefore = new Date(eventStartTime - 60 * 60 * 1000);
-    if (oneHourBefore > now) {
-      await putSchedule(eventId.toString(), oneHourBefore, '1hour');
-    }
-
-    // Schedule 10-minute reminder
-    const tenMinutesBefore = new Date(eventStartTime - 10 * 60 * 1000);
-    if (tenMinutesBefore > now) {
-      await putSchedule(eventId.toString(), tenMinutesBefore, '10min');
-    }
-  } catch (err) {
-    console.error('Failed to create EventBridge reminder schedules:', err);
-    // Don't throw – scheduling failure shouldn't block event creation
-  }
-};
+// Note: scheduleEventReminders has been moved to reminderSchedulingUtils.js
+// and replaced with user-specific reminder scheduling functions
 
 /**
  * Filter attention required events
@@ -2062,7 +2059,7 @@ module.exports = {
   ensureCreatorIsAttendee, // reviewed
   upsertUserEvent, // reviewed
   addEventToUsers, // reviewed
-  scheduleEventReminders, // reviewed
+  // scheduleEventReminders moved to reminderSchedulingUtils.js
   filterAttentionRequiredEvents, // reviewed
   recommendedEventsBaseQuery, // reviewed
   buildFriendsEventsBaseQuery // reviewed

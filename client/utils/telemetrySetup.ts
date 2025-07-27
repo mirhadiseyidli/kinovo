@@ -218,8 +218,15 @@ export const setupTelemetryProviders = (): TelemetryProviders => {
 
 /**
  * Initialize Telemetry for the Application
+ * Currently configured for development environment only
  */
 export const initializeAppTelemetry = (queryClient: QueryClient) => {
+  // Only initialize telemetry in development
+  if (!__DEV__) {
+    console.log('📊 Telemetry disabled in production build');
+    return;
+  }
+  
   try {
     // Setup providers
     const providers = setupTelemetryProviders();
@@ -227,7 +234,7 @@ export const initializeAppTelemetry = (queryClient: QueryClient) => {
     // Initialize telemetry
     initializeTelemetry(providers);
     
-    // Enable telemetry based on environment
+    // Enable telemetry for development
     setTelemetryEnabled(true);
     
     // Set up global error handlers (only for web platform)
@@ -340,10 +347,10 @@ export const initializeAppTelemetry = (queryClient: QueryClient) => {
       }
     });
     
-    console.log('📊 Application telemetry initialized successfully');
+    console.log('📊 Application telemetry initialized successfully (development only)');
     
   } catch (error) {
-    console.error('❌ Failed to initialize application telemetry:', error);
+    console.error('❌ Failed to initialize application telemetry (development):', error);
   }
 };
 
@@ -372,24 +379,25 @@ export interface TelemetryConfig {
 
 /**
  * Default Telemetry Configuration
+ * Currently configured for development environment only
  */
 export const defaultTelemetryConfig: TelemetryConfig = {
-  enabled: true,
+  enabled: isDevelopment, // Only enabled in development
   providers: {
-    sentry: isProduction,
-    newRelic: isProduction,
-    analytics: isProduction,
-    customLogger: isDevelopment,
+    sentry: false, // Disabled for now
+    newRelic: false, // Disabled for now
+    analytics: false, // Disabled for now
+    customLogger: isDevelopment, // Only console logging in dev
   },
   sampling: {
-    queries: isProduction ? 0.1 : 1.0, // 10% in production, 100% in development
-    mutations: isProduction ? 0.5 : 1.0, // 50% in production, 100% in development
-    errors: 1.0, // Always track errors
+    queries: isDevelopment ? 1.0 : 0, // 100% in development, 0% in production
+    mutations: isDevelopment ? 1.0 : 0, // 100% in development, 0% in production
+    errors: isDevelopment ? 1.0 : 0, // Only track errors in development
   },
   privacy: {
     excludeUserData: false,
-    excludeQueryData: isProduction,
-    excludeVariables: isProduction,
+    excludeQueryData: false, // Show all data in development
+    excludeVariables: false, // Show all variables in development
   },
 };
 
@@ -409,6 +417,7 @@ export const configureTelemetry = (config: Partial<TelemetryConfig>) => {
 
 /**
  * Environment-specific Telemetry Setup
+ * Currently only development environment is supported
  */
 export const setupTelemetryForEnvironment = (environment: 'development' | 'staging' | 'production') => {
   switch (environment) {
@@ -434,39 +443,20 @@ export const setupTelemetryForEnvironment = (environment: 'development' | 'stagi
       });
       
     case 'staging':
+    case 'production':
+      // Telemetry disabled for staging and production
       return configureTelemetry({
-        enabled: true,
+        enabled: false,
         providers: {
-          sentry: true,
+          sentry: false,
           newRelic: false,
           analytics: false,
-          customLogger: true,
-        },
-        sampling: {
-          queries: 0.5,
-          mutations: 1.0,
-          errors: 1.0,
-        },
-        privacy: {
-          excludeUserData: false,
-          excludeQueryData: true,
-          excludeVariables: true,
-        },
-      });
-      
-    case 'production':
-      return configureTelemetry({
-        enabled: true,
-        providers: {
-          sentry: true,
-          newRelic: true,
-          analytics: true,
           customLogger: false,
         },
         sampling: {
-          queries: 0.1,
-          mutations: 0.5,
-          errors: 1.0,
+          queries: 0,
+          mutations: 0,
+          errors: 0,
         },
         privacy: {
           excludeUserData: true,

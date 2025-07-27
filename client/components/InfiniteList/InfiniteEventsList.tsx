@@ -578,6 +578,7 @@ export const InfiniteEventsList: React.FC<InfiniteEventsListProps> = ({
       />
     </View>
   );
+
 };
 
 export default InfiniteEventsList;

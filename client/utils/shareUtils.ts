@@ -1,7 +1,8 @@
 import { Share } from 'react-native';
 
 export const shareContent = async (type: 'event' | 'profile', id: string, title: string) => {
-  const baseUrl = 'https://kinovo.app/share';
+  // Simplified URL structure - direct universal links
+  const baseUrl = 'https://kinovo.app';
   const url = `${baseUrl}/${type}/${id}`;
   
   const message = {

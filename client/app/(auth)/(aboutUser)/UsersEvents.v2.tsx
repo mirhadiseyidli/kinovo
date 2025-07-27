@@ -73,7 +73,6 @@ export default React.memo(function UserEvents({ userId, route, refreshing }: Use
 
   // Filter and sort events
   const filteredEvents = useMemo(() => {
-    console.log(eventsList)
     return eventsList
       .filter(event => 
         event.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -326,8 +325,8 @@ export default React.memo(function UserEvents({ userId, route, refreshing }: Use
         showsVerticalScrollIndicator={false}
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.5}
-        refreshing={queryRefreshing}
-        onRefresh={refetch}
+        // refreshing={queryRefreshing}
+        // onRefresh={refetch}
       />
     </ThemedView>
   );

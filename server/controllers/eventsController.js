@@ -9,8 +9,15 @@ const {
   createEventInvitationNotification,
   createNearbyEventNotification
 } = require('./notificationsController');
-// Event reminder scheduling helpers (EventBridge Scheduler)
-const { putSchedule, deleteSchedule } = require('../aws/eventReminderScheduler');
+// Event reminder scheduling helpers
+const {
+  scheduleEventRemindersForAllAttendees,
+  deleteAllEventReminders,
+  scheduleRecurringEventReminders,
+  updateAttendeeReminders,
+  handleRecurringEventReminderUpdate,
+  deleteUserEventReminders
+} = require('../utils/reminderSchedulingUtils');
 const {
   // Core utilities
   getUserFilterData,
@@ -98,9 +105,6 @@ const {
   ensureCreatorIsAttendee,
   addEventToUsers,
 
-  // Event reminder scheduling utilities
-  scheduleEventReminders,
-
   // Attention Required Events utilities
   filterAttentionRequiredEvents,
 
@@ -171,8 +175,17 @@ const createEvent = async (req, res) => {
       }
     }
 
-    // Schedule both 10-minute and 1-hour reminders using EventBridge Scheduler
-    // await scheduleEventReminders(event._id, new Date(start_time));
+    // Schedule reminders for all attendees based on their preferences
+    try {
+      if (isRecurringEvent(event)) {
+        await scheduleRecurringEventReminders(event);
+      } else {
+        await scheduleEventRemindersForAllAttendees(event);
+      }
+    } catch (reminderError) {
+      console.error('Error scheduling event reminders during creation:', reminderError);
+      // Don't fail event creation if reminder scheduling fails
+    }
 
     res.status(201).json({ success: true, event });
   } catch (error) {
@@ -496,9 +509,53 @@ const getUserEvents = async (req, res) => {
 
     relevantEvents.sort((a, b) => new Date(b.event?.start_time) - new Date(a.event?.start_time));
 
+    console.log('1', relevantEvents)
+
     return res.status(200).json({ events: relevantEvents });
   } catch (error) {
     console.error('Error in getUserEvents:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const getUserEventsCount = async (req, res) => {
+  try {
+    const userId = req.query._id;
+    if (!userId) {
+      return res.status(400).json({ message: 'User ID is required' });
+    }
+
+    // Get current user's filter data using utility
+    const { reportedEventIds, notInterestedEventIds } = await getUserFilterData(req.user._id);
+
+    // Use standard populate configuration
+    const populateConfig = getStandardEventPopulateConfig();
+    const user = await User.findById(userId).populate(populateConfig);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Get current user to check friendship status
+    const currentUser = await User.findById(req.user._id).select('friends');
+    const isFriend = currentUser?.friends?.includes(userId) || user.friends?.includes(req.user._id);
+
+    // Filter user events using enhanced utility with visibility filtering
+    const relevantEvents = filterUserToViewEvents(
+      user.events, 
+      reportedEventIds, 
+      notInterestedEventIds, 
+      req.user._id,      // currentUserId
+      userId,            // profileOwnerId
+      isFriend,          // isFriend
+      ['accepted', 'maybe'] // allowedStatuses
+    );
+
+    console.log('2', relevantEvents)
+
+    return res.status(200).json({ count: relevantEvents.length });
+  } catch (error) {
+    console.error('Error in getUserEventsCount:', error);
     return res.status(500).json({ message: 'Server error' });
   }
 };
@@ -649,6 +706,13 @@ const respondToEventInvitation = async (req, res) => {
         // Add the new separate event to user's events list
         await synchronizeUserEventList(req.user._id, event._id, modificationResult.separateEvent._id, status);
 
+        // Update reminders for the user
+        try {
+          await updateAttendeeReminders(modificationResult.separateEvent._id, req.user._id, status, modificationResult.separateEvent);
+        } catch (reminderError) {
+          console.error('Error updating reminders for separate occurrence:', reminderError);
+        }
+
         return res.status(200).json({ 
           success: true, 
           message: `Successfully ${status} this specific event occurrence`,
@@ -666,6 +730,19 @@ const respondToEventInvitation = async (req, res) => {
         // Update user's event status
         await updateUserEventStatus(req.user._id, futureEvent?._id, status);
 
+        // Update reminders for the user - handle all future occurrences
+        try {
+          if (isRecurringEvent(futureEvent)) {
+            // For recurring future event, we need to handle all occurrences
+            await handleRecurringEventReminderUpdate(event, futureEvent, new Date(occurrenceDate), 'all_future');
+          } else {
+            // If split resulted in non-recurring, handle normally
+            await updateAttendeeReminders(futureEvent._id, req.user._id, status, futureEvent);
+          }
+        } catch (reminderError) {
+          console.error('Error updating reminders for future occurrences:', reminderError);
+        }
+
         return res.status(200).json({ 
           success: true, 
           message: `Successfully ${status} all future occurrences of this event`,
@@ -677,6 +754,36 @@ const respondToEventInvitation = async (req, res) => {
     // Handle non-recurring events or regular recurring event responses
     await updateEventAttendee(event, req.user._id, status);
     await updateUserEventStatus(req.user._id, eventId, status);
+
+    // Update reminders for the user based on their new status
+    try {
+      if (isRecurringEvent(event)) {
+        // For recurring events, need to schedule/delete for all occurrences
+        const now = new Date();
+        const rule = new RRule({
+          freq: RRule[event.recurrence.frequency.toUpperCase()],
+          dtstart: new Date(event.start_time),
+          until: event.recurrence.end_date ? new Date(event.recurrence.end_date) : null
+        });
+        
+        const futureOccurrences = rule.all().filter(date => date >= now);
+        for (const occurrence of futureOccurrences) {
+          try {
+            if (status === 'accepted' || status === 'maybe') {
+              await updateAttendeeReminders(eventId, req.user._id, status, event, occurrence);
+            } else {
+              await deleteUserEventReminders(eventId, req.user._id, occurrence);
+            }
+          } catch (occurrenceError) {
+            console.error('Error updating reminder for occurrence:', occurrence, occurrenceError);
+          }
+        }
+      } else {
+        await updateAttendeeReminders(eventId, req.user._id, status, event);
+      }
+    } catch (reminderError) {
+      console.error('Error updating user reminders for event response:', reminderError);
+    }
 
     // Send notification to event host if user accepted
     if (status === 'accepted') {
@@ -743,6 +850,18 @@ const cancelEvent = async (req, res) => {
         // Add excluded date for this occurrence only
         await addExcludedDate(event, new Date(occurrenceDate));
 
+        // Delete reminders for this specific occurrence for all attendees
+        try {
+          const attendeeIds = event.attendees.map(att => att.user._id || att.user);
+          await Promise.all(
+            attendeeIds.map(userId => 
+              deleteUserEventReminders(event._id, userId, new Date(occurrenceDate))
+            )
+          );
+        } catch (scheduleErr) {
+          console.error('Failed to delete occurrence reminders:', scheduleErr);
+        }
+
         // Send cancellation notifications to all attendees (except creator) for this occurrence
         const attendeeIds = event.attendees
           .map(attendee => attendee.user)
@@ -763,7 +882,7 @@ const cancelEvent = async (req, res) => {
           cancelledDate: new Date(occurrenceDate)
         });
 
-      } else if (modifyType === 'all_future' || modifyType === 'this_and_future') {
+      } else if (modifyType === 'all_future') {
         // Split the series at the selected occurrence date so that
         // occurrences BEFORE remain intact, occurrences FROM this date onward
         // belong to a new master that we immediately cancel.
@@ -774,6 +893,13 @@ const cancelEvent = async (req, res) => {
         // 2. Cancel the future master (this cancels the chosen occurrence + future)
         futureEvent.status = 'cancelled';
         await futureEvent.save();
+
+        // Delete all reminders for the future event
+        try {
+          await deleteAllEventReminders(futureEvent);
+        } catch (scheduleErr) {
+          console.error('Failed to delete future event reminders:', scheduleErr);
+        }
 
         // Send cancellation notifications to all attendees (except creator) for future occurrences
         const attendeeIds = futureEvent.attendees
@@ -828,10 +954,11 @@ const cancelEvent = async (req, res) => {
       { $pull: { events: { event: eventId } } }
     );
 
+    // Delete all reminders for all attendees
     try {
-      await deleteSchedule(eventId, 'all');
+      await deleteAllEventReminders(event);
     } catch (scheduleErr) {
-      console.error('Failed to delete EventBridge schedules on event cancel:', scheduleErr);
+      console.error('Failed to delete event reminders on event cancel:', scheduleErr);
     }
 
     return res.status(200).json({ 
@@ -868,6 +995,15 @@ const deleteRecurringEvents = async (req, res) => {
       { 'events.event': { $in: recurringEventIds } },
       { $pull: { events: { event: { $in: recurringEventIds } } } }
     );
+
+    // Delete all reminders for these recurring events
+    for (const event of recurringEvents) {
+      try {
+        await deleteAllEventReminders(event);
+      } catch (scheduleErr) {
+        console.error('Failed to delete reminders for recurring event:', event._id, scheduleErr);
+      }
+    }
 
     const response = createApiResponse(
       true,
@@ -1324,6 +1460,15 @@ const joinEvent = async (req, res) => {
       // Synchronize all attendees with the new event
       await synchronizeAttendeesWithNewEvent(updatedAttendees, separateEvent._id);
       
+      // Schedule reminders for the user if they accepted/maybe
+      if (status === 'accepted' || status === 'maybe') {
+        try {
+          await updateAttendeeReminders(separateEvent._id, req.user._id, status, separateEvent);
+        } catch (reminderError) {
+          console.error('Error scheduling reminders for joined event occurrence:', reminderError);
+        }
+      }
+      
       return res.status(200).json({ 
         success: true, 
         message: `Successfully ${status === 'accepted' ? 'joined' : 'marked as maybe for'} this specific event occurrence`,
@@ -1342,6 +1487,22 @@ const joinEvent = async (req, res) => {
       // Update user's event status for the future event
       await updateUserEventStatus(req.user._id, futureEvent._id, status);
       
+      // Schedule reminders for future occurrences if accepted/maybe
+      if (status === 'accepted' || status === 'maybe') {
+        try {
+          if (isRecurringEvent(futureEvent)) {
+            await scheduleRecurringEventReminders({ 
+              ...futureEvent.toObject(), 
+              attendees: [{ user: req.user._id, status }] 
+            });
+          } else {
+            await updateAttendeeReminders(futureEvent._id, req.user._id, status, futureEvent);
+          }
+        } catch (reminderError) {
+          console.error('Error scheduling reminders for future event occurrences:', reminderError);
+        }
+      }
+      
       return res.status(200).json({ 
         success: true, 
         message: `Successfully ${status === 'accepted' ? 'joined' : 'marked as maybe for'} all future occurrences of this event`,
@@ -1355,6 +1516,34 @@ const joinEvent = async (req, res) => {
 
       // Update user's event status using utility
       await updateUserEventStatus(req.user._id, eventId, status);
+
+      // Schedule reminders based on the new status
+      if (status === 'accepted' || status === 'maybe') {
+        try {
+          if (isRecurringEvent(event)) {
+            // For recurring events, schedule reminders for all future occurrences
+            const now = new Date();
+            const rule = new RRule({
+              freq: RRule[event.recurrence.frequency.toUpperCase()],
+              dtstart: new Date(event.start_time),
+              until: event.recurrence.end_date ? new Date(event.recurrence.end_date) : null
+            });
+            
+            const futureOccurrences = rule.all().filter(date => date >= now);
+            for (const occurrence of futureOccurrences) {
+              try {
+                await updateAttendeeReminders(eventId, req.user._id, status, event, occurrence);
+              } catch (occurrenceError) {
+                console.error('Error scheduling reminder for joined event occurrence:', occurrence, occurrenceError);
+              }
+            }
+          } else {
+            await updateAttendeeReminders(eventId, req.user._id, status, event);
+          }
+        } catch (reminderError) {
+          console.error('Error scheduling reminders for joined event:', reminderError);
+        }
+      }
 
       // Create standardized response using utility
       const { response, statusCode } = createApiResponse(
@@ -1395,6 +1584,30 @@ const markEventNotInterested = async (req, res) => {
     const { notInterestedEventIds } = await getUserFilterData(req.user._id);
     if (notInterestedEventIds.includes(eventId)) {
       return res.status(200).json({ message: 'Event already marked as not interested' });
+    }
+
+    // Remove reminders for this user since they're no longer interested
+    try {
+      if (isRecurringEvent(event)) {
+        // For recurring events, delete all occurrence reminders
+        const now = new Date();
+        const rule = new RRule({
+          freq: RRule[event.recurrence.frequency.toUpperCase()],
+          dtstart: new Date(event.start_time),
+          until: event.recurrence.end_date ? new Date(event.recurrence.end_date) : null
+        });
+        
+        const futureOccurrences = rule.all().filter(date => date >= now);
+        await Promise.allSettled(
+          futureOccurrences.map(occurrence => 
+            deleteUserEventReminders(eventId, req.user._id, occurrence)
+          )
+        );
+      } else {
+        await deleteUserEventReminders(eventId, req.user._id);
+      }
+    } catch (reminderError) {
+      console.error('Error removing reminders for not interested event:', reminderError);
     }
 
     // Perform updates in parallel
@@ -1464,6 +1677,30 @@ const reportEvent = async (req, res) => {
       ...reportData,
       reporter: reporter._id
     });
+
+    // Remove reminders for the reporting user since they're reporting the event
+    try {
+      if (isRecurringEvent(event)) {
+        // For recurring events, delete all occurrence reminders
+        const now = new Date();
+        const rule = new RRule({
+          freq: RRule[event.recurrence.frequency.toUpperCase()],
+          dtstart: new Date(event.start_time),
+          until: event.recurrence.end_date ? new Date(event.recurrence.end_date) : null
+        });
+        
+        const futureOccurrences = rule.all().filter(date => date >= now);
+        await Promise.allSettled(
+          futureOccurrences.map(occurrence => 
+            deleteUserEventReminders(eventId, req.user._id, occurrence)
+          )
+        );
+      } else {
+        await deleteUserEventReminders(eventId, req.user._id);
+      }
+    } catch (reminderError) {
+      console.error('Error removing reminders for reported event:', reminderError);
+    }
 
     await Promise.all([reporter.save(), eventCreator.save()]);
 
@@ -1537,12 +1774,18 @@ const updateEvent = async (req, res) => {
         result = await handleThisOccurrenceOnlyUpdate(event, occurrenceDate, processedEventData, userStatus);
         if (result && result.separateEvent) {
           finalEvent = result.separateEvent;
+          
+          // Handle reminders for the separate event
+          await handleRecurringEventReminderUpdate(event, finalEvent, new Date(occurrenceDate), 'this_only');
         }
       } 
       else if (modifyType === 'all_future') {
         result = await handleThisAndFutureUpdate(event, occurrenceDate, processedEventData, userStatus);
         if (result && result.futureEvent) {
           finalEvent = result.futureEvent;
+          
+          // Handle reminders for the future event
+          await handleRecurringEventReminderUpdate(event, finalEvent, new Date(occurrenceDate), 'all_future');
         }
       }
       
@@ -1639,33 +1882,25 @@ const updateEvent = async (req, res) => {
       }
     }
 
-    // Update / remove reminder schedules if needed
+    // Update reminder schedules if needed
     try {
       const sanitizedData = sanitizeEventUpdateData(eventData);
       if (sanitizedData.status === 'cancelled') {
-        await deleteSchedule(finalEventId, 'all');
+        // Delete all reminders for cancelled events
+        await deleteAllEventReminders(finalEvent);
       } else if (Object.prototype.hasOwnProperty.call(sanitizedData, 'start_time')) {
-        // Delete old schedules first
-        await deleteSchedule(finalEventId, 'all');
+        // Time changed - need to reschedule all reminders
+        await deleteAllEventReminders(finalEvent);
         
-        // Create new schedules with updated time
-        const eventStartTime = finalEvent.start_time.getTime();
-        const now = new Date().getTime();
-        
-        // Schedule 1-hour reminder
-        const oneHourBefore = new Date(eventStartTime - 60 * 60 * 1000);
-        if (oneHourBefore.getTime() > now) {
-          await putSchedule(finalEventId.toString(), oneHourBefore, '1hour');
-        }
-        
-        // Schedule 10-minute reminder
-        const tenMinsBefore = new Date(eventStartTime - 10 * 60 * 1000);
-        if (tenMinsBefore.getTime() > now) {
-          await putSchedule(finalEventId.toString(), tenMinsBefore, '10min');
+        // Reschedule based on event type
+        if (isRecurringEvent(finalEvent)) {
+          await scheduleRecurringEventReminders(finalEvent);
+        } else {
+          await scheduleEventRemindersForAllAttendees(finalEvent);
         }
       }
     } catch (scheduleErr) {
-      console.error('Failed to update EventBridge reminder schedules:', scheduleErr);
+      console.error('Failed to update event reminder schedules:', scheduleErr);
     }
     
     // Populate the final event with creator and attendees data before returning
@@ -1724,6 +1959,13 @@ const removeEventAttendee = async (req, res) => {
       // Handle "this event only" for recurring events
       const updatedAttendees = createAttendeesListWithoutUser(event.attendees, attendeeId);
       
+      // Delete reminders for the removed user for this specific occurrence
+      try {
+        await deleteUserEventReminders(eventId, attendeeId, new Date(occurrenceDate));
+      } catch (reminderError) {
+        console.error('Error deleting reminders for removed attendee occurrence:', reminderError);
+      }
+      
       // Create separate event with removed attendee
       const separateEvent = await createSeparateOccurrenceEvent(event, occurrenceDate, {
         attendees: updatedAttendees
@@ -1743,6 +1985,16 @@ const removeEventAttendee = async (req, res) => {
       // Handle "all future events" for recurring events
       const futureEvent = await splitRecurringEvent(event, new Date(occurrenceDate));
 
+      // Delete all reminders for the removed user from the future event
+      try {
+        await deleteAllEventReminders({ 
+          ...futureEvent.toObject(), 
+          attendees: [{ user: attendeeId }] 
+        });
+      } catch (reminderError) {
+        console.error('Error deleting reminders for removed attendee from future event:', reminderError);
+      }
+
       await Promise.all([
         removeAttendeeFromEventArray(futureEvent, attendeeId),
         removeUserFromEvent(attendeeId, futureEvent._id)
@@ -1754,6 +2006,31 @@ const removeEventAttendee = async (req, res) => {
       });
     } else {
       // Handle non-recurring events or regular recurring event removals
+      
+      // Delete reminders for the removed user
+      try {
+        if (isRecurringEvent(event)) {
+          // For recurring events, delete all occurrence reminders
+          const now = new Date();
+          const rule = new RRule({
+            freq: RRule[event.recurrence.frequency.toUpperCase()],
+            dtstart: new Date(event.start_time),
+            until: event.recurrence.end_date ? new Date(event.recurrence.end_date) : null
+          });
+          
+          const futureOccurrences = rule.all().filter(date => date >= now);
+          await Promise.allSettled(
+            futureOccurrences.map(occurrence => 
+              deleteUserEventReminders(eventId, attendeeId, occurrence)
+            )
+          );
+        } else {
+          await deleteUserEventReminders(eventId, attendeeId);
+        }
+      } catch (reminderError) {
+        console.error('Error deleting reminders for removed attendee:', reminderError);
+      }
+
       await Promise.all([
         removeAttendeeFromEventArray(event, attendeeId),
         removeUserFromEvent(attendeeId, eventId)
@@ -1777,6 +2054,7 @@ const removeEventAttendee = async (req, res) => {
 module.exports = {
   getMyEvents, // reviewed
   getUserEvents, // reviewed
+  getUserEventsCount, // reviewed
   createEvent, // reviewed
   getMyPastEvents, // reviewed
   getMyUpcomingEvents, // reviewed
