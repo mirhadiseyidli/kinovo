@@ -11,8 +11,7 @@ import { Colors } from '@/constants/Colors';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { ThemedView } from '../ThemedView';
 import Animated, { FadeIn, FadeOut, useSharedValue } from 'react-native-reanimated';
-import { useEventContext } from '@/context/UserSessionContext';
-import { useCalendarContext } from '@/context/CalendarContext';
+import { useCalendarContext } from '@/context/CalendarProvider.v2';
 import ReanimatedShimmerLine from '@/components/CustomLoadingIndicatingLine';
 
 const HOURS = Array.from({ length: 25 }, (_, i) => i);
@@ -56,13 +55,14 @@ const WeekView: React.FC<WeekViewProps> = ({ refreshing, onFinishRefresh }) => {
   const pagesListRef = useRef<FlatList>(null);
   const gridListRef = useRef<FlatList>(null);
   const tabBarHeight = useBottomTabBarHeight();
-  const sharedX = React.useRef(new RNAnimated.Value(0)).current;
+  const sharedX = React.useRef(new RNAnimated.Value(screenWidth - 50)).current;
   
-  // Use CalendarContext for state management
-  const { currentDate, navigateToWeek } = useCalendarContext();
-  const { fetchEventsForWeek, refreshEvents, loading } = useEventContext();
+  // Use CalendarContext for state management and data
+  const { currentDate, setCurrentDate, refreshEvents, loading } = useCalendarContext();
+  console.log('this changed', currentDate)
   
   const weekPages = React.useMemo(() => buildWeekPages(currentDate), [currentDate]);
+
 
   useEffect(() => {
     // When the currentDate changes (e.g., from the picker), reset the view to the center page.
@@ -70,38 +70,33 @@ const WeekView: React.FC<WeekViewProps> = ({ refreshing, onFinishRefresh }) => {
   }, [currentDate]);
 
   useEffect(() => {
-    // Fetch events for the current week when refreshing or date changes
-    const fetchEvents = async () => {
-      try {
-        if (refreshing) {
-          await refreshEvents(currentDate, 'Week');
-        } else {
-          await fetchEventsForWeek(currentDate);
-        }
-        if (refreshing && onFinishRefresh) {
-          onFinishRefresh();
-        }
-      } catch (error) {
-        console.error('Error fetching week events:', error);
-        if (refreshing && onFinishRefresh) {
-          onFinishRefresh();
+    // Handle refreshing state - CalendarProvider.v2 handles data fetching automatically
+    const handleRefresh = async () => {
+      if (refreshing) {
+        try {
+          await refreshEvents();
+          if (onFinishRefresh) {
+            onFinishRefresh();
+          }
+        } catch (error) {
+          console.error('Error refreshing week events:', error);
+          if (onFinishRefresh) {
+            onFinishRefresh();
+          }
         }
       }
     };
 
-    fetchEvents();
-  }, [refreshing, currentDate]); // Removed function dependencies to prevent infinite loops
+    handleRefresh();
+  }, [refreshing]); // Only listen for refreshing changes
 
   const handleMomentumScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { x } = event.nativeEvent.contentOffset;
     const page = Math.round(x / (screenWidth - 50));
     if (page !== 1) {
       const newDate = addDays(currentDate, (page - 1) * 7);
-      navigateToWeek(newDate);
+      setCurrentDate(newDate); // CalendarProvider.v2 will handle data fetching when date changes
       pagesListRef.current?.scrollToIndex({ index: 1, animated: false });
-      
-      // Fetch events for the new week
-      fetchEventsForWeek(newDate);
     }
   };
 

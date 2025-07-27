@@ -10,7 +10,7 @@ import type { AttendeeFriend } from '@/types/allTypes';
 import { ApiError } from '@/types/allTypes';
 import SearchUsersFriendsBar from '../SearchUsersFriendsBar';
 import { useCreateEventContext } from '@/context/CreateEventContext';
-import { useUserData } from '@/hooks/useUserData';
+import { useUserDataLegacy as useUserData } from '@/hooks/useUserData';
 import api from '@/utils/api';
 
 // Define EventAttendee type locally to match context usage
@@ -20,10 +20,17 @@ type EventAttendee = {
   status?: AttendeeStatus;
 };
 
+interface SuggestionsData {
+  friends: AttendeeFriend[];
+  nonFriends: AttendeeFriend[];
+}
+
 interface AttendeesProps {
   limit: number | null;
   suggestions: AttendeeFriend[];
   setSuggestions: (suggestions: AttendeeFriend[]) => void;
+  suggestionsData: SuggestionsData;
+  setSuggestionsData: (data: SuggestionsData) => void;
   showSuggestions: boolean;
   setShowSuggestions: (show: boolean) => void;
   onSuggestionSelectRef: React.MutableRefObject<((item: any) => void) | null>;
@@ -33,6 +40,8 @@ const Attendees: React.FC<AttendeesProps> = ({
   limit, 
   suggestions, 
   setSuggestions, 
+  suggestionsData,
+  setSuggestionsData,
   showSuggestions, 
   setShowSuggestions,
   onSuggestionSelectRef 
@@ -135,37 +144,64 @@ const Attendees: React.FC<AttendeesProps> = ({
     }
   }, [attendees, settingEventAttendees]);
 
-  // Search functionality
-  const fetchFriendResults = async (query: string): Promise<AttendeeFriend[]> => {
+  // Search functionality for friends and non-friends
+  const fetchFriendsResults = async (query: string): Promise<AttendeeFriend[]> => {
     try {
-    const emailSearch = api.get(`/api/users/me/friends/search/by/email?query=${query}`);
-    const nameSearch = api.get(`/api/users/me/friends/search/by/name?query=${query}`);
-
-    const [emailResults, nameResults] = await Promise.all([emailSearch, nameSearch]);
-    const combinedResults = [...emailResults.data, ...nameResults.data];
-    const uniqueResults: AttendeeFriend[] = Array.from(
-      new Map(combinedResults.map((item: AttendeeFriend) => [item.full_name, item])).values()
-    );
-
-    return uniqueResults;
+      const response = await api.get(`/api/users/me/friends/search?query=${query}`);
+      return response.data || [];
     } catch (error) {
       console.error('Error fetching friends:', error);
       return [];
     }
   };
 
-  const getFriend = async (query: string) => {
+  const fetchNonFriendsResults = async (query: string): Promise<AttendeeFriend[]> => {
+    try {
+      const response = await api.get(`/api/users/me/kinovo/users/search?query=${query}`);
+      return response.data || [];
+    } catch (error) {
+      console.error('Error fetching non-friends:', error);
+      return [];
+    }
+  };
+
+  const getSearchResults = async (query: string) => {
     if (!query.trim()) {
       setSuggestions([]);
+      setSuggestionsData({ friends: [], nonFriends: [] });
       return;
     }
 
     try {
-      const results = await fetchFriendResults(query);
-      setSuggestions(results.filter((friend) => !attendees.some((a) => a._id === friend._id)));
+      // Fetch both friends and non-friends in parallel
+      const [friendsResults, nonFriendsResults] = await Promise.all([
+        fetchFriendsResults(query),
+        fetchNonFriendsResults(query)
+      ]);
+
+      // Filter out already added attendees
+      const availableFriends = friendsResults.filter((friend) => 
+        !attendees.some((a) => a._id === friend._id)
+      );
+      
+      const availableNonFriends = nonFriendsResults.filter((user) => 
+        !attendees.some((a) => a._id === user._id)
+      );
+
+      // Store separated data for sectioned display
+      setSuggestionsData({ 
+        friends: availableFriends, 
+        nonFriends: availableNonFriends 
+      });
+
+      // Keep the combined results for backward compatibility
+      const combinedResults = [...availableFriends, ...availableNonFriends];
+      setSuggestions(combinedResults);
     } catch (error: unknown) {
       const err = error as ApiError;
-      console.error('Failed to fetch friends:', err);
+      console.error('Failed to fetch search results:', err);
+      setSuggestions([]);
+      setSuggestionsData({ friends: [], nonFriends: [] });
     }
   };
 
@@ -177,7 +213,7 @@ const Attendees: React.FC<AttendeesProps> = ({
     
     timeoutRef.current = setTimeout(() => {
       if (mountedRef.current) {
-        getFriend(inputValue);
+        getSearchResults(inputValue);
       }
     }, 300);
 

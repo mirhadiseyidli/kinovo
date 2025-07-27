@@ -142,23 +142,10 @@ const syncNotification = async (userId, notificationData) => {
   }
 };
 
-/**
- * Mark notification as read in Firebase
- * @param {string} userId - User ID
- * @param {string} notificationId - Notification ID to mark as read
- */
-const markNotificationAsRead = async (userId, notificationId) => {
-  try {
-    const notificationRef = refs.notifications.child(userId).child(notificationId);
-    await notificationRef.update({
-      read: true,
-      is_seen: true,
-      read_at: admin.database.ServerValue.TIMESTAMP
-    });
-  } catch (error) {
-    console.error('Error marking notification as read in Firebase:', error);
-  }
-};
+// REMOVED: markNotificationAsRead function
+// This function was creating Firebase trails with is_seen/read flags.
+// Instead, we now use removeNotificationFromFirebase for complete cleanup
+// when notifications are marked as seen, since Firebase is only for real-time delivery.
 
 /**
  * Remove notification from Firebase (for real-time cleanup)
@@ -349,7 +336,6 @@ module.exports = {
   syncFriendRequest,
   syncFriendActivity,
   syncNotification,
-  markNotificationAsRead,
   removeNotificationFromFirebase,
   updateFriendRequestStatus,
   removeFriendRequestFromFirebase,

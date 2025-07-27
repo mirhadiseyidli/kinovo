@@ -116,7 +116,14 @@ const getUserNotifications = async (req, res) => {
 
     const notifications = await Notification.find({ recipient: userId })
       .populate('sender', 'full_name username profile_picture')
-      .populate('event', 'title category recurrence start_time end_time')
+      .populate({
+        path: 'event',
+        select: 'title category recurrence start_time end_time attendees',
+        populate: {
+          path: 'attendees.user',
+          select: '_id'
+        }
+      })
       .populate({
         path: 'friend_request',
         populate: {
@@ -128,9 +135,12 @@ const getUserNotifications = async (req, res) => {
       .skip(skip)
       .limit(limit);
 
-    // Calculate mutual friends for friend request notifications
-    const notificationsWithMutualFriends = await Promise.all(
+    // Process notifications to handle mutual friends and recurring event status
+    const processedNotifications = await Promise.all(
       notifications.map(async (notification) => {
+        const notificationObj = notification.toObject();
+        
+        // Handle friend request notifications - calculate mutual friends
         if (notification.type === 'friend_request' && notification.friend_request) {
           const recipient = await Users.findById(userId).select('friends');
           const sender = await Users.findById(notification.sender._id).select('friends');
@@ -145,14 +155,62 @@ const getUserNotifications = async (req, res) => {
           );
           
           return {
-            ...notification.toObject(),
+            ...notificationObj,
             data: {
               ...notification.data,
               mutualFriendsCount: mutualFriends.length
             }
           };
         }
-        return notification.toObject();
+        
+        // Handle event invitation notifications - check for recurring event responses
+        if (notification.type === 'event_invitation' && notification.event) {
+          // Check if this is a recurring event and if the user has responded
+          if (notification.event.recurrence && notification.event.recurrence.checked) {
+            const Events = require('../database/schemas/eventsSchema');
+            
+            // Case 1: Check for "all_future" responses (user status updated in main event)
+            const userAttendeeInMain = notification.event.attendees?.find(
+              attendee => {
+                // Handle both populated and non-populated user field
+                const attendeeUserId = attendee.user?._id || attendee.user;
+                return attendeeUserId?.toString() === userId.toString();
+              }
+            );
+            
+            if (userAttendeeInMain && userAttendeeInMain.status && userAttendeeInMain.status !== 'pending') {
+              // User responded with "all_future" - show status from main event
+              return {
+                ...notificationObj,
+                status: userAttendeeInMain.status
+              };
+            }
+            
+            // Case 2: Check for "this_only" responses (separate events created)
+            const userSeparateEventResponse = await Events.findOne({
+              original_recurring_event_id: notification.event._id,
+              'attendees.user': userId,
+              'attendees.status': { $in: ['accepted', 'maybe', 'rejected'] }
+            }).sort({ start_time: 1 }); // Get the earliest separate event
+            
+            if (userSeparateEventResponse) {
+              // Find the user's status in the separate event
+              const userAttendeeInSeparate = userSeparateEventResponse.attendees.find(
+                attendee => attendee.user.toString() === userId.toString()
+              );
+              
+              if (userAttendeeInSeparate && userAttendeeInSeparate.status) {
+                // User responded with "this_only" - show status from separate event
+                return {
+                  ...notificationObj,
+                  status: userAttendeeInSeparate.status
+                };
+              }
+            }
+          }
+        }
+        
+        return notificationObj;
       })
     );
 
@@ -163,7 +221,7 @@ const getUserNotifications = async (req, res) => {
     });
 
     res.status(200).json({
-      notifications: notificationsWithMutualFriends,
+      notifications: processedNotifications,
       pagination: {
         page,
         limit,
@@ -203,10 +261,15 @@ const markNotificationsAsSeen = async (req, res) => {
       );
 
       // Clean up seen notifications from Firebase (they're no longer needed for real-time)
-      const cleanupPromises = notificationIds.map(id => 
-        removeNotificationFromFirebase(userId.toString(), id)
-      );
-      await Promise.all(cleanupPromises);
+      const cleanupPromises = notificationIds.map(async (id) => {
+        try {
+          await removeNotificationFromFirebase(userId.toString(), id);
+          console.log(`✅ Firebase cleanup: Removed notification ${id} for user ${userId}`);
+        } catch (error) {
+          console.error(`❌ Firebase cleanup failed for notification ${id}:`, error);
+        }
+      });
+      await Promise.allSettled(cleanupPromises); // Use allSettled to continue even if some fail
     } else {
       // Mark all notifications as seen
       result = await Notification.updateMany(
@@ -222,8 +285,9 @@ const markNotificationsAsSeen = async (req, res) => {
         const { admin, db } = require('../config/firebase-admin');
         const userNotificationsRef = db.ref(`notifications/${userId}`);
         await userNotificationsRef.remove();
+        console.log(`✅ Firebase cleanup: Removed all notifications for user ${userId}`);
       } catch (firebaseError) {
-        console.error('Error cleaning up all notifications from Firebase:', firebaseError);
+        console.error(`❌ Firebase cleanup failed for all notifications (user ${userId}):`, firebaseError);
       }
     }
 
@@ -581,7 +645,7 @@ const createEventInvitationNotification = async (eventId, inviteeIds) => {
 };
 
 // Create event reminder notification (10 minutes or 1 hour before)
-const createEventReminderNotification = async (eventId, reminderType = 'event_reminder_1_hour') => {
+const createEventReminderNotification = async (eventId, reminderType = 'event_reminder_1_hour', specificUserId = null) => {
   try {
     const event = await require('../database/schemas/eventsSchema')
       .findById(eventId)
@@ -592,14 +656,24 @@ const createEventReminderNotification = async (eventId, reminderType = 'event_re
       throw new Error('Event not found');
     }
 
-    // Get all accepted attendees
-    const acceptedAttendees = event.attendees
-      .filter(attendee => attendee.status === 'accepted')
-      .map(attendee => attendee.user);
+    // If specificUserId is provided, only send to that user
+    let targetAttendees;
+    if (specificUserId) {
+      const userAttendee = event.attendees.find(att => 
+        att.user._id.toString() === specificUserId.toString() && 
+        (att.status === 'accepted' || att.status === 'maybe')
+      );
+      targetAttendees = userAttendee ? [userAttendee.user] : [];
+    } else {
+      // Backward compatibility - get all accepted/maybe attendees
+      targetAttendees = event.attendees
+        .filter(attendee => attendee.status === 'accepted' || attendee.status === 'maybe')
+        .map(attendee => attendee.user);
+    }
 
-    // Create reminder notifications for all accepted attendees (respecting their preferences)
+    // Create reminder notifications for target attendees (respecting their preferences)
     const notifications = await Promise.all(
-      acceptedAttendees.map(async (attendee) => {
+      targetAttendees.map(async (attendee) => {
         // Check if attendee wants to receive event reminder notifications
         const shouldReceiveInApp = await shouldReceiveNotification(attendee._id, reminderType, 'inApp');
         const shouldReceiveEmail = await shouldReceiveNotification(attendee._id, reminderType, 'email');
@@ -618,7 +692,6 @@ const createEventReminderNotification = async (eventId, reminderType = 'event_re
 
         // Create in-app notification if enabled
         if (shouldReceiveInApp) {
-          console.log('Creating in-app notification for event reminder');
           const timeText = reminderType === 'event_reminder_10_mins' ? '10 minutes' : '1 hour';
           notification = await createNotification({
             recipient: attendee._id,

@@ -1,16 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { ChangeEventHandler } from '@/types/allTypes';
-import { View, TextInput, Dimensions } from 'react-native';
+import { View, TextInput } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import { useCreateEvent } from '@/hooks/useCreateEvent';
 import { useCreateEventContext } from '@/context/CreateEventContext';
 
 const Description: React.FC = () => {
   const placeholder = "Write about your event...";
-  const screenWidth = Dimensions.get('window').width;
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { description, settingEventDescription } = useCreateEventContext();

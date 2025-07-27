@@ -9,8 +9,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SearchFriendsBar from '@/components/SearchFriendsBar';
 import UserListItem from './UserListItem';
 import type { Friend, Event as EventType } from '@/types/allTypes';
-import api from '@/utils/api';
 import { useGetMyFriends } from '@/hooks/useGetMyFriends';
+import { useInviteAttendeesMutation } from '@/hooks/useEventMutations';
 import { useViewEventModal } from '@/context/ViewEventModalContext';
 import { useLocalSearchParams } from 'expo-router';
 
@@ -30,7 +30,7 @@ const AddAttendeesModal: React.FC<AddAttendeesModalProps> = ({
   onInviteSuccess,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [friendsLoading, setFriendsLoading] = useState(false);
   const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set());
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
@@ -38,6 +38,7 @@ const AddAttendeesModal: React.FC<AddAttendeesModalProps> = ({
   const { fetchFriends } = useGetMyFriends();
   const [friendsList, setFriendsList] = useState<Friend[]>([]);
   const { showModal } = useViewEventModal();
+  const inviteAttendeesMutation = useInviteAttendeesMutation();
   const { occurrence_start, is_occurrence } = useLocalSearchParams();
   
   // Check if this is a recurring occurrence
@@ -47,7 +48,7 @@ const AddAttendeesModal: React.FC<AddAttendeesModalProps> = ({
   useEffect(() => {
     if (visible) {
       const getFriendsList = async () => {
-        setLoading(true);
+        setFriendsLoading(true);
         try {
           const fetchedFriendsList = await fetchFriends();
           // Filter out friends who are already invited
@@ -57,7 +58,7 @@ const AddAttendeesModal: React.FC<AddAttendeesModalProps> = ({
         } catch (error) {
           console.error('Error fetching friends:', error);
         } finally {
-          setLoading(false);
+          setFriendsLoading(false);
         }
       };
       getFriendsList();
@@ -85,21 +86,24 @@ const AddAttendeesModal: React.FC<AddAttendeesModalProps> = ({
   ) => {
     if (selectedFriends.size === 0) return;
 
-    setLoading(true);
     try {
       const eventId = event.isRecurringOccurrence ? event.originalEventId : event._id;
-      const requestBody: any = {
-        invitees: Array.from(selectedFriends)
+      const invitees = Array.from(selectedFriends);
+      
+      // Prepare mutation variables
+      const variables: any = {
+        eventId,
+        invitees
       };
 
       // Add recurring event options if provided
       if (isRecurringOccurrence && options?.modifyType && occurrence_start) {
         const occurrenceDate = Array.isArray(occurrence_start) ? occurrence_start[0] : occurrence_start;
-        requestBody.occurrenceDate = occurrenceDate;
-        requestBody.modifyType = options.modifyType;
+        variables.occurrenceDate = occurrenceDate;
+        variables.modifyType = options.modifyType;
       }
 
-      await api.post(`/api/manageevents/eventslist/${eventId}/invite`, requestBody);
+      await inviteAttendeesMutation.mutateAsync(variables);
       
       onInviteSuccess();
       onClose();
@@ -112,12 +116,10 @@ const AddAttendeesModal: React.FC<AddAttendeesModalProps> = ({
         
       Alert.alert('Success', message);
     } catch (error) {
+      // Error handling is done by the mutation
       console.error('Error inviting friends:', error);
-      showModal('invite_error');
-    } finally {
-      setLoading(false);
     }
-  }, [selectedFriends, event, isRecurringOccurrence, occurrence_start, onInviteSuccess, onClose, showModal]);
+  }, [selectedFriends, event, isRecurringOccurrence, occurrence_start, onInviteSuccess, onClose, inviteAttendeesMutation]);
 
   const showRecurringEventAlert = () => {
     if (!event.recurrence?.checked || !isRecurringOccurrence) {
@@ -190,14 +192,14 @@ const AddAttendeesModal: React.FC<AddAttendeesModalProps> = ({
             <ThemedText style={{ fontSize: 18, fontWeight: 'bold' }}>Add Attendees</ThemedText>
             <TouchableOpacity 
               onPress={showRecurringEventAlert}
-              disabled={selectedFriends.size === 0 || loading}
-              style={{ opacity: selectedFriends.size === 0 || loading ? 0.5 : 1 }}
+              disabled={selectedFriends.size === 0 || inviteAttendeesMutation.isPending}
+              style={{ opacity: selectedFriends.size === 0 || inviteAttendeesMutation.isPending ? 0.5 : 1 }}
             >
               <ThemedText style={{ 
                 color: selectedFriends.size > 0 ? themeColors.mountainGreen : themeColors.tint,
                 fontWeight: 'bold'
               }}>
-                {loading ? 'Inviting...' : 'Invite'}
+                {inviteAttendeesMutation.isPending ? 'Inviting...' : 'Invite'}
               </ThemedText>
             </TouchableOpacity>
           </View>
@@ -222,8 +224,8 @@ const AddAttendeesModal: React.FC<AddAttendeesModalProps> = ({
             keyboardDismissMode="on-drag"
             showsVerticalScrollIndicator={false}
           >
-            {loading ? (
-              <ThemedText style={{ textAlign: 'center', marginTop: 20 }}>Loading...</ThemedText>
+            {friendsLoading ? (
+              <ThemedText style={{ textAlign: 'center', marginTop: 20 }}>Loading friends...</ThemedText>
             ) : filteredFriends.length > 0 ? (
               filteredFriends.map((friend) => (
                 <TouchableOpacity

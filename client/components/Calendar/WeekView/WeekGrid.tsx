@@ -3,7 +3,7 @@ import React from 'react';
 import { FlatList, View, Dimensions, Text, TouchableOpacity } from 'react-native';
 import { useColorScheme } from '../../../hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import { useEventContext } from '@/context/UserSessionContext';
+import { useCalendarContext } from '@/context/CalendarProvider.v2';
 import { format, isSameDay } from 'date-fns';
 import { useRouter } from 'expo-router';
 
@@ -20,7 +20,7 @@ interface WeekGridProps {
 const WeekGrid: React.FC<WeekGridProps> = ({ hours, weekDates, gridRef, loading, refreshing }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const { getOccurrencesForDate } = useEventContext();
+  const { getOccurrencesForDate, currentDate } = useCalendarContext();
   const router = useRouter();
 
   // Performance optimization: Cache event positions to prevent recalculation
@@ -84,6 +84,8 @@ const WeekGrid: React.FC<WeekGridProps> = ({ hours, weekDates, gridRef, loading,
       params.is_occurrence = 'true';
     }
 
+    console.log('issue is here', currentDate)
+
     router.push({
       pathname: "/(auth)/viewEvent/[event_id]" as const,
       params: params
@@ -115,7 +117,7 @@ const WeekGrid: React.FC<WeekGridProps> = ({ hours, weekDates, gridRef, loading,
         color: themeColors.text,
       };
     } else if (userStatus === 'maybe') {
-      backgroundColor = themeColors.maybeStatusColor;
+      backgroundColor = themeColors.maybeStatusColor + '50';
       borderColor = themeColors.maybeStatusColor;
       borderWidth = 1;
       textStyle = {
@@ -175,6 +177,22 @@ const WeekGrid: React.FC<WeekGridProps> = ({ hours, weekDates, gridRef, loading,
     );
   }, [getEventPosition, weekDates.length, getEventStyles, handleEventPress]);
 
+  // Memoized grid row renderer for better performance
+  const renderGridRow = React.useCallback(() => (
+    <View style={{ flexDirection: 'row', height: 35 }}>
+      {weekDates.map((date, dayIndex) => (
+        <View
+          key={date.toISOString()}
+          style={{
+            width: (screenWidth - 50) / weekDates.length,
+            borderWidth: colorScheme === 'dark' ? 0.2 : 0.25,
+            borderColor: themeColors.calendarBorderColor,
+          }}
+        />
+      ))}
+    </View>
+  ), [weekDates, colorScheme, themeColors.calendarBorderColor]);
+
   return (
     <View style={{ position: 'relative' }}>
       <FlatList
@@ -183,20 +201,7 @@ const WeekGrid: React.FC<WeekGridProps> = ({ hours, weekDates, gridRef, loading,
         scrollEventThrottle={16}
         scrollEnabled={false}
         keyExtractor={(hour) => hour.toString()}
-        renderItem={() => (
-          <View style={{ flexDirection: 'row', height: 35 }}>
-            {weekDates.map((date, dayIndex) => (
-              <View
-                key={date.toISOString()}
-                style={{
-                  width: (screenWidth - 50) / weekDates.length,
-                  borderWidth: colorScheme === 'dark' ? 0.2 : 0.25,
-                  borderColor: themeColors.calendarBorderColor,
-                }}
-              />
-            ))}
-          </View>
-        )}
+        renderItem={renderGridRow}
       />
       
       {/* Event overlay */}

@@ -6,8 +6,7 @@ import { format } from 'date-fns';
 import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
 import WeekDayNames from './CalendarHeader/WeekDayNames';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
-import { useEventContext } from '@/context/UserSessionContext';
-import { useCalendarContext } from '@/context/CalendarContext';
+import { useCalendarContext } from '@/context/CalendarProvider.v2';
 
 // Memoize expensive date calculations
 const dateCalculationCache = new Map<string, Array<{year: number, month: number}>>();
@@ -41,9 +40,8 @@ const MonthView: React.FC<MonthViewComponentProps> = ({
   refreshing,
   onFinishRefresh,
 }) => {
-  // Use CalendarContext for state management
-  const { currentDate, navigateToMonth } = useCalendarContext();
-  const { fetchEventsForMonth, refreshEvents, loading } = useEventContext();
+  // Use CalendarContext for state management and data
+  const { currentDate, setCurrentDate, refreshEvents, loading } = useCalendarContext();
   
   // Performance optimization: Memoize screen width to prevent recalculation
   const screenWidth = React.useMemo(() => Dimensions.get('window').width, []);
@@ -88,17 +86,15 @@ const MonthView: React.FC<MonthViewComponentProps> = ({
   }, []);
 
   useEffect(() => {
-    const fetchEvents = async () => {
+    const handleRefresh = async () => {
       if (refreshing) {
-        await refreshEvents(currentDate, 'Month');
-      } else {
-        await fetchEventsForMonth(currentDate.getMonth(), currentDate.getFullYear());
+        await refreshEvents();
+        onFinishRefresh();
       }
-      onFinishRefresh();
     };
 
-    fetchEvents();
-  }, [refreshing, currentDate]); // Removed function dependencies to prevent multiple fetches
+    handleRefresh();
+  }, [refreshing]); // Only listen for refreshing changes, CalendarProvider.v2 handles data fetching
 
   // Update month array when currentDate changes from external sources (like dropdown)
   useEffect(() => {
@@ -130,7 +126,7 @@ const MonthView: React.FC<MonthViewComponentProps> = ({
     });
 
     // Navigate to the middle month of the new array (which was the last month of the old array)
-    navigateToMonth(lastMonth.month, lastMonth.year);
+    setCurrentDate(new Date(lastMonth.year, lastMonth.month, 1));
     
     rafRef.current = requestAnimationFrame(() => {
       listRef.current?.scrollToIndex({ index: 1, animated: false });
@@ -155,7 +151,7 @@ const MonthView: React.FC<MonthViewComponentProps> = ({
     });
 
     // Navigate to the middle month of the new array (which was the first month of the old array)
-    navigateToMonth(firstMonth.month, firstMonth.year);
+    setCurrentDate(new Date(firstMonth.year, firstMonth.month, 1));
     
     rafRef.current = requestAnimationFrame(() => {
       listRef.current?.scrollToIndex({ index: 1, animated: false });

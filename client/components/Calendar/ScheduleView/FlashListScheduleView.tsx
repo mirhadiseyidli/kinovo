@@ -5,12 +5,11 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { format, isToday, parseISO, addMonths, startOfMonth, endOfMonth, isSameDay } from 'date-fns';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
-import { useEventContext } from '@/context/UserSessionContext';
 import { EventOccurrence } from '@/utils/eventUtils';
 import { useCalendarViewContext } from '@/context/CalendarViewContext';
 import ReanimatedShimmerLine from '@/components/CustomLoadingIndicatingLine';
 import { useSharedValue, withTiming, runOnJS } from 'react-native-reanimated';
-import { useCalendarContext } from '@/context/CalendarContext';
+import { useCalendarContext } from '@/context/CalendarProvider.v2';
 import ScheduleEventView from './ScheduleEventView';
 
 // Helper type for our list items
@@ -28,9 +27,8 @@ interface ScheduleViewProps {
 }
 
 const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFinishRefresh }) => {
-  const { fetchEventsForDateRange, eventOccurrences, loading } = useEventContext();
   const { view, lastViewChangeSource } = useCalendarViewContext();
-  const { currentDate } = useCalendarContext();
+  const { currentDate, eventOccurrences, loading, refreshEvents } = useCalendarContext();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const flashListRef = useRef<FlashList<ListItem>>(null);
@@ -166,33 +164,29 @@ const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFini
     }
   }, [listData]);
 
-  // Effect to fetch events when schedule view becomes active
+  // Effect to handle refreshing when schedule view is active
   useEffect(() => {
-    // Only fetch events when schedule view is active
+    // Only handle refreshing when schedule view is active
     if (view.toLowerCase() !== 'schedule') return;
 
-    const fetchScheduleEvents = async () => {
-      try {
-        // Fetch events for a broader range - from current month to 6 months ahead
-        const now = new Date();
-        const startDate = startOfMonth(now);
-        const endDate = endOfMonth(addMonths(now, 6)); // 6 months ahead
-        
-        await fetchEventsForDateRange(startDate, endDate);
-        
-        if (refreshing && onFinishRefresh) {
-          onFinishRefresh();
-        }
-      } catch (error) {
-        console.error('Error fetching schedule events:', error);
-        if (refreshing && onFinishRefresh) {
-          onFinishRefresh();
+    const handleScheduleRefresh = async () => {
+      if (refreshing) {
+        try {
+          await refreshEvents();
+          if (onFinishRefresh) {
+            onFinishRefresh();
+          }
+        } catch (error) {
+          console.error('Error refreshing schedule events:', error);
+          if (onFinishRefresh) {
+            onFinishRefresh();
+          }
         }
       }
     };
 
-    fetchScheduleEvents();
-  }, [view, refreshing]);
+    handleScheduleRefresh();
+  }, [view, refreshing]); // CalendarProvider.v2 handles data fetching automatically
 
   // Main effect to handle scrolling logic
   useEffect(() => {

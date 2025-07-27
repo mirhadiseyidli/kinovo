@@ -1,5 +1,4 @@
 import React, { ReactNode } from 'react';
-import { EventProvider, useEventContext as useEventContextOriginal } from './EventContext';
 import { NotificationProvider, useNotifications as useNotificationsOriginal } from './NotificationContext';
 import { LocationProvider, useLocation as useLocationOriginal } from './LocationContext';
 
@@ -7,28 +6,24 @@ import { LocationProvider, useLocation as useLocationOriginal } from './Location
  * UserSessionProvider - Consolidated provider for authenticated user data
  * 
  * This provider combines:
- * - EventProvider: Event data, caching, CRUD operations
  * - NotificationProvider: Firebase notifications, friend requests  
  * - LocationProvider: Location permissions
  * 
  * Benefits:
- * - Reduces provider nesting from 6 levels to 3 levels
+ * - Reduces provider nesting from 3 levels to 2 levels
  * - Only loads for authenticated users
- * - Maintains backward compatibility with existing hooks
+ * - EventContext removed - replaced by TanStack Query + useEventMutations
  */
 export const UserSessionProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   return (
     <LocationProvider>
-      <EventProvider>
-        <NotificationProvider>
-          {children}
-        </NotificationProvider>
-      </EventProvider>
+      <NotificationProvider>
+        {children}
+      </NotificationProvider>
     </LocationProvider>
   );
 };
 
 // Re-export hooks for backward compatibility
-export const useEventContext = useEventContextOriginal;
 export const useNotifications = useNotificationsOriginal;
 export const useLocation = useLocationOriginal; 

@@ -9,6 +9,7 @@ const jwt = require('jsonwebtoken');
 const logger = require('winston');
 const { verifyIdentityToken } = require('../utils/appleAuth');
 const { createContactJoinedNotification } = require('./notificationsController');
+const { createDefaultProfileImage } = require('./userController');
 
 // Helper functions
 const hashPassword = password => {
@@ -46,6 +47,18 @@ const googleAuth = async (req, res) => {
     let user = await User.findOne({ google_id: userId });
     if (!user) {
       logger.info(`Creating new user for Google ID: ${userId}`);
+      
+      // Generate default profile image if none provided
+      let finalProfilePicture = profilePicture;
+      if (!profilePicture && firstName && lastName) {
+        try {
+          finalProfilePicture = await createDefaultProfileImage(firstName, lastName);
+        } catch (error) {
+          console.error('Error creating default profile image:', error);
+          finalProfilePicture = null;
+        }
+      }
+      
       user = await User.create({
         first_name: firstName,
         last_name: lastName,
@@ -54,7 +67,7 @@ const googleAuth = async (req, res) => {
         email: email,
         email_verified: email_verified,
         google_id: userId,
-        profile_picture: profilePicture || null,
+        profile_picture: finalProfilePicture,
       });
 
       // Check if any existing users have this user's phone number in their contacts
@@ -137,6 +150,16 @@ const appleAuth = async (req, res) => {
       // For testing purpose, use default values if needed
       const finalEmail = userEmail || `apple_${userId}@example.com`;
       
+      // Generate default profile image
+      let defaultProfileImage = null;
+      if (firstName && lastName) {
+        try {
+          defaultProfileImage = await createDefaultProfileImage(firstName, lastName);
+        } catch (error) {
+          console.error('Error creating default profile image:', error);
+        }
+      }
+      
       existingUser = await User.create({
         first_name: firstName,
         last_name: lastName,
@@ -145,6 +168,7 @@ const appleAuth = async (req, res) => {
         email: finalEmail,
         email_verified: true, // Apple verifies emails
         apple_id: userId,
+        profile_picture: defaultProfileImage,
       });
     }
 
@@ -259,6 +283,17 @@ const signup = async (req, res) => {
     }
 
     const hashedPassword = await hashPassword(password);
+    
+    // Generate default profile image
+    let defaultProfileImage = null;
+    if (first_name && last_name) {
+      try {
+        defaultProfileImage = await createDefaultProfileImage(first_name, last_name);
+      } catch (error) {
+        console.error('Error creating default profile image:', error);
+      }
+    }
+    
     const newUser = await User.create({
       first_name,
       last_name,
@@ -268,7 +303,7 @@ const signup = async (req, res) => {
       password: hashedPassword,
       date_of_birth,
       phone_number,
-      profile_picture: null,
+      profile_picture: defaultProfileImage,
     });
 
     const userDataFromDB = await User.findOne({ email }).select('-password');

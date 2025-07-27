@@ -1,16 +1,14 @@
 import React, { useCallback, useEffect } from 'react';
 import { View, Text, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useGetEventById } from '@/hooks/useGetEventById';
+import { useEventByIdQuery } from '@/hooks/useEventByIdQuery';
 import EventImage from '@/components/ViewEvent/EventImage';
 import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import EventDetailsSection from '@/components/ViewEvent/EventDetails';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useIsFocused } from '@react-navigation/native';
 import { CreateEventProvider } from '@/context/CreateEventContext';
 import { ViewEventSkeleton } from '@/components/Skeleton';
 import Animated, {
@@ -20,11 +18,11 @@ import Animated, {
 } from 'react-native-reanimated';
 import { shareContent } from '@/utils/shareUtils';
 import { Feather } from '@expo/vector-icons';
-import { useEventContext } from '@/context/UserSessionContext';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { ViewEventModalProvider } from '@/context/ViewEventModalContext';
 
 const ShareEventButton = ({ event_id }: { event_id: string }) => {
-  const { event, loading, error } = useGetEventById(event_id);
+  const { event, loading, error } = useEventByIdQuery(event_id);
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
 
@@ -32,6 +30,10 @@ const ShareEventButton = ({ event_id }: { event_id: string }) => {
     try {
       if (!event?._id || !event?.title) {
         throw new Error('Event data is incomplete');
+      }
+      if (event.status === 'cancelled') {
+        Alert.alert('Unable to Share', 'This event has been cancelled and cannot be shared.');
+        return;
       }
       await shareContent('event', event._id, event.title);
     } catch (error) {
@@ -58,13 +60,11 @@ const ShareEventButton = ({ event_id }: { event_id: string }) => {
 const ViewEvent = () => {
   const { event_id, occurrence_start, occurrence_end, is_occurrence } = useLocalSearchParams();
   const id = Array.isArray(event_id) ? event_id[0] : event_id;
-  const { event, loading, error, fetchEventById } = useGetEventById(id);
-  const { subscribeToEventUpdates, unsubscribeFromEventUpdates } = useEventContext();
+  const { event, loading, error, refetch } = useEventByIdQuery(id);
   const navigation = useNavigation();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const insets = useSafeAreaInsets();
-  const isFocused = useIsFocused();
   const router = useRouter();
 
   // Animated values for scroll handling
@@ -109,16 +109,6 @@ const ViewEvent = () => {
     }
   });
 
-  // Auto-recovery: retry fetching when there's an error
-  useEffect(() => {
-    if (error && !loading) {
-      const retryTimer = setTimeout(() => {
-        fetchEventById();
-      }, 3000); // Retry after 3 seconds
-
-      return () => clearTimeout(retryTimer);
-    }
-  }, [error, loading, fetchEventById]);
 
   // Create modified event for recurring occurrences
   const displayEvent = React.useMemo(() => {
@@ -150,40 +140,19 @@ const ViewEvent = () => {
     }
   }, [navigation, id]);
 
-  // Subscribe to event updates when component mounts
-  useEffect(() => {
-    if (id) {
-      subscribeToEventUpdates(id);
-    }
-    
-    // Cleanup on unmount or when navigating away
-    return () => {
-      if (id) {
-        unsubscribeFromEventUpdates(id);
-      }
-    };
-  }, [id]);
 
-  // Additional cleanup when component loses focus
-  useFocusEffect(
-    useCallback(() => {
-      // Subscribe when focused
-      if (id) {
-        subscribeToEventUpdates(id);
-      }
-      
-      // Cleanup when unfocused (navigating away)
-      return () => {
-        if (id) {
-          unsubscribeFromEventUpdates(id);
-        }
-      };
-    }, [id, subscribeToEventUpdates, unsubscribeFromEventUpdates])
-  );
-
-  // Show skeleton during loading or network errors (backend not responding)
-  if (loading || error) {
+  // Show skeleton during loading
+  if (loading) {
     return <ViewEventSkeleton />;
+  }
+
+  // Show error state for network errors
+  if (error) {
+    return (
+      <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text style={{ color: themeColors.text }}>Failed to load event</Text>
+      </ThemedView>
+    );
   }
 
   // Show error state only for cases where event is not found (not network errors)
@@ -191,6 +160,49 @@ const ViewEvent = () => {
     return (
       <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <Text style={{ color: themeColors.text }}>Event not found</Text>
+      </ThemedView>
+    );
+  }
+
+  // Show cancelled event alert
+  if (displayEvent.status === 'cancelled') {
+    return (
+      <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }}>
+        <View style={{ alignItems: 'center', marginBottom: 24 }}>
+          <FontAwesome name="calendar-times-o" size={64} color={themeColors.tint} style={{ marginBottom: 16 }} />
+          <Text style={{ 
+            color: themeColors.text, 
+            fontSize: 24, 
+            fontWeight: 'bold', 
+            textAlign: 'center',
+            marginBottom: 8 
+          }}>
+            Event Cancelled
+          </Text>
+          <Text style={{ 
+            color: themeColors.text, 
+            fontSize: 16, 
+            textAlign: 'center',
+            opacity: 0.7,
+            lineHeight: 24
+          }}>
+            This event has been cancelled by the organizer and is no longer available.
+          </Text>
+        </View>
+        
+        <TouchableOpacity 
+          style={{
+            backgroundColor: themeColors.inputBackgroundColor,
+            paddingHorizontal: 24,
+            paddingVertical: 12,
+            borderRadius: 8,
+          }}
+          onPress={handleDismiss}
+        >
+          <Text style={{ color: themeColors.text, fontSize: 16, fontWeight: '600' }}>
+            Go Back
+          </Text>
+        </TouchableOpacity>
       </ThemedView>
     );
   }

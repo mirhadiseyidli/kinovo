@@ -38,7 +38,7 @@ const Categories: React.FC<CategoriesProps> = ({ refreshing, onFinishRefresh }) 
   const screenWidth = Dimensions.get('window').width;
   const colorScheme = useColorScheme();
   const router = useRouter();
-  const { categories, fetchCategories, loading, isFirstFetch } = useCategories();
+  const { categories, fetchCategories, loading, isFirstFetch, error } = useCategories();
 
   useEffect(() => {
     fetchCategories();
@@ -64,7 +64,7 @@ const Categories: React.FC<CategoriesProps> = ({ refreshing, onFinishRefresh }) 
   );
 
   const handleCategoryPress = (category: string) => {
-    router.push(`/(auth)/(category)/${category}`);
+    router.push(`/(auth)/(category)/${encodeURIComponent(category)}`);
   };
 
   const getIconForCategory = (categoryName: string): FeatherIconName => {

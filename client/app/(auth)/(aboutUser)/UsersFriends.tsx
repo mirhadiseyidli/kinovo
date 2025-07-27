@@ -13,6 +13,8 @@ import { Route } from '@/components/CollapsibleTab';
 import { User } from '@/types/allTypes';
 import { SkeletonBox } from '@/components/Skeleton';
 import { Feather } from '@expo/vector-icons';
+import { useAuthSession } from '@/components/Auth/AuthProvider';
+import { useContactFriendshipStatus } from '@/hooks/useContactFriendshipStatus';
 
 type UserFriendsProps = {
   userId: string;
@@ -42,12 +44,44 @@ export default React.memo(function UserFriends({ userId, route, refreshing }: Us
   const [searchQuery, setSearchQuery] = useState('');
   const { friendsList, fetchUserToViewFriends, loading, isFirstFetch } = useGetUserToViewFriends(userId);
   const insets = useSafeAreaInsets();
+  const { userId: currentUserId } = useAuthSession();
+  const { checkFriendshipStatus, getFriendshipStatus, loading: friendshipLoading } = useContactFriendshipStatus();
+  
+  // Check if current user and viewed user are friends
+  const isViewingOwnProfile = currentUserId === userId;
+  const friendshipStatus = getFriendshipStatus(userId);
+  const areFriends = friendshipStatus === 'alreadyFriends';
+  
+  // Track if we've determined what to show (either friends list or placeholder)
+  const [hasResolvedContent, setHasResolvedContent] = React.useState(false);
+
+  useEffect(() => {
+    // Reset resolved content state when userId changes
+    setHasResolvedContent(false);
+    
+    if (userId && currentUserId && !isViewingOwnProfile) {
+      checkFriendshipStatus([userId]);
+    }
+  }, [userId, currentUserId, isViewingOwnProfile, checkFriendshipStatus]);
 
   useEffect(() => {
     if (userId) {
-      fetchUserToViewFriends();
+      if (isViewingOwnProfile) {
+        // Always fetch for own profile
+        fetchUserToViewFriends();
+        setHasResolvedContent(true);
+      } else if (currentUserId && !friendshipLoading) {
+        // For other profiles, fetch after friendship status is checked
+        if (areFriends) {
+          fetchUserToViewFriends();
+          setHasResolvedContent(true);
+        } else {
+          // Not friends - we won't fetch but we've resolved what to show
+          setHasResolvedContent(true);
+        }
+      }
     }
-  }, [fetchUserToViewFriends, userId]);
+  }, [fetchUserToViewFriends, userId, isViewingOwnProfile, areFriends, currentUserId, friendshipLoading]);
 
   useEffect(() => {
     if (refreshing) {
@@ -116,8 +150,57 @@ export default React.memo(function UserFriends({ userId, route, refreshing }: Us
     </View>
   ), [themeColors]);
 
+  const NonFriendsPlaceholder = useCallback(() => (
+    <View style={{ paddingTop: 16, width: '100%' }}>
+      <View style={{
+        backgroundColor: themeColors.background,
+        borderRadius: 12,
+        padding: 16,
+        borderWidth: 2,
+        borderStyle: 'dashed',
+        borderColor: themeColors.border,
+        width: '100%',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: 120,
+      }}>
+        <View style={{ marginBottom: 12 }}>
+          <Feather
+            name="lock"
+            size={32}
+            color={themeColors.placeholderTextColor}
+          />
+        </View>
+        <ThemedText 
+          style={{ 
+            fontSize: 16, 
+            color: themeColors.placeholderTextColor, 
+            textAlign: 'center',
+            marginBottom: 4,
+            fontWeight: '600'
+          }}
+        >
+          Friends List Private
+        </ThemedText>
+        <ThemedText 
+          style={{ 
+            fontSize: 14, 
+            color: themeColors.placeholderTextColor,
+            textAlign: 'center',
+            opacity: 0.8
+          }}
+        >
+          Only friends can see this user's friends list
+        </ThemedText>
+      </View>
+    </View>
+  ), [themeColors]);
+
   const ListHeaderComponent = useMemo(() => {
-    if (isFirstFetch) {
+    // Show skeleton until we've resolved what content to show
+    const shouldShowSkeleton = !hasResolvedContent || (isViewingOwnProfile && isFirstFetch) || (areFriends && isFirstFetch);
+    
+    if (shouldShowSkeleton) {
       return (
         <View style={{ marginTop: 16, flex: 1, flexDirection: 'column', gap: 16 }}>
           <SkeletonBox width="100%" height={40} borderRadius={8} />
@@ -138,7 +221,7 @@ export default React.memo(function UserFriends({ userId, route, refreshing }: Us
       );
     }
     return null;
-  }, [isFirstFetch, friendsList.length, searchQuery, setSearchQuery]);
+  }, [hasResolvedContent, isFirstFetch, friendsList.length, searchQuery, setSearchQuery, isViewingOwnProfile, areFriends]);
 
   const filteredFriends = useMemo(() => 
     friendsList.filter(friend => 
@@ -148,14 +231,34 @@ export default React.memo(function UserFriends({ userId, route, refreshing }: Us
     [friendsList, searchQuery]
   );
 
+  // Determine which empty component to show
+  const getEmptyComponent = () => {
+    const shouldShowSkeleton = !hasResolvedContent || (isViewingOwnProfile && isFirstFetch) || (areFriends && isFirstFetch);
+    if (shouldShowSkeleton) return null;
+    if (!isViewingOwnProfile && !areFriends) {
+      return NonFriendsPlaceholder;
+    }
+    return ListEmptyComponent;
+  };
+
+  // Determine data to show
+  const getDataToShow = () => {
+    const shouldShowSkeleton = !hasResolvedContent || (isViewingOwnProfile && isFirstFetch) || (areFriends && isFirstFetch);
+    if (shouldShowSkeleton) return [];
+    if (!isViewingOwnProfile && !areFriends) {
+      return []; // Empty array to trigger ListEmptyComponent
+    }
+    return filteredFriends;
+  };
+
   return (
     <ThemedView style={{ flex: 1, paddingHorizontal: 16 }}>
       <TabFlashList
         index={route?.index || 0}
-        data={isFirstFetch ? [] : filteredFriends}
+        data={getDataToShow()}
         estimatedItemSize={80}
         renderItem={renderItem}
-        ListEmptyComponent={!isFirstFetch ? ListEmptyComponent : null}
+        ListEmptyComponent={getEmptyComponent()}
         ListHeaderComponent={ListHeaderComponent}
         contentContainerStyle={{ 
           paddingBottom: insets.bottom + 20

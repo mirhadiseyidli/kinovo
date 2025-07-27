@@ -7,8 +7,8 @@ const {
   createUser, 
   findMe,
   getUser,
-  getUserFriendByEmailSearch,
-  getUserFriendByNameSearch,
+  getUserFriendBySearch,
+  getUserNonFriendBySearch,
   markStoriesViewed,
   requestAccountDeletion,
   cancelAccountDeletion,
@@ -69,8 +69,8 @@ router.post('/generate-profile-picture', authMiddleware, generateDefaultProfileP
 router.get('/me', authMiddleware, findMe);
 router.post('/user/create', authMiddleware, createUser);
 router.get('/user/get/profile', authMiddleware, getUser, getUserProfile);
-router.get('/me/friends/search/by/email', authMiddleware, getUserFriendByEmailSearch, getUserProfile);
-router.get('/me/friends/search/by/name', authMiddleware, getUserFriendByNameSearch, getUserProfile);
+router.get('/me/friends/search/', authMiddleware, getUserFriendBySearch, getUserProfile);
+router.get('/me/kinovo/users/search/', authMiddleware, getUserNonFriendBySearch, getUserProfile);
 router.patch('/user/edit/myprofile', authMiddleware, editMyProfile);
 router.post('/user/stories/mark-viewed', authMiddleware, markStoriesViewed);
 router.post('/user/bypass-two-factor-auth', authMiddleware, bypassTwoFactorAuth);

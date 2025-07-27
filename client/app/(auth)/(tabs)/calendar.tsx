@@ -11,10 +11,11 @@ import { Colors } from '@/constants/Colors';
 import Dropdown from '@/components/PickerCustom';
 import Animated, { FadeIn, FadeOut, SlideInLeft, SlideOutLeft, SlideInRight, SlideOutRight, runOnJS, LinearTransition, useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import { CalendarViewProvider, useCalendarViewContext } from '@/context/CalendarViewContext';
-import { CalendarProvider } from '@/context/CalendarContext';
+import { CalendarProvider, useCalendarContext } from '@/context/CalendarProvider.v2';
 import WeekView from '@/components/Calendar/WeekView';
 import FlashListScheduleView from '@/components/Calendar/ScheduleView/FlashListScheduleView';
 import MonthView from '@/components/Calendar/MonthView';
+import { CalendarErrorProvider } from '@/context/CalendarErrorContext';
 
 function RenderedCalendarView({
   refreshing,
@@ -53,6 +54,19 @@ function CalendarContent() {
   const [refreshing, setRefreshing] = useState(false);
   const [isLayoutReady, setIsLayoutReady] = useState(false);
   const colorScheme = useColorScheme();
+
+  // Bridge between old CalendarViewContext and new CalendarProvider.v2
+  const { view } = useCalendarViewContext();
+  const { setCurrentView } = useCalendarContext();
+
+  // Sync view changes from CalendarViewContext to CalendarProvider.v2
+  useEffect(() => {
+    if (view && typeof view === 'string') {
+      const mappedView = view as 'Month' | 'Week' | 'Schedule';
+      setCurrentView(mappedView);
+    }
+  }, [view, setCurrentView]);
+
 
   // Stabilize layout on mount
   useEffect(() => {
@@ -100,22 +114,28 @@ export default function Calendar() {
     // CalendarViewProvider is already set up in _layout.tsx, so we can access view here
     const { view } = useCalendarViewContext();
     
-    // Defensive check for view
-    const safeView = view && typeof view === 'string' ? view : 'Month';
+    // Map view string to CalendarProvider.v2 view type
+    const initialView = view && typeof view === 'string' 
+      ? (view as 'Month' | 'Week' | 'Schedule')
+      : 'Month';
 
     return (
-      <CalendarProvider view={safeView}>
-        <CalendarContent />
-      </CalendarProvider>
+      <CalendarErrorProvider>
+        <CalendarProvider initialView={initialView}>
+          <CalendarContent />
+        </CalendarProvider>
+      </CalendarErrorProvider>
     );
   } catch (error) {
     console.error('Error in Calendar component:', error);
     
     // Fallback to basic calendar without context
     return (
-      <CalendarProvider view="Month">
-        <CalendarContent />
-      </CalendarProvider>
+      <CalendarErrorProvider>
+        <CalendarProvider initialView="Month">
+          <CalendarContent />
+        </CalendarProvider>
+      </CalendarErrorProvider>
     );
   }
 };

@@ -2,8 +2,53 @@ const User = require('../database/schemas/usersSchema');
 const FriendRequests = require('../database/schemas/friendRequestsSchema');
 const { sendEmail } = require('../utils/emailService'); // Make sure this exists
 const { extractS3KeyFromUrl, deleteFromS3, invalidateCloudFront } = require('../utils/cdnUtils');
+const sharp = require('sharp');
 
 require('dotenv').config();
+
+// Helper function to generate default profile picture data URI
+const createDefaultProfileImage = async (firstName, lastName) => {
+  try {
+    const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+    
+    // Generate a consistent color based on the user's name
+    const colors = [
+      '#6366f1', '#8b5cf6', '#ec4899', '#ef4444', '#f97316',
+      '#eab308', '#22c55e', '#10b981', '#06b6d4', '#3b82f6'
+    ];
+    const colorIndex = (firstName.charCodeAt(0) + lastName.charCodeAt(0)) % colors.length;
+    const backgroundColor = colors[colorIndex];
+    
+    const size = 400;
+    const fontSize = Math.floor(size * 0.35);
+    const centerX = size / 2;
+    const centerY = size / 2;
+    
+    const svg = `
+      <svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="${centerX}" cy="${centerY}" r="${size / 2}" fill="${backgroundColor}" />
+        <text x="${centerX}" y="${centerY}" 
+              font-family="Arial, Helvetica, sans-serif" 
+              font-size="${fontSize}" 
+              font-weight="bold" 
+              fill="white" 
+              text-anchor="middle" 
+              dy=".35em">${initials}</text>
+      </svg>
+    `.trim();
+    
+    // Convert SVG to PNG using Sharp
+    const pngBuffer = await sharp(Buffer.from(svg))
+      .png()
+      .toBuffer();
+    
+    // Convert PNG buffer to base64 data URI
+    return `data:image/png;base64,${pngBuffer.toString('base64')}`;
+  } catch (error) {
+    console.error('Error creating default profile image:', error);
+    return null;
+  }
+};
 
 const getUserProfile = async (req, res) => {
   try {
@@ -157,26 +202,7 @@ const getUser = async (req, res, next) => {
   }
 };
 
-const getUserFriendByEmailSearch = async (req, res) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ message: 'Unauthorized: User not logged in' });
-    }
-
-    const email = req.query.query;
-    const found_user = await User.findOne({ _id: req.user._id }).populate({
-      path: 'friends',
-      match: { email: { $regex: email, $options: 'i' } }, // Case-insensitive search
-      select: '-password'
-    });
-
-    res.status(200).json(found_user.friends);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-}
-
-const getUserFriendByNameSearch = async (req, res) => {
+const getUserFriendBySearch = async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ message: 'Unauthorized: User not logged in' });
@@ -189,12 +215,55 @@ const getUserFriendByNameSearch = async (req, res) => {
         { first_name: { $regex: name, $options: 'i' } }, 
         { last_name: { $regex: name, $options: 'i' } },
         { full_name: { $regex: name, $options: 'i' } },
+        { email: { $regex: name, $options: 'i' } },
+        { email: { $regex: name, $options: 'i' } }
       ]}, // Case-insensitive search by first or last name
       select: '-password'
     });
 
     res.status(200).json(found_user.friends);
   } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+}
+
+const getUserNonFriendBySearch = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Unauthorized: User not logged in' });
+    }
+
+    const name = req.query.query;
+    
+    if (!name || name.trim().length === 0) {
+      return res.status(400).json({ message: 'Search query is required' });
+    }
+
+    // First, get the current user's friend IDs
+    const currentUser = await User.findById(req.user._id).select('friends');
+    const friendIds = currentUser.friends || [];
+    
+    // Add current user's ID to exclude from search
+    const excludeIds = [...friendIds, req.user._id];
+
+    // Find users across the app who are NOT friends and match the search query
+    const nonFriendUsers = await User.find({
+      _id: { $nin: excludeIds }, // Exclude friends and current user
+      $or: [
+        { first_name: { $regex: name, $options: 'i' } }, 
+        { last_name: { $regex: name, $options: 'i' } },
+        { full_name: { $regex: name, $options: 'i' } },
+        { username: { $regex: name, $options: 'i' } },
+        { email: { $regex: name, $options: 'i' } }
+      ]
+    })
+    .select('-password') // Exclude sensitive fields
+    .limit(20) // Limit results for performance
+    .lean(); // Use lean for better performance
+
+    res.status(200).json(nonFriendUsers);
+  } catch (err) {
+    console.error('Error in getUserNonFriendBySearch:', err);
     res.status(500).json({ message: err.message });
   }
 }
@@ -898,7 +967,7 @@ const getUserImages = async (req, res) => {
   }
 };
 
-// Generate default profile picture using SVG
+// Generate default profile picture using PNG
 const generateDefaultProfilePicture = async (req, res) => {
   try {
     const { initials, backgroundColor } = req.body;
@@ -911,24 +980,35 @@ const generateDefaultProfilePicture = async (req, res) => {
     }
 
     const size = 400;
-    const fontSize = size * 0.35;
+    const fontSize = Math.floor(size * 0.35);
     
-    // Create SVG string
+    // Create SVG string with precise text centering
+    // Calculate text position to ensure perfect centering
+    const centerX = size / 2;
+    const centerY = size / 2;
+    // Adjust Y position slightly for better visual centering (accounts for font metrics)
+    const textY = centerY + (fontSize * 0.1); // Small upward adjustment
+    
     const svg = `
       <svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="${size / 2}" cy="${size / 2}" r="${size / 2}" fill="${backgroundColor}" />
-        <text x="${size / 2}" y="${size / 2}" 
-              font-family="Arial, sans-serif" 
+        <circle cx="${centerX}" cy="${centerY}" r="${size / 2}" fill="${backgroundColor}" />
+        <text x="${centerX}" y="${centerY}" 
+              font-family="Arial, Helvetica, sans-serif" 
               font-size="${fontSize}" 
               font-weight="bold" 
               fill="white" 
               text-anchor="middle" 
-              dominant-baseline="central">${initials}</text>
+              dy=".35em">${initials}</text>
       </svg>
     `.trim();
     
-    // Convert SVG to base64 data URI
-    const dataUri = `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
+    // Convert SVG to PNG using Sharp
+    const pngBuffer = await sharp(Buffer.from(svg))
+      .png()
+      .toBuffer();
+    
+    // Convert PNG buffer to base64 data URI
+    const dataUri = `data:image/png;base64,${pngBuffer.toString('base64')}`;
     
     res.status(200).json({
       success: true,
@@ -982,8 +1062,8 @@ module.exports = {
   createUser,
   findMe,
   getUser,
-  getUserFriendByEmailSearch,
-  getUserFriendByNameSearch,
+  getUserFriendBySearch,
+  getUserNonFriendBySearch,
   markStoriesViewed,
   requestAccountDeletion,
   cancelAccountDeletion,
@@ -1003,5 +1083,6 @@ module.exports = {
   getUserImages,
   generateDefaultProfilePicture,
   bypassTwoFactorAuth,
-  getBypassTwoFactorAuth
+  getBypassTwoFactorAuth,
+  createDefaultProfileImage  // Export the helper function
 };

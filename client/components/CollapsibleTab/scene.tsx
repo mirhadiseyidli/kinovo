@@ -69,7 +69,7 @@ export function SceneComponent<P extends object>({
   //#region animations/style
   const scrollY = useSharedValue(0);
   const { opacityValue, initialPosition } =
-    useSyncInitialPosition(scollViewRef);
+    useSyncInitialPosition(scollViewRef as any);
   const sceneStyle = useAnimatedStyle(() => {
     return {
       opacity: withTiming(opacityValue.value),
@@ -98,7 +98,7 @@ export function SceneComponent<P extends object>({
       onContentSizeChange?.(contentWidth, contentHeight);
       if (Math.ceil(contentHeight) >= expectHeight) {
         // Use runOnUI to safely access shared value in worklet context
-        runOnUI((position) => {
+        runOnUI((position: number) => {
           'worklet';
           runOnJS(initialPosition)(position);
         })(shareAnimatedValue.value);

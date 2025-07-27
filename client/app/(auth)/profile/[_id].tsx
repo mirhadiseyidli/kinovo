@@ -5,7 +5,7 @@ import { CollapsibleTabView, Route, RefreshControlProps } from "@/components/Col
 import { TabFlashList } from "@/components/CollapsibleTab/tab-flash-list";
 import UserGeneralInfo from "@/components/ProfileAndSettings/Profile/UserGeneralInfo";
 import { useRouter, useLocalSearchParams, useNavigation } from "expo-router";
-import UserEvents from "@/app/(auth)/(aboutUser)/UsersEvents";
+import UserEvents from "@/app/(auth)/(aboutUser)/UsersEvents.v2";
 import UserFriends from "@/app/(auth)/(aboutUser)/UsersFriends";
 import UserActivities from "@/app/(auth)/(aboutUser)/UserActivities";
 import { User } from "@/types/allTypes";
@@ -14,7 +14,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Colors } from "@/constants/Colors";
 import { TabBar } from "react-native-tab-view";
 import { useManageFriends } from "@/hooks/useManageFriends";
-import { useUserData } from "@/hooks/useUserData";
+import { useUserDataLegacy as useUserData } from "@/hooks/useUserData";
 import api from "@/utils/api";
 import ContextMenuWithTrigger from "@/components/ContextMenuWithTrigger";
 import { Feather } from "@expo/vector-icons";

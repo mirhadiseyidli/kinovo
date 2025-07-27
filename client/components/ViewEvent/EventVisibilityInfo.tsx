@@ -14,10 +14,25 @@ const EventVisibilityInfo: React.FC<EventVisibilityInfoProps> = React.memo(({ vi
     switch (visibility) {
       case 'public':
         return 'globe';
+      case 'private':
+        return 'lock';
       case 'selected':
-        return 'users';
+        return 'lock';
       default:
         return 'lock';
+    }
+  };
+
+  const getVisibilityText = (visibility: string) => {
+    switch (visibility) {
+      case 'public':
+        return 'Public Event';
+      case 'private':
+        return 'Friends Only Event';
+      case 'selected':
+        return 'Private Event';
+      default:
+        return 'Event';
     }
   };
 
@@ -30,7 +45,7 @@ const EventVisibilityInfo: React.FC<EventVisibilityInfoProps> = React.memo(({ vi
       borderTopWidth: 0.2
     }}>
       <Feather name={getVisibilityIcon(visibility)} size={16} color={themeColors.mountainGreen} />
-      <ThemedText>{visibility.charAt(0).toUpperCase() + visibility.slice(1)} Event</ThemedText>
+      <ThemedText>{getVisibilityText(visibility)}</ThemedText>
     </View>
   );
 });

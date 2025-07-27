@@ -4,7 +4,7 @@ import { TabView, SceneMap, TabBar, TabBarProps } from 'react-native-tab-view';
 import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-  import UserEvents from '@/app/(auth)/(aboutUser)/UsersEvents';
+  import UserEvents from '@/app/(auth)/(aboutUser)/UsersEvents.v2';
   import UserFriends from '@/app/(auth)/(aboutUser)/UsersFriends';
   import UserActivities from '@/app/(auth)/(aboutUser)/UserActivities';
 import { User, UserProp } from '@/types/allTypes';
@@ -23,7 +23,7 @@ const ProfileTabs = forwardRef((props: { user: User }, ref) => {
           freezeOnBlur: true
         }}
       >
-        <Stack.Screen name="UserEvents" options={{ headerShown: false, freezeOnBlur: true }} />
+        <Stack.Screen name="UserEvents.v2" options={{ headerShown: false, freezeOnBlur: true }} />
         <Stack.Screen name="UserFriends" options={{ headerShown: false, freezeOnBlur: true }} />
         <Stack.Screen name="UserActivities" options={{ headerShown: false, freezeOnBlur: true }} />
       </Stack>

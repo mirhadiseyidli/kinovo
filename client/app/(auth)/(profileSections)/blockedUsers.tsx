@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { TouchableOpacity, ScrollView, Alert, ActivityIndicator, Image, View, Text } from 'react-native';
+import { TouchableOpacity, ScrollView, Alert, ActivityIndicator, Image, View, Text, RefreshControl } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
@@ -8,6 +8,8 @@ import { Feather } from '@expo/vector-icons';
 import { ThemedText } from '@/components/ThemedText';
 import api from '@/utils/api';
 import DefaultProfilePicture from '@/components/DefaultProfilePicture';
+import { truncateName } from '@/utils/truncateName';
+import { SkeletonBox } from '@/components/Skeleton';
 
 interface BlockedUser {
   _id: string;
@@ -21,6 +23,7 @@ const BlockedUsers = () => {
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchBlockedUsers();
@@ -34,6 +37,17 @@ const BlockedUsers = () => {
       Alert.alert('Error', 'Failed to fetch blocked users');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    try {
+      setRefreshing(true);
+      await fetchBlockedUsers();
+    } catch (error) {
+      console.error('Error refreshing blocked users:', error);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -63,17 +77,29 @@ const BlockedUsers = () => {
     );
   };
 
-  const truncateName = (name: string, maxLength: number) => {
-    if (!name) return '';
-    return name.length > maxLength ? `${name.substring(0, maxLength)}...` : name;
-  };
+  if (loading) {
+    return (
+      <ThemedView style={{ flex: 1, alignItems: 'center', padding: 16, gap: 16 }}>
+        <SkeletonBox width={'100%'} height={60} borderRadius={16}/>
+      </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={{ flex: 1 }}>  
-      <ScrollView style={{ flex: 1, padding: 16 }}>
-        {loading ? (
-          <ActivityIndicator size="large" color={themeColors.mountainGreen} />
-        ) : blockedUsers.length === 0 ? (
+      <ScrollView 
+        style={{ flex: 1, padding: 16 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={themeColors.mountainGreen}
+            colors={[themeColors.mountainGreen]}
+            progressBackgroundColor={themeColors.background}
+          />
+        }
+      >
+        {blockedUsers.length === 0 ? (
           <View style={{ 
             alignItems: 'center',
             backgroundColor: themeColors.background,

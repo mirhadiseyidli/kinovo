@@ -39,7 +39,7 @@ export default function NotificationsPage() {
     handleDeclineFriendRequest,
     markAllNotificationsAsViewed,
     markFriendRequestsAsViewed,
-    markFirebaseNotificationAsRead,
+    refreshData,
   } = useNotifications();
 
   // Use paginated notifications hook for the main notifications list
@@ -124,10 +124,8 @@ export default function NotificationsPage() {
       
       try {
         // Mark as viewed in both systems
-        await Promise.all([
-          markNotificationAsRead(notification._id),
-          markFirebaseNotificationAsRead && markFirebaseNotificationAsRead(notification._id)
-        ]);
+        // Just use the API approach - it handles both MongoDB update and Firebase cleanup
+        await markNotificationAsRead(notification._id);
       } finally {
         // Clear loading state
         setMarkingAsViewed(prev => ({ ...prev, [notification._id]: false }));
@@ -158,11 +156,15 @@ export default function NotificationsPage() {
         params: { event_id: notification.event._id }
       });
     }
-  }, [markNotificationAsRead, markFirebaseNotificationAsRead, router, markingAsViewed]);
+  }, [markNotificationAsRead, router, markingAsViewed]);
 
   const handleRefresh = useCallback(async () => {
-    await refreshNotifications();
-  }, [refreshNotifications]);
+    // Refresh both notification sources for complete sync
+    await Promise.all([
+      refreshNotifications(), // Paginated notifications (backend + cache)
+      refreshData() // NotificationContext (backend + Firebase merge)
+    ]);
+  }, [refreshNotifications, refreshData]);
 
   const handleLoadMore = useCallback(() => {
     if (hasMoreData && !loadingMore && !paginatedLoading) {
