@@ -412,11 +412,9 @@ export const GestureContainer = React.forwardRef<
 
           if (
             !isPullEnough.value &&
-            pullDistance > refreshHeight &&
-            onPullEnough
+            pullDistance > refreshHeight
           ) {
             isPullEnough.value = true;
-            runOnJS(onPullEnough)();
           }
         })
         .onEnd((event) => {

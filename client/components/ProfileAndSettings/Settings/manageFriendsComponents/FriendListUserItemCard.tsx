@@ -6,6 +6,7 @@ import { Colors } from '@/constants/Colors';
 import { Router, useRouter } from 'expo-router';
 import { FriendListUserItemCardProps } from '@/types/allTypes';
 import DefaultProfilePicture from '../../../DefaultProfilePicture';
+import { truncateName } from '@/utils/truncateName';
 
 export default function FriendListUserItemCard({
   _id,
@@ -71,7 +72,7 @@ export default function FriendListUserItemCard({
         />
         <View style={{ flexDirection: 'column', gap: 4, alignItems: 'center' }}>
           <Text style={{ fontWeight: 'bold', color: themeColors.text }}>{name}</Text>
-          {subtitle && <Text style={{ color: themeColors.placeholderTextColor }}>{subtitle}</Text>}
+          {subtitle && <Text style={{ color: themeColors.placeholderTextColor }}>{truncateName(subtitle, 12)}</Text>}
           {mutualFriendsNumber > 0 && (
             <Text style={{ color: themeColors.placeholderTextColor }}>
               {mutualFriendsNumber} {mutualFriendsNumber === 1 ? 'mutual friend' : 'mutual friends'}

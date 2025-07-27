@@ -1,10 +1,12 @@
 import { useAuthSession } from "@/components/Auth/AuthProvider";
 import { Redirect, Stack, useRouter } from 'expo-router';
-import { ReactNode } from "react";
+import { ReactNode, useMemo } from "react";
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { useSharedValue } from 'react-native-reanimated';
 import { UserSessionProvider } from '@/context/UserSessionContext';
+import { TouchableOpacity } from "react-native";
+import Feather from "@expo/vector-icons/Feather";
 
 export default function RootLayout(): ReactNode {
   const { accessToken, isLoading } = useAuthSession();
@@ -12,10 +14,27 @@ export default function RootLayout(): ReactNode {
   const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
 
-  // Shared values for gestures
+  // Shared values for gestures - MUST be before any conditional returns
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const gestureActive = useSharedValue(0);
+
+  // goBack function - MUST be before any conditional returns due to useMemo dependency
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/');
+    }
+  };
+
+  const headerLeftButton = useMemo(() => (
+    <TouchableOpacity 
+      onPress={goBack}
+    >
+      <Feather name="chevron-left" size={24} color={themeColors.text} />
+    </TouchableOpacity>
+  ), [themeColors.text]);
 
   if (!accessToken?.current) {
     return <Redirect href="/login" />;
@@ -89,6 +108,34 @@ export default function RootLayout(): ReactNode {
             headerShown: true,
             headerBackButtonDisplayMode: 'minimal',
           }} 
+        />
+        <Stack.Screen
+          name="attention-required.v2"
+          options={{
+            headerTitle: 'Attention Required',
+            headerTintColor: themeColors.text,
+            headerStyle: {
+              backgroundColor: themeColors.background,
+            },
+            headerShadowVisible: false,
+            headerShown: true,
+            headerBackButtonDisplayMode: 'minimal',
+            headerLeft: () => headerLeftButton,
+          }}
+        />
+        <Stack.Screen
+          name="friends-events-infinite"
+          options={{
+            headerTitle: 'Friends\' Events',
+            headerTintColor: themeColors.text,
+            headerStyle: {
+              backgroundColor: themeColors.background,
+            },
+            headerShadowVisible: false,
+            headerShown: true,
+            headerBackButtonDisplayMode: 'minimal',
+            headerLeft: () => headerLeftButton
+          }}
         />
       </Stack>
     </UserSessionProvider>

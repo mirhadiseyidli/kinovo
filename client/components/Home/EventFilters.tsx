@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Modal, TouchableOpacity, ScrollView, Animated, Dimensions } from 'react-native';
+import { View, Modal, TouchableOpacity, ScrollView, Animated } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
@@ -38,8 +38,8 @@ const EventFilters: React.FC<EventFiltersProps> = React.memo(({
   const [tempDate, setTempDate] = useState<Date>(activeFilter.date || new Date());
   const [selectedFilterType, setSelectedFilterType] = useState<FilterType>(activeFilter.type);
   
-  // Animation for the slide-up effect
-  const slideAnim = React.useRef(new Animated.Value(300)).current;
+  // Animation for the fade effect
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
 
   // Generate years from 2000 to current year + 5
   const years = useMemo(() => {
@@ -49,21 +49,31 @@ const EventFilters: React.FC<EventFiltersProps> = React.memo(({
 
   // Handle modal animation
   useEffect(() => {
+    let animationRef: Animated.CompositeAnimation | null = null;
+    
     if (visible) {
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        useNativeDriver: true,
-        tension: 100,
-        friction: 8,
-      }).start();
-    } else {
-      Animated.timing(slideAnim, {
-        toValue: 300,
+      animationRef = Animated.timing(fadeAnim, {
+        toValue: 1,
         duration: 200,
         useNativeDriver: true,
-      }).start();
+      });
+      animationRef.start();
+    } else {
+      animationRef = Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      });
+      animationRef.start();
     }
-  }, [visible, slideAnim]);
+
+    // Cleanup function to stop animations on unmount or dependency change
+    return () => {
+      if (animationRef) {
+        animationRef.stop();
+      }
+    };
+  }, [visible, fadeAnim]);
 
   const handleFilterSelect = (type: FilterType) => {
     setSelectedFilterType(type);
@@ -168,7 +178,7 @@ const EventFilters: React.FC<EventFiltersProps> = React.memo(({
         >
           <Animated.View
             style={{
-              transform: [{ translateY: slideAnim }],
+              opacity: fadeAnim,
             }}
           >
             <ThemedView

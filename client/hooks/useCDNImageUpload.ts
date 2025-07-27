@@ -53,14 +53,27 @@ export const useCDNImageUpload = () => {
       // Create FormData
       const formData = new FormData();
       
-      // Get file extension
-      const fileExtension = imageUri.split('.').pop()?.toLowerCase() || 'jpg';
-      const fileName = `profile_picture.${fileExtension}`;
+      // Handle data URIs (base64 images) differently than regular file URIs
+      let fileName: string;
+      let mimeType: string;
+      let fileExtension: string;
       
-      // Determine mime type
-      let mimeType = 'image/jpeg';
-      if (fileExtension === 'png') mimeType = 'image/png';
-      if (fileExtension === 'webp') mimeType = 'image/webp';
+      if (imageUri.startsWith('data:')) {
+        // Handle data URI (base64)
+        const mimeMatch = imageUri.match(/data:image\/([^;]+);base64/);
+        fileExtension = mimeMatch ? mimeMatch[1] : 'png';
+        mimeType = `image/${fileExtension}`;
+        fileName = `profile_picture.${fileExtension}`;
+      } else {
+        // Handle regular file URI
+        fileExtension = imageUri.split('.').pop()?.toLowerCase() || 'jpg';
+        fileName = `profile_picture.${fileExtension}`;
+        
+        // Determine mime type
+        mimeType = 'image/jpeg';
+        if (fileExtension === 'png') mimeType = 'image/png';
+        if (fileExtension === 'webp') mimeType = 'image/webp';
+      }
 
       formData.append('profilePicture', {
         uri: imageUri,

@@ -9,8 +9,13 @@ import React, { useState, useRef, useContext } from 'react';
 import { ScrollView, View, Text, ActivityIndicator, Alert, TouchableOpacity, Image, Pressable } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import type { CreateEventTabParamList, AttendeeFriend } from '@/types/allTypes';
+
+interface SuggestionsData {
+  friends: AttendeeFriend[];
+  nonFriends: AttendeeFriend[];
+}
 import { useCreateEventContext } from '@/context/CreateEventContext';
-import { useCreateEvent } from '@/hooks/useCreateEvent';
+import { useUpdateEventMutation } from '@/hooks/useCreateEventMutation';
 import { format } from 'date-fns';
 import DefaultProfilePicture from '@/components/DefaultProfilePicture';
 import { CreateEventScrollContext } from '@/context/CreateEventScrollContext';
@@ -25,9 +30,10 @@ export default React.memo(function EventAttendeesAndOptions() {
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [limit, setLimit] = useState<number | null>(null);
   const [suggestions, setSuggestions] = useState<AttendeeFriend[]>([]);
+  const [suggestionsData, setSuggestionsData] = useState<SuggestionsData>({ friends: [], nonFriends: [] });
   const [showSuggestions, setShowSuggestions] = useState(false);
   const suggestionSelectRef = useRef<((item: any) => void) | null>(null);
-  const { updateEvent } = useCreateEvent();
+  const updateEventMutation = useUpdateEventMutation();
   const router = useRouter();
   const { bounceCompleted, wasDraggingAtTop, isDismissing, handleDismiss } = useContext(CreateEventScrollContext);
   const { 
@@ -101,11 +107,6 @@ export default React.memo(function EventAttendeesAndOptions() {
           style: 'default',
         },
         {
-          text: 'This and Future Occurrences',
-          onPress: () => saveEvent('this_and_future'),
-          style: 'default',
-        },
-        {
           text: 'All Occurrences',
           onPress: () => saveEvent('all_instances'),
           style: 'default',
@@ -118,22 +119,22 @@ export default React.memo(function EventAttendeesAndOptions() {
     );
   };
 
-  const saveEvent = async (recurringOption?: 'this_only' | 'this_and_future' | 'all_instances') => {
+  const saveEvent = async (recurringOption?: 'this_only' | 'all_instances') => {
+    console.log('happening')
     if (isEditMode && eventId && recurringOption) {
+      console.log('jshdfkjdsfjhsd')
       // Handle recurring event update with the selected option
       setLoading(true);
       setError(null);
       
       try {
         const eventData = compileEventData();
-        const response = await updateEvent(
-          eventId, 
-          eventData, 
-          {
-            occurrenceDate: startTime!,
-            modifyType: recurringOption
-          }
-        );
+        const response = await updateEventMutation.mutateAsync({
+          eventId,
+          updates: eventData,
+          occurrenceDate: startTime!,
+          modifyType: recurringOption
+        });
         
         if (response?.success) {
           resetEventForm();
@@ -154,6 +155,7 @@ export default React.memo(function EventAttendeesAndOptions() {
       const response = await createOrUpdateEvent();
       
       if (response?.success) {
+        console.log('hdsfjdhsj')
         navigation.getParent()?.goBack(); // This will close the modal
         Alert.alert(
           'Success', 
@@ -260,6 +262,8 @@ export default React.memo(function EventAttendeesAndOptions() {
           limit={limit}
           suggestions={suggestions}
           setSuggestions={setSuggestions}
+          suggestionsData={suggestionsData}
+          setSuggestionsData={setSuggestionsData}
           showSuggestions={showSuggestions}
           setShowSuggestions={setShowSuggestions}
           onSuggestionSelectRef={suggestionSelectRef}
@@ -324,7 +328,7 @@ export default React.memo(function EventAttendeesAndOptions() {
       </AnimatedScrollView>
 
       {/* Friends Suggestions Dropdown - Rendered outside ScrollView */}
-      {showSuggestions && suggestions.length > 0 && (
+      {showSuggestions && (suggestionsData.friends.length > 0 || suggestionsData.nonFriends.length > 0) && (
         <ThemedView style={{
           position: 'absolute',
           top: 180, // Options (≈60px) + gap (16px) + Attendees input (≈44px) + spacing (4px) + padding
@@ -352,49 +356,133 @@ export default React.memo(function EventAttendeesAndOptions() {
             nestedScrollEnabled={true}
             showsVerticalScrollIndicator={false}
           >
-            {suggestions.map((item, index) => (
-              <TouchableOpacity
-                key={item._id}
-                style={{
-                  paddingVertical: 12,
-                  paddingHorizontal: 16,
-                  borderBottomWidth: index !== suggestions.length - 1 ? 1 : 0,
-                  borderBottomColor: themeColors.border,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                }}
-                onPress={() => handleSuggestionSelect(item)}
-              >
-                <View style={{ marginRight: 12 }}>
-                  <DefaultProfilePicture
-                    profilePicture={item.profile_picture}
-                    fullName={item.full_name}
-                    size={40}
-                    borderRadius={20}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
+            {suggestionsData.friends.length > 0 && (
+              <>
+                <View style={{ 
+                  paddingHorizontal: 16, 
+                  paddingVertical: 12, 
+                  borderBottomWidth: 1, 
+                  borderBottomColor: themeColors.border 
+                }}>
                   <Text style={{ 
-                    fontWeight: '600', 
-                    fontSize: 16, 
-                    color: themeColors.text 
-                  }}>
-                    {item.full_name}
-                  </Text>
-                  <Text style={{ 
+                    fontWeight: 'bold', 
                     fontSize: 14, 
-                    color: themeColors.placeholderTextColor 
+                    color: themeColors.text,
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5
                   }}>
-                    @{item.username}
+                    Friends
                   </Text>
                 </View>
-                <Feather 
-                  name="arrow-up-right" 
-                  size={16} 
-                  color={themeColors.placeholderTextColor} 
-                />
-              </TouchableOpacity>
-            ))}
+                {suggestionsData.friends.map((friend, index) => (
+                  <TouchableOpacity
+                    key={friend._id}
+                    style={{
+                      paddingVertical: 12,
+                      paddingHorizontal: 16,
+                      borderBottomWidth: index !== suggestionsData.friends.length - 1 || suggestionsData.nonFriends.length > 0 ? 1 : 0,
+                      borderBottomColor: themeColors.border,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                    }}
+                    onPress={() => handleSuggestionSelect(friend)}
+                  >
+                    <View style={{ marginRight: 12 }}>
+                      <DefaultProfilePicture
+                        profilePicture={friend.profile_picture}
+                        fullName={friend.full_name}
+                        size={40}
+                        borderRadius={20}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ 
+                        fontWeight: '600', 
+                        fontSize: 16, 
+                        color: themeColors.text 
+                      }}>
+                        {friend.full_name}
+                      </Text>
+                      <Text style={{ 
+                        fontSize: 14, 
+                        color: themeColors.placeholderTextColor 
+                      }}>
+                        @{friend.username}
+                      </Text>
+                    </View>
+                    <Feather 
+                      name="user-plus" 
+                      size={16} 
+                      color={themeColors.placeholderTextColor} 
+                    />
+                  </TouchableOpacity>
+                ))}
+              </>
+            )}
+            
+            {suggestionsData.nonFriends.length > 0 && (
+              <>
+                <View style={{ 
+                  paddingHorizontal: 16, 
+                  paddingVertical: 12, 
+                  borderBottomWidth: 1, 
+                  borderBottomColor: themeColors.border 
+                }}>
+                  <Text style={{ 
+                    fontWeight: 'bold', 
+                    fontSize: 14, 
+                    color: themeColors.text,
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5
+                  }}>
+                    Users
+                  </Text>
+                </View>
+                {suggestionsData.nonFriends.map((user, index) => (
+                  <TouchableOpacity
+                    key={user._id}
+                    style={{
+                      paddingVertical: 12,
+                      paddingHorizontal: 16,
+                      borderBottomWidth: index !== suggestionsData.nonFriends.length - 1 ? 1 : 0,
+                      borderBottomColor: themeColors.border,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                    }}
+                    onPress={() => handleSuggestionSelect(user)}
+                  >
+                    <View style={{ marginRight: 12 }}>
+                      <DefaultProfilePicture
+                        profilePicture={user.profile_picture}
+                        fullName={user.full_name}
+                        size={40}
+                        borderRadius={20}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ 
+                        fontWeight: '600', 
+                        fontSize: 16, 
+                        color: themeColors.text 
+                      }}>
+                        {user.full_name}
+                      </Text>
+                      <Text style={{ 
+                        fontSize: 14, 
+                        color: themeColors.placeholderTextColor 
+                      }}>
+                        @{user.username}
+                      </Text>
+                    </View>
+                    <Feather 
+                      name="user-plus" 
+                      size={16} 
+                      color={themeColors.placeholderTextColor} 
+                    />
+                  </TouchableOpacity>
+                ))}
+              </>
+            )}
           </ScrollView>
         </ThemedView>
       )}

@@ -43,7 +43,7 @@ const InAppNotifications = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={themeColors.text}
+            tintColor={themeColors.mountainGreen}
             colors={[themeColors.mountainGreen]}
             progressBackgroundColor={themeColors.background}
           />

@@ -18,7 +18,6 @@ const notificationsRoutes = require('./routes/notificationsRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const googleApiRoutes = require('./routes/googleApiRoutes');
 const storageRoutes = require('./routes/storageRoutes');
-const shareRoutes = require('./routes/shareRoutes');
 
 // Firebase and realtime services
 const { configureSecurityRules } = require('./config/firebase-admin');
@@ -98,7 +97,6 @@ async function startServer() {
     app.use('/api', categoryRoutes);
     app.use('/api/google', googleApiRoutes);
     app.use('/api/storage', storageRoutes);
-    app.use('/share', shareRoutes); // Share routes don't need /api prefix
 
     // Start the cron jobs
     const accountDeletionCron = require('./cron/accountDeletionCron');

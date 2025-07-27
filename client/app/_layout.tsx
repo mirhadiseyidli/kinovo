@@ -21,6 +21,12 @@ import '@/utils/backgroundNotificationHandler';
 import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
 import { BannerProvider } from '@/context/BannerContext';
+import { QueryClientProvider } from '@tanstack/react-query';
+// ReactQueryDevtools removed - now handled programmatically in devtools setup
+import { queryClient, setupOfflineQueue, setupGlobalErrorHandlers } from '@/utils/queryClient';
+import { PersistQueryClientProvider, asyncStoragePersister } from '@/utils/persistedQueryClient';
+import { initializeDevTools, getDevToolsConfig } from '@/utils/devtools';
+import { initializeAppTelemetry } from '@/utils/telemetrySetup';
 
 // Configure how notifications are handled when the app is in the foreground
 Notifications.setNotificationHandler({
@@ -38,11 +44,18 @@ registerRootComponent(RootLayout);
 export default function RootLayout(): ReactNode {
   return (
     <AuthProvider>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <KeyboardProvider>
-          <InnerLayout />
-        </KeyboardProvider>
-      </GestureHandlerRootView>
+      <QueryClientProvider client={queryClient}>
+        <PersistQueryClientProvider
+          client={queryClient}
+          persistOptions={{ persister: asyncStoragePersister }}
+        >
+          <GestureHandlerRootView style={{ flex: 1, backgroundColor: 'transparent' }}>
+            <KeyboardProvider statusBarTranslucent={false}>
+              <InnerLayout />
+            </KeyboardProvider>
+          </GestureHandlerRootView>
+        </PersistQueryClientProvider>
+      </QueryClientProvider>
     </AuthProvider>
   );
 }
@@ -67,16 +80,65 @@ function InnerLayout() {
         setIsFirebaseInitialized(true);
       } catch (error) {
         console.error('Failed to initialize Firebase:', error);
+        // Don't block app loading on Firebase error
+        setIsFirebaseInitialized(true);
       }
     };
     
     initializeFirebase();
   }, []);
 
+  // Initialize TanStack utilities after auth is ready and Firebase is initialized
+  useEffect(() => {
+    if (isFirebaseInitialized && !isLoading) {
+      const initializeTanStackUtilities = async () => {
+        try {
+          // Always initialize core production utilities
+          const initializeOfflineQueue = async () => {
+            await setupOfflineQueue();
+            console.log('Offline queue initialized successfully');
+          };
+          
+          const initializeErrorHandlers = () => {
+            setupGlobalErrorHandlers();
+            console.log('Error handlers initialized successfully');
+          };
+          
+          const initializeTelemetry = () => {
+            if (__DEV__) {
+              initializeAppTelemetry(queryClient);
+              console.log('Telemetry initialized successfully (development only)');
+            }
+          };
+          
+          // Development-only utilities
+          const initializeDevToolsSetup = async () => {
+            if (__DEV__) {
+              await initializeDevTools(queryClient);
+              console.log('DevTools initialized successfully (development only)');
+            }
+          };
+          
+          // Initialize core utilities first
+          await initializeOfflineQueue();
+          initializeErrorHandlers();
+          initializeTelemetry();
+          
+          // Initialize development tools last (if in dev mode)
+          await initializeDevToolsSetup();
+          
+        } catch (error) {
+          console.error('Failed to initialize TanStack utilities:', error);
+        }
+      };
+      
+      initializeTanStackUtilities();
+    }
+  }, [isFirebaseInitialized, isLoading]);
+
   useEffect(() => {
     async function prepare() {
       try {
-        // await SplashScreen.preventAutoHideAsync();
 
         // Delay splash screen fade out
         setTimeout(() => {
@@ -126,7 +188,7 @@ function InnerLayout() {
   );
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: 'transparent' }}>
       {innerContent}
     </View>
   );

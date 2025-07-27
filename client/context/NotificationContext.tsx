@@ -30,7 +30,6 @@ interface NotificationContextType {
   refreshData: () => Promise<void>;
   // Firebase is now the primary source
   firebaseLoading: boolean;
-  markFirebaseNotificationAsRead: (notificationId: string) => Promise<boolean>;
   getFormattedNotificationContent: (notification: NotificationData) => { title: string, subtitle?: string };
 }
 
@@ -289,22 +288,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const markNotificationAsViewed = useCallback(async (notificationId: string) => {
     try {
-      // Always update both backend state and Firebase
-      const updatePromises = [];
-      
-      // Update backend
-      updatePromises.push(
-        api.put('/api/notifications/mark-seen', {
-          notificationIds: [notificationId]
-        })
-      );
-
-      // Update Firebase if available
-      if (markAsRead) {
-        updatePromises.push(markAsRead(notificationId));
-      }
-
-      await Promise.all(updatePromises);
+      // Use API approach - it handles both MongoDB update and Firebase cleanup
+      await api.put('/api/notifications/mark-seen', {
+        notificationIds: [notificationId]
+      });
       
       // Update local backend notifications state
       setBackendNotifications(prev => 
@@ -313,7 +300,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     } catch (error) {
       console.error('Error marking notification as viewed:', error);
     }
-  }, [markAsRead]);
+  }, []);
 
   const markAllNotificationsAsViewed = useCallback(async () => {
     // Prevent multiple concurrent executions
@@ -324,7 +311,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     markingAllNotificationsRef.current = true;
     
     try {
-      // Always update both backend and Firebase first
+      // Use API approach - it handles both MongoDB update and Firebase cleanup
       await api.put('/api/notifications/mark-seen', {});
       
       // Get current state at execution time to avoid stale closure issues
@@ -336,7 +323,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return;
       }
       
-      const unseenNotificationIds = currentNotifications.map(notification => notification._id);
       const unseenFriendRequestIds = currentFriendRequests.map((request: FriendRequestNotification) => request._id);
       
       // Mark all friend requests as viewed locally
@@ -359,13 +345,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       // Update unseen count
       setUnseenNotificationCount(0);
       
-      // Update Firebase for all unseen notifications
-      if (markAsRead && unseenNotificationIds.length > 0) {
-        const firebaseUpdates = unseenNotificationIds.map(id => markAsRead(id));
-        await Promise.all(firebaseUpdates);
-      }
-      
-      // Update local backend notifications state
+      // Update local backend notifications state (API call already handled Firebase cleanup)
       setBackendNotifications(prev => 
         prev.map(n => ({ ...n, is_seen: true }))
       );
@@ -377,7 +357,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     } finally {
       markingAllNotificationsRef.current = false;
     }
-  }, [markAsRead, notifications, friendRequests, viewedFriendRequests, clearBadge]);
+  }, [notifications, friendRequests, viewedFriendRequests, clearBadge]);
 
   // Mark friend requests as viewed
   const markFriendRequestsAsViewed = useCallback(async () => {
@@ -539,7 +519,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     markFriendRequestsAsViewed,
     refreshData,
     firebaseLoading,
-    markFirebaseNotificationAsRead: markAsRead || (async () => false),
     getFormattedNotificationContent,
   };
 

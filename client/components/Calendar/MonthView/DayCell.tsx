@@ -4,9 +4,8 @@ import { ThemedText } from '../../ThemedText';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { format, isToday } from 'date-fns';
-import { useEventContext } from '@/context/UserSessionContext';
 import { useCalendarViewContext } from '@/context/CalendarViewContext';
-import { useCalendarContext } from '@/context/CalendarContext';
+import { useCalendarContext } from '@/context/CalendarProvider.v2';
 
 interface DayCellProps {
   date: Date;
@@ -27,12 +26,18 @@ const DayCell: React.FC<DayCellProps> = ({
 }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const { getOccurrencesForDate } = useEventContext();
   const { setView } = useCalendarViewContext();
-  const { navigateToDay } = useCalendarContext();
+  const { setCurrentDate, getOccurrencesForDate } = useCalendarContext();
   
   const isCurrentMonth = date.getMonth() === month;
   const isCurrentDay = isToday(date);
+  
+  // Check if this entire day is in the past
+  const isDayPast = useMemo(() => {
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+    return endOfDay < new Date();
+  }, [date]);
   
   const dayOccurrences = useMemo(() => {
     const occurrences = getOccurrencesForDate(date);
@@ -53,7 +58,7 @@ const DayCell: React.FC<DayCellProps> = ({
         };
       case 'maybe':
         return {
-          backgroundColor: themeColors.maybeStatusColor,
+          backgroundColor: themeColors.maybeStatusColor + '50',
           borderColor: themeColors.maybeStatusColor,
           color: 'white'
         };
@@ -74,7 +79,7 @@ const DayCell: React.FC<DayCellProps> = ({
 
   const openSchedule = () => {
     setView('Schedule', 'day_cell');
-    navigateToDay(date);
+    setCurrentDate(date);
   };
 
   return (
@@ -157,6 +162,7 @@ const DayCell: React.FC<DayCellProps> = ({
             backgroundColor: themeColors.mountainGreen,
             justifyContent: 'center',
             alignItems: 'center',
+            opacity: isDayPast ? 0.5 : 1,
           }}>
             <Text style={{
               fontSize: 9,

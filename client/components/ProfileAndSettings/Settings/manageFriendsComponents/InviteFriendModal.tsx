@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, TouchableWithoutFeedback, Animated, Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, TouchableWithoutFeedback, Animated, KeyboardAvoidingView, Platform, Linking } from 'react-native';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { ThemedView } from '@/components/ThemedView';
@@ -18,40 +18,79 @@ const InviteFriendModal: React.FC<InviteFriendModalProps> = ({ visible, onClose 
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [inviteType, setInviteType] = useState<'email' | 'phone'>('email');
   const [isValidEmail, setIsValidEmail] = useState(true);
+  const [isValidPhone, setIsValidPhone] = useState(true);
   const [loading, setLoading] = useState(false);
   const { showBanner } = useBanner();
 
   const [modalVisible, setModalVisible] = useState(visible);
-  const { height } = Dimensions.get('window');
-  const slideAnim = useRef(new Animated.Value(height)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    let animationRef: Animated.CompositeAnimation | null = null;
+    
     if (visible) {
       setModalVisible(true);
-      Animated.parallel([
-        Animated.timing(opacityAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
-        Animated.timing(slideAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
-      ]).start();
+      animationRef = Animated.timing(opacityAnim, { 
+        toValue: 1, 
+        duration: 200, 
+        useNativeDriver: true 
+      });
+      animationRef.start();
     } else {
-      Animated.parallel([
-        Animated.timing(opacityAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
-        Animated.timing(slideAnim, { toValue: height, duration: 300, useNativeDriver: true }),
-      ]).start(() => {
+      animationRef = Animated.timing(opacityAnim, { 
+        toValue: 0, 
+        duration: 200, 
+        useNativeDriver: true 
+      });
+      animationRef.start(() => {
         setModalVisible(false);
         // Reset state after modal is fully closed
         setEmail('');
+        setPhoneNumber('');
+        setInviteType('email');
         setIsValidEmail(true);
+        setIsValidPhone(true);
         setLoading(false);
       });
     }
-  }, [visible]);
+
+    // Cleanup function to stop animations on unmount or dependency change
+    return () => {
+      if (animationRef) {
+        animationRef.stop();
+      }
+    };
+  }, [visible, opacityAnim]);
 
   const validateEmail = (text: string) => {
     // A simple regex for email validation
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return regex.test(text);
+  };
+
+  const validatePhoneNumber = (text: string) => {
+    // Remove all non-digit characters for validation
+    const cleaned = text.replace(/\D/g, '');
+    // US phone number should have 10 digits (without country code) or 11 digits (with country code)
+    return cleaned.length === 10 || cleaned.length === 11;
+  };
+
+  const formatPhoneNumber = (text: string) => {
+    // Remove all non-digit characters
+    const cleaned = text.replace(/\D/g, '');
+    
+    // Format as +1-(234)-567-8901
+    if (cleaned.length >= 10) {
+      const countryCode = cleaned.length === 11 ? cleaned[0] : '1';
+      const areaCode = cleaned.slice(-10, -7);
+      const firstPart = cleaned.slice(-7, -4);
+      const secondPart = cleaned.slice(-4);
+      return `+${countryCode}-(${areaCode})-${firstPart}-${secondPart}`;
+    }
+    return text;
   };
 
   const handleEmailChange = (text: string) => {
@@ -61,23 +100,57 @@ const InviteFriendModal: React.FC<InviteFriendModalProps> = ({ visible, onClose 
     }
   };
 
-  const handleInvite = async () => {
-    if (!validateEmail(email)) {
-      setIsValidEmail(false);
-      return;
+  const handlePhoneChange = (text: string) => {
+    const formatted = formatPhoneNumber(text);
+    setPhoneNumber(formatted);
+    if (!isValidPhone) {
+      setIsValidPhone(true);
     }
+  };
 
-    setLoading(true);
-    try {
-      await api.post('/api/managefriends/invite-by-email', { email });
-      showBanner('Invitation Sent!');
-      onClose();
-    } catch (error: any) {
-      console.error('Error sending invitation:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to send invitation.';
-      showBanner(errorMessage);
-    } finally {
-      setLoading(false);
+  const handleInvite = async () => {
+    if (inviteType === 'email') {
+      if (!validateEmail(email)) {
+        setIsValidEmail(false);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        await api.post('/api/managefriends/invite-by-email', { email });
+        showBanner('Invitation Sent!');
+        onClose();
+      } catch (error: any) {
+        console.error('Error sending invitation:', error);
+        const errorMessage = error.response?.data?.message || 'Failed to send invitation.';
+        showBanner(errorMessage);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // Phone invitation - open SMS
+      if (!validatePhoneNumber(phoneNumber)) {
+        setIsValidPhone(false);
+        return;
+      }
+
+      const inviteMessage = "Hey! I'd like to invite you to join Kinovo - a great app for discovering and creating events. Check it out!\nhttps://kinovo.app/invite";
+      const phoneOnly = phoneNumber.replace(/\D/g, '');
+      const smsUrl = `sms:+${phoneOnly}?body=${encodeURIComponent(inviteMessage)}`;
+      
+      try {
+        const canOpen = await Linking.canOpenURL(smsUrl);
+        if (canOpen) {
+          await Linking.openURL(smsUrl);
+          showBanner('SMS app opened!');
+          onClose();
+        } else {
+          showBanner('Unable to open SMS app');
+        }
+      } catch (error) {
+        console.error('Error opening SMS:', error);
+        showBanner('Failed to open SMS app');
+      }
     }
   };
   
@@ -105,7 +178,7 @@ const InviteFriendModal: React.FC<InviteFriendModalProps> = ({ visible, onClose 
             style={{ width: '90%' }}
           >
             <TouchableWithoutFeedback>
-              <Animated.View style={{ transform: [{ translateY: slideAnim }], width: '100%' }}>
+              <View style={{ width: '100%' }}>
                 <ThemedView style={{
                   padding: 16,
                   borderRadius: 20,
@@ -144,26 +217,104 @@ const InviteFriendModal: React.FC<InviteFriendModalProps> = ({ visible, onClose 
                     marginTop: 16,
                     marginBottom: 16,
                   }}>
-                    Enter your friend's email address to invite them to join Kinovo.
+                    Choose how you'd like to invite your friend to join Kinovo.
                   </ThemedText>
-                  <View style={{ width: '100%' }}>
-                    <Input
-                      placeholder="friend@example.com"
-                      value={email}
-                      onChangeText={handleEmailChange}
-                      keyboardType="email-address"
-                      autoCapitalize="none"
+
+                  {/* Toggle buttons */}
+                  <View style={{ 
+                    flexDirection: 'row', 
+                    width: '100%', 
+                    marginBottom: 16,
+                    backgroundColor: themeColors.border,
+                    borderRadius: 8,
+                    padding: 2
+                  }}>
+                    <TouchableOpacity
                       style={[
                         {
-                          width: '100%',
-                          padding: 12,
-                          borderRadius: 8,
-                          backgroundColor: themeColors.inputBackgroundColor, 
-                          color: themeColors.text 
+                          flex: 1,
+                          paddingVertical: 8,
+                          paddingHorizontal: 16,
+                          borderRadius: 6,
+                          alignItems: 'center',
                         },
-                        !isValidEmail && { borderColor: 'red', borderWidth: 1 }
+                        inviteType === 'email' && {
+                          backgroundColor: themeColors.mountainGreen,
+                        }
                       ]}
-                    />
+                      onPress={() => setInviteType('email')}
+                    >
+                      <Text style={{
+                        color: inviteType === 'email' ? 'white' : themeColors.text,
+                        fontWeight: inviteType === 'email' ? 'bold' : 'normal',
+                        fontSize: 14
+                      }}>
+                        Email
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        {
+                          flex: 1,
+                          paddingVertical: 8,
+                          paddingHorizontal: 16,
+                          borderRadius: 6,
+                          alignItems: 'center',
+                        },
+                        inviteType === 'phone' && {
+                          backgroundColor: themeColors.mountainGreen,
+                        }
+                      ]}
+                      onPress={() => setInviteType('phone')}
+                    >
+                      <Text style={{
+                        color: inviteType === 'phone' ? 'white' : themeColors.text,
+                        fontWeight: inviteType === 'phone' ? 'bold' : 'normal',
+                        fontSize: 14
+                      }}>
+                        Phone
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Input field based on selected type */}
+                  <View style={{ width: '100%' }}>
+                    {inviteType === 'email' ? (
+                      <Input
+                        placeholder="friend@example.com"
+                        value={email}
+                        onChangeText={handleEmailChange}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        style={[
+                          {
+                            width: '100%',
+                            padding: 12,
+                            borderRadius: 8,
+                            backgroundColor: themeColors.inputBackgroundColor, 
+                            color: themeColors.text 
+                          },
+                          !isValidEmail && { borderColor: 'red', borderWidth: 1 }
+                        ]}
+                      />
+                    ) : (
+                      <Input
+                        placeholder="+1-(234)-567-8901"
+                        value={phoneNumber}
+                        onChangeText={handlePhoneChange}
+                        keyboardType="phone-pad"
+                        style={[
+                          {
+                            width: '100%',
+                            padding: 12,
+                            borderRadius: 8,
+                            backgroundColor: themeColors.inputBackgroundColor, 
+                            color: themeColors.text 
+                          },
+                          !isValidPhone && { borderColor: 'red', borderWidth: 1 }
+                        ]}
+                      />
+                    )}
                   </View>
                   <TouchableOpacity 
                     style={{
@@ -186,11 +337,13 @@ const InviteFriendModal: React.FC<InviteFriendModalProps> = ({ visible, onClose 
                         fontWeight: 'bold',
                         fontSize: 16,
                         color: 'white'
-                      }}>Invite</Text>
+                      }}>
+                        {inviteType === 'email' ? 'Send Email' : 'Send SMS'}
+                      </Text>
                     )}
                   </TouchableOpacity>
                 </ThemedView>
-              </Animated.View>
+              </View>
             </TouchableWithoutFeedback>
           </KeyboardAvoidingView>
         </Animated.View>

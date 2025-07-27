@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { EditUserProfilePhotosProps } from '@/types/allTypes';
 import { useCDNImageUpload } from '@/hooks/useCDNImageUpload';
-import { useUserData } from '@/hooks/useUserData';
+import { useUserDataLegacy as useUserData } from '@/hooks/useUserData';
 import { useDefaultProfilePicture } from '@/hooks/useDefaultProfilePicture';
 import { getInitials, getRandomColor } from '@/utils/profilePictureGenerator';
 import { Image } from 'expo-image';
@@ -46,20 +46,6 @@ const EditUserProfilePhotos = ({ user }: EditUserProfilePhotosProps) => {
         'Choose how you want to add your profile picture',
         [
           {
-            text: 'Camera',
-            onPress: async () => {
-              const result = await takeAndUploadProfilePicture();
-              if (result.success) {
-                setCurrentProfilePicture(result.url || null);
-                // Refetch user data to update the parent component
-                await refetchUser();
-                Alert.alert('Success', result.message);
-              } else {
-                Alert.alert('Error', result.message);
-              }
-            },
-          },
-          {
             text: 'Photo Library',
             onPress: async () => {
               const result = await pickAndUploadProfilePicture();
@@ -91,7 +77,7 @@ const EditUserProfilePhotos = ({ user }: EditUserProfilePhotosProps) => {
           },
           {
             text: 'Cancel',
-            style: 'cancel',
+            style: 'destructive',
           },
         ]
       );
@@ -134,35 +120,6 @@ const EditUserProfilePhotos = ({ user }: EditUserProfilePhotosProps) => {
     );
   };
 
-  const showProfilePictureOptions = () => {
-    const hasProfilePicture = !!currentProfilePicture;
-    
-    const options = [
-      {
-        text: hasProfilePicture ? 'Change Picture' : 'Add Picture',
-        onPress: handleImageUpload,
-      },
-    ];
-
-    if (hasProfilePicture) {
-      options.push({
-        text: 'Remove Picture',
-        onPress: handleRemoveImage,
-        style: 'destructive',
-      } as any);
-    }
-
-    options.push({
-      text: 'Cancel',
-      style: 'cancel',
-    } as any);
-
-    Alert.alert(
-      'Profile Picture',
-      'What would you like to do?',
-      options
-    );
-  };
 
   // Render default profile picture component
   const renderDefaultProfilePicture = () => {
@@ -194,7 +151,7 @@ const EditUserProfilePhotos = ({ user }: EditUserProfilePhotosProps) => {
   return (
     <View>
       <TouchableOpacity 
-        onPress={showProfilePictureOptions}
+        onPress={handleImageUpload}
         disabled={isLoadingState}
         style={{ 
           width: 140, 
@@ -257,7 +214,7 @@ const EditUserProfilePhotos = ({ user }: EditUserProfilePhotosProps) => {
       
       {/* Camera icon overlay */}
       <TouchableOpacity 
-        onPress={isLoadingState ? undefined : showProfilePictureOptions}
+        onPress={isLoadingState ? undefined : handleImageUpload}
         disabled={isLoadingState}
         style={{ 
           position: 'absolute',

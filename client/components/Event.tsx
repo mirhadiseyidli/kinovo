@@ -206,6 +206,12 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = React.memo(({ ev
   };
 
   const handleViewEvent = () => {
+    // Check if event is cancelled - this is a safety check since cancelled events 
+    // should already be filtered out from most lists
+    if (event.status === 'cancelled') {
+      return; // Don't navigate to cancelled events
+    }
+
     // For recurring event occurrences, use the originalEventId, otherwise use the regular _id
     const eventId = event.originalEventId || event._id;
     if (!eventId) return;
@@ -367,7 +373,9 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = React.memo(({ ev
               position: 'absolute',
               bottom: 0,
               right: 0,
-              backgroundColor: themeColors.maybeStatusColor,
+              backgroundColor: themeColors.maybeStatusColor + '50',
+              borderColor: themeColors.maybeStatusColor,
+              borderWidth: 1,
               borderRadius: 4,
               paddingHorizontal: 4,
               paddingVertical: 2,
@@ -375,7 +383,7 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = React.memo(({ ev
               alignItems: 'center',
               zIndex: 10,
             }}>
-              <ThemedText style={{ fontSize: 10, color: 'white', fontWeight: 'bold', textTransform: 'capitalize' }}>{event.userStatus}</ThemedText>
+              <ThemedText style={{ fontSize: 8, color: 'white', fontWeight: '500', textTransform: 'capitalize' }}>{event.userStatus}</ThemedText>
             </View>
           )}
           {/* Declined status indicator */}

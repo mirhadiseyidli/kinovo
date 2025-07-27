@@ -49,8 +49,8 @@ export type CollapsibleHeaderProps<T extends Route> = {
   onPullEnough?: () => void;
   refreshControlColor?: string;
   refreshControlTop?: number;
-  emptyBodyComponent?: JSX.Element | null;
-  renderSceneHeader?: (props: T) => JSX.Element | null;
+  emptyBodyComponent?: React.ReactElement | null;
+  renderSceneHeader?: (props: T) => React.ReactElement | null;
   /**
    * Enabling this option will prevent Reanimated & GestureHandler from crashing sometimes in debug mode.
    */
@@ -59,9 +59,9 @@ export type CollapsibleHeaderProps<T extends Route> = {
 
 export type TabViewCustomRenders = {
   // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-  renderTabBarContainer: (children: any) => JSX.Element;
+  renderTabBarContainer: (children: any) => React.ReactElement;
   // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-  renderSceneHeader: (children: any, props: any) => JSX.Element;
+  renderSceneHeader: (children: any, props: any) => React.ReactElement;
 };
 
 export type GestureContainerProps<T extends Route> = Pick<
@@ -70,7 +70,7 @@ export type GestureContainerProps<T extends Route> = Pick<
 > &
   CollapsibleHeaderProps<T> & {
     initialPage: number;
-    renderTabView: (e: TabViewCustomRenders) => JSX.Element;
+    renderTabView: (e: TabViewCustomRenders) => React.ReactElement;
   };
 
 export interface RefreshControlProps {
