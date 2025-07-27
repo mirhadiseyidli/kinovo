@@ -202,26 +202,7 @@ const getUser = async (req, res, next) => {
   }
 };
 
-const getUserFriendByEmailSearch = async (req, res) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ message: 'Unauthorized: User not logged in' });
-    }
-
-    const email = req.query.query;
-    const found_user = await User.findOne({ _id: req.user._id }).populate({
-      path: 'friends',
-      match: { email: { $regex: email, $options: 'i' } }, // Case-insensitive search
-      select: '-password'
-    });
-
-    res.status(200).json(found_user.friends);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-}
-
-const getUserFriendByNameSearch = async (req, res) => {
+const getUserFriendBySearch = async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ message: 'Unauthorized: User not logged in' });
@@ -234,12 +215,55 @@ const getUserFriendByNameSearch = async (req, res) => {
         { first_name: { $regex: name, $options: 'i' } }, 
         { last_name: { $regex: name, $options: 'i' } },
         { full_name: { $regex: name, $options: 'i' } },
+        { email: { $regex: name, $options: 'i' } },
+        { email: { $regex: name, $options: 'i' } }
       ]}, // Case-insensitive search by first or last name
       select: '-password'
     });
 
     res.status(200).json(found_user.friends);
   } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+}
+
+const getUserNonFriendBySearch = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Unauthorized: User not logged in' });
+    }
+
+    const name = req.query.query;
+    
+    if (!name || name.trim().length === 0) {
+      return res.status(400).json({ message: 'Search query is required' });
+    }
+
+    // First, get the current user's friend IDs
+    const currentUser = await User.findById(req.user._id).select('friends');
+    const friendIds = currentUser.friends || [];
+    
+    // Add current user's ID to exclude from search
+    const excludeIds = [...friendIds, req.user._id];
+
+    // Find users across the app who are NOT friends and match the search query
+    const nonFriendUsers = await User.find({
+      _id: { $nin: excludeIds }, // Exclude friends and current user
+      $or: [
+        { first_name: { $regex: name, $options: 'i' } }, 
+        { last_name: { $regex: name, $options: 'i' } },
+        { full_name: { $regex: name, $options: 'i' } },
+        { username: { $regex: name, $options: 'i' } },
+        { email: { $regex: name, $options: 'i' } }
+      ]
+    })
+    .select('-password') // Exclude sensitive fields
+    .limit(20) // Limit results for performance
+    .lean(); // Use lean for better performance
+
+    res.status(200).json(nonFriendUsers);
+  } catch (err) {
+    console.error('Error in getUserNonFriendBySearch:', err);
     res.status(500).json({ message: err.message });
   }
 }
@@ -1038,8 +1062,8 @@ module.exports = {
   createUser,
   findMe,
   getUser,
-  getUserFriendByEmailSearch,
-  getUserFriendByNameSearch,
+  getUserFriendBySearch,
+  getUserNonFriendBySearch,
   markStoriesViewed,
   requestAccountDeletion,
   cancelAccountDeletion,

@@ -26,12 +26,14 @@ module.exports.handler = async (event = {}) => {
   console.log('SendEventReminder Lambda received event:', JSON.stringify(event, null, 2));
   
   let eventId;
+  let userId;
   let reminderType;
 
   try {
     // EventBridge Scheduler sends the Input directly as the event object
-    // So we should access eventId and reminderType directly from the event
+    // So we should access eventId, userId and reminderType directly from the event
     eventId = event.eventId;
+    userId = event.userId;
     reminderType = event.reminderType;
     
     // Fallback: try other possible formats for compatibility
@@ -41,6 +43,7 @@ module.exports.handler = async (event = {}) => {
         : event.detail || JSON.parse(event.body || '{}');
       
       eventId = payload.eventId;
+      userId = payload.userId;
       reminderType = payload.reminderType;
     }
   } catch (err) {
@@ -64,8 +67,15 @@ module.exports.handler = async (event = {}) => {
     // Default to 1-hour reminder for backward compatibility
     const notificationReminderType = reminderType === '10min' ? 'event_reminder_10_mins' : 'event_reminder_1_hour';
     
-    console.log('SendEventReminder Lambda creating reminder notification for event:', eventId, 'type:', notificationReminderType);
-    await createEventReminderNotification(eventId, notificationReminderType);
+    if (userId) {
+      // New user-specific reminder handling
+      console.log('SendEventReminder Lambda creating reminder notification for event:', eventId, 'user:', userId, 'type:', notificationReminderType);
+      await createEventReminderNotification(eventId, notificationReminderType, userId);
+    } else {
+      // Backward compatibility - send to all accepted attendees
+      console.log('SendEventReminder Lambda creating reminder notification for event:', eventId, 'type:', notificationReminderType, '(all attendees)');
+      await createEventReminderNotification(eventId, notificationReminderType);
+    }
     
     console.log('Event reminder notification created successfully');
     return {

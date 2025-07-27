@@ -645,7 +645,7 @@ const createEventInvitationNotification = async (eventId, inviteeIds) => {
 };
 
 // Create event reminder notification (10 minutes or 1 hour before)
-const createEventReminderNotification = async (eventId, reminderType = 'event_reminder_1_hour') => {
+const createEventReminderNotification = async (eventId, reminderType = 'event_reminder_1_hour', specificUserId = null) => {
   try {
     const event = await require('../database/schemas/eventsSchema')
       .findById(eventId)
@@ -656,14 +656,24 @@ const createEventReminderNotification = async (eventId, reminderType = 'event_re
       throw new Error('Event not found');
     }
 
-    // Get all accepted attendees
-    const acceptedAttendees = event.attendees
-      .filter(attendee => attendee.status === 'accepted')
-      .map(attendee => attendee.user);
+    // If specificUserId is provided, only send to that user
+    let targetAttendees;
+    if (specificUserId) {
+      const userAttendee = event.attendees.find(att => 
+        att.user._id.toString() === specificUserId.toString() && 
+        (att.status === 'accepted' || att.status === 'maybe')
+      );
+      targetAttendees = userAttendee ? [userAttendee.user] : [];
+    } else {
+      // Backward compatibility - get all accepted/maybe attendees
+      targetAttendees = event.attendees
+        .filter(attendee => attendee.status === 'accepted' || attendee.status === 'maybe')
+        .map(attendee => attendee.user);
+    }
 
-    // Create reminder notifications for all accepted attendees (respecting their preferences)
+    // Create reminder notifications for target attendees (respecting their preferences)
     const notifications = await Promise.all(
-      acceptedAttendees.map(async (attendee) => {
+      targetAttendees.map(async (attendee) => {
         // Check if attendee wants to receive event reminder notifications
         const shouldReceiveInApp = await shouldReceiveNotification(attendee._id, reminderType, 'inApp');
         const shouldReceiveEmail = await shouldReceiveNotification(attendee._id, reminderType, 'email');

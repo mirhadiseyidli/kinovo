@@ -12,7 +12,7 @@ import UserProfileActionMenuButton from '@/components/UserProfileActionMenuButto
 import UserCoverPhoto from './UserCoverPhoto';
 import UserProfilePhoto from './UserProfilePhoto';
 import UserProfileBasicInfo from './UserProfileBasicInfo';
-import { useEventCount } from '@/hooks/useEventCount';
+import { useUserEventCount } from '@/hooks/useUserEventCount';
 import AddFriendButton from '@/components/AddFriendButton';
 import ShareUserProfileButton from '@/components/ShareUserProfileButton';
 import AlreadyFriendsAndUnfriendButton from '@/components/AlreadyFriendsAndUnfriendButton';
@@ -49,7 +49,7 @@ const UserGeneralInfo = forwardRef(({ _id }: UserGeneralInfoProps, ref) => {
   const tabRef = useRef<ProfileTabsHandle>(null);
   
   const isOwnProfile = userToView?._id === user?._id;
-  const eventCount = useEventCount(userToView?.events, user?._id, friendshipStatus === 'friend', isOwnProfile);
+  const { count: eventCount } = useUserEventCount(userToView?._id || '');
 
   const renderFriendActionButton = (userIdToView: string) => {
     if (userIdToView === user?._id) return null;
@@ -356,7 +356,7 @@ const UserGeneralInfo = forwardRef(({ _id }: UserGeneralInfoProps, ref) => {
           </ThemedText>
         </View>
       </View>
-             <View style={{ flexDirection: 'row', width: '100%', paddingHorizontal: 16, gap: 8 }}>
+        <View style={{ flexDirection: 'row', width: '100%', paddingHorizontal: 16, gap: 8 }}>
          {renderFriendActionButton(userToView._id)}
          <ShareUserProfileButton 
            targetUser={userToView._id} 

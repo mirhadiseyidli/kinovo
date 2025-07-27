@@ -2,6 +2,7 @@ const express = require('express');
 const { 
     getMyEvents, 
     getUserEvents, 
+    getUserEventsCount,
     createEvent, 
     getMyPastEvents, 
     getMyUpcomingEvents, 
@@ -45,6 +46,7 @@ router.get('/eventslist/get/my/upcoming/events', authMiddleware, getMyUpcomingEv
 router.get('/eventslist/get/attention/required', authMiddleware, getAttentionRequiredEvents);
 router.get('/eventslist/get/recommended', authMiddleware, getRecommendedEvents);
 router.get('/eventslist/get/user/events', authMiddleware, getUserEvents);
+router.get('/eventslist/get/user/events/count', authMiddleware, getUserEventsCount);
 router.get('/eventslist/event/get/event/by/id', authMiddleware, getEventById);
 router.get('/eventslist/get/nearby/events', authMiddleware, getNearbyEvents);
 router.get('/eventslist/category/:category', authMiddleware, getEventsByCategory);

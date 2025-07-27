@@ -43,37 +43,6 @@ export type EventPrivacyLevel = 'public' | 'friends' | 'private';
 export type ViewerRelationship = 'self' | 'friend' | 'stranger';
 
 /**
- * Determines what events a viewer can see based on privacy settings and relationship
- */
-const filterEventsByPrivacy = (
-  events: Event[], 
-  viewerRelationship: ViewerRelationship,
-  viewerId: string
-): Event[] => {
-  console.log('viewer relationship', viewerRelationship)
-  return events.filter(event => {
-    // User can always see their own events
-    if (viewerRelationship === 'self') {
-      return true;
-    }
-
-    // Handle privacy levels
-    switch (event.visibility) {
-      case 'public':
-        return true;
-      case 'friends':
-        return viewerRelationship === 'friend';
-      case 'private':
-        // Private events are visible if the viewer is in the attendee list
-        return event.attendees?.some(attendee => attendee.user._id === viewerId) || false;
-      default:
-        // Default to public for events without explicit visibility
-        return true;
-    }
-  });
-};
-
-/**
  * Basic user events query (non-paginated)
  */
 export const useUserEventsQuery = (
@@ -107,8 +76,8 @@ export const useUserEventsQuery = (
       const response = await api.get(`/api/manageevents/eventslist/get/user/events?_id=${targetUserId}`);
       const allEvents = response.data.events || [];
       
-      // Apply privacy filtering
-      return filterEventsByPrivacy(allEvents, viewerRelationship, viewerId || '');
+      // Backend already handles all privacy filtering
+      return allEvents;
     },
     enabled: enabled && !!targetUserId,
     staleTime,
@@ -191,12 +160,8 @@ export const useUserEventsInfiniteQuery = (
       const totalCount = data.totalCount || allEvents.length;
       const hasMore = data.hasMore || false;
       
-      // Apply privacy filtering
-      const filteredEvents = filterEventsByPrivacy(allEvents, viewerRelationship, viewerId || '');
-      console.log('this', filteredEvents)
-      
       return {
-        events: filteredEvents,
+        events: allEvents,
         totalCount,
         hasMore,
         nextPage: hasMore ? pageParam + 1 : undefined
@@ -292,28 +257,3 @@ export const useCanViewUserEvents = (targetUserId: string) => {
   };
 };
 
-/**
- * Privacy-aware event filtering utility
- */
-export const useEventPrivacyFilter = () => {
-  const { userId } = useAuthSession();
-  const { user: currentUser } = useUserData();
-  
-  return {
-    filterEvents: (events: Event[], targetUserId: string) => {
-      let viewerRelationship: ViewerRelationship = 'stranger';
-      
-      if (!userId) {
-        viewerRelationship = 'stranger';
-      } else if (userId === targetUserId) {
-        viewerRelationship = 'self';
-      } else {
-        // Check if users are friends
-        const areFriends = currentUser?.friends?.includes(targetUserId) || false;
-        viewerRelationship = areFriends ? 'friend' : 'stranger';
-      }
-      
-      return filterEventsByPrivacy(events, viewerRelationship, userId || '');
-    }
-  };
-};

@@ -81,6 +81,10 @@ export const queryKeys = {
   specificUserEvents: (viewerId: string, targetUserId: string) => 
     [...queryKeys.all, 'user-profile', viewerId, targetUserId] as const,
   
+  // User event count (for profile display)
+  userEventCount: (viewerId: string, targetUserId: string) => 
+    [...queryKeys.all, 'user-event-count', viewerId, targetUserId] as const,
+  
   // Individual event
   eventById: (eventId: string) => 
     [...queryKeys.all, 'single', eventId] as const,

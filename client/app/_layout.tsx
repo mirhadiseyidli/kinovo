@@ -22,7 +22,7 @@ import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
 import { BannerProvider } from '@/context/BannerContext';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+// ReactQueryDevtools removed - now handled programmatically in devtools setup
 import { queryClient, setupOfflineQueue, setupGlobalErrorHandlers } from '@/utils/queryClient';
 import { PersistQueryClientProvider, asyncStoragePersister } from '@/utils/persistedQueryClient';
 import { initializeDevTools, getDevToolsConfig } from '@/utils/devtools';
@@ -54,17 +54,6 @@ export default function RootLayout(): ReactNode {
               <InnerLayout />
             </KeyboardProvider>
           </GestureHandlerRootView>
-     {/*     {__DEV__ && getDevToolsConfig().enabled && (
-            <ReactQueryDevtools 
-              initialIsOpen={!getDevToolsConfig().minimized}
-              position={getDevToolsConfig().position}
-              panelProps={{
-                style: {
-                  height: getDevToolsConfig().panelHeight,
-                },
-              }}
-            />
-          )} */}
         </PersistQueryClientProvider>
       </QueryClientProvider>
     </AuthProvider>
@@ -104,14 +93,10 @@ function InnerLayout() {
     if (isFirebaseInitialized && !isLoading) {
       const initializeTanStackUtilities = async () => {
         try {
+          // Always initialize core production utilities
           const initializeOfflineQueue = async () => {
             await setupOfflineQueue();
             console.log('Offline queue initialized successfully');
-          };
-          
-          const initializeDevToolsSetup = async () => {
-            await initializeDevTools(queryClient);
-            console.log('DevTools initialized successfully');
           };
           
           const initializeErrorHandlers = () => {
@@ -120,15 +105,27 @@ function InnerLayout() {
           };
           
           const initializeTelemetry = () => {
-            initializeAppTelemetry(queryClient);
-            console.log('Telemetry initialized successfully');
+            if (__DEV__) {
+              initializeAppTelemetry(queryClient);
+              console.log('Telemetry initialized successfully (development only)');
+            }
           };
           
-          // Initialize in sequence to avoid conflicts
+          // Development-only utilities
+          const initializeDevToolsSetup = async () => {
+            if (__DEV__) {
+              await initializeDevTools(queryClient);
+              console.log('DevTools initialized successfully (development only)');
+            }
+          };
+          
+          // Initialize core utilities first
           await initializeOfflineQueue();
-          await initializeDevToolsSetup();
           initializeErrorHandlers();
           initializeTelemetry();
+          
+          // Initialize development tools last (if in dev mode)
+          await initializeDevToolsSetup();
           
         } catch (error) {
           console.error('Failed to initialize TanStack utilities:', error);
@@ -142,7 +139,6 @@ function InnerLayout() {
   useEffect(() => {
     async function prepare() {
       try {
-        // await SplashScreen.preventAutoHideAsync();
 
         // Delay splash screen fade out
         setTimeout(() => {
