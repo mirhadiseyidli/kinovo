@@ -47,15 +47,11 @@ app.get('/api/health', (req, res) => {
 async function startServer() {
   try {
     // Ensure database connection is established
-    console.log('Connecting to database...');
     await connectToDatabase();
-    console.log('Database connection established successfully');
 
     // Initialize categories after database connection
-    console.log('Initializing categories...');
     const { initializeCategories } = require('./controllers/categoryController');
     await initializeCategories();
-    console.log('Categories initialized successfully');
 
     // Database change streams removed (was Firebase)
 

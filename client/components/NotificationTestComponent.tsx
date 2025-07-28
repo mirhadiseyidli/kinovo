@@ -3,17 +3,12 @@ import { View, TouchableOpacity, Text, ActivityIndicator, Alert } from 'react-na
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { Feather } from '@expo/vector-icons';
-import { useFCMTokenManager } from '@/hooks/useFCMTokenManager';
 import api from '@/utils/api';
 
 const NotificationTestComponent = () => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [loading, setLoading] = useState(false);
-  const { fcmToken, permissionGranted } = useFCMTokenManager();
-
-  console.log('fcmToken', fcmToken);
-  console.log('permissionGranted', permissionGranted);
 
   const sendTestNotification = async () => {
     if (!fcmToken || !permissionGranted) {

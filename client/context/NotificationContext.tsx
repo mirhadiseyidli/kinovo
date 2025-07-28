@@ -78,7 +78,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       const response = await api.get('/api/push-fetch/notifications');
       const fetchedNotifications = response.data.success ? response.data.data : [];
       setNotifications(fetchedNotifications);
-      console.log('📬 NotificationContext: Fetched', fetchedNotifications.length, 'notifications');
     } catch (error) {
       console.error('Error fetching notifications:', error);
       setNotifications([]);
@@ -105,7 +104,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       const response = await api.get('/api/push-fetch/friend-requests');
       const requests = response.data.success ? response.data.data : [];
       setBackendFriendRequests(requests);
-      console.log('👥 NotificationContext: Fetched', requests.length, 'friend requests');
     } catch (error) {
       console.error('Error fetching friend requests from backend:', error);
       setBackendFriendRequests([]);
@@ -324,7 +322,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (!userId) return;
 
     const handleNotificationReceived = (type: string) => {
-      console.log('🔄 Notification received, refreshing data for type:', type);
       
       // Refresh data based on notification type
       if (type === 'friend_request' || type === 'friend_request_accepted') {
@@ -335,7 +332,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       
       // Also notify the notifications page if it's currently active
       if (notificationPageCallbackRef.current) {
-        console.log('📱 Notifying notifications page of background update');
         notificationPageCallbackRef.current(type);
       }
     };

@@ -138,7 +138,6 @@ class ErrorHandlingSystem {
       if (strategy.canRecover(error)) {
         try {
           await strategy.recover(error);
-          console.log(`Error recovered using strategy: ${strategy.description}`);
           return;
         } catch (recoveryError) {
           console.error(`Recovery strategy failed: ${strategy.description}`, recoveryError);
@@ -416,7 +415,6 @@ export const defaultRecoveryStrategies: ErrorRecoveryStrategy[] = [
     canRecover: (error) => error.type === 'mutation' && error.canRollback,
     recover: async () => {
       // This would trigger the rollback mechanism
-      console.log('Attempting mutation rollback...');
     },
     description: 'Rollback failed mutation',
   },
@@ -457,8 +455,6 @@ export const setupGlobalErrorHandling = (queryClient: QueryClient): void => {
   defaultRecoveryStrategies.forEach(strategy => {
     errorHandlingSystem.addRecoveryStrategy(strategy);
   });
-
-  console.log('Global error handling system initialized');
 };
 
 // Error boundary integration

@@ -22,8 +22,6 @@ const {
  */
 module.exports.handler = async (event = {}) => {
   const res = await axios.get('https://checkip.amazonaws.com');
-  console.log('NAT IP:', res.data.trim());
-  console.log('SendEventReminder Lambda received event:', JSON.stringify(event, null, 2));
   
   let eventId;
   let userId;
@@ -60,24 +58,19 @@ module.exports.handler = async (event = {}) => {
 
   try {
     // Establish database connection with optimized settings
-    console.log('Connecting to MongoDB...');
     await connectToDatabase();
-    console.log('MongoDB connection established');
 
     // Default to 1-hour reminder for backward compatibility
     const notificationReminderType = reminderType === '10min' ? 'event_reminder_10_mins' : 'event_reminder_1_hour';
     
     if (userId) {
       // New user-specific reminder handling
-      console.log('SendEventReminder Lambda creating reminder notification for event:', eventId, 'user:', userId, 'type:', notificationReminderType);
       await createEventReminderNotification(eventId, notificationReminderType, userId);
     } else {
       // Backward compatibility - send to all accepted attendees
-      console.log('SendEventReminder Lambda creating reminder notification for event:', eventId, 'type:', notificationReminderType, '(all attendees)');
       await createEventReminderNotification(eventId, notificationReminderType);
     }
     
-    console.log('Event reminder notification created successfully');
     return {
       statusCode: 200,
       body: JSON.stringify({ message: 'Reminder sent successfully' }),

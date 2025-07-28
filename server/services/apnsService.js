@@ -324,7 +324,6 @@ class APNsService {
 
     // Send to single token or multiple tokens
     if (tokenArray.length === 1) {
-      console.log('sending to single APNs token', tokenArray[0]);
       return await this.sendToToken(tokenArray[0], notification, data);
     } else {
       return await this.sendToMultipleTokens(tokenArray, notification, data);
