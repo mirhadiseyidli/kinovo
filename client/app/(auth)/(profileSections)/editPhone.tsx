@@ -118,7 +118,6 @@ const EditPhone = () => {
         verificationId,
         verificationCode
       });
-      console.log(response)
 
       if (response.data.success) {
         Alert.alert('Success', 'Phone number changed successfully', [

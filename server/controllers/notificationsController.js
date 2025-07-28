@@ -690,12 +690,9 @@ const createEventReminderNotification = async (eventId, reminderType = 'event_re
 
         // Send push notification if enabled
         if (shouldReceivePush) {
-          console.log('Sending push notification for event reminder');
           await sendPushNotification([attendee._id], reminderType, {
             eventTitle: event.title,
             eventId: eventId
-          }).then(response => {
-            console.log('Push notification sent:', response);
           })
           .catch(error => {
             console.error('Push notification failed for event reminder:', error);
@@ -704,7 +701,6 @@ const createEventReminderNotification = async (eventId, reminderType = 'event_re
 
         // Send email notification if enabled
         if (shouldReceiveEmail && attendeeUser.email) {
-          console.log('Sending email notification for event reminder');
           await sendEmailNotification(attendeeUser.email, reminderType, {
             eventTitle: event.title,
             eventLocation: event.location?.text || event.location?.city,
@@ -1079,14 +1075,8 @@ const shouldReceiveNotification = async (userId, notificationType, channel = 'in
 const saveAPNsToken = async (req, res) => {
   try {
     const { token, platform, userId } = req.body;
-    console.log('📱 APNs: Received token save request', { 
-      userId, 
-      platform, 
-      tokenStart: token ? token.substring(0, 20) + '...' : 'none' 
-    });
     
     if (!token || !platform || !userId) {
-      console.log('❌ APNs: Missing required fields', { token: !!token, platform: !!platform, userId: !!userId });
       return res.status(400).json({ 
         success: false, 
         message: 'Token, platform, and userId are required' 
@@ -1095,7 +1085,6 @@ const saveAPNsToken = async (req, res) => {
 
     // Check if token already exists
     const existingToken = await APNsToken.findOne({ token });
-    console.log('📱 APNs: Existing token found:', !!existingToken);
     
     if (existingToken) {
       // Update existing token
@@ -1104,7 +1093,6 @@ const saveAPNsToken = async (req, res) => {
       existingToken.isActive = true;
       existingToken.lastUsed = new Date();
       await existingToken.save();
-      console.log('✅ APNs: Updated existing token');
     } else {
       // Create new token
       const newToken = await APNsToken.create({
@@ -1113,7 +1101,6 @@ const saveAPNsToken = async (req, res) => {
         platform,
         isActive: true
       });
-      console.log('✅ APNs: Created new token', newToken._id);
     }
 
     // Deactivate old tokens for this user on the same platform
@@ -1126,7 +1113,6 @@ const saveAPNsToken = async (req, res) => {
       },
       { isActive: false }
     );
-    console.log('📱 APNs: Deactivated old tokens:', updateResult.modifiedCount);
 
     res.json({ success: true, message: 'APNs token saved successfully' });
   } catch (error) {
@@ -1209,7 +1195,6 @@ const sendEventInvitationPushNotification = async (eventId, inviteeIds) => {
 
 // Send test notification
 const sendTestNotification = async (req, res) => {
-  console.log('sendTestNotification', req.body);
   try {
     const { token, type, payload } = req.body;
 
@@ -1221,7 +1206,6 @@ const sendTestNotification = async (req, res) => {
     }
 
     // Send the notification using APNs service
-    console.log('sending to single token', token);
     const result = await fcmService.sendNotificationByType(token, type, payload);
 
     if (result.success) {

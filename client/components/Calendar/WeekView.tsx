@@ -59,7 +59,6 @@ const WeekView: React.FC<WeekViewProps> = ({ refreshing, onFinishRefresh }) => {
   
   // Use CalendarContext for state management and data
   const { currentDate, setCurrentDate, refreshEvents, loading } = useCalendarContext();
-  console.log('this changed', currentDate)
   
   const weekPages = React.useMemo(() => buildWeekPages(currentDate), [currentDate]);
 

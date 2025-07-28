@@ -113,7 +113,6 @@ export const invalidateEventQueries = (
   queryClient.invalidateQueries({ queryKey: queryKeys.infiniteRecommended(userId, {}) });
   
   // Invalidate calendar cache - all calendar-related queries
-  console.log('🗑️ Invalidating calendar queries...');
   queryClient.invalidateQueries({
     predicate: (query) => {
       const keyStr = JSON.stringify(query.queryKey);
@@ -121,9 +120,6 @@ export const invalidateEventQueries = (
                              keyStr.includes('calendar-occurrences') || 
                              keyStr.includes('"calendar"') ||
                              keyStr.includes('recurring-event-modifications');
-      if (isCalendarQuery) {
-        console.log('📊 Invalidating calendar query:', query.queryKey);
-      }
       return isCalendarQuery;
     }
   });

@@ -65,7 +65,6 @@ class DevToolsManager {
     
     // Only initialize in development
     if (!__DEV__) {
-      console.log('DevTools disabled in production build');
       return;
     }
 

@@ -156,22 +156,14 @@ const setupCustomLoggerProvider = (): TelemetryProviders['customLogger'] | undef
       log: (level: string, message: string, metadata?: any) => {
         const timestamp = new Date().toISOString();
         const logMessage = `[${timestamp}] ${level.toUpperCase()}: ${message}`;
-        
-        if (metadata) {
-          console.log(logMessage, metadata);
-        } else {
-          console.log(logMessage);
-        }
       },
       
       metric: (name: string, value: number, tags?: any) => {
         const timestamp = new Date().toISOString();
-        console.log(`[${timestamp}] METRIC: ${name} = ${value}`, tags);
       },
       
       event: (name: string, properties?: any) => {
         const timestamp = new Date().toISOString();
-        console.log(`[${timestamp}] EVENT: ${name}`, properties);
       },
     };
   }
@@ -189,28 +181,24 @@ export const setupTelemetryProviders = (): TelemetryProviders => {
   const sentryProvider = setupSentryProvider();
   if (sentryProvider) {
     providers.sentry = sentryProvider;
-    console.log('📊 Sentry telemetry provider initialized');
   }
   
   // Setup New Relic
   const newRelicProvider = setupNewRelicProvider();
   if (newRelicProvider) {
     providers.newRelic = newRelicProvider;
-    console.log('📊 New Relic telemetry provider initialized');
   }
   
   // Setup Analytics
   const analyticsProvider = setupAnalyticsProvider();
   if (analyticsProvider) {
     providers.analytics = analyticsProvider;
-    console.log('📊 Analytics telemetry provider initialized');
   }
   
   // Setup Custom Logger
   const customLoggerProvider = setupCustomLoggerProvider();
   if (customLoggerProvider) {
     providers.customLogger = customLoggerProvider;
-    console.log('📊 Custom Logger telemetry provider initialized');
   }
   
   return providers;
@@ -223,7 +211,6 @@ export const setupTelemetryProviders = (): TelemetryProviders => {
 export const initializeAppTelemetry = (queryClient: QueryClient) => {
   // Only initialize telemetry in development
   if (!__DEV__) {
-    console.log('📊 Telemetry disabled in production build');
     return;
   }
   
@@ -347,8 +334,6 @@ export const initializeAppTelemetry = (queryClient: QueryClient) => {
       }
     });
     
-    console.log('📊 Application telemetry initialized successfully (development only)');
-    
   } catch (error) {
     console.error('❌ Failed to initialize application telemetry (development):', error);
   }
@@ -409,8 +394,6 @@ export const configureTelemetry = (config: Partial<TelemetryConfig>) => {
   
   // Apply configuration
   setTelemetryEnabled(finalConfig.enabled);
-  
-  console.log('📊 Telemetry configured:', finalConfig);
   
   return finalConfig;
 };

@@ -66,7 +66,6 @@ export function useNotificationData() {
       
       if (mountedRef.current && response.data.success) {
         setNotifications(response.data.data);
-        console.log('📬 Notifications: Fetched', response.data.count, 'notifications');
         setError(null);
       }
     } catch (error) {
@@ -92,7 +91,6 @@ export function useNotificationData() {
       
       if (mountedRef.current && response.data.success) {
         setFriendRequests(response.data.data);
-        console.log('👥 Friend Requests: Fetched', response.data.count, 'requests');
         setError(null);
       }
     } catch (error) {
@@ -160,8 +158,6 @@ export function useNotificationData() {
             : notif
         )
       );
-      
-      console.log('✅ Notification marked as read:', notificationId);
     } catch (error) {
       console.error('❌ Failed to mark notification as read:', error);
     }
@@ -201,7 +197,6 @@ export function useNotificationData() {
 
   // Handle push notification received (trigger immediate fetch)
   const handlePushNotificationReceived = useCallback((notificationData: any) => {
-    console.log('📱 Push notification received, triggering data fetch for type:', notificationData?.type);
     
     // Clear any existing timeout
     if (refreshTimeoutRef.current) {
@@ -215,14 +210,11 @@ export function useNotificationData() {
         
         // Fetch specific data based on notification type for better performance
         if (type === 'friend_request' || type === 'friend_request_accepted') {
-          console.log('🔄 Fetching friend requests specifically');
           fetchFriendRequests(false);
         } else if (type && type.includes('event')) {
-          console.log('🔄 Fetching notifications specifically');
           fetchNotifications(false);
         } else {
           // Fallback to refresh all data
-          console.log('🔄 Fetching all notification data');
           refreshData();
         }
       }
