@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import { queryKeys } from '@/utils/queryKeys';
 import { Event } from '@/types/allTypes';
 import api from '@/utils/api';
@@ -123,7 +123,7 @@ export const useNearbyEventsQuery = (options: UseNearbyEventsOptions = {}) => {
   const selectData = useCallback((data: NearbyEventsResponse) => {
     if (!data?.events) return { events: [], totalCount: 0 };
     
-    let processedEvents = data.events;
+    let processedEvents: Event[] = data.events;
     
     switch (displayMode) {
       case 'homeScreen':
@@ -135,13 +135,17 @@ export const useNearbyEventsQuery = (options: UseNearbyEventsOptions = {}) => {
         break;
       case 'minimal':
         processedEvents = data.events.map(event => ({
+          ...event,
+          // Keep only minimal properties but ensure all required ones are present
           _id: event._id,
           title: event.title,
           start_time: event.start_time,
           end_time: event.end_time,
           location: event.location,
           category: event.category,
-        }));
+          status: event.status,
+          visibility: event.visibility,
+        } as Event));
         break;
       case 'full':
       default:
@@ -171,7 +175,7 @@ export const useNearbyEventsQuery = (options: UseNearbyEventsOptions = {}) => {
     
     // Smooth UI options - only use select for non-homeScreen modes
     select: enableSmoothTransitions && !['homeScreen', 'preview'].includes(displayMode) ? selectData : undefined,
-    placeholderData: usePlaceholderData ? createPlaceholderData.nearbyEvents() : (keepPreviousDataOption ? (prev: any) => prev : undefined),
+    placeholderData: usePlaceholderData ? { events: createPlaceholderData.nearbyEvents(), totalCount: 0 } : (keepPreviousDataOption ? (prev: any) => prev : undefined),
     
     // Refetch configuration
     refetchOnWindowFocus: true,
@@ -237,8 +241,7 @@ export const useNearbyEventsQuery = (options: UseNearbyEventsOptions = {}) => {
     // Only log on initial success or when data changes significantly
     const shouldLog = query.dataUpdatedAt && Date.now() - query.dataUpdatedAt < 1000;
     if (shouldLog) {
-      const eventCount = Array.isArray(query.data.events) ? query.data.events.length : 'unknown';
-      console.log(`Fetched ${eventCount} nearby events (total: ${query.data.totalCount || 0})`);
+      console.log(`Fetched ${Array.isArray(query.data.events) ? query.data.events.length : 'unknown'} nearby events (total: ${query.data.totalCount || 0})`);
     }
   }
 
