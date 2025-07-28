@@ -116,7 +116,6 @@ const {
 } = require('../utils/eventUtils');
 
 const createEvent = async (req, res) => {
-  console.log('creating')
   try {
     const {
       event_picture,
@@ -262,7 +261,6 @@ const getMyEventsCalendarMonthView = async (req, res) => {
     const uniqueMap = new Map();
     filtered.forEach(evt => uniqueMap.set(evt._id.toString(), evt));
     const uniqueEvents = Array.from(uniqueMap.values());
-    console.log('&&&&&&&&&&&&', uniqueEvents)
 
     return res.status(200).json({ events: uniqueEvents });
   } catch (error) {
@@ -366,8 +364,6 @@ const getMyUpcomingEvents = async (req, res) => {
     if (result.events.length === 0) {
       return res.status(201).json({ message: 'No events found', events: [] });
     }
-
-    console.log('result', result.events);
 
     res.status(200).json({ 
       events: result.events,
@@ -509,8 +505,6 @@ const getUserEvents = async (req, res) => {
 
     relevantEvents.sort((a, b) => new Date(b.event?.start_time) - new Date(a.event?.start_time));
 
-    console.log('1', relevantEvents)
-
     return res.status(200).json({ events: relevantEvents });
   } catch (error) {
     console.error('Error in getUserEvents:', error);
@@ -550,8 +544,6 @@ const getUserEventsCount = async (req, res) => {
       isFriend,          // isFriend
       ['accepted', 'maybe'] // allowedStatuses
     );
-
-    console.log('2', relevantEvents)
 
     return res.status(200).json({ count: relevantEvents.length });
   } catch (error) {
@@ -1175,7 +1167,6 @@ const getEventsByCategory = async (req, res) => {
 
     // Add user-specific fields using utility
     const eventsWithUserStatus = enrichEventsWithUserData(processedEvents, req.user._id, friends);
-    console.log(eventsWithUserStatus)
 
     res.status(200).json(eventsWithUserStatus);
   } catch (error) {

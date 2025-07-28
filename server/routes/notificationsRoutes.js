@@ -5,7 +5,7 @@ const {
   getUnseenNotificationsCount,
   getUserNotificationPreferences,
   updateUserNotificationPreferences,
-  saveFCMToken,
+  saveAPNsToken,
   sendTestNotification
 } = require('../controllers/notificationsController');
 const { authMiddleware } = require('../utils/authMiddleware');
@@ -27,8 +27,8 @@ router.get('/preferences', authMiddleware, getUserNotificationPreferences);
 // Update user notification preferences
 router.put('/preferences', authMiddleware, updateUserNotificationPreferences);
 
-// FCM token management
-router.post('/fcm-token', saveFCMToken);
+// APNs token management
+router.post('/apns-token', saveAPNsToken);
 
 // Test notification route
 router.post('/test', authMiddleware, sendTestNotification);

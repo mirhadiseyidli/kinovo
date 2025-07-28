@@ -3,7 +3,6 @@ const Users = require('../database/schemas/usersSchema');
 const UserContacts = require('../database/schemas/userContactsSchema');
 const { updateFriendRequestNotificationStatus, createNotification, createFriendRequestNotification, sendFriendRequestPushNotification, sendEventInvitationPushNotification } = require('./notificationsController');
 const { sendEmailNotification } = require('../utils/emailNotificationService');
-const { removeFriendRequestFromFirebase } = require('../services/realtimeSyncService');
 const { sendEmail } = require('../utils/emailService');
 
 // Invite a friend by email
@@ -122,9 +121,7 @@ const sendFriendRequest = async (req, res) => {
       // and make them friends instead of creating a duplicate request
       await FriendRequest.findByIdAndDelete(reverseRequest._id);
       
-      // Remove from Firebase for both users
-      await removeFriendRequestFromFirebase(sender, reverseRequest._id.toString());
-      await removeFriendRequestFromFirebase(receiver, reverseRequest._id.toString());
+      // APNs push notifications will be sent automatically
       
       await Users.findByIdAndUpdate(sender, { $addToSet: { friends: receiver } });
       await Users.findByIdAndUpdate(receiver, { $addToSet: { friends: sender } });
@@ -206,9 +203,7 @@ const acceptFriendRequest = async (req, res) => {
       return res.status(404).json({ error: 'Friend request not found or invalid sender/receiver' });
     }
 
-    // Remove from Firebase for both sender and receiver
-    await removeFriendRequestFromFirebase(receiver, friendRequest._id.toString());
-    await removeFriendRequestFromFirebase(sender, friendRequest._id.toString());
+    // APNs push notifications will be sent automatically
 
     await Users.findByIdAndUpdate(receiver, { $addToSet: { friends: sender } });
     await Users.findByIdAndUpdate(sender, { $addToSet: { friends: receiver } });
@@ -273,9 +268,7 @@ const rejectFriendRequest = async (req, res) => {
       return res.status(404).json({ error: 'Friend request not found or invalid sender/receiver' });
     }
 
-    // Remove from Firebase for both sender and receiver
-    await removeFriendRequestFromFirebase(receiver, friendRequest._id.toString());
-    await removeFriendRequestFromFirebase(sender, friendRequest._id.toString());
+    // APNs push notifications will be sent automatically
 
     // Note: We intentionally do not send a rejection notification to avoid creating
     // negative feelings. The sender will simply see the request disappear from their
@@ -312,9 +305,7 @@ const cancelFriendRequestSender = async (req, res) => {
     // Delete the friend request from database
     const deletedRequest = await FriendRequest.findByIdAndDelete(friendRequest._id);
 
-    // Remove from Firebase for both sender and receiver
-    await removeFriendRequestFromFirebase(sender, friendRequestId);
-    await removeFriendRequestFromFirebase(receiver, friendRequestId);
+    // APNs push notifications will be sent automatically
 
     // Remove any related notifications for this friend request
     const Notification = require('../database/schemas/notificationsSchema');
@@ -354,9 +345,7 @@ const cancelFriendRequestReceiver = async (req, res) => {
     // Delete the friend request from database
     await FriendRequest.findByIdAndDelete(friendRequest._id);
 
-    // Remove from Firebase for both sender and receiver
-    await removeFriendRequestFromFirebase(receiver, friendRequestId);
-    await removeFriendRequestFromFirebase(sender, friendRequestId);
+    // APNs push notifications will be sent automatically
 
     // Remove any related notifications for this friend request
     const Notification = require('../database/schemas/notificationsSchema');

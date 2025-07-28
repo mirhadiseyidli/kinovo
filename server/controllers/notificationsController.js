@@ -2,9 +2,9 @@ const Notification = require('../database/schemas/notificationsSchema');
 const FriendRequest = require('../database/schemas/friendRequestsSchema');
 const Users = require('../database/schemas/usersSchema');
 const UserNotificationPreferences = require('../database/schemas/userNotificationPreferencesSchema');
-const FCMToken = require('../database/schemas/fcmTokenSchema');
+const APNsToken = require('../database/schemas/apnsTokenSchema');
 const { sendEmailNotification } = require('../utils/emailNotificationService');
-const fcmService = require('../services/fcmService');
+const apnsService = require('../services/apnsService');
 
 // Create a new notification
 const createNotification = async (notificationData) => {
@@ -244,7 +244,7 @@ const markNotificationsAsSeen = async (req, res) => {
 
     const userId = req.user._id;
     const { notificationIds } = req.body;
-    const { removeNotificationFromFirebase } = require('../services/realtimeSyncService');
+    // Using APNs push-to-fetch system
 
     let result;
     if (notificationIds && Array.isArray(notificationIds)) {
@@ -259,17 +259,6 @@ const markNotificationsAsSeen = async (req, res) => {
           updated_at: new Date()
         }
       );
-
-      // Clean up seen notifications from Firebase (they're no longer needed for real-time)
-      const cleanupPromises = notificationIds.map(async (id) => {
-        try {
-          await removeNotificationFromFirebase(userId.toString(), id);
-          console.log(`✅ Firebase cleanup: Removed notification ${id} for user ${userId}`);
-        } catch (error) {
-          console.error(`❌ Firebase cleanup failed for notification ${id}:`, error);
-        }
-      });
-      await Promise.allSettled(cleanupPromises); // Use allSettled to continue even if some fail
     } else {
       // Mark all notifications as seen
       result = await Notification.updateMany(
@@ -279,16 +268,6 @@ const markNotificationsAsSeen = async (req, res) => {
           updated_at: new Date()
         }
       );
-
-      // Clean up all notifications from Firebase for this user
-      try {
-        const { admin, db } = require('../config/firebase-admin');
-        const userNotificationsRef = db.ref(`notifications/${userId}`);
-        await userNotificationsRef.remove();
-        console.log(`✅ Firebase cleanup: Removed all notifications for user ${userId}`);
-      } catch (firebaseError) {
-        console.error(`❌ Firebase cleanup failed for all notifications (user ${userId}):`, firebaseError);
-      }
     }
 
     res.status(200).json({ message: 'Notifications marked as seen' });
@@ -925,7 +904,7 @@ exports.createNotification = async (req, res) => {
       read: false,
     });
     
-    // Sync to Firebase happens automatically via change stream
+    // APNs push notifications will be sent automatically
     
     res.status(201).json({ success: true, notification });
   } catch (error) {
@@ -950,7 +929,7 @@ exports.markAsRead = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Notification not found' });
     }
     
-    // Sync to Firebase happens automatically via change stream
+    // APNs push notifications will be sent automatically
     
     res.json({ success: true, notification });
   } catch (error) {
@@ -1094,20 +1073,20 @@ const shouldReceiveNotification = async (userId, notificationType, channel = 'in
   }
 };
 
-// FCM Token Management Functions
+// APNs Token Management Functions
 
-// Save/update FCM token for user
-const saveFCMToken = async (req, res) => {
+// Save/update APNs token for user
+const saveAPNsToken = async (req, res) => {
   try {
     const { token, platform, userId } = req.body;
-    console.log('📱 FCM: Received token save request', { 
+    console.log('📱 APNs: Received token save request', { 
       userId, 
       platform, 
       tokenStart: token ? token.substring(0, 20) + '...' : 'none' 
     });
     
     if (!token || !platform || !userId) {
-      console.log('❌ FCM: Missing required fields', { token: !!token, platform: !!platform, userId: !!userId });
+      console.log('❌ APNs: Missing required fields', { token: !!token, platform: !!platform, userId: !!userId });
       return res.status(400).json({ 
         success: false, 
         message: 'Token, platform, and userId are required' 
@@ -1115,8 +1094,8 @@ const saveFCMToken = async (req, res) => {
     }
 
     // Check if token already exists
-    const existingToken = await FCMToken.findOne({ token });
-    console.log('📱 FCM: Existing token found:', !!existingToken);
+    const existingToken = await APNsToken.findOne({ token });
+    console.log('📱 APNs: Existing token found:', !!existingToken);
     
     if (existingToken) {
       // Update existing token
@@ -1125,20 +1104,20 @@ const saveFCMToken = async (req, res) => {
       existingToken.isActive = true;
       existingToken.lastUsed = new Date();
       await existingToken.save();
-      console.log('✅ FCM: Updated existing token');
+      console.log('✅ APNs: Updated existing token');
     } else {
       // Create new token
-      const newToken = await FCMToken.create({
+      const newToken = await APNsToken.create({
         userId,
         token,
         platform,
         isActive: true
       });
-      console.log('✅ FCM: Created new token', newToken._id);
+      console.log('✅ APNs: Created new token', newToken._id);
     }
 
     // Deactivate old tokens for this user on the same platform
-    const updateResult = await FCMToken.updateMany(
+    const updateResult = await APNsToken.updateMany(
       { 
         userId, 
         platform, 
@@ -1147,12 +1126,12 @@ const saveFCMToken = async (req, res) => {
       },
       { isActive: false }
     );
-    console.log('📱 FCM: Deactivated old tokens:', updateResult.modifiedCount);
+    console.log('📱 APNs: Deactivated old tokens:', updateResult.modifiedCount);
 
-    res.json({ success: true, message: 'FCM token saved successfully' });
+    res.json({ success: true, message: 'APNs token saved successfully' });
   } catch (error) {
-    console.error('Error saving FCM token:', error);
-    res.status(500).json({ success: false, message: 'Failed to save FCM token' });
+    console.error('Error saving APNs token:', error);
+    res.status(500).json({ success: false, message: 'Failed to save APNs token' });
   }
 };
 
@@ -1172,21 +1151,21 @@ const sendPushNotification = async (userIds, notificationType, payload) => {
       return { success: true, message: 'No users want push notifications' };
     }
 
-    // Get active FCM tokens for these users
-    const fcmTokenDocs = await FCMToken.findActiveTokensByUserIds(usersWhoWantPush);
-    const tokens = fcmTokenDocs.map(doc => doc.token);
+    // Get active APNs tokens for these users
+    const apnsTokenDocs = await APNsToken.findActiveTokensByUserIds(usersWhoWantPush);
+    const tokens = apnsTokenDocs.map(doc => doc.token);
     
     if (tokens.length === 0) {
-      return { success: false, message: 'No active FCM tokens found' };
+      return { success: false, message: 'No active APNs tokens found' };
     }
 
     // Send the notification
-    const result = await fcmService.sendNotificationByType(tokens, notificationType, payload);
+    const result = await apnsService.sendNotificationByType(tokens, notificationType, payload);
     
     // Handle invalid tokens
     if (result.invalidTokens && result.invalidTokens.length > 0) {
       await Promise.all(
-        result.invalidTokens.map(token => FCMToken.deactivateToken(token))
+        result.invalidTokens.map(token => APNsToken.deactivateToken(token))
       );
     }
 
@@ -1241,7 +1220,7 @@ const sendTestNotification = async (req, res) => {
       });
     }
 
-    // Send the notification using FCM service
+    // Send the notification using APNs service
     console.log('sending to single token', token);
     const result = await fcmService.sendNotificationByType(token, type, payload);
 
@@ -1281,8 +1260,8 @@ module.exports = {
   getUserNotificationPreferences,
   updateUserNotificationPreferences,
   shouldReceiveNotification,
-  // FCM functions
-  saveFCMToken,
+  // APNs functions
+  saveAPNsToken,
   sendPushNotification,
   sendFriendRequestPushNotification,
   sendEventInvitationPushNotification,

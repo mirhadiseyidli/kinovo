@@ -2,7 +2,6 @@ const cron = require('node-cron');
 const Event = require('../database/schemas/eventsSchema');
 const User = require('../database/schemas/usersSchema');
 const { createNearbyEventNotification, createEventCreationNotificationForFriends } = require('../controllers/notificationsController');
-const admin = require('../config/firebase-admin');
 
 // Helper function to find users within 50 miles using MongoDB's geospatial queries
 const findUsersWithin50Miles = async (lat, lng, excludeUserId = null, creatorId = null) => {

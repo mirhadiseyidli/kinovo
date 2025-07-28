@@ -1696,10 +1696,7 @@ const processEventsForDiscovery = (events, options = {}) => {
       }
     } else {
       // For non-recurring events, include if they're in the future
-      console.log(event)
-      console.log(event.end_time)
       if (event.end_time >= now) {
-        console.log('sdhfjskjdhf')
         const eventObj = event.toObject ? event.toObject() : event;
         processedEvents.push({
           ...eventObj,
@@ -1709,7 +1706,6 @@ const processEventsForDiscovery = (events, options = {}) => {
       }
     }
   }
-  console.log('this', processedEvents)
 
   // Sort events by start time
   processedEvents.sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
