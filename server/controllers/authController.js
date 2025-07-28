@@ -695,10 +695,10 @@ const changeEmail = async (req, res) => {
 const changePhone = async (req, res) => {
   const { currentPhoneNumber, newPhoneNumber, verificationId, verificationCode } = req.body;
 
-  if (!currentPhoneNumber || !newPhoneNumber || !verificationId || !verificationCode) {
+  if (!newPhoneNumber || !verificationId || !verificationCode) {
     return res.status(400).json({
       success: false,
-      message: 'All fields are required'
+      message: 'New phone number, verification ID, and verification code are required'
     });
   }
 
@@ -714,7 +714,16 @@ const changePhone = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ 'phone_number.full_num': currentPhoneNumber });
+    // Find user by current phone number if provided, otherwise use userId from auth middleware
+    let user;
+    if (currentPhoneNumber) {
+      // User is changing their existing phone number
+      user = await User.findOne({ 'phone_number.full_num': currentPhoneNumber });
+    } else {
+      // User is adding their first phone number (use authenticated user)
+      user = await User.findById(req.user._id);
+    }
+
     if (!user) {
       return res.status(404).json({
         success: false,

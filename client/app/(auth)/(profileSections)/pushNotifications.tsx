@@ -7,24 +7,24 @@ import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { Feather } from '@expo/vector-icons';
 import { useNotificationPreferences } from '@/hooks/useNotificationPreferences';
-import { useFCMTokenManager } from '@/hooks/useFCMTokenManager';
+import { useAPNsTokenManager } from '@/hooks/useAPNsTokenManager';
 
 const PushNotifications = () => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   
   const { preferences, loading, refreshing, togglePreference, onRefresh } = useNotificationPreferences('push');
-  const { fcmToken, permissionGranted, isLoading: fcmLoading, requestPermission } = useFCMTokenManager();
+  const { apnsToken, permissionGranted, isLoading: apnsLoading, requestPermission } = useAPNsTokenManager();
   const [showPermissionPrompt, setShowPermissionPrompt] = useState(false);
 
   // Check if we need to show permission prompt
   useEffect(() => {
-    if (!fcmLoading && !permissionGranted && !fcmToken) {
+    if (!apnsLoading && !permissionGranted && !apnsToken) {
       setShowPermissionPrompt(true);
     } else {
       setShowPermissionPrompt(false);
     }
-  }, [fcmLoading, permissionGranted, fcmToken]);
+  }, [apnsLoading, permissionGranted, apnsToken]);
 
   const handleRequestPermission = async () => {
     try {
@@ -59,7 +59,7 @@ const PushNotifications = () => {
     someone_from_contacts_joined: 'Contacts Joined App',
   };
 
-  if (loading || fcmLoading) {
+  if (loading || apnsLoading) {
     return (
       <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color={themeColors.mountainGreen} style={{ marginTop: 32 }}/>
@@ -135,29 +135,29 @@ const PushNotifications = () => {
         )}
 
         {/* Status indicator */}
-        {!fcmLoading && (
+        {!apnsLoading && (
           <View style={{
             flexDirection: 'row',
             alignItems: 'center',
             marginBottom: 20,
             paddingVertical: 8,
             paddingHorizontal: 12,
-            backgroundColor: permissionGranted && fcmToken ? 
+            backgroundColor: permissionGranted && apnsToken ? 
               `${themeColors.mountainGreen}20` : 
               `${themeColors.placeholderTextColor}20`,
             borderRadius: 8
           }}>
             <Feather 
-              name={permissionGranted && fcmToken ? "check-circle" : "alert-circle"} 
+              name={permissionGranted && apnsToken ? "check-circle" : "alert-circle"} 
               size={16} 
-              color={permissionGranted && fcmToken ? themeColors.mountainGreen : themeColors.placeholderTextColor}
+              color={permissionGranted && apnsToken ? themeColors.mountainGreen : themeColors.placeholderTextColor}
               style={{ marginRight: 8 }}
             />
             <ThemedText style={{ 
               fontSize: 13,
-              color: permissionGranted && fcmToken ? themeColors.mountainGreen : themeColors.placeholderTextColor
+              color: permissionGranted && apnsToken ? themeColors.mountainGreen : themeColors.placeholderTextColor
             }}>
-              {permissionGranted && fcmToken ? 
+              {permissionGranted && apnsToken ? 
                 'Push notifications are enabled' : 
                 'Push notifications are disabled'
               }
