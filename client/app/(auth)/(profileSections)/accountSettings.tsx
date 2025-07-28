@@ -227,7 +227,7 @@ const accountSettings = () => {
         // Show final confirmation after successful verification
         Alert.alert(
           "Confirm Deletion",
-          "Are you absolutely sure you want to delete your account? This cannot be undone.",
+          "Are you absolutely sure you want to delete your account? You will have 30 days to reactivate your account before it is permanently deleted.",
           [
             {
               text: "Cancel",

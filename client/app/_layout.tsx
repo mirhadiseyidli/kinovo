@@ -16,8 +16,6 @@ import { UserPresence } from "@/components/UserPresence";
 import { initializeAppCheckIfNeeded } from "@/config/firebase";
 import { useAutomaticCacheManagement } from "@/hooks/useImageCache";
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
-// Import background notification handler to register it
-import '@/utils/backgroundNotificationHandler';
 import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
 import { BannerProvider } from '@/context/BannerContext';
@@ -64,6 +62,7 @@ function InnerLayout() {
   const { isLoading, accessToken } = useAuthSession();
   const [appIsReady, setAppIsReady] = useState(false);
   const [isLogoLoaded, setIsLogoLoaded] = useState(false);
+  const [isNotificationSystemInitialized, setIsNotificationSystemInitialized] = useState(false);
   const [isFirebaseInitialized, setIsFirebaseInitialized] = useState(false);
   const logoFadeAnim = useSharedValue(1);
   const colorScheme = useColorScheme();
@@ -88,9 +87,14 @@ function InnerLayout() {
     initializeFirebase();
   }, []);
 
-  // Initialize TanStack utilities after auth is ready and Firebase is initialized
   useEffect(() => {
-    if (isFirebaseInitialized && !isLoading) {
+    // APNs initialization is now handled in UserPresence component
+    setIsNotificationSystemInitialized(true);
+  }, []);
+
+  // Initialize TanStack utilities after auth is ready, Firebase is initialized, and notification system is initialized
+  useEffect(() => {
+    if (isFirebaseInitialized && isNotificationSystemInitialized && !isLoading) {
       const initializeTanStackUtilities = async () => {
         try {
           // Always initialize core production utilities
@@ -134,7 +138,7 @@ function InnerLayout() {
       
       initializeTanStackUtilities();
     }
-  }, [isFirebaseInitialized, isLoading]);
+  }, [isFirebaseInitialized, isNotificationSystemInitialized, isLoading]);
 
   useEffect(() => {
     async function prepare() {

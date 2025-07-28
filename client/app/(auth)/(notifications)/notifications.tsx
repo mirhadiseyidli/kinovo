@@ -15,7 +15,6 @@ import { FriendRequestNotification, NotificationData } from '@/types/allTypes';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFirebaseUpdate } from '@/hooks/useFirebaseRealtime';
 import { EventCardSkeleton, SkeletonBox } from '@/components/Skeleton';
 
 export default function NotificationsPage() {
@@ -30,16 +29,21 @@ export default function NotificationsPage() {
   // Stable refs to prevent infinite loops
   const hasMarkedFriendRequestsRef = useRef(false);
   
+  // Stable refs for cleanup functions to avoid useFocusEffect re-running on data changes
+  const markAllNotificationsAsViewedRef = useRef<() => Promise<void>>(async () => {});
+  const markAllPaginatedAsReadRef = useRef<() => Promise<void>>(async () => {});
+  const markFriendRequestsAsViewedRef = useRef<() => Promise<void>>(async () => {});
+  
   // Use NotificationContext for friend requests and overall notifications management
   const {
     friendRequests,
     loading: contextLoading,
-    firebaseLoading,
     handleAcceptFriendRequest,
     handleDeclineFriendRequest,
     markAllNotificationsAsViewed,
     markFriendRequestsAsViewed,
     refreshData,
+    registerNotificationPageCallback,
   } = useNotifications();
 
   // Use paginated notifications hook for the main notifications list
@@ -59,31 +63,64 @@ export default function NotificationsPage() {
     markAllNotificationsAsRead: markAllPaginatedAsRead
   } = usePaginatedNotifications(5);
 
+  // Update refs when functions change (after they're declared)
+  useEffect(() => {
+    markAllNotificationsAsViewedRef.current = markAllNotificationsAsViewed;
+    markAllPaginatedAsReadRef.current = markAllPaginatedAsRead;
+    markFriendRequestsAsViewedRef.current = markFriendRequestsAsViewed;
+  }, [markAllNotificationsAsViewed, markAllPaginatedAsRead, markFriendRequestsAsViewed]);
+
   // Load initial notifications when component mounts
   useEffect(() => {
     loadInitialNotifications();
   }, [loadInitialNotifications]);
 
+  // Register callback to refresh paginated notifications when background notifications arrive
+  useEffect(() => {
+    const handleBackgroundNotification = (type: string) => {
+      console.log('📱 Notifications page: Background notification received, refreshing paginated data for type:', type);
+      
+      // Refresh paginated notifications when any notification arrives while on notifications page
+      if (type === 'friend_request' || type === 'friend_request_accepted') {
+        // Friend requests are handled by NotificationContext, no need to refresh paginated notifications
+        return;
+      } else {
+        // Refresh paginated notifications for event-related notifications
+        refreshNotifications();
+      }
+    };
+
+    const unregister = registerNotificationPageCallback(handleBackgroundNotification);
+    
+    return unregister;
+  }, [registerNotificationPageCallback, refreshNotifications]);
+
   // Mark notifications as viewed only when leaving the screen, not when arriving
   useFocusEffect(
     React.useCallback(() => {
+      // Capture current values at focus time
+      const currentContextLoading = contextLoading;
+      const currentFriendRequestsLength = friendRequests.length;
+      
       // Mark friend requests as viewed when user views this screen (for Firebase cleanup)
       // Only do this once per screen visit to avoid loops
-      if (!contextLoading && !firebaseLoading && friendRequests.length > 0 && !hasMarkedFriendRequestsRef.current) {
+      if (!currentContextLoading && currentFriendRequestsLength > 0 && !hasMarkedFriendRequestsRef.current) {
         hasMarkedFriendRequestsRef.current = true;
-        markFriendRequestsAsViewed();
+        markFriendRequestsAsViewedRef.current();
       }
       
       // Only mark notifications as viewed when LEAVING the screen
       return () => {
         hasMarkedFriendRequestsRef.current = false; // Reset for next visit
-        if (!contextLoading && !firebaseLoading) {
+        // Capture loading state at cleanup time to avoid stale closure
+        const cleanupContextLoading = contextLoading;
+        if (!cleanupContextLoading) {
           // Mark both context notifications and paginated notifications as read
-          markAllNotificationsAsViewed();
-          markAllPaginatedAsRead();
+          markAllNotificationsAsViewedRef.current();
+          markAllPaginatedAsReadRef.current();
         }
       };
-    }, [contextLoading, firebaseLoading, friendRequests.length, markAllNotificationsAsViewed, markFriendRequestsAsViewed, markAllPaginatedAsRead])
+    }, []) // No dependencies - only run on focus/unfocus, not on data changes
   );
 
   // Sort notifications: unread first, then read, all sorted by time (newest first)

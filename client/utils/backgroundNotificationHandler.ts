@@ -1,22 +1,91 @@
-import messaging from '@react-native-firebase/messaging';
+import * as Notifications from 'expo-notifications';
 import { NavigationAction } from '@react-navigation/native';
+import api from './api';
 
-// Background message handler
-messaging().setBackgroundMessageHandler(async remoteMessage => {
-  
-  // You can process the notification here
-  // For example, update local storage, show local notification, etc.
-  
-  // The notification will automatically appear in the notification tray
-  // due to the notification payload from the server
+// Configure notification behavior
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
 });
+
+// Background notification handler for push-to-fetch
+export const setupBackgroundNotificationHandler = (onNotificationReceived?: (type: string) => void) => {
+  return Notifications.addNotificationReceivedListener(async (notification) => {
+    console.log('📱 Background notification received:', notification);
+    
+    // Try to get data from multiple possible locations
+    let data = notification.request.content.data;
+    
+    // If data is null, try accessing the payload directly (APNs specific)
+    if (!data && notification.request.trigger?.payload) {
+      data = notification.request.trigger.payload;
+      console.log('📱 Using payload data:', data);
+    }
+    
+    // If still no data, try accessing userInfo (another common APNs location)
+    if (!data && notification.request.content.userInfo) {
+      data = notification.request.content.userInfo;
+      console.log('📱 Using userInfo data:', data);
+    }
+    
+    console.log('📱 Final data extracted:', data);
+    
+    // Handle push-to-fetch: when notification is received, fetch fresh data
+    if (data && data.type) {
+      try {
+        console.log('🔄 Triggering data fetch for notification type:', data.type);
+        
+        // Fetch data based on notification type
+        switch (data.type) {
+          case 'friend_request':
+          case 'friend_request_accepted':
+            await api.get('/api/push-fetch/friend-requests');
+            break;
+            
+          case 'event_invitation':
+          case 'event_updated':
+          case 'event_reminder_10_mins':
+          case 'event_reminder_1_hour':
+          case 'event_attendance_confirmed':
+          case 'new_event_from_friend':
+          case 'new_event_nearby':
+            await api.get('/api/push-fetch/notifications');
+            break;
+            
+          case 'user_presence_update':
+            await api.get('/api/push-fetch/presence');
+            break;
+            
+          default:
+            // Fetch general data
+            await api.get('/api/push-fetch/data');
+            break;
+        }
+        
+        console.log('✅ Background data fetch completed for:', data.type);
+        
+        // Notify the UI to refresh
+        if (onNotificationReceived && typeof data.type === 'string') {
+          onNotificationReceived(data.type);
+        }
+      } catch (error) {
+        console.error('❌ Background data fetch failed:', error);
+      }
+    }
+  });
+};
 
 // Handle notification opened from killed state
 export const getInitialNotification = async () => {
-  const remoteMessage = await messaging().getInitialNotification();
+  const response = await Notifications.getLastNotificationResponseAsync();
   
-  if (remoteMessage) {
-    return remoteMessage;
+  if (response) {
+    return response.notification;
   }
   
   return null;

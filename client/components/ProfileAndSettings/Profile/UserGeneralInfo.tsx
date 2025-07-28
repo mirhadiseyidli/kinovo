@@ -232,51 +232,61 @@ const UserGeneralInfo = forwardRef(({ _id }: UserGeneralInfoProps, ref) => {
     onRefresh,
   }));
   
+  // Effect to recalculate friendship status when user data changes
+  const calculateFriendshipStatus = useCallback(() => {
+    if (!userToView || !user) return;
+
+    // Reset any optimistic state first
+    setOptimisticFriendRequestSent(false);
+
+    // Check if they are already friends
+    const areFriends = userToView.friends?.includes(user._id) || user.friends?.includes(userToView._id);
+    
+    if (areFriends) {
+      setFriendshipStatus('friend');
+      return;
+    }
+
+    // Check if there's a pending friend request from the profile API
+    if (friendRequestStatus?.status === 'pending') {
+      if ((friendRequestStatus as any)?.direction === 'sent') {
+        // Current user sent the request - show pending button
+        setFriendshipStatus('pending');
+      } else {
+        // Current user received the request - show accept/decline buttons
+        setFriendshipStatus(null);
+      }
+      return;
+    }
+
+    // Also check the NotificationContext friend requests to see if this user sent us a request
+    const pendingFriendRequest = friendRequests.find(
+      (request: any) => request.sender._id === userToView._id
+    );
+    
+    if (pendingFriendRequest) {
+      // We have a pending friend request from this user - show accept/decline buttons
+      setFriendRequestStatus({
+        status: 'pending',
+        direction: 'received'
+      } as any);
+      setFriendshipStatus(null);
+      return;
+    }
+
+    // No friendship or pending requests - show add friend button
+    setFriendshipStatus(null);
+  }, [friendRequestStatus, user, userToView, friendRequests]);
+
+  // Run friendship status calculation when user data changes
+  useEffect(() => {
+    calculateFriendshipStatus();
+  }, [calculateFriendshipStatus]);
+
   useFocusEffect(
     useCallback(() => {
-      if (!userToView || !user) return;
-
-      // Reset any optimistic state first
-      setOptimisticFriendRequestSent(false);
-
-      // Check if they are already friends
-      const areFriends = userToView.friends?.includes(user._id) || user.friends?.includes(userToView._id);
-      
-      if (areFriends) {
-        setFriendshipStatus('friend');
-        return;
-      }
-
-      // Check if there's a pending friend request from the profile API
-      if (friendRequestStatus?.status === 'pending') {
-        if ((friendRequestStatus as any)?.direction === 'sent') {
-          // Current user sent the request - show pending button
-          setFriendshipStatus('pending');
-        } else {
-          // Current user received the request - show accept/decline buttons
-          setFriendshipStatus(null);
-        }
-        return;
-      }
-
-      // Also check the NotificationContext friend requests to see if this user sent us a request
-      const pendingFriendRequest = friendRequests.find(
-        (request: any) => request.sender._id === userToView._id
-      );
-      
-      if (pendingFriendRequest) {
-        // We have a pending friend request from this user - show accept/decline buttons
-        setFriendRequestStatus({
-          status: 'pending',
-          direction: 'received'
-        } as any);
-        setFriendshipStatus(null);
-        return;
-      }
-
-      // No friendship or pending requests - show add friend button
-      setFriendshipStatus(null);
-    }, [friendRequestStatus, user, userToView, friendRequests])
+      calculateFriendshipStatus();
+    }, [calculateFriendshipStatus])
   );
 
   useFocusEffect(

@@ -258,7 +258,7 @@ export type FriendEventActivity = {
 // =========================
 
 export interface AuthLoginProps {
-  onLoginSuccess: (accessToken: string, refreshToken: string, userId: string, firebaseToken?: string) => void;
+  onLoginSuccess: (accessToken: string, refreshToken: string, userId: string) => void;
   onLoginStart?: () => void;
   onLoginError?: () => void;
 }
@@ -269,7 +269,7 @@ export interface EmailLoginProps {
   onLoginError?: () => void;
 }
 
-export type TokenTypes = (accessToken: string, refreshToken: string, userId: string, firebaseToken?: string) => void;
+export type TokenTypes = (accessToken: string, refreshToken: string, userId: string) => void;
 
 
 export interface AuthButtonProps {
@@ -279,16 +279,14 @@ export interface AuthButtonProps {
 }
 
 export interface AuthContextType {
-  signIn: (accessToken: string, refreshToken: string, userId: string, firebaseToken?: string) => void;
+  signIn: (accessToken: string, refreshToken: string, userId: string) => void;
   signOut: () => void;
   accessToken: RefObject<string | null> | null;
   refreshToken: RefObject<string | null> | null;
-  firebaseToken: RefObject<string | null> | null;
   isLoading: boolean;
   refreshAccessToken: () => Promise<void>;
   checkAuth: () => Promise<void>;
   userId?: string;
-  isFirebaseAuthenticated: boolean;
 }
 
 // =========================

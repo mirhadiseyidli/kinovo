@@ -125,7 +125,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       '@react-native-firebase/app',
       '@react-native-firebase/auth',
       '@react-native-firebase/app-check',
-      '@react-native-firebase/messaging',
       'expo-notifications',
       'expo-calendar',
       'expo-apple-authentication',

@@ -112,12 +112,13 @@ const EditPhone = () => {
       const cleanedPhone = phoneNumber.replace(/\D/g, '');
       const formattedPhone = `+1${cleanedPhone}`;
 
-      const response = await api.post('/api/auth/change-phone/protected', {
+      const response = await api.post('/api/auth/change-phone', {
         currentPhoneNumber,
         newPhoneNumber: formattedPhone,
         verificationId,
         verificationCode
       });
+      console.log(response)
 
       if (response.data.success) {
         Alert.alert('Success', 'Phone number changed successfully', [

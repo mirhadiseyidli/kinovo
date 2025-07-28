@@ -51,22 +51,15 @@ APPLE_WEATHER_PRIVATE_KEY=$(get_parameter "/kinovo/APPLE_WEATHER_PRIVATE_KEY") &
 APPLE_CLIENT_ID=$(get_parameter "/kinovo/APPLE_CLIENT_ID") && echo "APPLE_CLIENT_ID=$APPLE_CLIENT_ID" >> .env
 
 echo "" >> .env
+echo "# APNs Push Notifications" >> .env
+APNS_KEY_ID=$(get_parameter "/kinovo/APNS_KEY_ID") && echo "APNS_KEY_ID=$APNS_KEY_ID" >> .env
+APNS_PRIVATE_KEY=$(get_parameter "/kinovo/APNS_PRIVATE_KEY") && echo "APNS_PRIVATE_KEY=$APNS_PRIVATE_KEY" >> .env
+
+echo "" >> .env
 echo "# OpenAI" >> .env
 OPENAI_API_KEY=$(get_parameter "/kinovo/OPENAI_API_KEY") && echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> .env
 
-echo "" >> .env
-echo "# Firebase" >> .env
-FIREBASE_PROJECT_ID=$(get_parameter "/kinovo/FIREBASE_PROJECT_ID") && echo "FIREBASE_PROJECT_ID=$FIREBASE_PROJECT_ID" >> .env
-FIREBASE_PRIVATE_KEY=$(get_parameter "/kinovo/FIREBASE_PRIVATE_KEY") && echo "FIREBASE_PRIVATE_KEY=$FIREBASE_PRIVATE_KEY" >> .env
-FIREBASE_CLIENT_EMAIL=$(get_parameter "/kinovo/FIREBASE_CLIENT_EMAIL") && echo "FIREBASE_CLIENT_EMAIL=$FIREBASE_CLIENT_EMAIL" >> .env
-FIREBASE_DATABASE_URL=$(get_parameter "/kinovo/FIREBASE_DATABASE_URL") && echo "FIREBASE_DATABASE_URL=$FIREBASE_DATABASE_URL" >> .env
-FIREBASE_API_KEY=$(get_parameter "/kinovo/FIREBASE_API_KEY") && echo "FIREBASE_API_KEY=$FIREBASE_API_KEY" >> .env
-FIREBASE_STORAGE_BUCKET=$(get_parameter "/kinovo/FIREBASE_STORAGE_BUCKET") && echo "FIREBASE_STORAGE_BUCKET=$FIREBASE_STORAGE_BUCKET" >> .env
-FIREBASE_MESSAGING_SENDER_ID=$(get_parameter "/kinovo/FIREBASE_MESSAGING_SENDER_ID") && echo "FIREBASE_MESSAGING_SENDER_ID=$FIREBASE_MESSAGING_SENDER_ID" >> .env
-FIREBASE_IOS_CLIENT_ID=$(get_parameter "/kinovo/FIREBASE_IOS_CLIENT_ID") && echo "FIREBASE_IOS_CLIENT_ID=$FIREBASE_IOS_CLIENT_ID" >> .env
-FIREBASE_APP_ID=$(get_parameter "/kinovo/FIREBASE_APP_ID") && echo "FIREBASE_APP_ID=$FIREBASE_APP_ID" >> .env
-FIREBASE_PRIVATE_KEY_ID=$(get_parameter "/kinovo/FIREBASE_PRIVATE_KEY_ID") && echo "FIREBASE_PRIVATE_KEY_ID=$FIREBASE_PRIVATE_KEY_ID" >> .env
-FIREBASE_CLIENT_ID=$(get_parameter "/kinovo/FIREBASE_CLIENT_ID") && echo "FIREBASE_CLIENT_ID=$FIREBASE_CLIENT_ID" >> .env
+# Firebase environment variables removed - using APNs directly
 
 echo "" >> .env
 echo "# SMTP / Email" >> .env
