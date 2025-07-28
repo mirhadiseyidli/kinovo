@@ -8,26 +8,38 @@ import { ThemedText } from '@/components/ThemedText';
 import { Feather, Octicons } from '@expo/vector-icons';
 import { useManageFriends } from '@/hooks/useManageFriends';
 
-const AlreadyFriendsAndUnfriendButton = ({ targetUser, loadingFriendAction, buttonFlex = 1, onUnfriend }: ManageFriendButtonProps & { onUnfriend?: () => void }) => {
+const AlreadyFriendsAndUnfriendButton = ({ targetUser, loadingFriendAction, buttonFlex = 1, onUnfriend }: ManageFriendButtonProps & { onUnfriend?: () => Promise<void> }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { removeFriendFromFriendList } = useManageFriends();
 
   const alertUserBeforeRemoving = () => {
       Alert.alert(
-        'Cancel Friend Request',
-        "You're about to cancel your friend request. Are you sure?",
+        'Remove Friend',
+        'Are you sure you want to remove this friend from your friends list?',
         [
           {
-            text: 'Keep Friend',
-            style: 'cancel',
+            text: 'Cancel',
+            style: 'cancel'
           },
           {
-            text: 'Remove Friend',
+            text: 'Remove',
             style: 'destructive',
-            onPress: () => {
-              removeFriendFromFriendList(targetUser);
-              if (onUnfriend) onUnfriend();
+            onPress: async () => {
+              try {
+                await removeFriendFromFriendList(targetUser);
+                
+                // Call onUnfriend callback to refresh the UI
+                if (onUnfriend) {
+                  await onUnfriend();
+                }
+                
+                // Show success message
+                Alert.alert('Success', 'Friend removed successfully');
+              } catch (error: any) {
+                console.error('Error removing friend:', error);
+                Alert.alert('Error', error?.response?.data?.message || 'Failed to remove friend. Please try again.');
+              }
             },
           },
         ],

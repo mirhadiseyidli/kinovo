@@ -43,6 +43,7 @@ router.post('/verify-reset-code', verifyResetCode);
 router.post('/reset-password', resetPassword);
 
 // Dual-use routes (both public and protected versions)
+router.post('/check-phone/protected', authMiddleware, checkPhone);
 router.post('/get-phone', getPhoneNumber); // Public version for login/2FA
 router.post('/get-phone/protected', authMiddleware, getPhoneNumber); // Protected version for logged-in users
 

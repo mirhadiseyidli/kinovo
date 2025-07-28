@@ -39,9 +39,9 @@ const EventLocationInfo: React.FC<EventLocationInfoProps> = React.memo(({ locati
             </ThemedText>
           </View>
         </View>
-        {/* <View>
+        <View>
           <WeatherDisplay lat={location.coordinates.lat} lon={location.coordinates.lng} size={24} />
-        </View> */}
+        </View>
       </View>
       {location?.coordinates?.lat != null && location?.coordinates?.lng != null && isMapReady && (
         <OptimizedMapView

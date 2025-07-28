@@ -144,15 +144,7 @@ export function useUserPresence() {
         heartbeatIntervalRef.current = null;
       }
       
-      // Send offline status on cleanup (fire and forget) - do this BEFORE setting mounted to false
-      if (userId) {
-        // Call setUserOffline directly with api instead of using the callback that checks mountedRef
-        api.post('/api/push-fetch/presence/offline')
-          .then(() => console.log('User set to offline on cleanup'))
-          .catch(error => console.error('Failed to set user offline on cleanup:', error));
-      }
-      
-      // Set mounted to false AFTER sending the offline request
+      // Set mounted to false (offline cleanup is handled by AuthProvider.signOut)
       mountedRef.current = false;
     };
   }, [userId]);

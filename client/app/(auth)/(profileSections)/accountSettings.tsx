@@ -20,7 +20,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Calendar from 'expo-calendar';
 import SettingComponent from '@/components/ProfileAndSettings/Settings/SettingComponent';
 import api from '@/utils/api';
-// import TwoFactorAuth from '@/components/Auth/TwoFactorAuth';
+import TwoFactorAuth from '@/components/Auth/TwoFactorAuth';
 
 const accountSettings = () => {
   const colorScheme = useColorScheme();
@@ -227,7 +227,7 @@ const accountSettings = () => {
         // Show final confirmation after successful verification
         Alert.alert(
           "Confirm Deletion",
-          "Are you absolutely sure you want to delete your account? This cannot be undone.",
+          "Are you absolutely sure you want to delete your account? You will have 30 days to reactivate your account before it is permanently deleted.",
           [
             {
               text: "Cancel",
@@ -278,11 +278,11 @@ const accountSettings = () => {
   if (show2FA) {
     return (
       <ThemedView style={{ flex: 1, padding: 16 }}>
-        {/* <TwoFactorAuth
+        <TwoFactorAuth
           phoneNumber={user?.phone_number?.full_num || ''}
           onVerificationSuccess={handleVerificationSuccess}
           onCancel={() => setShow2FA(false)}
-        /> */}
+        />
       </ThemedView>
     );
   }

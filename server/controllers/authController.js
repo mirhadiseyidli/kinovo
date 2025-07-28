@@ -4,6 +4,7 @@ const UserContacts = require('../database/schemas/userContactsSchema');
 const UserNotificationPreferences = require('../database/schemas/userNotificationPreferencesSchema');
 const { generateAccessToken, generateRefreshToken } = require('../utils/token');
 const { verifyIdToken } = require('../utils/googleAuth');
+const { admin } = require('../config/firebase-admin');
 const jwt = require('jsonwebtoken');
 const logger = require('winston');
 const { verifyIdentityToken } = require('../utils/appleAuth');
@@ -83,6 +84,7 @@ const googleAuth = async (req, res) => {
 
     const accessToken = generateAccessToken({ _id: userDataFromDB._id, email: user.email });
     const refreshToken = generateRefreshToken({ _id: userDataFromDB._id, email: user.email });
+    const customToken = await admin.auth().createCustomToken(userDataFromDB._id.toString());
 
     res.json({
       success: true,
@@ -96,6 +98,7 @@ const googleAuth = async (req, res) => {
       },
       accessToken,
       refreshToken,
+      firebaseToken: customToken
     });
   } catch (err) {
     logger.error('Error verifying Google token:', err);
@@ -173,6 +176,7 @@ const appleAuth = async (req, res) => {
 
     const accessToken = generateAccessToken({ _id: existingUser._id, email: existingUser.email });
     const refreshToken = generateRefreshToken({ _id: existingUser._id, email: existingUser.email });
+    const customToken = await admin.auth().createCustomToken(existingUser._id.toString());
 
     res.json({
       success: true,
@@ -186,6 +190,7 @@ const appleAuth = async (req, res) => {
       },
       accessToken,
       refreshToken,
+      firebaseToken: customToken
     });
   } catch (err) {
     console.error('Error in Apple auth:', err);
@@ -224,6 +229,7 @@ const login = async (req, res) => {
 
     const accessToken = generateAccessToken({ _id: user._id, email: user.email });
     const refreshToken = generateRefreshToken({ _id: user._id, email: user.email });
+    const customToken = await admin.auth().createCustomToken(user._id.toString());
 
     return res.json({
       success: true,
@@ -238,6 +244,7 @@ const login = async (req, res) => {
       },
       accessToken,
       refreshToken,
+      firebaseToken: customToken
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -321,6 +328,7 @@ const signup = async (req, res) => {
 
       const accessToken = generateAccessToken({ _id: userDataFromDB._id, email: userDataFromDB.email });
       const refreshToken = generateRefreshToken({ _id: userDataFromDB._id, email: userDataFromDB.email });
+      const customToken = await admin.auth().createCustomToken(userDataFromDB._id.toString());
 
       return res.status(200).json({
         success: true,
@@ -334,6 +342,7 @@ const signup = async (req, res) => {
         },
         accessToken,
         refreshToken,
+        firebaseToken: customToken
       });
     }
 
@@ -420,6 +429,7 @@ const verifyLogin = async (req, res) => {
       });
     }
 
+    const customToken = await admin.auth().createCustomToken(user._id.toString());
     const accessToken = generateAccessToken({ _id: user._id, email: user.email });
     const refreshToken = generateRefreshToken({ _id: user._id, email: user.email });
 
@@ -436,6 +446,7 @@ const verifyLogin = async (req, res) => {
       },
       accessToken,
       refreshToken,
+      firebaseToken: customToken
     });
   } catch (error) {
     console.error('Error verifying login:', error);
@@ -684,10 +695,10 @@ const changeEmail = async (req, res) => {
 const changePhone = async (req, res) => {
   const { currentPhoneNumber, newPhoneNumber, verificationId, verificationCode } = req.body;
 
-  if (!currentPhoneNumber || !newPhoneNumber || !verificationId || !verificationCode) {
+  if (!newPhoneNumber || !verificationId || !verificationCode) {
     return res.status(400).json({
       success: false,
-      message: 'All fields are required'
+      message: 'New phone number, verification ID, and verification code are required'
     });
   }
 
@@ -703,7 +714,16 @@ const changePhone = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ 'phone_number.full_num': currentPhoneNumber });
+    // Find user by current phone number if provided, otherwise use userId from auth middleware
+    let user;
+    if (currentPhoneNumber) {
+      // User is changing their existing phone number
+      user = await User.findOne({ 'phone_number.full_num': currentPhoneNumber });
+    } else {
+      // User is adding their first phone number (use authenticated user)
+      user = await User.findById(req.user._id);
+    }
+
     if (!user) {
       return res.status(404).json({
         success: false,
