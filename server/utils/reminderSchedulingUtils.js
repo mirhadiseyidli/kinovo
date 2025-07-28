@@ -40,15 +40,21 @@ const userWantsReminder = async (userId, reminderType) => {
  * @param {string} userId - User ID
  * @param {string} reminderType - '10min' or '1hour'
  * @param {Date} occurrenceDate - Optional occurrence date for recurring events
- * @returns {string} Unique schedule name
+ * @returns {string} Unique schedule name (max 64 chars for AWS EventBridge)
  */
 const generateScheduleName = (eventId, userId, reminderType, occurrenceDate = null) => {
-  const prefix = reminderType === '10min' ? 'event-reminder-10min-' : 'event-reminder-1hour-';
+  const prefix = reminderType === '10min' ? 'ER-10-' : 'ER-1-';
   let scheduleName = `${prefix}${eventId}-${userId}`;
   
   if (occurrenceDate) {
     const dateStr = occurrenceDate.toISOString().split('T')[0];
     scheduleName += `-${dateStr}`;
+  }
+  
+  // Ensure we don't exceed 64 character limit
+  if (scheduleName.length > 64) {
+    console.warn(`Schedule name too long (${scheduleName.length} chars), truncating to 64: ${scheduleName}`);
+    scheduleName = scheduleName.substring(0, 64);
   }
   
   return scheduleName;
