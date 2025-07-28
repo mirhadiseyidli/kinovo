@@ -13,6 +13,7 @@ import { ThemedView } from "@/components/ThemedView";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { UserPresence } from "@/components/UserPresence";
+import { initializeAppCheckIfNeeded } from "@/config/firebase";
 import { useAutomaticCacheManagement } from "@/hooks/useImageCache";
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
 import * as Notifications from 'expo-notifications';
@@ -62,6 +63,7 @@ function InnerLayout() {
   const [appIsReady, setAppIsReady] = useState(false);
   const [isLogoLoaded, setIsLogoLoaded] = useState(false);
   const [isNotificationSystemInitialized, setIsNotificationSystemInitialized] = useState(false);
+  const [isFirebaseInitialized, setIsFirebaseInitialized] = useState(false);
   const logoFadeAnim = useSharedValue(1);
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
@@ -71,13 +73,28 @@ function InnerLayout() {
   useAutomaticCacheManagement();
 
   useEffect(() => {
+    const initializeFirebase = async () => {
+      try {
+        await initializeAppCheckIfNeeded();
+        setIsFirebaseInitialized(true);
+      } catch (error) {
+        console.error('Failed to initialize Firebase:', error);
+        // Don't block app loading on Firebase error
+        setIsFirebaseInitialized(true);
+      }
+    };
+    
+    initializeFirebase();
+  }, []);
+
+  useEffect(() => {
     // APNs initialization is now handled in UserPresence component
     setIsNotificationSystemInitialized(true);
   }, []);
 
-  // Initialize TanStack utilities after auth is ready and notification system is initialized
+  // Initialize TanStack utilities after auth is ready, Firebase is initialized, and notification system is initialized
   useEffect(() => {
-    if (isNotificationSystemInitialized && !isLoading) {
+    if (isFirebaseInitialized && isNotificationSystemInitialized && !isLoading) {
       const initializeTanStackUtilities = async () => {
         try {
           // Always initialize core production utilities
@@ -121,7 +138,7 @@ function InnerLayout() {
       
       initializeTanStackUtilities();
     }
-  }, [isNotificationSystemInitialized, isLoading]);
+  }, [isFirebaseInitialized, isNotificationSystemInitialized, isLoading]);
 
   useEffect(() => {
     async function prepare() {
@@ -168,8 +185,8 @@ function InnerLayout() {
     </ThemedView>
   ) : (
     <ThemedView style={{ flex: 1 }}>
-        {/* Show UserPresence when authenticated */}
-        {!isLoading && accessToken?.current && <UserPresence />}
+        {/* Only show UserPresence when Firebase is initialized */}
+        {!isLoading && accessToken?.current && isFirebaseInitialized && <UserPresence />}
         <Slot />
     </ThemedView>
   );

@@ -28,6 +28,20 @@ const InviteFriendModal: React.FC<InviteFriendModalProps> = ({ visible, onClose 
   const [modalVisible, setModalVisible] = useState(visible);
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
+  const resetForm = () => {
+    setEmail('');
+    setPhoneNumber('');
+    setInviteType('email');
+    setIsValidEmail(true);
+    setIsValidPhone(true);
+    setLoading(false);
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
   useEffect(() => {
     let animationRef: Animated.CompositeAnimation | null = null;
     
@@ -48,12 +62,7 @@ const InviteFriendModal: React.FC<InviteFriendModalProps> = ({ visible, onClose 
       animationRef.start(() => {
         setModalVisible(false);
         // Reset state after modal is fully closed
-        setEmail('');
-        setPhoneNumber('');
-        setInviteType('email');
-        setIsValidEmail(true);
-        setIsValidPhone(true);
-        setLoading(false);
+        resetForm();
       });
     }
 
@@ -78,19 +87,23 @@ const InviteFriendModal: React.FC<InviteFriendModalProps> = ({ visible, onClose 
     return cleaned.length === 10 || cleaned.length === 11;
   };
 
-  const formatPhoneNumber = (text: string) => {
-    // Remove all non-digit characters
-    const cleaned = text.replace(/\D/g, '');
+  const formatPhoneNumber = (phone: string) => {
+    // Remove all non-digits
+    const cleaned = phone.replace(/\D/g, '');
+    // Limit to 10 digits
+    const truncated = cleaned.slice(0, 10);
     
-    // Format as +1-(234)-567-8901
-    if (cleaned.length >= 10) {
-      const countryCode = cleaned.length === 11 ? cleaned[0] : '1';
-      const areaCode = cleaned.slice(-10, -7);
-      const firstPart = cleaned.slice(-7, -4);
-      const secondPart = cleaned.slice(-4);
-      return `+${countryCode}-(${areaCode})-${firstPart}-${secondPart}`;
-    }
-    return text;
+    if (truncated.length === 0) return '';
+    if (truncated.length <= 3) return `(${truncated}`;
+    if (truncated.length <= 6) return `(${truncated.slice(0, 3)}) ${truncated.slice(3)}`;
+    return `(${truncated.slice(0, 3)}) ${truncated.slice(3, 6)}-${truncated.slice(6)}`;
+  };
+
+  const getFullPhoneNumber = (phone: string) => {
+    // Remove all non-digit characters
+    const cleaned = phone.replace(/\D/g, '');
+    // Ensure we have exactly 10 digits and prefix with +1
+    return cleaned.length === 10 ? `+1${cleaned}` : '';
   };
 
   const handleEmailChange = (text: string) => {
@@ -101,8 +114,10 @@ const InviteFriendModal: React.FC<InviteFriendModalProps> = ({ visible, onClose 
   };
 
   const handlePhoneChange = (text: string) => {
-    const formatted = formatPhoneNumber(text);
-    setPhoneNumber(formatted);
+    // Format the phone number for display
+    const formattedPhone = formatPhoneNumber(text);
+    setPhoneNumber(formattedPhone);
+    
     if (!isValidPhone) {
       setIsValidPhone(true);
     }
@@ -119,7 +134,7 @@ const InviteFriendModal: React.FC<InviteFriendModalProps> = ({ visible, onClose 
       try {
         await api.post('/api/managefriends/invite-by-email', { email });
         showBanner('Invitation Sent!');
-        onClose();
+        handleClose();
       } catch (error: any) {
         console.error('Error sending invitation:', error);
         const errorMessage = error.response?.data?.message || 'Failed to send invitation.';
@@ -135,15 +150,15 @@ const InviteFriendModal: React.FC<InviteFriendModalProps> = ({ visible, onClose 
       }
 
       const inviteMessage = "Hey! I'd like to invite you to join Kinovo - a great app for discovering and creating events. Check it out!\nhttps://kinovo.app/invite";
-      const phoneOnly = phoneNumber.replace(/\D/g, '');
-      const smsUrl = `sms:+${phoneOnly}?body=${encodeURIComponent(inviteMessage)}`;
+      const fullPhoneNumber = getFullPhoneNumber(phoneNumber);
+      const smsUrl = `sms:${fullPhoneNumber}?body=${encodeURIComponent(inviteMessage)}`;
       
       try {
         const canOpen = await Linking.canOpenURL(smsUrl);
         if (canOpen) {
           await Linking.openURL(smsUrl);
           showBanner('SMS app opened!');
-          onClose();
+          handleClose();
         } else {
           showBanner('Unable to open SMS app');
         }
@@ -163,9 +178,9 @@ const InviteFriendModal: React.FC<InviteFriendModalProps> = ({ visible, onClose 
       animationType="none"
       transparent={true}
       visible={modalVisible}
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
     >
-      <TouchableWithoutFeedback onPress={onClose}>
+      <TouchableWithoutFeedback onPress={handleClose}>
         <Animated.View style={{
           flex: 1,
           justifyContent: 'center',
@@ -200,7 +215,7 @@ const InviteFriendModal: React.FC<InviteFriendModalProps> = ({ visible, onClose 
                     <ThemedText style={{ fontSize: 20, fontWeight: 'bold' }}>Invite a Friend</ThemedText>
                     <TouchableOpacity 
                       style={{ position: 'absolute', top: 0, right: 0 }} 
-                      onPress={onClose}
+                      onPress={handleClose}
                     >
                       <Feather name="x" size={24} color={themeColors.text} />
                     </TouchableOpacity>
@@ -281,11 +296,13 @@ const InviteFriendModal: React.FC<InviteFriendModalProps> = ({ visible, onClose 
                   <View style={{ width: '100%' }}>
                     {inviteType === 'email' ? (
                       <Input
+                        key="email-input"
                         placeholder="friend@example.com"
                         value={email}
                         onChangeText={handleEmailChange}
                         keyboardType="email-address"
                         autoCapitalize="none"
+                        autoFocus={true}
                         style={[
                           {
                             width: '100%',
@@ -299,10 +316,12 @@ const InviteFriendModal: React.FC<InviteFriendModalProps> = ({ visible, onClose 
                       />
                     ) : (
                       <Input
-                        placeholder="+1-(234)-567-8901"
+                        key="phone-input"
+                        placeholder="(234) 567-8901"
                         value={phoneNumber}
                         onChangeText={handlePhoneChange}
                         keyboardType="phone-pad"
+                        autoFocus={true}
                         style={[
                           {
                             width: '100%',

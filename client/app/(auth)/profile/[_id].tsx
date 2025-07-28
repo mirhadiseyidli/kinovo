@@ -104,9 +104,16 @@ const ProfilePage = () => {
               if (!userId) {
                 throw new Error('User ID is missing');
               }
+              
               await removeFriendFromFriendList(userId);
+              
+              // Update local state to reflect the change immediately for UI feedback
+              setIsFriend(false);
+              
+              // Refresh the UserGeneralInfo component to sync with server state
+              userInfoRef.current?.onRefresh();
+              
               Alert.alert('Success', 'Friend removed successfully');
-              router.back();
             } catch (error: any) {
               console.error('Error removing friend:', error?.response?.data || error);
               Alert.alert('Error', error?.response?.data?.message || 'Failed to remove friend. Please try again.');
@@ -115,7 +122,7 @@ const ProfilePage = () => {
         }
       ]
     );
-  }, [userId, removeFriendFromFriendList]);
+  }, [userId, removeFriendFromFriendList, userInfoRef]);
 
   // Memoize header buttons
   const headerRight = useMemo(() => {
