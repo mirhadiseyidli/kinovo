@@ -86,8 +86,6 @@ const startNearbyEventsCron = () => {
               .slice(0, 10);
 
             await createNearbyEventNotification(event._id, usersToNotify);
-          } else {
-            console.log(`No eligible users found for event "${event.title}"`);
           }
         } catch (error) {
           console.error(`Failed to send nearby notifications for event ${event._id}:`, error);
@@ -98,8 +96,6 @@ const startNearbyEventsCron = () => {
       console.error('Error in nearby events cron job:', error);
     }
   });
-
-  console.log('Nearby events cron job started - runs daily at 9 AM');
 };
 
 // Cron job that runs once daily to send friends event notifications
@@ -115,8 +111,6 @@ const startFriendsEventsCron = () => {
       const usersWithFriends = await User.find({
         'friends': { $exists: true, $not: { $size: 0 } }
       }).select('_id friends').populate('friends', '_id');
-
-      console.log(`Found ${usersWithFriends.length} users with friends`);
 
       for (const user of usersWithFriends) {
         try {

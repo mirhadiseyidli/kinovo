@@ -211,14 +211,6 @@ export const useAttentionRequiredQuery = (options: UseAttentionRequiredOptions =
   if (query.isError) {
     console.error('Failed to fetch attention required events:', query.error);
   }
-  
-  if (query.isSuccess && query.data) {
-    // Only log on initial success or when data changes significantly
-    const shouldLog = query.dataUpdatedAt && Date.now() - query.dataUpdatedAt < 1000;
-    if (shouldLog) {
-      console.log(`Fetched ${Array.isArray(query.data) ? query.data.length : 'unknown'} attention required events`);
-    }
-  }
 
   // Enhanced error state with smooth UI support
   const errorState = query.isError ? createErrorStateData(query.error, query.data) : null;

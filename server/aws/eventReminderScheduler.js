@@ -23,7 +23,6 @@ const RULE_PREFIX_1HOUR = 'event-reminder-1hour-';
  * @param {string} userId User ID for the reminder
  */
 function buildScheduleInput(scheduleName, fireAt, reminderType = '1hour', eventId, userId) {
-  console.log('buildScheduleInput', scheduleName, fireAt, reminderType, eventId, userId);
   // EventBridge Scheduler requires format: YYYY-MM-DDTHH:mm:ss
   // Convert from ISO string (2025-07-12T15:12:00.000Z) to required format
   const scheduleDate = fireAt.toISOString().slice(0, 19); // Remove milliseconds and Z
@@ -51,7 +50,6 @@ function buildScheduleInput(scheduleName, fireAt, reminderType = '1hour', eventI
  * @param {string} userId   User ID (optional for backward compatibility)
  */
 async function putSchedule(scheduleName, fireAt, reminderType = '1hour', eventId = null, userId = null) {
-  console.log('putSchedule', scheduleName, fireAt, reminderType, eventId, userId);
   
   // Handle backward compatibility - if scheduleName looks like an eventId
   if (!eventId && scheduleName && !scheduleName.includes('-')) {
@@ -101,7 +99,6 @@ async function putSchedule(scheduleName, fireAt, reminderType = '1hour', eventId
  * @param {string} reminderType '10min', '1hour', 'all', or 'specific' to delete specific schedule
  */
 async function deleteSchedule(scheduleNameOrEventId, reminderType = 'all') {
-  console.log('deleteSchedule', scheduleNameOrEventId, reminderType);
   
   const scheduleNames = [];
   
@@ -129,14 +126,11 @@ async function deleteSchedule(scheduleNameOrEventId, reminderType = 'all') {
       await schedulerClient.send(
         new DeleteScheduleCommand({ Name: scheduleName }),
       );
-      console.log(`Deleted schedule: ${scheduleName}`);
     } catch (err) {
       if (err.name !== 'ResourceNotFoundException') {
         // Ignore "not found" errors; log but don't throw for other errors to prevent crashes
         console.error(`Error deleting schedule ${scheduleName}:`, err);
         // Don't throw - deletion failures shouldn't break main operations
-      } else {
-        console.log(`Schedule not found (already deleted): ${scheduleName}`);
       }
     }
   }

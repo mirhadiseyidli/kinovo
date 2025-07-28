@@ -52,14 +52,7 @@ export const useCalendarEventsQuery = (
   const query = useQuery({
     queryKey,
     queryFn: async () => {
-      console.log('useCalendarEventsQuery refetching events...');
       const events = await getCalendarEventsForDateRange(startDate, endDate, forceRefresh);
-      console.log('Raw events from server:', events.length);
-      console.log('Events with userStatus Calendar:', events.map(e => ({
-        id: e._id,
-        title: e.title,
-        userStatus: e.userStatus
-      })));
       
       // Server already filters to user's events and provides userStatus
       return events;

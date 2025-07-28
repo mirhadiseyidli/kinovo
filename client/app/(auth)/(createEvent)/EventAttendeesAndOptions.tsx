@@ -120,9 +120,7 @@ export default React.memo(function EventAttendeesAndOptions() {
   };
 
   const saveEvent = async (recurringOption?: 'this_only' | 'all_instances') => {
-    console.log('happening')
     if (isEditMode && eventId && recurringOption) {
-      console.log('jshdfkjdsfjhsd')
       // Handle recurring event update with the selected option
       setLoading(true);
       setError(null);
@@ -155,7 +153,6 @@ export default React.memo(function EventAttendeesAndOptions() {
       const response = await createOrUpdateEvent();
       
       if (response?.success) {
-        console.log('hdsfjdhsj')
         navigation.getParent()?.goBack(); // This will close the modal
         Alert.alert(
           'Success', 

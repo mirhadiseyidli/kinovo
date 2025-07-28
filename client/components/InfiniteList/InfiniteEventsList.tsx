@@ -363,21 +363,6 @@ export const InfiniteEventsList: React.FC<InfiniteEventsListProps> = ({
     enabled,
     ...queryOptions,
   });
-  
-  // Debug logging for friends events
-  useEffect(() => {
-    if (eventType === 'friends') {
-      console.log('InfiniteEventsList - Friends events state:', {
-        eventsCount: events.length,
-        isLoading,
-        isError,
-        error,
-        totalCount,
-        hasMore,
-        events: events.slice(0, 2) // Show first 2 events
-      });
-    }
-  }, [eventType, events, isLoading, isError, error, totalCount, hasMore]);
 
   // Handle refresh
   const handleRefresh = useCallback(() => {

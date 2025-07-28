@@ -238,8 +238,6 @@ const acceptFriendRequest = async (req, res) => {
             accepterUsername: receiverUser.username
           });
         }
-      } else {
-        console.log(`User ${sender} has disabled all friend request accepted notifications`);
       }
     }
 

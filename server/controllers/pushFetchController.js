@@ -60,8 +60,6 @@ const fetchNotifications = async (req, res) => {
     .sort({ created_at: -1 })
     .limit(50);
 
-    console.log(`📬 Push-fetch: Found ${notifications.length} unread notifications for user ${userId}`);
-
     res.json({ 
       success: true, 
       data: notifications,
@@ -105,17 +103,13 @@ const fetchFriendRequests = async (req, res) => {
 const fetchPresence = async (req, res) => {
   try {
     const userId = req.user._id;
-    console.log('Fetching presence for userId:', userId);
     
     // Get user's friends list
     const user = await User.findById(userId).populate('friends');
     
     if (!user) {
-      console.log('User not found for userId:', userId);
       return res.status(404).json({ error: 'User not found' });
     }
-
-    console.log('User found, friends count:', user.friends?.length || 0);
 
     // Handle case where user has no friends
     if (!user.friends || user.friends.length === 0) {
@@ -127,7 +121,6 @@ const fetchPresence = async (req, res) => {
     }
 
     const friendIds = user.friends.map(friend => friend._id);
-    console.log('Getting presence for friendIds:', friendIds.length);
     
     // Get presence for all friends
     const friendsPresence = await userPresenceService.getFriendsPresence(friendIds);

@@ -78,7 +78,6 @@ export default function NotificationsPage() {
   // Register callback to refresh paginated notifications when background notifications arrive
   useEffect(() => {
     const handleBackgroundNotification = (type: string) => {
-      console.log('📱 Notifications page: Background notification received, refreshing paginated data for type:', type);
       
       // Refresh paginated notifications when any notification arrives while on notifications page
       if (type === 'friend_request' || type === 'friend_request_accepted') {
