@@ -84,7 +84,6 @@ export const useCreateEventMutation = () => {
 
     // Update cache on success
     onSuccess: (response, variables, context) => {
-      console.log('Event created successfully:', response);
       
       // Extract the event from the response
       const newEvent = response.event;
@@ -217,7 +216,6 @@ export const useUpdateEventMutation = () => {
     },
 
     onSuccess: (response, { eventId }) => {
-      console.log('Event updated successfully:', response);
       
       // Extract the event from the response
       const updatedEvent = response.event;
@@ -336,7 +334,6 @@ export const useDeleteEventMutation = () => {
     },
 
     onSuccess: (_result, eventId) => {
-      console.log('Event deleted successfully:', eventId);
       
       // Invalidate related queries
       queryClient.invalidateQueries({ 

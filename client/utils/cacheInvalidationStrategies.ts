@@ -82,8 +82,6 @@ export const targetedEventInvalidation: InvalidationStrategy = {
         queryKey: [...queryKeys.all, 'category', category],
       });
     }
-    
-    console.log(`✅ Targeted invalidation completed for event ${eventId}`);
   },
 };
 
@@ -147,8 +145,6 @@ export const cascadingInvalidation: InvalidationStrategy = {
         queryKey: [...queryKeys.all, 'public'],
       });
     }
-    
-    console.log(`✅ Cascading invalidation completed for event ${eventId}`);
   },
 };
 
@@ -213,8 +209,6 @@ export const selectiveInvalidation: InvalidationStrategy = {
         });
       }
     }
-    
-    console.log(`✅ Selective invalidation completed for ${Array.from(queriesToInvalidate).join(', ')}`);
   },
 };
 
@@ -307,8 +301,6 @@ export const smartInvalidation: InvalidationStrategy = {
         }
       }
     }
-    
-    console.log(`✅ Smart invalidation completed for ${dependencies.size} dependencies`);
   },
 };
 
@@ -331,20 +323,17 @@ export const optimisticInvalidation: InvalidationStrategy = {
         const optimisticEvent = queryClient.getQueryData(queryKeys.eventById(eventId));
         if (optimisticEvent) {
           updateInfiniteQueryCache(queryClient, 'upcoming', optimisticEvent, userId);
-          console.log(`✅ Optimistic update successful for event ${eventId}`);
           return;
         }
       } else if (eventType === 'delete' && userId && eventId) {
         // Try to remove from infinite query cache
         removeFromInfiniteQueryCache(queryClient, 'upcoming', eventId, userId);
-        console.log(`✅ Optimistic removal successful for event ${eventId}`);
         return;
       } else if (eventType === 'update' && userId && eventId) {
         // Try to update in infinite query cache
         const updatedEvent = queryClient.getQueryData(queryKeys.eventById(eventId));
         if (updatedEvent) {
           updateInfiniteQueryCacheItem(queryClient, 'upcoming', eventId, updatedEvent, userId);
-          console.log(`✅ Optimistic update successful for event ${eventId}`);
           return;
         }
       }
@@ -406,7 +395,6 @@ export const tagBasedInvalidation: InvalidationStrategy = {
     
     await Promise.all(promises);
     
-    console.log(`✅ Tag-based invalidation completed for tags: ${Array.from(tags).join(', ')}`);
   },
 };
 
@@ -530,7 +518,6 @@ export const dependencyBasedInvalidation: InvalidationStrategy = {
     
     await Promise.all(invalidationPromises);
     
-    console.log(`✅ Dependency-based invalidation completed for ${resolvedDependencies.size} dependencies`);
   },
 };
 
@@ -628,8 +615,7 @@ export const smartPrefetchingInvalidation: InvalidationStrategy = {
     Promise.all(prefetchPromises).catch(error => {
       console.warn('Some prefetch operations failed:', error);
     });
-    
-    console.log(`✅ Smart prefetching invalidation completed with ${prefetchPromises.length} prefetch operations`);
+
   },
 };
 
@@ -707,8 +693,6 @@ export const cacheWarmingInvalidation: InvalidationStrategy = {
     });
     
     await Promise.all(warmingPromises);
-    
-    console.log(`✅ Cache warming invalidation completed for ${criticalQueries.size} critical queries`);
   },
 };
 
@@ -740,13 +724,11 @@ export const executeInvalidationStrategy = async (
     throw new Error(`Unknown invalidation strategy: ${strategyName}`);
   }
   
-  console.log(`🔄 Executing invalidation strategy: ${strategy.name}`);
   const startTime = performance.now();
   
   try {
     await strategy.execute(queryClient, context);
     const duration = performance.now() - startTime;
-    console.log(`✅ Invalidation strategy completed in ${duration.toFixed(2)}ms`);
   } catch (error) {
     const duration = performance.now() - startTime;
     console.error(`❌ Invalidation strategy failed after ${duration.toFixed(2)}ms:`, error);
@@ -868,7 +850,6 @@ export const cacheManagementUtils = {
     await Promise.all(promises);
     
     const duration = performance.now() - startTime;
-    console.log(`✅ Batch invalidation completed ${operations.length} operations in ${duration.toFixed(2)}ms`);
   },
   
   /**
@@ -920,16 +901,13 @@ if (__DEV__) {
     testStrategy: async (strategyName: keyof typeof invalidationStrategies, context: CacheInvalidationContext) => {
       const mockQueryClient = {
         invalidateQueries: ({ queryKey }: { queryKey: any }) => {
-          console.log('Mock invalidation:', queryKey);
           return Promise.resolve();
         },
         getQueryData: () => null,
         refetchQueries: ({ queryKey }: { queryKey: any }) => {
-          console.log('Mock refetch:', queryKey);
           return Promise.resolve();
         },
         prefetchQuery: ({ queryKey }: { queryKey: any }) => {
-          console.log('Mock prefetch:', queryKey);
           return Promise.resolve();
         },
         getQueryCache: () => ({

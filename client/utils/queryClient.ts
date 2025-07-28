@@ -81,7 +81,6 @@ export const setupOfflineQueue = async () => {
     // Start the offline queue system
     offlineQueueCleanup = await startOfflineQueue(queryClient);
     
-    console.log('Offline mutation queue initialized');
   } catch (error) {
     console.error('Failed to initialize offline mutation queue:', error);
   }
@@ -91,7 +90,6 @@ export const setupOfflineQueue = async () => {
 export const setupGlobalErrorHandlers = () => {
   try {
     setupGlobalErrorHandling(queryClient);
-    console.log('Global error handling initialized');
   } catch (error) {
     console.error('Failed to initialize global error handling:', error);
   }

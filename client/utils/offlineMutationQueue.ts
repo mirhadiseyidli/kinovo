@@ -109,8 +109,6 @@ const queueMutationForOfflineRetry = async (
 
     // Persist queue to storage
     await persistQueue();
-
-    console.log(`Queued mutation for offline retry: ${offlineMutation.id}`);
   } catch (error) {
     console.error('Failed to queue mutation for offline retry:', error);
   }
@@ -159,12 +157,10 @@ export const processOfflineQueue = async (queryClient: QueryClient): Promise<voi
 
   // Check if we're online
   if (!(await isOnline())) {
-    console.log('Still offline, skipping queue processing');
     return;
   }
 
   isProcessingQueue = true;
-  console.log(`Processing offline queue with ${offlineQueue.length} mutations`);
 
   const processedMutations: string[] = [];
   const failedMutations: OfflineMutation[] = [];
@@ -173,7 +169,6 @@ export const processOfflineQueue = async (queryClient: QueryClient): Promise<voi
     try {
       await processSingleMutation(queryClient, queuedMutation);
       processedMutations.push(queuedMutation.id);
-      console.log(`Successfully processed offline mutation: ${queuedMutation.id}`);
     } catch (error) {
       console.error(`Failed to process offline mutation ${queuedMutation.id}:`, error);
       
@@ -204,7 +199,6 @@ export const processOfflineQueue = async (queryClient: QueryClient): Promise<voi
   await persistQueue();
 
   isProcessingQueue = false;
-  console.log(`Offline queue processing complete. Remaining: ${offlineQueue.length}`);
 };
 
 /**
@@ -279,7 +273,6 @@ const loadQueue = async (): Promise<void> => {
     const queueData = await AsyncStorage.getItem(QUEUE_STORAGE_KEY);
     if (queueData) {
       offlineQueue = JSON.parse(queueData);
-      console.log(`Loaded ${offlineQueue.length} mutations from offline queue`);
     }
   } catch (error) {
     console.error('Failed to load offline queue:', error);
@@ -297,7 +290,6 @@ export const startOfflineQueue = async (queryClient: QueryClient): Promise<() =>
   // Set up connectivity monitoring
   const unsubscribe = NetInfo.addEventListener(state => {
     if (state.isConnected && state.isInternetReachable) {
-      console.log('Device came online, processing offline queue');
       processOfflineQueue(queryClient);
     }
   });
@@ -322,7 +314,6 @@ export const startOfflineQueue = async (queryClient: QueryClient): Promise<() =>
 export const clearOfflineQueue = async (): Promise<void> => {
   offlineQueue = [];
   await AsyncStorage.removeItem(QUEUE_STORAGE_KEY);
-  console.log('Offline mutation queue cleared');
 };
 
 /**
@@ -346,5 +337,4 @@ export const getQueueStatus = (): {
 export const removeMutationFromQueue = async (mutationId: string): Promise<void> => {
   offlineQueue = offlineQueue.filter(m => m.id !== mutationId);
   await persistQueue();
-  console.log(`Removed mutation ${mutationId} from offline queue`);
 };

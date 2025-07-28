@@ -16,29 +16,27 @@ Notifications.setNotificationHandler({
 // Background notification handler for push-to-fetch
 export const setupBackgroundNotificationHandler = (onNotificationReceived?: (type: string) => void) => {
   return Notifications.addNotificationReceivedListener(async (notification) => {
-    console.log('📱 Background notification received:', notification);
     
     // Try to get data from multiple possible locations
     let data = notification.request.content.data;
     
     // If data is null, try accessing the payload directly (APNs specific)
-    if (!data && notification.request.trigger?.payload) {
-      data = notification.request.trigger.payload;
-      console.log('📱 Using payload data:', data);
+    // Use type guard to safely check for payload property
+    if (!data && notification.request.trigger && 'payload' in notification.request.trigger) {
+      const triggerWithPayload = notification.request.trigger as { payload: Record<string, unknown> };
+      data = triggerWithPayload.payload;
     }
     
-    // If still no data, try accessing userInfo (another common APNs location)
-    if (!data && notification.request.content.userInfo) {
-      data = notification.request.content.userInfo;
-      console.log('📱 Using userInfo data:', data);
+    // If still no data, try accessing userInfo (APNs specific)
+    // Use type guard to safely check for userInfo property
+    if (!data && 'userInfo' in notification.request.content) {
+      const contentWithUserInfo = notification.request.content as { userInfo: Record<string, unknown> };
+      data = contentWithUserInfo.userInfo;
     }
-    
-    console.log('📱 Final data extracted:', data);
     
     // Handle push-to-fetch: when notification is received, fetch fresh data
     if (data && data.type) {
       try {
-        console.log('🔄 Triggering data fetch for notification type:', data.type);
         
         // Fetch data based on notification type
         switch (data.type) {
@@ -66,8 +64,6 @@ export const setupBackgroundNotificationHandler = (onNotificationReceived?: (typ
             await api.get('/api/push-fetch/data');
             break;
         }
-        
-        console.log('✅ Background data fetch completed for:', data.type);
         
         // Notify the UI to refresh
         if (onNotificationReceived && typeof data.type === 'string') {

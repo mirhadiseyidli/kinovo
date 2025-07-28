@@ -100,18 +100,15 @@ function InnerLayout() {
           // Always initialize core production utilities
           const initializeOfflineQueue = async () => {
             await setupOfflineQueue();
-            console.log('Offline queue initialized successfully');
           };
           
           const initializeErrorHandlers = () => {
             setupGlobalErrorHandlers();
-            console.log('Error handlers initialized successfully');
           };
           
           const initializeTelemetry = () => {
             if (__DEV__) {
               initializeAppTelemetry(queryClient);
-              console.log('Telemetry initialized successfully (development only)');
             }
           };
           
@@ -119,7 +116,6 @@ function InnerLayout() {
           const initializeDevToolsSetup = async () => {
             if (__DEV__) {
               await initializeDevTools(queryClient);
-              console.log('DevTools initialized successfully (development only)');
             }
           };
           

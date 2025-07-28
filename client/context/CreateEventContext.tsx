@@ -295,7 +295,6 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
       } else {
         // Create new event with TanStack Query mutation
         response = await createEventMutation.mutateAsync(eventData);
-        console.log('ehre is htg', response)
       }
       
       if (response?.success) {
