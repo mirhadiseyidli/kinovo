@@ -3,13 +3,12 @@ import { useManageFriends } from '@/hooks/useManageFriends';
 import { FriendRequestNotification, NotificationData } from '@/types/allTypes';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '@/utils/api';
-import { useNotifications as useFirebaseNotificationsHook, useFriendRequests as useFirebaseFriendRequestsHook, useFirebaseUpdate } from '@/hooks/useFirebaseRealtime';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
-import { firebaseAuth, db } from '@/config/firebase';
-import { ref, onValue, update, get, remove } from '@react-native-firebase/database';
+// Using APNs push-to-fetch system
 import { Alert } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { useBadgeManager } from '@/hooks/useBadgeManager';
+import { setupBackgroundNotificationHandler } from '@/utils/backgroundNotificationHandler';
 
 // Create notification context
 interface NotificationContextType {
@@ -28,25 +27,27 @@ interface NotificationContextType {
   markAllNotificationsAsViewed: () => Promise<void>;
   markFriendRequestsAsViewed: () => Promise<void>;
   refreshData: () => Promise<void>;
-  // Firebase is now the primary source
-  firebaseLoading: boolean;
+  // Push-to-fetch system loading state
+  pushFetchLoading: boolean;
   getFormattedNotificationContent: (notification: NotificationData) => { title: string, subtitle?: string };
+  // Register callback for notifications page to refresh when background notifications arrive
+  registerNotificationPageCallback: (callback: (type: string) => void) => () => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | null>(null);
 
 // Provider component
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { userId, isFirebaseAuthenticated, accessToken } = useAuthSession();
+  const { userId, accessToken } = useAuthSession();
   const [backendFriendRequests, setBackendFriendRequests] = useState<FriendRequestNotification[]>([]);
   const [viewedNotifications, setViewedNotifications] = useState<Set<string>>(new Set());
   const [viewedFriendRequests, setViewedFriendRequests] = useState<Set<string>>(new Set());
   const [unseenNotificationCount, setUnseenNotificationCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [backendNotifications, setBackendNotifications] = useState<NotificationData[]>([]);
-  const [usingBackendFallback, setUsingBackendFallback] = useState(false);
-  const [usingFriendRequestBackendFallback, setUsingFriendRequestBackendFallback] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationData[]>([]);
+  const [friendRequestsLoading, setFriendRequestsLoading] = useState(false);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
   
   // Refs to prevent multiple concurrent cleanup operations
   const markingAllNotificationsRef = useRef(false);
@@ -56,23 +57,13 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const markAllNotificationsAsViewedRef = useRef<() => Promise<void>>(async () => {});
   const markFriendRequestsAsViewedRef = useRef<() => Promise<void>>(async () => {});
   
-  // Get Firebase notifications as the primary source
-  const {
-    notifications: firebaseNotifications,
-    loading: firebaseLoading,
-    error: firebaseError,
-    markAsRead
-  } = useFirebaseNotificationsHook();
-
-  // Get Firebase friend requests as the primary source
-  const {
-    data: firebaseFriendRequests,
-    loading: firebaseFriendRequestsLoading,
-    error: firebaseFriendRequestsError
-  } = useFirebaseFriendRequestsHook();
+  // Callback system for notifications page to get notified of background updates
+  const notificationPageCallbackRef = useRef<((type: string) => void) | null>(null);
+  
+  // Use push-to-fetch notification system - we don't need to destructure anything from this hook
+  // as we're managing notifications independently in this context
   
   const {
-    getReceivedFriendRequests,
     acceptFriendRequest,
     rejectFriendRequest
   } = useManageFriends();
@@ -80,163 +71,53 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Badge manager for app icon badge
   const { updateBadgeCount, clearBadge } = useBadgeManager();
 
-  // Backend notification fetching as fallback only
-  const fetchNotificationsFromBackend = useCallback(async () => {
+  // Fetch notifications from backend using push-to-fetch endpoint
+  const fetchNotifications = useCallback(async () => {
+    setNotificationsLoading(true);
     try {
-      const response = await api.get('/api/notifications');
-      const fetchedNotifications = response.data.notifications || [];
-      setBackendNotifications(fetchedNotifications);
+      const response = await api.get('/api/push-fetch/notifications');
+      const fetchedNotifications = response.data.success ? response.data.data : [];
+      setNotifications(fetchedNotifications);
+      console.log('📬 NotificationContext: Fetched', fetchedNotifications.length, 'notifications');
     } catch (error) {
-      // Silent failure for fallback
+      console.error('Error fetching notifications:', error);
+      setNotifications([]);
+    } finally {
+      setNotificationsLoading(false);
     }
   }, []);
 
-  // Check if Firebase has failed after 3 retries and switch to backend fallback
-  useEffect(() => {
-    if (firebaseError && !firebaseLoading && !usingBackendFallback) {
-      setUsingBackendFallback(true);
-      fetchNotificationsFromBackend();
-    }
-  }, [firebaseError, firebaseLoading, usingBackendFallback, fetchNotificationsFromBackend]);
-
-  // Check if Firebase has recovered when using backend fallback
-  useEffect(() => {
-    if (usingBackendFallback && !firebaseError && !firebaseLoading && firebaseNotifications) {
-      setUsingBackendFallback(false);
-      setBackendNotifications([]);
-    }
-  }, [usingBackendFallback, firebaseError, firebaseLoading, firebaseNotifications]);
-
-  // Combine backend notifications with real-time Firebase updates
-  const notifications = useMemo(() => {
-    if (usingBackendFallback) {
-      return backendNotifications;
-    }
-    
-    // Start with backend notifications as the base
-    let allNotifications = [...backendNotifications];
-    
-    // Process Firebase notifications (these should only be new/unseen ones)
-    if (firebaseNotifications) {
-      try {
-        const firebaseNotificationsList = Object.values(firebaseNotifications)
-          .filter(item => item && typeof item === 'object')
-          .map(fbNotification => ({
-            _id: fbNotification._id?.toString() || '',
-            type: fbNotification.type || 'new_event_from_friend',
-            title: fbNotification.title || '',
-            subtitle: fbNotification.subtitle,
-            message_body: fbNotification.message_body,
-            status: fbNotification.status || 'unseen',
-            is_seen: fbNotification.is_seen || false,
-            created_at: fbNotification.timestamp ? new Date(fbNotification.timestamp).toISOString() : new Date().toISOString(),
-            updated_at: fbNotification.updated_at || new Date().toISOString(),
-            recipient: fbNotification.recipient,
-            sender: fbNotification.sender,
-            event: fbNotification.event,
-            friend_request: fbNotification.friend_request,
-            data: fbNotification.data,
-            count: fbNotification.count,
-            location: fbNotification.location
-          }));
-
-        // Add Firebase notifications that don't already exist in backend notifications
-        const existingIds = new Set(backendNotifications.map(n => n._id));
-        const newFirebaseNotifications = firebaseNotificationsList.filter(fn => !existingIds.has(fn._id));
-        
-        // Merge and sort all notifications
-        allNotifications = [...backendNotifications, ...newFirebaseNotifications];
-      } catch (error) {
-        console.error('Error processing Firebase notifications:', error);
-      }
-    }
-    
-    // Sort by creation time (newest first)
-    return allNotifications.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [firebaseNotifications, backendNotifications, usingBackendFallback]);
+  // Sort notifications by creation time (newest first)
+  const sortedNotifications = useMemo(() => {
+    return notifications.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [notifications]);
 
   // Update unseen count whenever notifications change
   useEffect(() => {
-    const unseenCount = notifications.filter(n => !n.is_seen).length;
+    const unseenCount = sortedNotifications.filter(n => !n.is_seen).length;
     setUnseenNotificationCount(unseenCount);
-  }, [notifications]);
+  }, [sortedNotifications]);
 
-  // Fetch friend requests from backend (source of truth)
+  // Fetch friend requests from backend using push-to-fetch endpoint
   const fetchFriendRequestsFromBackend = useCallback(async () => {
+    setFriendRequestsLoading(true);
     try {
-      const response = await getReceivedFriendRequests();
-      const requests = response.data.requests;
+      const response = await api.get('/api/push-fetch/friend-requests');
+      const requests = response.data.success ? response.data.data : [];
       setBackendFriendRequests(requests);
-      
-      // If Firebase has an error, use backend as fallback
-      if (firebaseFriendRequestsError) {
-        setUsingFriendRequestBackendFallback(true);
-      }
+      console.log('👥 NotificationContext: Fetched', requests.length, 'friend requests');
     } catch (error) {
       console.error('Error fetching friend requests from backend:', error);
       setBackendFriendRequests([]);
+    } finally {
+      setFriendRequestsLoading(false);
     }
-  }, [getReceivedFriendRequests, firebaseFriendRequestsError]);
+  }, []);
 
-  // Check if Firebase friend requests has failed and switch to backend fallback
-  useEffect(() => {
-    if (firebaseFriendRequestsError && !firebaseFriendRequestsLoading && !usingFriendRequestBackendFallback) {
-      setUsingFriendRequestBackendFallback(true);
-      fetchFriendRequestsFromBackend();
-    }
-  }, [firebaseFriendRequestsError, firebaseFriendRequestsLoading, usingFriendRequestBackendFallback, fetchFriendRequestsFromBackend]);
-
-  // Check if Firebase has recovered when using backend fallback
-  useEffect(() => {
-    if (usingFriendRequestBackendFallback && !firebaseFriendRequestsError && !firebaseFriendRequestsLoading && firebaseFriendRequests) {
-      setUsingFriendRequestBackendFallback(false);
-      setBackendFriendRequests([]);
-    }
-  }, [usingFriendRequestBackendFallback, firebaseFriendRequestsError, firebaseFriendRequestsLoading, firebaseFriendRequests]);
-
-  // Combine backend friend requests with real-time Firebase updates
+  // Sort friend requests by creation time (newest first)
   const friendRequests = useMemo(() => {
-    if (usingFriendRequestBackendFallback) {
-      return backendFriendRequests;
-    }
-    
-    // Start with backend friend requests as the base
-    let allFriendRequests = [...backendFriendRequests];
-    
-    // Process Firebase friend requests (these should only be new/unseen ones)
-    if (firebaseFriendRequests) {
-      try {
-        const firebaseFriendRequestsList = Object.values(firebaseFriendRequests)
-          .filter(item => item && typeof item === 'object')
-          .map((fbRequest: any) => ({
-            _id: fbRequest._id?.toString() || '',
-            sender: {
-              _id: fbRequest.from?.toString() || '',
-              first_name: fbRequest.sender?.first_name || '',
-              last_name: fbRequest.sender?.last_name || '',
-              full_name: fbRequest.sender?.full_name || '',
-              username: fbRequest.sender?.username || '',
-              profile_picture: fbRequest.sender?.profile_picture || ''
-            },
-            mutualFriendsCount: fbRequest.mutualFriendsCount || 0,
-            created_at: fbRequest.created_at || new Date().toISOString(),
-            status: fbRequest.status || 'pending'
-          }));
-
-        // Add Firebase friend requests that don't already exist in backend friend requests
-        const existingIds = new Set(backendFriendRequests.map(r => r._id));
-        const newFirebaseFriendRequests = firebaseFriendRequestsList.filter(fr => !existingIds.has(fr._id));
-        
-        // Merge all friend requests
-        allFriendRequests = [...backendFriendRequests, ...newFirebaseFriendRequests];
-      } catch (error) {
-        console.error('Error processing Firebase friend requests:', error);
-      }
-    }
-    
-    // Sort by creation time (newest first)
-    return allFriendRequests.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [firebaseFriendRequests, backendFriendRequests, usingFriendRequestBackendFallback]);
+    return backendFriendRequests.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [backendFriendRequests]);
 
   const handleAcceptFriendRequest = useCallback(async (senderId: string) => {
     try {
@@ -253,7 +134,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         });
       }
       
-      // Update backend friend requests state
+      // Update friend requests state
       setBackendFriendRequests((prev: FriendRequestNotification[]) => 
         prev.filter((req: FriendRequestNotification) => req.sender._id !== senderId)
       );
@@ -277,7 +158,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         });
       }
       
-      // Update backend friend requests state
+      // Update friend requests state
       setBackendFriendRequests((prev: FriendRequestNotification[]) => 
         prev.filter((req: FriendRequestNotification) => req.sender._id !== senderId)
       );
@@ -288,13 +169,13 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const markNotificationAsViewed = useCallback(async (notificationId: string) => {
     try {
-      // Use API approach - it handles both MongoDB update and Firebase cleanup
+      // Use API approach - handles MongoDB update
       await api.put('/api/notifications/mark-seen', {
         notificationIds: [notificationId]
       });
       
-      // Update local backend notifications state
-      setBackendNotifications(prev => 
+      // Update local notifications state
+      setNotifications(prev => 
         prev.map(n => n._id === notificationId ? { ...n, is_seen: true } : n)
       );
     } catch (error) {
@@ -311,11 +192,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     markingAllNotificationsRef.current = true;
     
     try {
-      // Use API approach - it handles both MongoDB update and Firebase cleanup
+      // Use API approach - handles MongoDB update
       await api.put('/api/notifications/mark-seen', {});
       
       // Get current state at execution time to avoid stale closure issues
-      const currentNotifications = notifications.filter(notification => !notification.is_seen);
+      const currentNotifications = sortedNotifications.filter(notification => !notification.is_seen);
       const currentFriendRequests = friendRequests.filter((request: FriendRequestNotification) => !viewedFriendRequests.has(request._id));
       
       // Only proceed if there are items to mark as viewed
@@ -345,8 +226,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       // Update unseen count
       setUnseenNotificationCount(0);
       
-      // Update local backend notifications state (API call already handled Firebase cleanup)
-      setBackendNotifications(prev => 
+      // Update local notifications state
+      setNotifications(prev => 
         prev.map(n => ({ ...n, is_seen: true }))
       );
 
@@ -357,7 +238,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     } finally {
       markingAllNotificationsRef.current = false;
     }
-  }, [notifications, friendRequests, viewedFriendRequests, clearBadge]);
+  }, [sortedNotifications, friendRequests, viewedFriendRequests, clearBadge]);
 
   // Mark friend requests as viewed
   const markFriendRequestsAsViewed = useCallback(async () => {
@@ -394,21 +275,30 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   markAllNotificationsAsViewedRef.current = markAllNotificationsAsViewed;
   markFriendRequestsAsViewedRef.current = markFriendRequestsAsViewed;
 
+  // Register callback function for notifications page
+  const registerNotificationPageCallback = useCallback((callback: (type: string) => void) => {
+    notificationPageCallbackRef.current = callback;
+    
+    // Return cleanup function
+    return () => {
+      notificationPageCallbackRef.current = null;
+    };
+  }, []);
+
   const refreshData = useCallback(async () => {
     setRefreshing(true);
     try {
-      // Always refresh both friend requests and backend notifications
-      // Firebase provides real-time updates, backend provides the complete history
+      // Refresh both friend requests and notifications from backend
       await Promise.all([
         fetchFriendRequestsFromBackend(),
-        fetchNotificationsFromBackend()
+        fetchNotifications()
       ]);
     } finally {
       setRefreshing(false);
     }
-  }, [fetchFriendRequestsFromBackend, fetchNotificationsFromBackend]);
+  }, [fetchFriendRequestsFromBackend, fetchNotifications]);
 
-  // Initial data fetch - load all notifications from backend, Firebase only for real-time updates
+  // Initial data fetch - load all data from backend
   useEffect(() => {
     if (!userId) {
       setLoading(false);
@@ -417,22 +307,50 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const loadData = async () => {
       setLoading(true);
       try {
-        // Fetch both friend requests and all existing notifications from backend
+        // Fetch both friend requests and notifications from backend
         await Promise.all([
           fetchFriendRequestsFromBackend(),
-          fetchNotificationsFromBackend()
+          fetchNotifications()
         ]);
       } finally {
         setLoading(false);
       }
     };
     loadData();
-  }, [fetchFriendRequestsFromBackend, fetchNotificationsFromBackend, userId]);
+  }, [fetchFriendRequestsFromBackend, fetchNotifications, userId]);
+
+  // Set up background notification handler for push-to-fetch
+  useEffect(() => {
+    if (!userId) return;
+
+    const handleNotificationReceived = (type: string) => {
+      console.log('🔄 Notification received, refreshing data for type:', type);
+      
+      // Refresh data based on notification type
+      if (type === 'friend_request' || type === 'friend_request_accepted') {
+        fetchFriendRequestsFromBackend();
+      } else {
+        fetchNotifications();
+      }
+      
+      // Also notify the notifications page if it's currently active
+      if (notificationPageCallbackRef.current) {
+        console.log('📱 Notifying notifications page of background update');
+        notificationPageCallbackRef.current(type);
+      }
+    };
+
+    const subscription = setupBackgroundNotificationHandler(handleNotificationReceived);
+    
+    return () => {
+      subscription?.remove();
+    };
+  }, [userId, fetchFriendRequestsFromBackend, fetchNotifications]);
 
   // Calculate unseen notifications count
   const unseenNotificationsCount = useMemo(() => {
-    return notifications.filter(notification => !notification.is_seen).length;
-  }, [notifications]);
+    return sortedNotifications.filter(notification => !notification.is_seen).length;
+  }, [sortedNotifications]);
 
   // Total unseen count includes unseen friend requests + unseen notifications
   const totalUnseenCount = useMemo(() => {
@@ -504,12 +422,12 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const value: NotificationContextType = {
     friendRequests,
-    notifications,
+    notifications: sortedNotifications,
     viewedNotifications,
     unseenNotificationCount: totalUnseenCount,
-    loading: loading || firebaseLoading,
+    loading: loading || notificationsLoading || friendRequestsLoading,
     refreshing,
-    totalNotificationCount: notifications.length + friendRequests.length,
+    totalNotificationCount: sortedNotifications.length + friendRequests.length,
     unseenNotificationsCount,
     unseenFriendRequestsCount: friendRequests.filter((request: FriendRequestNotification) => !viewedFriendRequests.has(request._id)).length,
     handleAcceptFriendRequest,
@@ -518,8 +436,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     markAllNotificationsAsViewed,
     markFriendRequestsAsViewed,
     refreshData,
-    firebaseLoading,
+    pushFetchLoading: notificationsLoading || friendRequestsLoading,
     getFormattedNotificationContent,
+    registerNotificationPageCallback,
   };
 
   return (

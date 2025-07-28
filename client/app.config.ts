@@ -12,7 +12,7 @@ const apsEnv =
     ? 'production' // or 'production' depending on your goal for preview
     : 'production';
 
-const plistPath = './GoogleService-Info.plist';
+// GoogleService-Info.plist removed - using APNs directly
 
 export default ({ config }: ConfigContext): ExpoConfig => {
 
@@ -44,14 +44,12 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         usesNonExemptEncryption: false,
       },
       bundleIdentifier: 'com.kinovoapp.kinovo',
-      googleServicesFile: plistPath,
       infoPlist: {
         UIApplicationSupportsIndirectInputEvents: false,
         CFBundleURLTypes: [
           {
             CFBundleURLSchemes: [
               process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME!,
-              process.env.EXPO_PUBLIC_FIREBASE_IOS_URL_SCHEME!,
             ],
           },
           {
@@ -86,7 +84,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         BGTaskSchedulerPermittedIdentifiers: [
           'com.kinovoapp.kinovo.refresh'
         ],
-        FirebaseAppDelegateProxyEnabled: true,
+        // Firebase removed - using APNs directly
         UNNotificationAlertStyle: 'alert',
         NSNotificationAlertSound: 'default', // or a custom sound file name
         NSUserActivityTypes: ['com.kinovoapp.kinovo.event'], // Added for calendar/reminder integration
@@ -122,10 +120,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       'expo-router',
       'react-native-maps',
       'expo-secure-store',
-      '@react-native-firebase/app',
-      '@react-native-firebase/auth',
-      '@react-native-firebase/app-check',
-      '@react-native-firebase/messaging',
+      // Firebase plugins removed - using APNs directly
       'expo-notifications',
       'expo-calendar',
       'expo-apple-authentication',

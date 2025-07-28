@@ -18,10 +18,9 @@ const notificationsRoutes = require('./routes/notificationsRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const googleApiRoutes = require('./routes/googleApiRoutes');
 const storageRoutes = require('./routes/storageRoutes');
+const pushFetchRoutes = require('./routes/pushFetchRoutes');
 
-// Firebase and realtime services
-const { configureSecurityRules } = require('./config/firebase-admin');
-const { initializeChangeStreams } = require('./services/databaseListenerService');
+// Database change streams removed (was Firebase)
 
 const app = express();
 
@@ -58,11 +57,7 @@ async function startServer() {
     await initializeCategories();
     console.log('Categories initialized successfully');
 
-    // Initialize Firebase Realtime Database
-    configureSecurityRules().catch(error => {
-      console.error('Failed to configure Firebase security rules:', error);
-    });
-    initializeChangeStreams();
+    // Database change streams removed (was Firebase)
 
     // Check Authentication (JWT based)
     const { verifyAccessToken } = require('./utils/token');
@@ -97,6 +92,7 @@ async function startServer() {
     app.use('/api', categoryRoutes);
     app.use('/api/google', googleApiRoutes);
     app.use('/api/storage', storageRoutes);
+    app.use('/api/push-fetch', pushFetchRoutes);
 
     // Start the cron jobs
     const accountDeletionCron = require('./cron/accountDeletionCron');

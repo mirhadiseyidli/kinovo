@@ -20,7 +20,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Calendar from 'expo-calendar';
 import SettingComponent from '@/components/ProfileAndSettings/Settings/SettingComponent';
 import api from '@/utils/api';
-import TwoFactorAuth from '@/components/Auth/TwoFactorAuth';
+// import TwoFactorAuth from '@/components/Auth/TwoFactorAuth';
 
 const accountSettings = () => {
   const colorScheme = useColorScheme();
@@ -278,11 +278,11 @@ const accountSettings = () => {
   if (show2FA) {
     return (
       <ThemedView style={{ flex: 1, padding: 16 }}>
-        <TwoFactorAuth
+        {/* <TwoFactorAuth
           phoneNumber={user?.phone_number?.full_num || ''}
           onVerificationSuccess={handleVerificationSuccess}
           onCancel={() => setShow2FA(false)}
-        />
+        /> */}
       </ThemedView>
     );
   }

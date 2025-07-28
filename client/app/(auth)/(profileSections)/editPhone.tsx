@@ -6,11 +6,11 @@ import { Colors } from '@/constants/Colors';
 import { ThemedView } from '@/components/ThemedView';
 import { Feather } from '@expo/vector-icons';
 import { ThemedText } from '@/components/ThemedText';
-import TwoFactorAuth from '@/components/Auth/TwoFactorAuth';
+// import TwoFactorAuth from '@/components/Auth/TwoFactorAuth';
 import { useUserDataLegacy as useUserData } from '@/hooks/useUserData';
 import api from '@/utils/api';
 import LabeledInput from '@/components/ProfileAndSettings/Profile/LabeledInput';
-import { initiatePhoneAuth } from '@/config/firebase';
+// import { initiatePhoneAuth } from '@/config/firebase';
 
 const EditPhone = () => {
   const colorScheme = useColorScheme();
@@ -96,8 +96,8 @@ const EditPhone = () => {
       }
 
       // Initiate phone verification through Firebase
-      const confirmation = await initiatePhoneAuth(formattedPhone);
-      setConfirmationResult(confirmation);
+      // const confirmation = await initiatePhoneAuth(formattedPhone);
+      // setConfirmationResult(confirmation);
       setShow2FA(true);
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.message || error.message || 'Failed to verify phone number');
@@ -137,11 +137,11 @@ const EditPhone = () => {
   if (show2FA) {
     return (
       <ThemedView style={{ flex: 1, padding: 16 }}>
-        <TwoFactorAuth
+        {/* <TwoFactorAuth
           phoneNumber={phoneNumber.replace(/\D/g, '').length === 10 ? `+1${phoneNumber.replace(/\D/g, '')}` : phoneNumber}
           onVerificationSuccess={handleVerificationSuccess}
           onCancel={() => setShow2FA(false)}
-        />
+        /> */}
       </ThemedView>
     );
   }
