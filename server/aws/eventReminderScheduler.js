@@ -54,18 +54,20 @@ async function putSchedule(scheduleName, fireAt, reminderType = '1hour', eventId
   // Handle backward compatibility - if scheduleName looks like an eventId
   if (!eventId && scheduleName && !scheduleName.includes('-')) {
     eventId = scheduleName;
-    const prefix = reminderType === '10min' ? RULE_PREFIX_10MIN : RULE_PREFIX_1HOUR;
+    const prefix = reminderType === '10min' ? 'ER-10-' : 'ER-1-';
     scheduleName = `${prefix}${eventId}`;
   }
   
   // Extract eventId and userId from scheduleName if not provided
   if (!eventId || !userId) {
     const parts = scheduleName.split('-');
-    if (!eventId && parts.length >= 4) {
-      eventId = parts[3];
+    // With new format: ER-1-eventId-userId or ER-10-eventId-userId
+    // parts[0] = 'ER', parts[1] = '1' or '10', parts[2] = eventId, parts[3] = userId
+    if (!eventId && parts.length >= 3) {
+      eventId = parts[2];
     }
-    if (!userId && parts.length >= 5) {
-      userId = parts[4];
+    if (!userId && parts.length >= 4) {
+      userId = parts[3];
     }
   }
   
