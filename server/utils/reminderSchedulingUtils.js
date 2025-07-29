@@ -85,7 +85,7 @@ const scheduleUserEventReminders = async (eventId, userId, startTime, occurrence
       if (oneHourBefore.getTime() > now) {
         try {
           const scheduleName = generateScheduleName(eventId, userId, '1hour', occurrenceDate);
-          await putSchedule(scheduleName, oneHourBefore, '1hour');
+          await putSchedule(scheduleName, oneHourBefore, '1hour', eventId, userId);
           result.scheduled1hour = true;
         } catch (err) {
           console.error('Failed to schedule 1-hour reminder:', err);
@@ -100,7 +100,7 @@ const scheduleUserEventReminders = async (eventId, userId, startTime, occurrence
       if (tenMinutesBefore.getTime() > now) {
         try {
           const scheduleName = generateScheduleName(eventId, userId, '10min', occurrenceDate);
-          await putSchedule(scheduleName, tenMinutesBefore, '10min');
+          await putSchedule(scheduleName, tenMinutesBefore, '10min', eventId, userId);
           result.scheduled10min = true;
         } catch (err) {
           console.error('Failed to schedule 10-minute reminder:', err);
