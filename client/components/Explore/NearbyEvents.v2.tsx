@@ -262,7 +262,8 @@ const NearbyEvents: React.FC<NearbyEventsProps> = React.memo(({ refreshing, onFi
                 fontSize: 16, 
                 textAlign: 'center', 
                 marginTop: 12,
-                color: themeColors.textSecondary 
+                color: themeColors.placeholderTextColor,
+                fontWeight: '600'
               }}>
                 No nearby events found
               </ThemedText>
@@ -270,7 +271,7 @@ const NearbyEvents: React.FC<NearbyEventsProps> = React.memo(({ refreshing, onFi
                 fontSize: 14, 
                 textAlign: 'center', 
                 marginTop: 8,
-                color: themeColors.textThird 
+                color: themeColors.placeholderTextColor 
               }}>
                 Tap to refresh
               </ThemedText>

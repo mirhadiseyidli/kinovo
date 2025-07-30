@@ -138,9 +138,10 @@ export default React.memo(function EventDateAndLocation() {
       <AnimatedScrollView 
         nestedScrollEnabled={true}
         keyboardShouldPersistTaps={'always'}
-        contentContainerStyle={{ gap: 16 }}
+        contentContainerStyle={{ gap: 16, paddingBottom: 32 }}
         scrollEnabled={!showSuggestions}
         onScroll={scrollHandler}
+        showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
         bounces={true}
       >

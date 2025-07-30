@@ -1,15 +1,15 @@
-import React, { useEffect, useState } from 'react';
-import { View, ScrollView, TouchableOpacity, Alert, RefreshControl, Modal, Animated, Dimensions, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { View, ScrollView, TouchableOpacity, Alert, RefreshControl, Modal, Dimensions, ActivityIndicator, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { Feather } from '@expo/vector-icons';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { router, Stack } from 'expo-router';
+import { router, Stack, useNavigation } from 'expo-router';
 import { useFavoriteActivities } from '@/hooks/useFavoriteActivities';
 import { Picker } from '@react-native-picker/picker';
-import { ACTIVITIES } from '@/constants/Activities';
+import { useCategories, type Category } from '@/hooks/useCategories';
 import type { Activity } from '@/constants/Activities';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getCategoryIcon, getCategoryColor } from '@/utils/categoryIcons';
@@ -18,63 +18,96 @@ import { SkeletonBox } from '@/components/Skeleton';
 const ManageFavoriteActivities = () => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
+  const navigation = useNavigation();
   const { loading, activities, fetchActivities, addActivity, removeActivity } = useFavoriteActivities();
+  const { categories, fetchCategories, loading: categoriesLoading } = useCategories();
   const [showPicker, setShowPicker] = useState(false);
-  const [selectedActivity, setSelectedActivity] = useState<Activity>(ACTIVITIES[0]);
+  const [selectedActivity, setSelectedActivity] = useState<Category | undefined>(undefined);
+  const [selectedActivityId, setSelectedActivityId] = useState<string | undefined>(undefined);
+  const [searchQuery, setSearchQuery] = useState('');
   const [isFirstFetch, setIsFirstFetch] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Animation for the slide-up effect
-  const slideAnim = React.useRef(new Animated.Value(300)).current;
+  // Filter categories based on search query
+  const filteredCategories = categories.filter(category =>
+    category.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
+  // Memoized header button
+  const headerRightButton = useMemo(() => (
+    <TouchableOpacity
+      onPress={() => setShowPicker(true)}
+    >
+      <IconSymbol name="plus.circle" size={24} color={themeColors.text} />
+    </TouchableOpacity>
+  ), [themeColors.text]);
+
+  // Set up header button
   useEffect(() => {
-    if (showPicker) {
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        useNativeDriver: true,
-        tension: 100,
-        friction: 8,
-      }).start();
-    } else {
-      Animated.timing(slideAnim, {
-        toValue: 300,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [showPicker]);
+    navigation.setOptions({
+      headerRight: () => headerRightButton,
+    });
+  }, [navigation, headerRightButton]);
+
 
   useEffect(() => {
     const load = async () => {
       try {
-        await fetchActivities(); // ✅ Wait for actual fetch to complete
+        await Promise.all([
+          fetchActivities(),
+          fetchCategories()
+        ]);
       } catch (error) {
-        console.error('Error fetching activities:', error);
+        console.error('Error fetching data:', error);
       } finally {
-        setIsFirstFetch(false); // ✅ Only set false once done
+        setIsFirstFetch(false);
       }
     };
   
     load();
   }, []);
 
+  // Set default selected activity when categories are loaded
+  useEffect(() => {
+    if (categories.length > 0 && selectedActivity === undefined) {
+      setSelectedActivity(categories[0]);
+      setSelectedActivityId(categories[0]._id);
+    }
+  }, [categories, selectedActivity]);
+
+  // Auto-select when search results in single match
+  useEffect(() => {
+    if (showPicker && searchQuery.trim() && filteredCategories.length === 1) {
+      setSelectedActivity(filteredCategories[0]);
+      setSelectedActivityId(filteredCategories[0]._id);
+    }
+  }, [searchQuery, filteredCategories, showPicker]);
+
   const onRefresh = React.useCallback(async () => {
     try {
       setRefreshing(true);
       setIsFirstFetch(false);
-      await fetchActivities();
-      setRefreshing(false);
+      await Promise.all([
+        fetchActivities(),
+        fetchCategories()
+      ]);
     } catch (error) {
-      console.error('Error refreshing activities:', error);
+      console.error('Error refreshing data:', error);
     } finally {
       setRefreshing(false);
     }
-  }, [fetchActivities]);
+  }, [fetchActivities, fetchCategories]);
 
   const handleAddActivity = async () => {
-    if (await addActivity(selectedActivity)) {
+    if (selectedActivity && await addActivity(selectedActivity.name as Activity)) {
       setShowPicker(false);
+      setSearchQuery(''); // Clear search when closing
     }
+  };
+
+  const closeModal = () => {
+    setShowPicker(false);
+    setSearchQuery(''); // Clear search when closing
   };
 
   const handleRemoveActivity = async (activity: Activity) => {
@@ -197,7 +230,7 @@ const ManageFavoriteActivities = () => {
         animationType="fade"
         transparent={true}
         visible={showPicker}
-        onRequestClose={() => setShowPicker(false)}
+        onRequestClose={closeModal}
       >
         <TouchableOpacity
           style={{
@@ -206,23 +239,23 @@ const ManageFavoriteActivities = () => {
             backgroundColor: 'rgba(0, 0, 0, 0.5)',
           }}
           activeOpacity={1}
-          onPress={() => setShowPicker(false)}
+          onPress={closeModal}
         >
-          <TouchableOpacity 
-            activeOpacity={1} 
-            onPress={(e) => e.stopPropagation()}
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ maxHeight: Dimensions.get('window').height * 0.8 }}
           >
-            <Animated.View
-              style={{
-                transform: [{ translateY: slideAnim }],
-              }}
+            <TouchableOpacity 
+              activeOpacity={1} 
+              onPress={(e) => e.stopPropagation()}
             >
               <ThemedView
                 style={{
-                  borderTopLeftRadius: 20,
-                  borderTopRightRadius: 20,
-                  padding: 20,
-                  minHeight: 300,
+                  borderTopLeftRadius: 16,
+                  borderTopRightRadius: 16,
+                  overflow: 'hidden',
+                  width: '100%',
+                  paddingVertical: 16,
                 }}
               >
                 {/* Drag handle indicator */}
@@ -239,43 +272,94 @@ const ManageFavoriteActivities = () => {
                 
                 <View
                   style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
                     alignItems: 'center',
-                    paddingVertical: 10,
-                    marginHorizontal: -20,
-                    paddingHorizontal: 20,
+                    paddingHorizontal: 16,
+                    paddingBottom: 16,
                   }}
                 >
                   <ThemedText style={{ fontSize: 18, fontWeight: 'bold' }}>
                     Add Activity
                   </ThemedText>
-                  <TouchableOpacity onPress={() => setShowPicker(false)}>
-                    <Feather name="x" size={24} color={themeColors.text} />
-                  </TouchableOpacity>
                 </View>
 
-                <Picker
-                  selectedValue={selectedActivity}
-                  onValueChange={(itemValue: Activity) => setSelectedActivity(itemValue)}
-                  style={{
-                    color: themeColors.text,
-                    backgroundColor: 'transparent',
-                  }}
-                >
-                  {ACTIVITIES.map((activity: Activity) => (
-                    <Picker.Item 
-                      key={activity} 
-                      label={activity} 
-                      value={activity}
-                      color={themeColors.text}
+                {/* Search Bar */}
+                <View style={{ paddingHorizontal: 16 }}>
+                  <View style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: themeColors.inputBackgroundColor,
+                    borderRadius: 8,
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                  }}>
+                    <Feather name="search" size={16} color={themeColors.placeholderTextColor} style={{ marginRight: 8 }} />
+                    <TextInput
+                      placeholder="Search activities..."
+                      placeholderTextColor={themeColors.placeholderTextColor}
+                      value={searchQuery}
+                      onChangeText={setSearchQuery}
+                      style={{
+                        flex: 1,
+                        fontSize: 16,
+                        color: themeColors.text,
+                      }}
+                      autoCorrect={false}
+                      autoCapitalize="none"
+                      returnKeyType="done"
                     />
-                  ))}
-                </Picker>
+                    {searchQuery.length > 0 && (
+                      <TouchableOpacity onPress={() => setSearchQuery('')} style={{ padding: 4 }}>
+                        <Feather name="x" size={16} color={themeColors.placeholderTextColor} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
 
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 }}>
+                {/* Picker or No Results */}
+                <View style={{ minHeight: 200 }}>
+                  {filteredCategories.length > 0 ? (
+                    <Picker
+                      selectedValue={selectedActivityId}
+                      onValueChange={(itemValue: string) => {
+                        const category = filteredCategories.find(cat => cat._id === itemValue);
+                        if (category) {
+                          setSelectedActivity(category);
+                          setSelectedActivityId(itemValue);
+                        }
+                      }}
+                      style={{
+                        color: themeColors.text,
+                        backgroundColor: 'transparent',
+                      }}
+                    >
+                      {filteredCategories.map((category: Category) => (
+                        <Picker.Item 
+                          key={category._id} 
+                          label={category.name} 
+                          value={category._id}
+                          color={themeColors.text}
+                        />
+                      ))}
+                    </Picker>
+                  ) : (
+                    <View style={{ 
+                      paddingVertical: 40, 
+                      paddingHorizontal: 16, 
+                      alignItems: 'center' 
+                    }}>
+                      <ThemedText style={{ 
+                        color: themeColors.placeholderTextColor, 
+                        fontSize: 16 
+                      }}>
+                        No activities found
+                      </ThemedText>
+                    </View>
+                  )}
+                </View>
+
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 16 }}>
                   <TouchableOpacity
-                    onPress={() => setShowPicker(false)}
+                    onPress={closeModal}
                     style={{
                       padding: 12,
                       backgroundColor: themeColors.cardColorsGradientOne,
@@ -302,8 +386,8 @@ const ManageFavoriteActivities = () => {
                   </TouchableOpacity>
                 </View>
               </ThemedView>
-            </Animated.View>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </KeyboardAvoidingView>
         </TouchableOpacity>
       </Modal>
     </ThemedView>

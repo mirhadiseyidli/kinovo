@@ -365,8 +365,12 @@ const getMyUpcomingEvents = async (req, res) => {
       return res.status(201).json({ message: 'No events found', events: [] });
     }
 
+    // Add user-specific fields using utility (for consistency with other endpoints)
+    const { friends } = await getUserFilterData(req.user._id);
+    const eventsWithUserData = enrichEventsWithUserData(result.events, req.user._id, friends);
+
     res.status(200).json({ 
-      events: result.events,
+      events: eventsWithUserData,
       metadata: result.metadata
     });
   } catch (error) {
@@ -441,6 +445,10 @@ const getMyPastEvents = async (req, res) => {
     // Apply pagination
     const paginatedEvents = pastEvents.slice(skip, skip + limit);
 
+    // Add user-specific fields for AI context (consistent with other endpoints)
+    const { friends } = await getUserFilterData(req.user._id);
+    const eventsWithUserData = enrichEventsWithUserData(paginatedEvents, req.user._id, friends);
+
     // Calculate pagination metadata
     const hasMore = skip + limit < totalCount;
     const currentPage = page;
@@ -448,13 +456,13 @@ const getMyPastEvents = async (req, res) => {
 
     // Return consistent format similar to other paginated endpoints
     const result = {
-      events: paginatedEvents,
+      events: eventsWithUserData,
       totalCount,
       hasMore,
       currentPage,
       totalPages,
       // Legacy format for backward compatibility
-      past_events: paginatedEvents
+      past_events: eventsWithUserData
     };
 
     // Handle empty results
@@ -638,19 +646,29 @@ const getNearbyEvents = async (req, res) => {
     // Calculate distances and filter nearby events using utility
     const allNearbyEvents = calculateEventsDistance(processedEvents, userLat, userLng, searchDistance);
 
+    // Enrich events with user-specific data (attendance status, creator status, etc.)
+    const eventsWithUserData = enrichEventsWithUserData(
+      allNearbyEvents.map(item => item.event), 
+      req.user._id, 
+      filterData.friends
+    );
+
+    // Recombine with distance data
+    const enrichedNearbyEvents = allNearbyEvents.map((item, index) => ({
+      ...eventsWithUserData[index],
+      distance: item.distance
+    }));
+
     // Apply pagination if limit is specified
-    let paginatedEvents = allNearbyEvents;
+    let paginatedEvents = enrichedNearbyEvents;
     if (limitNumber > 0) {
-      paginatedEvents = allNearbyEvents.slice(skipNumber, skipNumber + limitNumber);
+      paginatedEvents = enrichedNearbyEvents.slice(skipNumber, skipNumber + limitNumber);
     }
 
     res.status(200).json({
-      events: paginatedEvents.map(item => ({
-        ...item.event,
-        distance: item.distance
-      })),
-      total: allNearbyEvents.length,
-      hasMore: limitNumber > 0 ? (skipNumber + limitNumber) < allNearbyEvents.length : false
+      events: paginatedEvents,
+      total: enrichedNearbyEvents.length,
+      hasMore: limitNumber > 0 ? (skipNumber + limitNumber) < enrichedNearbyEvents.length : false
     });
 
   } catch (error) {

@@ -231,29 +231,18 @@ const Category: React.FC<CategoryProps> = React.memo(({ onCategorySelect }) => {
                   <View style={{ width: 36, height: 5, backgroundColor: themeColors.border, borderRadius: 3, alignSelf: 'center', marginBottom: 16 }} />
                   <View
                     style={{
-                      flexDirection: 'row',
-                      justifyContent: 'space-between',
+                      alignItems: 'center',
                       paddingHorizontal: 16,
-                      paddingBottom: 8,
-                      borderBottomWidth: 1,
-                      borderBottomColor: themeColors.border,
+                      paddingBottom: 16,
                     }}
                   >
-                    <TouchableOpacity onPress={closeModal} style={{ paddingVertical: 4 }}>
-                      <ThemedText style={{ fontSize: 16 }}>Cancel</ThemedText>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => {
-                        handleCategorySelect(tempCategory ?? '');
-                        closeModal();
-                      }}
-                    >
-                      <ThemedText style={{ fontSize: 16, fontWeight: '600', color: themeColors.mountainGreen }}>Done</ThemedText>
-                    </TouchableOpacity>
+                    <ThemedText style={{ fontSize: 18, fontWeight: 'bold' }}>
+                      Select Category
+                    </ThemedText>
                   </View>
                   
                   {/* Search Bar */}
-                  <View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
+                  <View style={{ paddingHorizontal: 16 }}>
                     <View style={{
                       flexDirection: 'row',
                       alignItems: 'center',
@@ -320,6 +309,39 @@ const Category: React.FC<CategoryProps> = React.memo(({ onCategorySelect }) => {
                         </ThemedText>
                       </View>
                     )}
+                  </View>
+
+                  {/* Bottom Buttons */}
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 20, paddingBottom: 8 }}>
+                    <TouchableOpacity
+                      onPress={closeModal}
+                      style={{
+                        padding: 12,
+                        backgroundColor: themeColors.cardColorsGradientOne,
+                        borderRadius: 8,
+                        flex: 1,
+                        marginRight: 8,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <ThemedText style={{ fontSize: 16, fontWeight: '600' }}>Cancel</ThemedText>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => {
+                        handleCategorySelect(tempCategory ?? '');
+                        closeModal();
+                      }}
+                      style={{
+                        padding: 12,
+                        backgroundColor: themeColors.mountainGreen,
+                        borderRadius: 8,
+                        flex: 1,
+                        marginLeft: 8,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <ThemedText style={{ fontSize: 16, fontWeight: '600', color: '#FFFFFF' }}>Done</ThemedText>
+                    </TouchableOpacity>
                   </View>
                 </Animated.View>
             </KeyboardAvoidingView>

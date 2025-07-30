@@ -8,11 +8,17 @@ import { Colors } from '@/constants/Colors';
 import React, { useState, useRef, useContext } from 'react';
 import { ScrollView, View, Text, ActivityIndicator, Alert, TouchableOpacity, Image, Pressable } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { getCategoryIcon, getCategoryColor } from '@/utils/categoryIcons';
 import type { CreateEventTabParamList, AttendeeFriend } from '@/types/allTypes';
 
 interface SuggestionsData {
   friends: AttendeeFriend[];
   nonFriends: AttendeeFriend[];
+  tags: {
+    activity_name: string;
+    friends: AttendeeFriend[];
+  }[];
 }
 import { useCreateEventContext } from '@/context/CreateEventContext';
 import { useUpdateEventMutation } from '@/hooks/useCreateEventMutation';
@@ -30,7 +36,7 @@ export default React.memo(function EventAttendeesAndOptions() {
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [limit, setLimit] = useState<number | null>(null);
   const [suggestions, setSuggestions] = useState<AttendeeFriend[]>([]);
-  const [suggestionsData, setSuggestionsData] = useState<SuggestionsData>({ friends: [], nonFriends: [] });
+  const [suggestionsData, setSuggestionsData] = useState<SuggestionsData>({ friends: [], nonFriends: [], tags: [] });
   const [showSuggestions, setShowSuggestions] = useState(false);
   const suggestionSelectRef = useRef<((item: any) => void) | null>(null);
   const updateEventMutation = useUpdateEventMutation();
@@ -325,7 +331,7 @@ export default React.memo(function EventAttendeesAndOptions() {
       </AnimatedScrollView>
 
       {/* Friends Suggestions Dropdown - Rendered outside ScrollView */}
-      {showSuggestions && (suggestionsData.friends.length > 0 || suggestionsData.nonFriends.length > 0) && (
+      {showSuggestions && (suggestionsData.friends.length > 0 || suggestionsData.nonFriends.length > 0 || suggestionsData.tags.length > 0) && (
         <ThemedView style={{
           position: 'absolute',
           top: 180, // Options (≈60px) + gap (16px) + Attendees input (≈44px) + spacing (4px) + padding
@@ -441,7 +447,7 @@ export default React.memo(function EventAttendeesAndOptions() {
                     style={{
                       paddingVertical: 12,
                       paddingHorizontal: 16,
-                      borderBottomWidth: index !== suggestionsData.nonFriends.length - 1 ? 1 : 0,
+                      borderBottomWidth: index !== suggestionsData.nonFriends.length - 1 || suggestionsData.tags.length > 0 ? 1 : 0,
                       borderBottomColor: themeColors.border,
                       flexDirection: 'row',
                       alignItems: 'center',
@@ -473,6 +479,77 @@ export default React.memo(function EventAttendeesAndOptions() {
                     </View>
                     <Feather 
                       name="user-plus" 
+                      size={16} 
+                      color={themeColors.placeholderTextColor} 
+                    />
+                  </TouchableOpacity>
+                ))}
+              </>
+            )}
+            
+            {suggestionsData.tags.length > 0 && (
+              <>
+                <View style={{ 
+                  paddingHorizontal: 16, 
+                  paddingVertical: 12, 
+                  borderBottomWidth: 1, 
+                  borderBottomColor: themeColors.border 
+                }}>
+                  <Text style={{ 
+                    fontWeight: 'bold', 
+                    fontSize: 14, 
+                    color: themeColors.text,
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5
+                  }}>
+                    Tags
+                  </Text>
+                </View>
+                {suggestionsData.tags.map((tag, index) => (
+                  <TouchableOpacity
+                    key={tag.activity_name}
+                    style={{
+                      paddingVertical: 12,
+                      paddingHorizontal: 16,
+                      borderBottomWidth: index !== suggestionsData.tags.length - 1 ? 1 : 0,
+                      borderBottomColor: themeColors.border,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                    }}
+                    onPress={() => handleSuggestionSelect(tag)}
+                  >
+                    <View style={{ 
+                      marginRight: 12,
+                      width: 40,
+                      height: 40,
+                      borderRadius: 20,
+                      backgroundColor: themeColors.inputBackgroundColor,
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <MaterialCommunityIcons 
+                        name={getCategoryIcon(tag.activity_name)} 
+                        size={24} 
+                        color={getCategoryColor(tag.activity_name)} 
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ 
+                        fontWeight: '600', 
+                        fontSize: 16, 
+                        color: themeColors.text 
+                      }}>
+                        {tag.activity_name}
+                      </Text>
+                      <Text style={{ 
+                        fontSize: 14, 
+                        color: themeColors.placeholderTextColor 
+                      }}>
+                        {tag.friends.length} {tag.friends.length === 1 ? 'person' : 'people'}
+                      </Text>
+                    </View>
+                    <Feather 
+                      name="users" 
                       size={16} 
                       color={themeColors.placeholderTextColor} 
                     />

@@ -1,226 +1,271 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Modal, Dimensions, TouchableWithoutFeedback, Platform } from 'react-native';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-// import { DateTimePicker } from '@expo/ui/swift-ui';
+import { View, Text, TouchableOpacity } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  useAnimatedRef,
+  cancelAnimation
+} from 'react-native-reanimated';
+import { DateTimePicker } from '@expo/ui/swift-ui';
 import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { ThemedView } from '../ThemedView';
 import { ThemedText } from '../ThemedText';
-import type { DateTimeState, DatePickerChangeHandler } from '@/types/allTypes';
 import { useCreateEventContext } from '@/context/CreateEventContext';
 
 const DateTime = () => {
-  const screenWidth = Dimensions.get('window').width;
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { startTime, endTime, settingEventStartTime, settingEventEndTime } = useCreateEventContext();
 
-  const [startDate, setStartDate] = useState<Date>(startTime || new Date());
-  const [endDate, setEndDate] = useState<Date>(endTime || new Date());
+  // Helper function to get default start time (30 mins from now)
+  const getDefaultStartTime = () => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 30);
+    return now;
+  };
+
+  // Helper function to get default end time (1 hour from start time)
+  const getDefaultEndTime = (startTime: Date) => {
+    const endTime = new Date(startTime);
+    endTime.setHours(endTime.getHours() + 1);
+    return endTime;
+  };
+
+  // Helper function to validate date (ensure it's not invalid like 1969)
+  const isValidDate = (date: Date | null | undefined): boolean => {
+    if (!date) return false;
+    const year = date.getFullYear();
+    return year >= 2020 && year <= 2100; // Reasonable range
+  };
+
+  const getInitialStartDate = () => {
+    if (startTime && isValidDate(startTime)) {
+      return startTime;
+    }
+    return getDefaultStartTime();
+  };
+
+  const getInitialEndDate = () => {
+    if (endTime && isValidDate(endTime)) {
+      return endTime;
+    }
+    return getDefaultEndTime(getInitialStartDate());
+  };
+
+  const [startDate, setStartDate] = useState<Date>(getInitialStartDate());
+  const [endDate, setEndDate] = useState<Date>(getInitialEndDate());
   const [showStartPicker, setShowStartPicker] = useState<boolean>(false);
   const [showEndPicker, setShowEndPicker] = useState<boolean>(false);
-  const [tempStartDate, setTempStartDate] = useState<Date>(startDate);
-  const [tempEndDate, setTempEndDate] = useState<Date>(endDate);
-  const mountedRef = React.useRef(true);
-
-  // Cleanup effect
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
+  
+  // Reanimated shared values
+  const showStartPickerProgress = useSharedValue(0);
+  const showEndPickerProgress = useSharedValue(0);
+  
+  // Refs for measuring component heights
+  const startPickerRef = useAnimatedRef();
+  const endPickerRef = useAnimatedRef();
 
   // Update local state when context changes
   useEffect(() => {
-    if (startTime) {
-      setStartDate(new Date(startTime));
-      setTempStartDate(new Date(startTime));
+    if (startTime && isValidDate(startTime)) {
+      const newStartDate = new Date(startTime);
+      setStartDate(newStartDate);
+      // Update end date to maintain 1 hour duration if no specific end time set
+      if (!endTime) {
+        const newEndDate = getDefaultEndTime(newStartDate);
+        setEndDate(newEndDate);
+      }
     }
   }, [startTime]);
 
   useEffect(() => {
-    if (endTime) {
+    if (endTime && isValidDate(endTime)) {
       setEndDate(new Date(endTime));
-      setTempEndDate(new Date(endTime));
     }
   }, [endTime]);
 
-  const handleStartDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    if (selectedDate) {
-      setTempStartDate(selectedDate);
-    }
-  };
-  
-  const handleEndDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    if (selectedDate) {
-      setTempEndDate(selectedDate);
-    }
+  // Cleanup animations on unmount
+  useEffect(() => {
+    return () => {
+      cancelAnimation(showStartPickerProgress);
+      cancelAnimation(showEndPickerProgress);
+    };
+  }, []);
+
+  const handleStartDateChange = (selectedDate: Date) => {
+    // Calculate new end time (1 hour after start time)
+    const newEndTime = new Date(selectedDate);
+    newEndTime.setHours(newEndTime.getHours() + 1);
+    
+    // Update both start and end times
+    setStartDate(selectedDate);
+    setEndDate(newEndTime);
+    
+    // Update context with both times
+    settingEventStartTime(selectedDate);
+    settingEventEndTime(newEndTime);
   };
 
-  const confirmStartDate = () => {
-    if (mountedRef.current) {
-      setStartDate(tempStartDate);
-      settingEventStartTime(tempStartDate);
-      setShowStartPicker(false);
-    }
+  const handleEndDateChange = (selectedDate: Date) => {
+    // Ensure end date is on the same day as start date
+    const finalEndDate = new Date(startDate);
+    finalEndDate.setHours(selectedDate.getHours(), selectedDate.getMinutes(), 0, 0);
+    
+    // Ensure it's at least 10 minutes after start
+    const minEndTime = new Date(startDate);
+    minEndTime.setMinutes(minEndTime.getMinutes() + 10);
+    
+    const dateToUse = finalEndDate >= minEndTime ? finalEndDate : minEndTime;
+    setEndDate(dateToUse);
+    settingEventEndTime(dateToUse);
   };
 
-  const confirmEndDate = () => {
-    if (mountedRef.current) {
-      setEndDate(tempEndDate);
-      settingEventEndTime(tempEndDate);
+  // Animated styles using Reanimated
+  const startPickerStyle = useAnimatedStyle(() => {
+    return {
+      height: withTiming(showStartPickerProgress.value === 1 ? 360 : 0, { duration: 300 }),
+      opacity: withTiming(showStartPickerProgress.value, { duration: 200 })
+    };
+  });
+
+  const endPickerStyle = useAnimatedStyle(() => {
+    return {
+      height: withTiming(showEndPickerProgress.value === 1 ? 220 : 0, { duration: 300 }),
+      opacity: withTiming(showEndPickerProgress.value, { duration: 200 })
+    };
+  });
+
+  const toggleStartPicker = () => {
+    const isOpening = !showStartPicker;
+    setShowStartPicker(isOpening);
+    
+    if (isOpening && showEndPicker) {
+      // Close end picker first
       setShowEndPicker(false);
+      showEndPickerProgress.value = withTiming(0, { duration: 200 });
     }
+    
+    // Animate with Reanimated
+    showStartPickerProgress.value = withTiming(isOpening ? 1 : 0, { duration: 300 });
+  };
+
+  const toggleEndPicker = () => {
+    const isOpening = !showEndPicker;
+    setShowEndPicker(isOpening);
+    
+    if (isOpening && showStartPicker) {
+      // Close start picker first
+      setShowStartPicker(false);
+      showStartPickerProgress.value = withTiming(0, { duration: 200 });
+    }
+    
+    // Animate with Reanimated
+    showEndPickerProgress.value = withTiming(isOpening ? 1 : 0, { duration: 300 });
   };
 
   return (
-      <ThemedView
-        style={{
-          alignSelf: 'center',
-          paddingVertical: 8,
-          paddingHorizontal: 20,
-          width: '100%',
-          borderRadius: 8,
-          backgroundColor: themeColors.inputBackgroundColor,
-          marginTop: 8
-        }}
-      >
-
-        {/* Start Date & Time */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+    <ThemedView
+      style={{
+        alignSelf: 'center',
+        paddingVertical: 8,
+        paddingHorizontal: 20,
+        width: '100%',
+        borderRadius: 8,
+        backgroundColor: themeColors.inputBackgroundColor,
+        marginTop: 8
+      }}
+    >
+      {/* Start Date & Time */}
+      <TouchableOpacity onPress={toggleStartPicker}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Feather name="circle" size={14} color={themeColors.placeholderTextColor} style={{ marginRight: 8 }} />
             <Text style={{ fontSize: 16, fontWeight: '500', color: themeColors.placeholderTextColor }}>
               Start
             </Text>
           </View>
-          <TouchableOpacity onPress={() => setShowStartPicker(true)}
-            style={{
-              backgroundColor: Colors[colorScheme ?? 'dark'].background,
-              paddingVertical: 10,
-              paddingHorizontal: 16,
-              borderRadius: 8,
-            }}
-          >
-            <ThemedText style={{ fontSize: 12, fontWeight: 'bold', textAlign: 'right', color: themeColors.text }}>
+          <View style={{ 
+            flexDirection: 'row', 
+            alignItems: 'center',
+          }}>
+            <ThemedText style={{ fontSize: 12, fontWeight: 'bold', textAlign: 'right', color: themeColors.text, marginRight: 8 }}>
               {`${startDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} at ${startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}`}
             </ThemedText>
-          </TouchableOpacity>
+            <Feather 
+              name={showStartPicker ? "chevron-up" : "chevron-down"} 
+              size={20} 
+              color={themeColors.text} 
+            />
+          </View>
         </View>
+      </TouchableOpacity>
 
-        {/* Start Date Picker Modal */}
-        {showStartPicker && (
-          <Modal transparent={true} animationType="fade" visible={showStartPicker}>
-            <TouchableWithoutFeedback onPress={() => {
-              if (mountedRef.current) {
-                setShowStartPicker(false);
-              }
-            }}>
-              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}>
-                <View style={{ backgroundColor: themeColors.background, padding: 20, borderRadius: 10, minHeight: 280 }}>
-                  <View style={{ minWidth: 280, width: '100%', alignItems: 'center' }}>
-                    <DateTimePicker
-                      value={tempStartDate} // Use temp value
-                      textColor={themeColors.text}
-                      accentColor={themeColors.mountainGreen}
-                      minimumDate={new Date()}
-                      themeVariant={colorScheme === "light" ? "light" : "dark"}
-                      mode="datetime"
-                      display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                      onChange={handleStartDateChange} // Store in temp
-                      style={{ minHeight: 280, minWidth: 280, width: '100%' }} // Ensure minimum width
-                    />
-                  </View>
-                  {/* Confirm Button */}
-                  <TouchableOpacity
-                    onPress={confirmStartDate}
-                    style={{
-                      marginTop: 16,
-                      marginBottom: 16,
-                      backgroundColor: themeColors.mountainGreen,
-                      paddingVertical: 10,
-                      borderRadius: 8,
-                      alignItems: 'center',
-                    }}
-                  >
-                    <Text style={{ color: 'white', fontWeight: 'bold' }}>Confirm</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </TouchableWithoutFeedback>
-          </Modal>
-        )}
+      {/* Start Date Picker - Expandable */}
+      <Animated.View 
+        ref={startPickerRef}
+        style={[{ overflow: 'hidden' }, startPickerStyle]}
+      >
+        <View style={{ paddingBottom: 10 }}>
+          <DateTimePicker
+            initialDate={startDate.toISOString()}
+            color={themeColors.mountainGreen}
+            displayedComponents="dateAndTime"
+            variant="graphical"
+            onDateSelected={handleStartDateChange}
+            style={{ height: 280, width: '100%' }}
+          />
+        </View>
+      </Animated.View>
 
-        {/* Divider */}
-        <View style={{ height: 1, backgroundColor: themeColors.placeholderTextColor, opacity: 0.2, marginBottom: 8, marginLeft: 22 }} />
+      {/* Divider */}
+      <View style={{ height: 1, backgroundColor: themeColors.placeholderTextColor, opacity: 0.2, marginLeft: 22, marginVertical: 16 }} />
 
-        {/* End Date & Time */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+      {/* End Time */}
+      <TouchableOpacity onPress={toggleEndPicker}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Feather name="circle" size={14} color={themeColors.placeholderTextColor} style={{ marginRight: 8 }} />
             <Text style={{ fontSize: 16, fontWeight: '500', color: themeColors.placeholderTextColor }}>
               End
             </Text>
           </View>
-          <TouchableOpacity onPress={() => setShowEndPicker(true)} 
-            style={{
-              backgroundColor: Colors[colorScheme ?? 'dark'].background,
-              paddingVertical: 10,
-              paddingHorizontal: 16,
-              borderRadius: 8,
-            }}
-          >
-            <ThemedText style={{ fontSize: 12, fontWeight: 'bold', textAlign: 'right', color: themeColors.text }}>
-              {`${endDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} at ${endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}`}
+          <View style={{ 
+            flexDirection: 'row', 
+            alignItems: 'center',
+          }}>
+            <ThemedText style={{ fontSize: 12, fontWeight: 'bold', textAlign: 'right', color: themeColors.text, marginRight: 8 }}>
+              {endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
             </ThemedText>
-          </TouchableOpacity>
+            <Feather 
+              name={showEndPicker ? "chevron-up" : "chevron-down"} 
+              size={20} 
+              color={themeColors.text} 
+            />
+          </View>
         </View>
+      </TouchableOpacity>
 
-        {/* End Date Picker Modal */}
-        {showEndPicker && (
-          <Modal transparent={true} animationType="fade" visible={showEndPicker}>
-            <TouchableWithoutFeedback onPress={() => {
-              if (mountedRef.current) {
-                setShowEndPicker(false);
-              }
-            }}>
-              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}>
-                <View style={{ backgroundColor: themeColors.background, padding: 20, borderRadius: 10, minHeight: 280 }}>
-                  <View style={{ minWidth: 280, width: '100%', alignItems: 'center' }}>
-                    <DateTimePicker
-                      value={tempEndDate} // Use temp value
-                      textColor={themeColors.text}
-                      accentColor={themeColors.mountainGreen}
-                      minimumDate={startDate}
-                      themeVariant={colorScheme === "light" ? "light" : "dark"}
-                      mode="datetime"
-                      display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                      onChange={handleEndDateChange} // Store in temp
-                      style={{ minHeight: 280, minWidth: 280, width: '100%' }} // Ensure minimum width
-                    />
-                  </View>
-                  {/* Confirm Button */}
-                  <TouchableOpacity
-                    onPress={confirmEndDate}
-                    style={{
-                      marginTop: 16,
-                      marginBottom: 16,
-                      backgroundColor: themeColors.mountainGreen,
-                      paddingVertical: 10,
-                      borderRadius: 8,
-                      alignItems: 'center',
-                    }}
-                  >
-                    <Text style={{ color: 'white', fontWeight: 'bold' }}>Confirm</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </TouchableWithoutFeedback>
-          </Modal>
-        )}
-      </ThemedView>
+      {/* End Time Picker - Expandable */}
+      <Animated.View 
+        ref={endPickerRef}
+        style={[{ overflow: 'hidden' }, endPickerStyle]}
+      >
+        <View style={{ paddingBottom: 10 }}>
+          <DateTimePicker
+            key={endDate.toISOString()}
+            initialDate={endDate.toISOString()}
+            color={themeColors.mountainGreen}
+            displayedComponents="hourAndMinute"
+            variant="wheel"
+            onDateSelected={handleEndDateChange}
+            style={{ height: 200, width: '100%' }}
+          />
+        </View>
+      </Animated.View>
+    </ThemedView>
   );
 };
 

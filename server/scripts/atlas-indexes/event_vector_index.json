@@ -1,0 +1,54 @@
+{
+  "fields": [
+    {
+      "type": "vector",
+      "path": "combined_embedding",
+      "numDimensions": 1536,
+      "similarity": "cosine"
+    },
+    {
+      "type": "vector",
+      "path": "title_embedding",
+      "numDimensions": 1536,
+      "similarity": "cosine"
+    },
+    {
+      "type": "vector",
+      "path": "description_embedding",
+      "numDimensions": 1536,
+      "similarity": "cosine"
+    },
+    {
+      "type": "vector",
+      "path": "category_embedding",
+      "numDimensions": 1536,
+      "similarity": "cosine"
+    },
+    {
+      "type": "vector",
+      "path": "location_embedding",
+      "numDimensions": 1536,
+      "similarity": "cosine"
+    },
+    {
+      "type": "filter",
+      "path": "metadata.visibility"
+    },
+    {
+      "type": "filter",
+      "path": "metadata.event_type"
+    },
+    {
+      "type": "filter",
+      "path": "metadata.creator_id"
+    },
+    {
+      "type": "filter",
+      "path": "metadata.start_time"
+    },
+    {
+      "type": "filter",
+      "path": "metadata.end_time"
+    }
+  ]
+}

@@ -19,6 +19,7 @@ import Animated, { useSharedValue, withTiming, useAnimatedStyle } from 'react-na
 import { useHomeError } from '@/context/HomeErrorContext';
 import { HomeErrorMessage } from '@/components/Home/HomeErrorMessage';
 import { queryClient } from '@/utils/queryClient';
+import AISummary from './AISummary.v2';
 
 /**
  * HomeScreen v2 - Using FlashList for all content with infinite scroll for past events
@@ -44,6 +45,7 @@ import { queryClient } from '@/utils/queryClient';
 type SectionType = 
   | 'header'
   | 'errorMessage'
+  | 'aiSummary'
   | 'upcomingEvents'
   | 'attentionRequired'
   | 'pastEventsHeader'
@@ -68,6 +70,7 @@ const HomeScreenV2 = () => {
   // Refresh states for individual sections
   const [refreshingUpcomingEvents, setRefreshingUpcomingEvents] = useState(false);
   const [refreshingAttentionRequired, setRefreshingAttentionRequired] = useState(false);
+  const [refreshingAIInsights, setRefreshingAIInsights] = useState(false);
 
   // Header animation states (using refs for performance like Discover.v2)
   const headerHeight = useRef(0);
@@ -157,6 +160,7 @@ const HomeScreenV2 = () => {
     setRefreshing(true);
     setRefreshingUpcomingEvents(true);
     setRefreshingAttentionRequired(true);
+    setRefreshingAIInsights(true);
     
     try {
       // Invalidate all event-related queries to force fresh data
@@ -164,6 +168,7 @@ const HomeScreenV2 = () => {
       await queryClient.invalidateQueries({ queryKey: ['upcomingEvents'] });
       await queryClient.invalidateQueries({ queryKey: ['attentionRequired'] });
       await queryClient.invalidateQueries({ queryKey: ['pastEvents'] });
+      await queryClient.invalidateQueries({ queryKey: ['aiInsights'] });
       
       // Refresh past events
       await refetchPastEvents();
@@ -188,6 +193,12 @@ const HomeScreenV2 = () => {
 
   const onFinishRefreshAttentionRequired = useCallback(() => {
     setRefreshingAttentionRequired(false);
+    // Clear errors when individual component refresh finishes successfully
+    // The component's useEffect will set the error state based on the result
+  }, []);
+
+  const onFinishRefreshAIInsights = useCallback(() => {
+    setRefreshingAIInsights(false);
     // Clear errors when individual component refresh finishes successfully
     // The component's useEffect will set the error state based on the result
   }, []);
@@ -225,6 +236,9 @@ const HomeScreenV2 = () => {
     if (hasAnyError) {
       sections.push({ id: 'errorMessage', type: 'errorMessage' });
     }
+
+    // Upcoming Events section
+    sections.push({ id: 'aiSummary', type: 'aiSummary' });
     
     // Upcoming Events section
     sections.push({ id: 'upcomingEvents', type: 'upcomingEvents' });
@@ -289,6 +303,16 @@ const HomeScreenV2 = () => {
       case 'errorMessage':
         return <HomeErrorMessage errors={errors} showCachedDataWarning={true} />;
 
+      case 'aiSummary':
+        return (
+          <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, marginBottom: 24 }}>
+            <AISummary
+              refreshing={refreshingAIInsights}
+              onFinishRefresh={onFinishRefreshAIInsights}
+            />
+          </ThemedView>
+        );        
+      
       case 'upcomingEvents':
         return (
           <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, marginBottom: 24 }}>
@@ -328,16 +352,16 @@ const HomeScreenV2 = () => {
               </ThemedView>
               
               <TouchableOpacity 
-                style={{
-                  width: 36,
-                  height: 36,
+                style={{ 
+                  flexDirection: 'row', 
+                  alignItems: 'center', 
                   justifyContent: 'center',
-                  alignItems: 'center',
-                  marginLeft: 12,
+                  gap: 4,
                 }}
                 onPress={() => setShowPastEventsFilters(true)}
                 accessibilityLabel="Filter past events"
               >
+                <ThemedText style={{ fontSize: 16, color: pastEventsDateFilter.type !== 'all' ? themeColors.tint : themeColors.textSecondary }}>Filter</ThemedText>
                 <IconSymbol
                   name="slider.horizontal.3"
                   size={24}
@@ -394,7 +418,8 @@ const HomeScreenV2 = () => {
               style={{
                 fontSize: 16,
                 textAlign: 'center',
-                color: themeColors.textSecondary,
+                color: themeColors.placeholderTextColor,
+                fontWeight: '600'
               }}
             >
               {pastEventsDateFilter.type === 'all' 
@@ -407,7 +432,7 @@ const HomeScreenV2 = () => {
                 fontSize: 14,
                 textAlign: 'center',
                 marginTop: 8,
-                color: themeColors.textThird,
+                color: themeColors.placeholderTextColor,
               }}
             >
               {pastEventsDateFilter.type === 'all'
@@ -420,7 +445,7 @@ const HomeScreenV2 = () => {
                 fontSize: 14,
                 textAlign: 'center',
                 marginTop: 8,
-                color: themeColors.textThird,
+                color: themeColors.placeholderTextColor,
               }}
             >
               Tap to refresh
@@ -452,8 +477,10 @@ const HomeScreenV2 = () => {
     headerStyle,
     refreshingUpcomingEvents,
     refreshingAttentionRequired,
+    refreshingAIInsights,
     onFinishRefreshUpcomingEvents,
     onFinishRefreshAttentionRequired,
+    onFinishRefreshAIInsights,
     pastEventsDateFilter,
     pastEventsTotalCount,
     themeColors,

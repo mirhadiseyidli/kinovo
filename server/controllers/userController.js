@@ -776,6 +776,35 @@ const getUserTags = async (req, res) => {
   }
 };
 
+// Search tags by activity name
+const searchUserTags = async (req, res) => {
+  try {
+    const { query } = req.query;
+    
+    if (!query || !query.trim()) {
+      return res.status(400).json({ message: 'Search query is required' });
+    }
+
+    const user = await User.findById(req.user._id)
+      .populate('tags.friends', 'full_name username profile_picture');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Filter tags that match the search query (case-insensitive)
+    const normalizedQuery = query.trim().toLowerCase();
+    const matchingTags = user.tags.filter(tag => 
+      tag.activity_name.trim().toLowerCase().includes(normalizedQuery)
+    );
+
+    res.status(200).json({ tags: matchingTags });
+  } catch (error) {
+    console.error('Error searching user tags:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 const getFavoriteActivities = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select('favorite_activities');
@@ -1075,6 +1104,7 @@ module.exports = {
   addFriendsToTag,
   removeFriendsFromTag,
   getUserTags,
+  searchUserTags,
   getFavoriteActivities,
   addFavoriteActivity,
   removeFavoriteActivity,

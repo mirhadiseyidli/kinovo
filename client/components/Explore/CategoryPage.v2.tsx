@@ -14,6 +14,7 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCategoryError } from '@/context/CategoryErrorContext';
 import { CategoryErrorMessage } from '@/components/Explore/CategoryErrorMessage';
+import { SkeletonBox } from '../Skeleton';
 
 /**
  * TanStack React Query version of CategoryPage with InfiniteEventsList
@@ -224,132 +225,10 @@ const CategoryPageV2: React.FC = () => {
     return (
       <View style={{ flex: 1, padding: 16 }}>
         {/* Loading State */}
-        <View style={{
-          flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
-          paddingVertical: 60,
-        }}>
-          <View style={{
-            width: 60,
-            height: 60,
-            borderRadius: 30,
-            backgroundColor: themeColors.background,
-            justifyContent: 'center',
-            alignItems: 'center',
-            marginBottom: 20,
-          }}>
-            <MaterialCommunityIcons 
-              name={getCategoryIcon(category as string)} 
-              size={24} 
-              color={themeColors.text}
-            />
-          </View>
-          <ThemedText style={{
-            fontSize: 18,
-            fontWeight: 'bold',
-            color: themeColors.text,
-            marginBottom: 8,
-          }}>
-            Loading {category} events...
-          </ThemedText>
-          <ThemedText style={{
-            fontSize: 14,
-            color: themeColors.textSecondary,
-            textAlign: 'center',
-          }}>
-            Please wait while we fetch events in this category
-          </ThemedText>
-        </View>
+        <SkeletonBox width={'100%'} height={170} borderRadius={16} />
       </View>
     );
   }, [category, themeColors]);
-
-  // Custom error state
-  // const renderErrorState = useCallback((error: any, retry: () => void) => {
-  //   return (
-  //     <View style={{ flex: 1, padding: 16 }}>
-  //       {/* Error State */}
-  //       <View style={{
-  //         flex: 1,
-  //         justifyContent: 'center',
-  //         alignItems: 'center',
-  //         paddingVertical: 60,
-  //       }}>
-  //         <View style={{
-  //           width: 60,
-  //           height: 60,
-  //           borderRadius: 30,
-  //           backgroundColor: themeColors.background,
-  //           justifyContent: 'center',
-  //           alignItems: 'center',
-  //           marginBottom: 20,
-  //         }}>
-  //           <IconSymbol
-  //             name="exclamationmark.triangle.fill"
-  //             size={24}
-  //             color={themeColors.text}
-  //           />
-  //         </View>
-  //         <ThemedText style={{
-  //           fontSize: 18,
-  //           fontWeight: 'bold',
-  //           color: themeColors.text,
-  //           marginBottom: 8,
-  //           textAlign: 'center',
-  //         }}>
-  //           Unable to load {category} events
-  //         </ThemedText>
-  //         <ThemedText style={{
-  //           fontSize: 14,
-  //           color: themeColors.textSecondary,
-  //           textAlign: 'center',
-  //           marginBottom: 20,
-  //           lineHeight: 20,
-  //         }}>
-  //           {error?.message || 'An unexpected error occurred.'}
-  //           {'\n'}Please check your connection and try again.
-  //         </ThemedText>
-  //         <View style={{ flexDirection: 'row', gap: 12 }}>
-  //           <TouchableOpacity
-  //             style={{
-  //               backgroundColor: themeColors.background,
-  //               paddingHorizontal: 20,
-  //               paddingVertical: 12,
-  //               borderRadius: 8,
-  //             }}
-  //             onPress={retry}
-  //           >
-  //             <ThemedText style={{
-  //               color: themeColors.text,
-  //               fontSize: 16,
-  //               fontWeight: 'bold',
-  //             }}>
-  //               Try Again
-  //             </ThemedText>
-  //           </TouchableOpacity>
-  //           <TouchableOpacity
-  //             style={{
-  //               backgroundColor: getCategoryColor(category as string),
-  //               paddingHorizontal: 20,
-  //               paddingVertical: 12,
-  //               borderRadius: 8,
-  //             }}
-  //             onPress={navigateToCreateEvent}
-  //           >
-  //             <ThemedText style={{
-  //               color: 'white',
-  //               fontSize: 16,
-  //               fontWeight: 'bold',
-  //             }}>
-  //               Create Event
-  //             </ThemedText>
-  //           </TouchableOpacity>
-  //         </View>
-  //       </View>
-  //     </View>
-  //   );
-  // }, [category, themeColors, navigateToCreateEvent]);
 
   if (!category) {
     return (
