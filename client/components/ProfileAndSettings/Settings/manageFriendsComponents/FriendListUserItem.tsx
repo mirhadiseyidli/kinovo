@@ -37,6 +37,24 @@ export default function FriendListUserItem({
       removeFriendFromFriendList
     } = useManageFriends();
 
+  const handleRemoveFromTag = useCallback(() => {
+    Alert.alert(
+      'Remove Friend',
+      `Are you sure you want to remove ${name} from this tag?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: onRemove
+        }
+      ]
+    );
+  }, [name, onRemove]);
+
   const openUserProfile = (_id: string) => {
     router.push({
       pathname: "/(auth)/profile/[_id]",
@@ -215,7 +233,17 @@ export default function FriendListUserItem({
           </ContextMenu>
         );
         case 'manageTagFriend':
-          return;
+          return (
+            <TouchableOpacity
+              onPress={handleRemoveFromTag}
+              style={{
+                padding: 8,
+                borderRadius: 8,
+              }}
+            >
+              <Feather name="x" size={16} color={themeColors.specialRed} />
+            </TouchableOpacity>
+          );
       case 'request': {
         if (decision === 'accepted') {
           return (

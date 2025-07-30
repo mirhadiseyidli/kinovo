@@ -454,7 +454,8 @@ const DiscoverScreenV2 = () => {
               style={{
                 fontSize: 16,
                 textAlign: 'center',
-                color: themeColors.textSecondary,
+                color: themeColors.placeholderTextColor,
+                fontWeight: '600'
               }}
             >
               No recommended events yet
@@ -464,7 +465,7 @@ const DiscoverScreenV2 = () => {
                 fontSize: 14,
                 textAlign: 'center',
                 marginTop: 8,
-                color: themeColors.textThird,
+                color: themeColors.placeholderTextColor,
               }}
             >
               Add more interests to get personalized suggestions
@@ -474,7 +475,7 @@ const DiscoverScreenV2 = () => {
                 fontSize: 14,
                 textAlign: 'center',
                 marginTop: 8,
-                color: themeColors.textThird,
+                color: themeColors.placeholderTextColor,
               }}
             >
               Tap to refresh

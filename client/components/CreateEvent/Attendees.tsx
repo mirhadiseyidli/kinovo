@@ -23,6 +23,10 @@ type EventAttendee = {
 interface SuggestionsData {
   friends: AttendeeFriend[];
   nonFriends: AttendeeFriend[];
+  tags: {
+    activity_name: string;
+    friends: AttendeeFriend[];
+  }[];
 }
 
 interface AttendeesProps {
@@ -52,7 +56,7 @@ const Attendees: React.FC<AttendeesProps> = ({
   const [attendees, setAttendees] = useState<AttendeeFriend[]>([]);
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const { attendees: contextAttendees, settingEventAttendees } = useCreateEventContext();
+  const { attendees: contextAttendees, settingEventAttendees, visibility } = useCreateEventContext();
   const { fetchUserData } = useUserData();
   const maxVisibleFriends = 4;
   const [refreshing, setRefreshing] = useState(false);
@@ -165,19 +169,50 @@ const Attendees: React.FC<AttendeesProps> = ({
     }
   };
 
+  const fetchTagsResults = async (query: string): Promise<any[]> => {
+    try {
+      // Use a search-specific endpoint that handles the query server-side
+      const response = await api.get(`/api/users/tags/search?query=${encodeURIComponent(query)}`);
+      return response.data.tags || [];
+    } catch (error) {
+      console.error('Error searching tags:', error);
+      return [];
+    }
+  };
+
   const getSearchResults = async (query: string) => {
     if (!query.trim()) {
       setSuggestions([]);
-      setSuggestionsData({ friends: [], nonFriends: [] });
+      setSuggestionsData({ friends: [], nonFriends: [], tags: [] });
       return;
     }
 
     try {
-      // Fetch both friends and non-friends in parallel
-      const [friendsResults, nonFriendsResults] = await Promise.all([
-        fetchFriendsResults(query),
-        fetchNonFriendsResults(query)
-      ]);
+      let friendsResults: AttendeeFriend[] = [];
+      let nonFriendsResults: AttendeeFriend[] = [];
+      let tagsResults: any[] = [];
+
+      // Based on visibility, determine what to search
+      if (visibility === 'public') {
+        // Public: search everyone (friends + non-friends) and tags
+        const [friendsData, nonFriendsData, tagsData] = await Promise.all([
+          fetchFriendsResults(query),
+          fetchNonFriendsResults(query),
+          fetchTagsResults(query)
+        ]);
+        friendsResults = friendsData;
+        nonFriendsResults = nonFriendsData;
+        tagsResults = tagsData;
+      } else {
+        // Friends ('private') and Private ('selected'): only search friends and tags
+        const [friendsData, tagsData] = await Promise.all([
+          fetchFriendsResults(query),
+          fetchTagsResults(query)
+        ]);
+        friendsResults = friendsData;
+        nonFriendsResults = []; // No non-friends for private/friends visibility
+        tagsResults = tagsData;
+      }
 
       // Filter out already added attendees
       const availableFriends = friendsResults.filter((friend) => 
@@ -188,20 +223,32 @@ const Attendees: React.FC<AttendeesProps> = ({
         !attendees.some((a) => a._id === user._id)
       );
 
+      // Filter tags to only include those with friends not already added
+      const availableTags = tagsResults.map((tag) => ({
+        ...tag,
+        friends: tag.friends.filter((friend: AttendeeFriend) => 
+          !attendees.some((a) => a._id === friend._id)
+        )
+      }));
+      
+      // Only show tags with available friends
+      const tagsWithAvailableFriends = availableTags.filter((tag) => tag.friends.length > 0);
+
       // Store separated data for sectioned display
       setSuggestionsData({ 
         friends: availableFriends, 
-        nonFriends: availableNonFriends 
+        nonFriends: availableNonFriends,
+        tags: tagsWithAvailableFriends
       });
 
-      // Keep the combined results for backward compatibility
-      const combinedResults = [...availableFriends, ...availableNonFriends];
+      // Keep the combined results for backward compatibility - include tags to trigger showSuggestions
+      const combinedResults = [...availableFriends, ...availableNonFriends, ...tagsWithAvailableFriends];
       setSuggestions(combinedResults);
     } catch (error: unknown) {
       const err = error as ApiError;
       console.error('Failed to fetch search results:', err);
       setSuggestions([]);
-      setSuggestionsData({ friends: [], nonFriends: [] });
+      setSuggestionsData({ friends: [], nonFriends: [], tags: [] });
     }
   };
 
@@ -223,17 +270,39 @@ const Attendees: React.FC<AttendeesProps> = ({
         timeoutRef.current = null;
       }
     };
-  }, [inputValue]);
+  }, [inputValue, visibility]); // Add visibility as dependency
 
   // Attendee management functions
-  const handleAdd = (friend: AttendeeFriend) => {
+  const handleAdd = (friendOrTag: AttendeeFriend | { activity_name: string; friends: AttendeeFriend[] }) => {
     if (!mountedRef.current) return;
     
-    const alreadyAdded = attendees.some((f) => f._id === friend._id);
-    if (alreadyAdded) return;
-    if (limit !== null && attendees.length >= limit) return;
+    // Check if it's a tag (has activity_name property)
+    if ('activity_name' in friendOrTag) {
+      // It's a tag - add all friends from the tag
+      const tag = friendOrTag;
+      const friendsToAdd = tag.friends.filter(friend => 
+        !attendees.some((a) => a._id === friend._id)
+      );
+      
+      // Check if adding all friends would exceed the limit
+      if (limit !== null && attendees.length + friendsToAdd.length > limit) {
+        const remainingSlots = limit - attendees.length;
+        if (remainingSlots <= 0) return;
+        // Only add as many friends as the limit allows
+        friendsToAdd.splice(remainingSlots);
+      }
+      
+      setAttendees((prev) => [...prev, ...friendsToAdd]);
+    } else {
+      // It's a single friend
+      const friend = friendOrTag;
+      const alreadyAdded = attendees.some((f) => f._id === friend._id);
+      if (alreadyAdded) return;
+      if (limit !== null && attendees.length >= limit) return;
 
-    setAttendees((prev) => [...prev, friend]);
+      setAttendees((prev) => [...prev, friend]);
+    }
+    
     setInputValue('');
     setSuggestions([]);
     setShowSuggestions(false);

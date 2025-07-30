@@ -4,6 +4,7 @@ export interface HomeErrorState {
   upcomingEvents: boolean;
   attentionRequired: boolean;
   pastEvents: boolean;
+  aiInsights: boolean;
 }
 
 interface HomeErrorContextType {
@@ -34,6 +35,7 @@ export const HomeErrorProvider: React.FC<HomeErrorProviderProps> = ({ children }
     upcomingEvents: false,
     attentionRequired: false,
     pastEvents: false,
+    aiInsights: false,
   });
   
   const [showCachedDataWarning, setShowCachedDataWarning] = useState(true);
@@ -50,6 +52,7 @@ export const HomeErrorProvider: React.FC<HomeErrorProviderProps> = ({ children }
       upcomingEvents: false,
       attentionRequired: false,
       pastEvents: false,
+      aiInsights: false,
     });
   }, []);
 

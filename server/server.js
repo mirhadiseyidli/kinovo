@@ -78,7 +78,7 @@ async function startServer() {
     // Routes
     app.use('/api/auth', authRoutes);
     app.use('/api/users', userRoutes);
-    app.use('/api/assistants', aiRoutes);
+    app.use('/api/ai', aiRoutes);
     app.use('/api/search', searchRoutes);
     app.use('/api/managefriends', manageFriendsRoutes);
     app.use('/api/friendsuggestions', friendSuggestionsRoutes);
