@@ -170,7 +170,7 @@ const EventAttendees = ({ userId, event }: { userId: string | null, event: Event
         flexDirection: 'row',
       }, useCollapsedRowStyle(expanded)]}>
         {(event?.attendees ?? []).slice(0, 3).map((attendee, index) => (
-          <AttendeeAvatar key={attendee.user._id} attendee={attendee} index={index} />
+          <AttendeeAvatar key={attendee.user._id || `avatar-${index}`} attendee={attendee} index={index} />
         ))}
         {(event?.attendees ?? []).length > 3 && (
           <TouchableOpacity onPress={() => (expanded.value = 1)} style={{
@@ -193,9 +193,9 @@ const EventAttendees = ({ userId, event }: { userId: string | null, event: Event
           alignItems: 'center',
         }}>
         </View>
-        {(attendees ?? []).map((attendee) => (
+        {(attendees ?? []).map((attendee, index) => (
           <AttendeeRow 
-            key={attendee.user._id} 
+            key={attendee.user._id || `attendee-${index}`} 
             attendee={attendee} 
             isCreator={userId === event.creator?._id} 
             creatorId={event.creator?._id}

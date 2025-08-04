@@ -3,7 +3,6 @@ import { Redirect, Stack, useRouter } from 'expo-router';
 import { ReactNode, useMemo } from "react";
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import { useSharedValue } from 'react-native-reanimated';
 import { UserSessionProvider } from '@/context/UserSessionContext';
 import { TouchableOpacity } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
@@ -13,11 +12,6 @@ export default function RootLayout(): ReactNode {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
-
-  // Shared values for gestures - MUST be before any conditional returns
-  const translateX = useSharedValue(0);
-  const translateY = useSharedValue(0);
-  const gestureActive = useSharedValue(0);
 
   // goBack function - MUST be before any conditional returns due to useMemo dependency
   const goBack = () => {
@@ -80,20 +74,6 @@ export default function RootLayout(): ReactNode {
               fontWeight: 'bold'
             },
             animationTypeForReplace: 'pop',
-          }}
-          listeners={{
-            blur: () => {
-              'worklet';
-              translateX.value = 0;
-              translateY.value = 0;
-              gestureActive.value = 0;
-            },
-            beforeRemove: () => {
-              'worklet';
-              translateX.value = 0;
-              translateY.value = 0;
-              gestureActive.value = 0;
-            }
           }}
         />
         <Stack.Screen 

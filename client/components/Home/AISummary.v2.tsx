@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { View, Text, Image, TouchableOpacity, Animated, Easing } from 'react-native';
+import { View, Text, Image, TouchableOpacity } from 'react-native';
 import Reanimated, { 
   useSharedValue, 
   useAnimatedStyle, 
   withTiming, 
+  withRepeat,
   withSequence,
   withDelay,
   runOnJS,
   cancelAnimation,
-  useDerivedValue
+  useDerivedValue,
+  Easing
 } from 'react-native-reanimated';
 import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -21,18 +23,19 @@ import { useRouter } from 'expo-router';
 import { useAIInsightsQuery } from '@/hooks/useAIInsightsQuery';
 import { useHomeError } from '@/context/HomeErrorContext';
 import PastEvent from '@/components/Home/PastEvent';
+import { getWeatherGradient, getWeatherConditionFromDescription, getWeatherEmoji } from '@/constants/WeatherConditions';
 
 /**
  * TanStack React Query version of AISummary component
  * Following the same pattern as UpcomingEvents.v2
  */
 
-// AnimatedTypingText component using react-native-reanimated
+// AnimatedTypingText component using react-native-reanimated v4
 interface AnimatedTypingTextProps {
   text: string;
   progress: Reanimated.SharedValue<number>;
   showCursor: Reanimated.SharedValue<boolean>;
-  cursorAnim: Animated.Value;
+  cursorOpacity: Reanimated.SharedValue<number>;
   style: any;
   cursorStyle: any;
 }
@@ -41,7 +44,7 @@ const AnimatedTypingText: React.FC<AnimatedTypingTextProps> = React.memo(({
   text, 
   progress, 
   showCursor, 
-  cursorAnim, 
+  cursorOpacity, 
   style, 
   cursorStyle 
 }) => {
@@ -50,7 +53,13 @@ const AnimatedTypingText: React.FC<AnimatedTypingTextProps> = React.memo(({
 
   const animatedCursorStyle = useAnimatedStyle(() => {
     return {
-      opacity: showCursor.value ? 1 : 0,
+      opacity: showCursor.value ? withTiming(cursorOpacity.value, {
+        duration: 530,
+        easing: Easing.inOut(Easing.ease)
+      }) : withTiming(0, {
+        duration: 200,
+        easing: Easing.out(Easing.ease)
+      })
     };
   });
 
@@ -60,6 +69,7 @@ const AnimatedTypingText: React.FC<AnimatedTypingTextProps> = React.memo(({
   }, []);
 
   // Use derived value to track progress and update text via runOnJS
+  // Optimized with Reanimated 4.0 - reduced frequency of runOnJS calls
   useDerivedValue(() => {
     const currentLength = Math.floor(progress.value * text.length);
     
@@ -71,13 +81,13 @@ const AnimatedTypingText: React.FC<AnimatedTypingTextProps> = React.memo(({
     }
     
     return currentLength;
-  });
+  }, [text.length]);
 
   return (
     <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
       <Text style={style}>{visibleText}</Text>
       <Reanimated.View style={animatedCursorStyle}>
-        <Animated.Text style={{ ...cursorStyle, opacity: cursorAnim }}>|</Animated.Text>
+        <Reanimated.Text style={cursorStyle}>|</Reanimated.Text>
       </Reanimated.View>
     </View>
   );
@@ -104,7 +114,7 @@ const LoadingTypingText: React.FC<{ progress: Reanimated.SharedValue<number>; st
     }
     
     return currentLength;
-  });
+  }, [fullText.length]); // Added dependency array for better optimization
 
   return <Text style={style}>{visibleText}</Text>;
 });
@@ -123,8 +133,8 @@ const AISummary = React.memo<AISummaryProps>(({ refreshing, onFinishRefresh }) =
   const themeColors = Colors[colorScheme ?? 'dark'];
   const loadingProgress = useSharedValue(0);
   const [showContent, setShowContent] = useState(false);
-  const loadingAnim = useRef(new Animated.Value(0)).current;
-  const cursorAnim = useRef(new Animated.Value(1)).current;
+  const loadingSlideX = useSharedValue(-300);
+  const cursorOpacity = useSharedValue(1);
   const loggedTrafficRef = useRef(false);
   const currentInsightRef = useRef<string | null>(null);
   
@@ -133,7 +143,57 @@ const AISummary = React.memo<AISummaryProps>(({ refreshing, onFinishRefresh }) =
   const subtitleProgress = useSharedValue(0);
   const showTitleCursor = useSharedValue(false);
   const showSubtitleCursor = useSharedValue(false);
+  const contentOpacity = useSharedValue(0);
   const router = useRouter();
+
+  // All useAnimatedStyle hooks must be at the top level
+  const loadingShimmerStyle = useAnimatedStyle(() => ({
+    width: '100%',
+    height: '100%',
+    position: 'absolute',
+    left: 0,
+    transform: [
+      {
+        translateX: loadingSlideX.value,
+      },
+    ],
+  }));
+
+  const ctaButtonStyle = useAnimatedStyle(() => ({
+    opacity: contentOpacity.value,
+    transform: [
+      {
+        translateY: withTiming(showContent ? 0 : 10, {
+          duration: 600,
+          easing: Easing.out(Easing.ease)
+        })
+      }
+    ]
+  }));
+
+  const eventCardStyle = useAnimatedStyle(() => ({
+    opacity: contentOpacity.value,
+    transform: [
+      {
+        translateY: withTiming(showContent ? 0 : 20, {
+          duration: 800,
+          easing: Easing.out(Easing.ease)
+        })
+      }
+    ]
+  }));
+
+  const subCardsStyle = useAnimatedStyle(() => ({
+    opacity: contentOpacity.value,
+    transform: [
+      {
+        translateY: withTiming(showContent ? 0 : 30, {
+          duration: 1000,
+          easing: Easing.out(Easing.ease)
+        })
+      }
+    ]
+  }));
 
   // Error handling - report to HomeErrorContext (same pattern as other components)
   React.useEffect(() => {
@@ -141,30 +201,31 @@ const AISummary = React.memo<AISummaryProps>(({ refreshing, onFinishRefresh }) =
   }, [isError, setComponentError]);
 
   useEffect(() => {
-    Animated.loop(
-      Animated.timing(loadingAnim, {
-        toValue: 1,
+    // Loading shimmer animation using reanimated v4
+    loadingSlideX.value = withRepeat(
+      withTiming(300, {
         duration: 2500,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    ).start();
+        easing: Easing.linear
+      }),
+      -1,
+      false
+    );
 
-    // Cursor blinking animation
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(cursorAnim, {
-          toValue: 0,
+    // Cursor blinking animation using reanimated v4
+    cursorOpacity.value = withRepeat(
+      withSequence(
+        withTiming(0, {
           duration: 530,
-          useNativeDriver: true,
+          easing: Easing.inOut(Easing.ease)
         }),
-        Animated.timing(cursorAnim, {
-          toValue: 1,
+        withTiming(1, {
           duration: 530,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
+          easing: Easing.inOut(Easing.ease)
+        })
+      ),
+      -1,
+      false
+    );
   }, []);
 
   // Loading text animation using reanimated
@@ -201,6 +262,7 @@ const AISummary = React.memo<AISummaryProps>(({ refreshing, onFinishRefresh }) =
       subtitleProgress.value = 0;
       showTitleCursor.value = false;
       showSubtitleCursor.value = false;
+      contentOpacity.value = 0;
       setShowContent(false);
       currentInsightRef.current = null;
       return;
@@ -219,6 +281,7 @@ const AISummary = React.memo<AISummaryProps>(({ refreshing, onFinishRefresh }) =
     subtitleProgress.value = 0;
     showTitleCursor.value = false;
     showSubtitleCursor.value = false;
+    contentOpacity.value = 0;
 
     // Calculate animation durations based on text length
     const titleDuration = Math.max(insight.title.length * 40, 800); // Min 800ms
@@ -241,6 +304,11 @@ const AISummary = React.memo<AISummaryProps>(({ refreshing, onFinishRefresh }) =
           if (finished) {
             showSubtitleCursor.value = false;
             runOnJS(setShowContent)(true);
+            // Fade in content with smooth animation
+            contentOpacity.value = withTiming(1, {
+              duration: 800,
+              easing: Easing.out(Easing.ease)
+            });
           }
         });
       }
@@ -329,40 +397,39 @@ const AISummary = React.memo<AISummaryProps>(({ refreshing, onFinishRefresh }) =
   }, [insight?.event, insight?.fullEventData]);
 
   const getWeatherBackground = useCallback((condition: string) => {
-    const lowerCondition = condition.toLowerCase();
-    
-    if (lowerCondition.includes('sunny') || lowerCondition.includes('clear')) {
-      return colorScheme === 'dark' 
-        ? ['#1a2a6c', '#b21a7b', '#f06292'] // Dark sunny gradient
-        : ['#74b9ff', '#0984e3', '#a29bfe']; // Light sunny gradient
-    } else if (lowerCondition.includes('cloud')) {
-      return colorScheme === 'dark'
-        ? ['#2c3e50', '#4a5568', '#718096'] // Dark cloudy gradient
-        : ['#90a4ae', '#b0bec5', '#cfd8dc']; // Light cloudy gradient
-    } else if (lowerCondition.includes('rain') || lowerCondition.includes('drizzle')) {
-      return colorScheme === 'dark'
-        ? ['#2c5aa0', '#1e3c72', '#4a6741'] // Dark rainy gradient
-        : ['#5dade2', '#3498db', '#85c1e9']; // Light rainy gradient
-    } else if (lowerCondition.includes('snow')) {
-      return colorScheme === 'dark'
-        ? ['#4a5568', '#718096', '#a0aec0'] // Dark snowy gradient
-        : ['#e8f4fd', '#b8daff', '#d6eaff']; // Light snowy gradient
-    } else {
-      // Default/unknown weather
-      return colorScheme === 'dark'
-        ? ['#374151', '#4b5563', '#6b7280'] // Dark default gradient
-        : ['#e5e7eb', '#d1d5db', '#f3f4f6']; // Light default gradient
+    // Try to get specific weather condition data first
+    const weatherCondition = getWeatherConditionFromDescription(condition);
+    if (weatherCondition) {
+      return weatherCondition.gradients[colorScheme === 'dark' ? 'dark' : 'light'];
     }
+    
+    // Fallback to generic gradient matching
+    return getWeatherGradient('CLR', colorScheme === 'dark' ? 'dark' : 'light');
   }, [colorScheme]);
 
   const getTrafficMapImage = useCallback(() => {
+    // Use event location snapshot if available and has coordinates
+    if (insight?.event?.coordinates?.lat && insight?.event?.coordinates?.lng) {
+      // Use the event's mapSnapshotUrl if available
+      if (insight.fullEventData?.location) {
+        const snapshotUrl = colorScheme === 'dark' 
+          ? insight.fullEventData.location.mapSnapshotUrl.dark 
+          : insight.fullEventData.location.mapSnapshotUrl.light;
+        
+        if (snapshotUrl) {
+          return { uri: snapshotUrl };
+        }
+      }
+    }
+    
+    // Fallback to default CDN images
     const CDN_DOMAIN = 'cdn.kinovo.app';
     const mapPath = 'insight-map';
     
     return colorScheme === 'dark'
       ? { uri: `https://${CDN_DOMAIN}/${mapPath}/map-dark.jpg` }
       : { uri: `https://${CDN_DOMAIN}/${mapPath}/map-light.jpg` };
-  }, [colorScheme]);
+  }, [colorScheme, insight?.event?.coordinates, insight?.fullEventData?.mapSnapshotUrl]);
 
   // Log traffic data only once per insight using ref
   React.useEffect(() => {
@@ -388,7 +455,6 @@ const AISummary = React.memo<AISummaryProps>(({ refreshing, onFinishRefresh }) =
         {insight.weather && (
           <View style={{
             flex: 1,
-            aspectRatio: 1, // Makes it square
             borderRadius: 16,
             padding: 16,
             overflow: 'hidden',
@@ -407,10 +473,12 @@ const AISummary = React.memo<AISummaryProps>(({ refreshing, onFinishRefresh }) =
               }}
             />
             <View style={{ flex: 1, justifyContent: 'space-between' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: 48 }}>{insight.weather.emoji}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <Text style={{ fontSize: 26 }}>
+                  {insight.weather.emoji || getWeatherEmoji(insight.weather.condition) || '🌤️'}
+                </Text>
                 <Text style={{ 
-                  fontSize: 24, 
+                  fontSize: 18, 
                   fontWeight: '700', 
                   color: '#ffffff',
                   textShadowColor: 'rgba(0,0,0,0.5)',
@@ -449,7 +517,6 @@ const AISummary = React.memo<AISummaryProps>(({ refreshing, onFinishRefresh }) =
         {insight.traffic && (
           <View style={{
             flex: 1,
-            aspectRatio: 1, // Makes it square
             borderRadius: 16,
             padding: 16,
             overflow: 'hidden',
@@ -483,10 +550,10 @@ const AISummary = React.memo<AISummaryProps>(({ refreshing, onFinishRefresh }) =
             }} />
             
             <View style={{ flex: 1, justifyContent: 'space-between', zIndex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10 }}>
-                <Text style={{ fontSize: 32 }}>{insight.traffic.emoji}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <Text style={{ fontSize: 26 }}>{insight.traffic.emoji}</Text>
                 <Text style={{ 
-                  fontSize: 24, 
+                  fontSize: 18, 
                   fontWeight: '700', 
                   color: '#ffffff',
                   textShadowColor: 'rgba(0,0,0,0.8)',
@@ -498,7 +565,7 @@ const AISummary = React.memo<AISummaryProps>(({ refreshing, onFinishRefresh }) =
               </View>
               <View>
                 <Text style={{ 
-                  fontSize: 15, 
+                  fontSize: 13, 
                   color: '#ffffff',
                   fontWeight: '600',
                   textShadowColor: 'rgba(0,0,0,0.8)',
@@ -508,7 +575,7 @@ const AISummary = React.memo<AISummaryProps>(({ refreshing, onFinishRefresh }) =
                   {insight.traffic.condition}
                 </Text>
                 <Text style={{ 
-                  fontSize: 12, 
+                  fontSize: 11, 
                   color: 'rgba(255,255,255,0.9)',
                   marginTop: 2,
                   textShadowColor: 'rgba(0,0,0,0.8)',
@@ -559,15 +626,14 @@ const AISummary = React.memo<AISummaryProps>(({ refreshing, onFinishRefresh }) =
       </ThemedView>
       
       {/* AI Insights Text Card */}
+      <View style={{ flex: 1, backgroundColor: themeColors.eventCardBackgroundColor, padding: 16, borderRadius: 16 }}>
       <TouchableOpacity
         onPress={insight?.cta ? handleCTAPress : undefined}
         style={{
           width: '100%',
-          padding: 16,
           borderRadius: 12,
           alignItems: 'flex-start',
           justifyContent: 'flex-start',
-          backgroundColor: themeColors.eventCardBackgroundColor,
           marginBottom: 8,
         }}
         disabled={!insight?.cta}
@@ -591,7 +657,7 @@ const AISummary = React.memo<AISummaryProps>(({ refreshing, onFinishRefresh }) =
                 style={{ fontSize: 16, color: themeColors.text, marginBottom: 10 }}
               />
             </View>
-            <Animated.View
+            <Reanimated.View
               style={{
                 width: '100%',
                 height: 16,
@@ -600,21 +666,8 @@ const AISummary = React.memo<AISummaryProps>(({ refreshing, onFinishRefresh }) =
                 backgroundColor: themeColors.inputBackgroundColor,
               }}
             >
-              <Animated.View
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  position: 'absolute',
-                  left: 0,
-                  transform: [
-                    {
-                      translateX: loadingAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [-300, 300],
-                      }),
-                    },
-                  ],
-                }}
+              <Reanimated.View
+                style={loadingShimmerStyle}
               >
                 <LinearGradient
                   colors={[themeColors.inputBackgroundColor, themeColors.mountainGreen, themeColors.inputBackgroundColor]}
@@ -622,26 +675,26 @@ const AISummary = React.memo<AISummaryProps>(({ refreshing, onFinishRefresh }) =
                   end={{ x: 1, y: 0.5 }}
                   style={{ width: '100%', height: '100%' }}
                 />
-              </Animated.View>
-            </Animated.View>
+              </Reanimated.View>
+            </Reanimated.View>
           </>
         ) : insight ? (
           <>
             {/* Header with emoji, title, and subtitle */}
             <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-              <Text style={{ fontSize: 24, marginRight: 10 }}>{insight.emoji}</Text>
+              {/* <Text style={{ fontSize: 22, marginRight: 10 }}>{insight.emoji}</Text> */}
               <AnimatedTypingText
                 text={insight.title}
                 progress={titleProgress}
                 showCursor={showTitleCursor}
-                cursorAnim={cursorAnim}
+                cursorOpacity={cursorOpacity}
                 style={{ 
                   flexShrink: 1, 
                   flexWrap: 'wrap', 
-                  fontSize: 18, 
+                  fontSize: 16, 
                   color: themeColors.text, 
                   fontWeight: 'bold',
-                  lineHeight: 24
+                  marginBottom: 8
                 }}
                 cursorStyle={{
                   color: themeColors.text,
@@ -654,14 +707,12 @@ const AISummary = React.memo<AISummaryProps>(({ refreshing, onFinishRefresh }) =
               text={insight.subtitle}
               progress={subtitleProgress}
               showCursor={showSubtitleCursor}
-              cursorAnim={cursorAnim}
+              cursorOpacity={cursorOpacity}
               style={{ 
                 flexShrink: 1, 
                 flexWrap: 'wrap', 
-                fontSize: 16, 
+                fontSize: 14, 
                 color: themeColors.text,
-                marginBottom: showContent ? 12 : 0,
-                lineHeight: 22
               }}
               cursorStyle={{
                 color: themeColors.text,
@@ -671,13 +722,18 @@ const AISummary = React.memo<AISummaryProps>(({ refreshing, onFinishRefresh }) =
 
             {/* CTA button */}
             {showContent && insight.cta && (
-              <View style={{
-                backgroundColor: themeColors.mountainGreen,
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                borderRadius: 8,
-                alignSelf: 'flex-start',
-              }}>
+              <Reanimated.View 
+                style={[
+                  {
+                    backgroundColor: themeColors.mountainGreen,
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 8,
+                    alignSelf: 'flex-start',
+                  },
+                  ctaButtonStyle
+                ]}
+              >
                 <Text style={{ 
                   color: themeColors.text, 
                   fontWeight: '600',
@@ -685,7 +741,7 @@ const AISummary = React.memo<AISummaryProps>(({ refreshing, onFinishRefresh }) =
                 }}>
                   {insight.cta.text}
                 </Text>
-              </View>
+              </Reanimated.View>
             )}
           </>
         ) : null}
@@ -693,17 +749,22 @@ const AISummary = React.memo<AISummaryProps>(({ refreshing, onFinishRefresh }) =
 
       {/* Event Card (separate from AI text) */}
       {showContent && insight?.type === 'event' && insight?.event && (
-        <View>
+        <Reanimated.View 
+          style={eventCardStyle}
+        >
           {renderEventCard()}
-        </View>
+        </Reanimated.View>
       )}
 
       {/* Weather and Traffic Cards (separate from AI text) */}
       {showContent && insight?.type === 'event' && (insight?.weather || insight?.traffic) && (
-        <View>
+        <Reanimated.View 
+          style={subCardsStyle}
+        >
           {renderSubCards}
-        </View>
+        </Reanimated.View>
       )}
+      </View>
     </ThemedView>
   );
 });

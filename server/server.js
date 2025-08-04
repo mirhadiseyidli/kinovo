@@ -14,6 +14,7 @@ const searchRoutes = require('./routes/searchRoutes');
 const friendSuggestionsRoutes = require('./routes/userSuggestionsRoutes');
 const eventsRoutes = require('./routes/eventsRoutes');
 const weatherRoutes = require('./routes/appleWeatherRoutes');
+const mapKitRoutes = require('./routes/appleMapKitRoutes');
 const notificationsRoutes = require('./routes/notificationsRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const googleApiRoutes = require('./routes/googleApiRoutes');
@@ -84,6 +85,7 @@ async function startServer() {
     app.use('/api/friendsuggestions', friendSuggestionsRoutes);
     app.use('/api/manageevents', eventsRoutes);
     app.use('/api/weather', weatherRoutes);
+    app.use('/api/mapkit', mapKitRoutes);
     app.use('/api/notifications', notificationsRoutes);
     app.use('/api', categoryRoutes);
     app.use('/api/google', googleApiRoutes);
@@ -93,10 +95,12 @@ async function startServer() {
     // Start the cron jobs
     const accountDeletionCron = require('./cron/accountDeletionCron');
     const { startNearbyEventsCron, startFriendsEventsCron } = require('./cron/nearbyEventsCron');
+    const { startMapSnapshotCron } = require('./cron/mapSnapshotCron');
 
     accountDeletionCron.start();
     startNearbyEventsCron();
     startFriendsEventsCron();
+    startMapSnapshotCron();
 
     // Start Server
     const PORT = process.env.BACKEND_PORT || 5002;

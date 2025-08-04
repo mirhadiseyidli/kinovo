@@ -95,24 +95,50 @@ export const invalidateEventQueries = (
   userId?: string,
   excludeIndividualEvent?: boolean
 ): void => {
-  if (!userId) return;
+  if (!userId) {
+    console.log('⚠️ [CACHE INVALIDATION] No userId provided, skipping invalidation');
+    return;
+  }
+
+  console.log('🧹 [CACHE INVALIDATION] Starting invalidation for userId:', userId);
 
   // Invalidate all possible variations of list queries
   [true, false].forEach(fromHomeScreen => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.upcomingEvents(userId, fromHomeScreen) });
-    queryClient.invalidateQueries({ queryKey: queryKeys.attentionRequiredEvents(userId, fromHomeScreen) });
+    const upcomingKey = queryKeys.upcomingEvents(userId, fromHomeScreen);
+    const attentionKey = queryKeys.attentionRequiredEvents(userId, fromHomeScreen);
+    
+    console.log('🔄 [CACHE INVALIDATION] Invalidating upcoming events:', JSON.stringify(upcomingKey));
+    queryClient.invalidateQueries({ queryKey: upcomingKey });
+    
+    console.log('🔄 [CACHE INVALIDATION] Invalidating attention required:', JSON.stringify(attentionKey));
+    queryClient.invalidateQueries({ queryKey: attentionKey });
   });
 
   // Invalidate past events (no fromHomeScreen parameter)
-  queryClient.invalidateQueries({ queryKey: queryKeys.pastEvents(userId) });
+  const pastKey = queryKeys.pastEvents(userId);
+  console.log('🔄 [CACHE INVALIDATION] Invalidating past events:', JSON.stringify(pastKey));
+  queryClient.invalidateQueries({ queryKey: pastKey });
   
   // Invalidate infinite queries
-  queryClient.invalidateQueries({ queryKey: queryKeys.infiniteUpcoming(userId, {}) });
-  queryClient.invalidateQueries({ queryKey: queryKeys.infiniteEvents('attention-required', { userId }) });
-  queryClient.invalidateQueries({ queryKey: queryKeys.infiniteFriends(userId, {}) });
-  queryClient.invalidateQueries({ queryKey: queryKeys.infiniteRecommended(userId, {}) });
+  const infiniteUpcomingKey = queryKeys.infiniteUpcoming(userId, {});
+  const infiniteAttentionKey = queryKeys.infiniteEvents('attention-required', { userId });
+  const infiniteFriendsKey = queryKeys.infiniteFriends(userId, {});
+  const infiniteRecommendedKey = queryKeys.infiniteRecommended(userId, {});
+  
+  console.log('🔄 [CACHE INVALIDATION] Invalidating infinite upcoming:', JSON.stringify(infiniteUpcomingKey));
+  queryClient.invalidateQueries({ queryKey: infiniteUpcomingKey });
+  
+  console.log('🔄 [CACHE INVALIDATION] Invalidating infinite attention:', JSON.stringify(infiniteAttentionKey));
+  queryClient.invalidateQueries({ queryKey: infiniteAttentionKey });
+  
+  console.log('🔄 [CACHE INVALIDATION] Invalidating infinite friends:', JSON.stringify(infiniteFriendsKey));
+  queryClient.invalidateQueries({ queryKey: infiniteFriendsKey });
+  
+  console.log('🔄 [CACHE INVALIDATION] Invalidating infinite recommended:', JSON.stringify(infiniteRecommendedKey));
+  queryClient.invalidateQueries({ queryKey: infiniteRecommendedKey });
   
   // Invalidate calendar cache - all calendar-related queries
+  console.log('🔄 [CACHE INVALIDATION] Invalidating calendar queries');
   queryClient.invalidateQueries({
     predicate: (query) => {
       const keyStr = JSON.stringify(query.queryKey);
@@ -123,6 +149,18 @@ export const invalidateEventQueries = (
       return isCalendarQuery;
     }
   });
+  
+  // IMPORTANT: Invalidate AI insights cache when events change
+  // This ensures AI insights reflect the latest user event data
+  console.log('🔄 [CACHE INVALIDATION] Invalidating AI insights');
+  queryClient.invalidateQueries({ 
+    predicate: (query) => {
+      const keyStr = JSON.stringify(query.queryKey);
+      return keyStr.includes('aiInsights');
+    }
+  });
+  
+  console.log('✅ [CACHE INVALIDATION] All invalidations completed');
 };
 
 /**
@@ -154,6 +192,15 @@ export const invalidateEventQueriesForUpdate = (
   queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'calendar-occurrences'] });
   queryClient.invalidateQueries({ queryKey: [...queryKeys.userEvents(userId), 'calendar'] });
   queryClient.invalidateQueries({ queryKey: ['recurring-event-modifications', userId] });
+  
+  // IMPORTANT: Invalidate AI insights cache when events are updated
+  // This ensures AI insights reflect the latest user event data
+  queryClient.invalidateQueries({ 
+    predicate: (query) => {
+      const keyStr = JSON.stringify(query.queryKey);
+      return keyStr.includes('aiInsights');
+    }
+  });
 };
 
 /**

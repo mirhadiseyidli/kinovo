@@ -1,72 +1,76 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useImperativeHandle } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withTiming,
-  useAnimatedRef,
-  cancelAnimation
+  withTiming
 } from 'react-native-reanimated';
-import { DateTimePicker } from '@expo/ui/swift-ui';
 import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { ThemedView } from '../ThemedView';
 import { ThemedText } from '../ThemedText';
 import { useCreateEventContext } from '@/context/CreateEventContext';
+import DateTimePickerModal from './DateTimePickerModal';
 
-const DateTime = () => {
+interface DateTimeProps {
+  ref?: React.Ref<{
+    closeStartPicker: () => void;
+    closeEndPicker: () => void;
+    openStartPicker: () => void;
+    openEndPicker: () => void;
+  }>;
+  onPickerOpen?: (pickerType: 'startTime' | 'endTime' | 'repeat' | 'endOn') => void;
+}
+
+const DateTime = ({ ref, onPickerOpen }: DateTimeProps) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { startTime, endTime, settingEventStartTime, settingEventEndTime } = useCreateEventContext();
 
-  // Helper function to get default start time (30 mins from now)
-  const getDefaultStartTime = () => {
+  // Helper function to get default start time (30 mins from now) - memoized
+  const getDefaultStartTime = useCallback(() => {
     const now = new Date();
     now.setMinutes(now.getMinutes() + 30);
     return now;
-  };
+  }, []);
 
-  // Helper function to get default end time (1 hour from start time)
-  const getDefaultEndTime = (startTime: Date) => {
+  // Helper function to get default end time (1 hour from start time) - memoized
+  const getDefaultEndTime = useCallback((startTime: Date) => {
     const endTime = new Date(startTime);
     endTime.setHours(endTime.getHours() + 1);
     return endTime;
-  };
+  }, []);
 
-  // Helper function to validate date (ensure it's not invalid like 1969)
-  const isValidDate = (date: Date | null | undefined): boolean => {
+  // Helper function to validate date (ensure it's not invalid like 1969) - memoized
+  const isValidDate = useCallback((date: Date | null | undefined): boolean => {
     if (!date) return false;
     const year = date.getFullYear();
     return year >= 2020 && year <= 2100; // Reasonable range
-  };
+  }, []);
 
-  const getInitialStartDate = () => {
+  const getInitialStartDate = useMemo(() => {
     if (startTime && isValidDate(startTime)) {
       return startTime;
     }
     return getDefaultStartTime();
-  };
+  }, [startTime, isValidDate, getDefaultStartTime]);
 
-  const getInitialEndDate = () => {
+  const getInitialEndDate = useMemo(() => {
     if (endTime && isValidDate(endTime)) {
       return endTime;
     }
-    return getDefaultEndTime(getInitialStartDate());
-  };
+    return getDefaultEndTime(getInitialStartDate);
+  }, [endTime, isValidDate, getDefaultEndTime, getInitialStartDate]);
 
-  const [startDate, setStartDate] = useState<Date>(getInitialStartDate());
-  const [endDate, setEndDate] = useState<Date>(getInitialEndDate());
+  const [startDate, setStartDate] = useState<Date>(getInitialStartDate);
+  const [endDate, setEndDate] = useState<Date>(getInitialEndDate);
   const [showStartPicker, setShowStartPicker] = useState<boolean>(false);
   const [showEndPicker, setShowEndPicker] = useState<boolean>(false);
   
-  // Reanimated shared values
-  const showStartPickerProgress = useSharedValue(0);
-  const showEndPickerProgress = useSharedValue(0);
-  
-  // Refs for measuring component heights
-  const startPickerRef = useAnimatedRef();
-  const endPickerRef = useAnimatedRef();
+  // Shared values for chevron rotation
+  const startChevronRotation = useSharedValue(0);
+  const endChevronRotation = useSharedValue(0);
 
   // Update local state when context changes
   useEffect(() => {
@@ -87,15 +91,8 @@ const DateTime = () => {
     }
   }, [endTime]);
 
-  // Cleanup animations on unmount
-  useEffect(() => {
-    return () => {
-      cancelAnimation(showStartPickerProgress);
-      cancelAnimation(showEndPickerProgress);
-    };
-  }, []);
 
-  const handleStartDateChange = (selectedDate: Date) => {
+  const handleStartDateChange = useCallback((selectedDate: Date) => {
     // Calculate new end time (1 hour after start time)
     const newEndTime = new Date(selectedDate);
     newEndTime.setHours(newEndTime.getHours() + 1);
@@ -107,9 +104,9 @@ const DateTime = () => {
     // Update context with both times
     settingEventStartTime(selectedDate);
     settingEventEndTime(newEndTime);
-  };
+  }, [settingEventStartTime, settingEventEndTime]);
 
-  const handleEndDateChange = (selectedDate: Date) => {
+  const handleEndDateChange = useCallback((selectedDate: Date) => {
     // Ensure end date is on the same day as start date
     const finalEndDate = new Date(startDate);
     finalEndDate.setHours(selectedDate.getHours(), selectedDate.getMinutes(), 0, 0);
@@ -121,50 +118,74 @@ const DateTime = () => {
     const dateToUse = finalEndDate >= minEndTime ? finalEndDate : minEndTime;
     setEndDate(dateToUse);
     settingEventEndTime(dateToUse);
-  };
+  }, [startDate, settingEventEndTime]);
 
-  // Animated styles using Reanimated
-  const startPickerStyle = useAnimatedStyle(() => {
+  // Animated styles for chevron rotation
+  const startChevronStyle = useAnimatedStyle(() => {
     return {
-      height: withTiming(showStartPickerProgress.value === 1 ? 360 : 0, { duration: 300 }),
-      opacity: withTiming(showStartPickerProgress.value, { duration: 200 })
+      transform: [{ rotate: `${startChevronRotation.value}deg` }]
+    };
+  });
+  
+  const endChevronStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ rotate: `${endChevronRotation.value}deg` }]
     };
   });
 
-  const endPickerStyle = useAnimatedStyle(() => {
-    return {
-      height: withTiming(showEndPickerProgress.value === 1 ? 220 : 0, { duration: 300 }),
-      opacity: withTiming(showEndPickerProgress.value, { duration: 200 })
-    };
-  });
-
-  const toggleStartPicker = () => {
+  const toggleStartPicker = useCallback(() => {
     const isOpening = !showStartPicker;
+    
+    if (isOpening && onPickerOpen) {
+      onPickerOpen('startTime');
+    }
+    
     setShowStartPicker(isOpening);
     
-    if (isOpening && showEndPicker) {
-      // Close end picker first
-      setShowEndPicker(false);
-      showEndPickerProgress.value = withTiming(0, { duration: 200 });
+    // Animate chevron rotation
+    startChevronRotation.value = withTiming(isOpening ? 180 : 0, { duration: 250 });
+  }, [showStartPicker, onPickerOpen]);
+
+  const toggleEndPicker = useCallback(() => {
+    const isOpening = !showEndPicker;
+    
+    if (isOpening && onPickerOpen) {
+      onPickerOpen('endTime');
     }
     
-    // Animate with Reanimated
-    showStartPickerProgress.value = withTiming(isOpening ? 1 : 0, { duration: 300 });
-  };
-
-  const toggleEndPicker = () => {
-    const isOpening = !showEndPicker;
     setShowEndPicker(isOpening);
     
-    if (isOpening && showStartPicker) {
-      // Close start picker first
-      setShowStartPicker(false);
-      showStartPickerProgress.value = withTiming(0, { duration: 200 });
-    }
-    
-    // Animate with Reanimated
-    showEndPickerProgress.value = withTiming(isOpening ? 1 : 0, { duration: 300 });
-  };
+    // Animate chevron rotation
+    endChevronRotation.value = withTiming(isOpening ? 180 : 0, { duration: 250 });
+  }, [showEndPicker, onPickerOpen]);
+  
+  // Expose individual picker control methods
+  const closeStartPicker = useCallback(() => {
+    setShowStartPicker(false);
+    startChevronRotation.value = withTiming(0, { duration: 250 });
+  }, []);
+  
+  const closeEndPicker = useCallback(() => {
+    setShowEndPicker(false);
+    endChevronRotation.value = withTiming(0, { duration: 250 });
+  }, []);
+  
+  const openStartPicker = useCallback(() => {
+    setShowStartPicker(true);
+    startChevronRotation.value = withTiming(180, { duration: 250 });
+  }, []);
+  
+  const openEndPicker = useCallback(() => {
+    setShowEndPicker(true);
+    endChevronRotation.value = withTiming(180, { duration: 250 });
+  }, []);
+  
+  useImperativeHandle(ref, () => ({
+    closeStartPicker,
+    closeEndPicker,
+    openStartPicker,
+    openEndPicker
+  }), [closeStartPicker, closeEndPicker, openStartPicker, openEndPicker]);
 
   return (
     <ThemedView
@@ -194,31 +215,20 @@ const DateTime = () => {
             <ThemedText style={{ fontSize: 12, fontWeight: 'bold', textAlign: 'right', color: themeColors.text, marginRight: 8 }}>
               {`${startDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} at ${startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}`}
             </ThemedText>
-            <Feather 
-              name={showStartPicker ? "chevron-up" : "chevron-down"} 
-              size={20} 
-              color={themeColors.text} 
-            />
           </View>
         </View>
       </TouchableOpacity>
 
-      {/* Start Date Picker - Expandable */}
-      <Animated.View 
-        ref={startPickerRef}
-        style={[{ overflow: 'hidden' }, startPickerStyle]}
-      >
-        <View style={{ paddingBottom: 10 }}>
-          <DateTimePicker
-            initialDate={startDate.toISOString()}
-            color={themeColors.mountainGreen}
-            displayedComponents="dateAndTime"
-            variant="graphical"
-            onDateSelected={handleStartDateChange}
-            style={{ height: 280, width: '100%' }}
-          />
-        </View>
-      </Animated.View>
+      {/* Start Date Picker Modal */}
+      <DateTimePickerModal
+        visible={showStartPicker}
+        onClose={() => setShowStartPicker(false)}
+        initialDate={startDate.toISOString()}
+        onDateSelected={handleStartDateChange}
+        themeColors={themeColors}
+        displayedComponents="dateAndTime"
+        variant="graphical"
+      />
 
       {/* Divider */}
       <View style={{ height: 1, backgroundColor: themeColors.placeholderTextColor, opacity: 0.2, marginLeft: 22, marginVertical: 16 }} />
@@ -239,32 +249,20 @@ const DateTime = () => {
             <ThemedText style={{ fontSize: 12, fontWeight: 'bold', textAlign: 'right', color: themeColors.text, marginRight: 8 }}>
               {endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
             </ThemedText>
-            <Feather 
-              name={showEndPicker ? "chevron-up" : "chevron-down"} 
-              size={20} 
-              color={themeColors.text} 
-            />
           </View>
         </View>
       </TouchableOpacity>
 
-      {/* End Time Picker - Expandable */}
-      <Animated.View 
-        ref={endPickerRef}
-        style={[{ overflow: 'hidden' }, endPickerStyle]}
-      >
-        <View style={{ paddingBottom: 10 }}>
-          <DateTimePicker
-            key={endDate.toISOString()}
-            initialDate={endDate.toISOString()}
-            color={themeColors.mountainGreen}
-            displayedComponents="hourAndMinute"
-            variant="wheel"
-            onDateSelected={handleEndDateChange}
-            style={{ height: 200, width: '100%' }}
-          />
-        </View>
-      </Animated.View>
+      {/* End Time Picker Modal */}
+      <DateTimePickerModal
+        visible={showEndPicker}
+        onClose={() => setShowEndPicker(false)}
+        initialDate={endDate.toISOString()}
+        onDateSelected={handleEndDateChange}
+        themeColors={themeColors}
+        displayedComponents="hourAndMinute"
+        variant="wheel"
+      />
     </ThemedView>
   );
 };

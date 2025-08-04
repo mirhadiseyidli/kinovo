@@ -1,3 +1,4 @@
+import React from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Event } from '@/types/allTypes';
 import { queryKeys } from '@/utils/queryKeys';
@@ -49,7 +50,8 @@ export const useEventByIdQuery = (
         throw new Error('Event not found');
       }
 
-      return response.data.found_event;
+      console.log('---------', response.data)
+      return response.data.event;
     },
     enabled: enabled && !!eventId,
     staleTime,
@@ -67,6 +69,22 @@ export const useEventByIdQuery = (
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
   });
 
+
+  // Log cached data whenever it changes
+  React.useEffect(() => {
+    if (query.data) {
+      console.log('💾 [EVENT CACHE] Cached event data updated:', {
+        eventId: query.data._id,
+        title: query.data.title,
+        attendeesCount: query.data.attendees?.length || 0,
+        hasAttendees: !!query.data.attendees,
+        isLoading: query.isLoading,
+        isFetching: query.isFetching,
+        dataUpdatedAt: new Date(query.dataUpdatedAt).toLocaleTimeString()
+      });
+      console.log('💾 [EVENT CACHE] Full event data:', query.data);
+    }
+  }, [query.data, query.isLoading, query.isFetching, query.dataUpdatedAt]);
 
   return {
     event: query.data || null,
@@ -86,7 +104,7 @@ export const usePrefetchEventById = () => {
       queryKey: queryKeys.eventById(eventId),
       queryFn: async () => {
         const response = await api.get(`/api/manageevents/eventslist/event/get/event/by/id?_id=${eventId}`);
-        return response.data.found_event;
+        return response.data.event;
       },
       staleTime: 5 * 60 * 1000,
     });

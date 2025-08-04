@@ -1,7 +1,19 @@
 const { RRule } = require('rrule');
 const User = require('../database/schemas/usersSchema');
 const Events = require('../database/schemas/eventsSchema');
-const { createEventUpdateNotification } = require('../controllers/notificationsController');
+const Notification = require('../database/schemas/notificationsSchema');
+const { 
+  createEventUpdateNotification, 
+  createEventInvitationNotification, 
+  createEventAttendanceNotification 
+} = require('../controllers/notificationsController');
+const { 
+  scheduleRecurringEventReminders, 
+  deleteAllEventReminders, 
+  updateAttendeeReminders, 
+  deleteUserEventReminders, 
+  handleRecurringEventReminderUpdate
+} = require('./reminderSchedulingUtils');
 
 // Global helper: build a stable occurrence ID (baseId-yyyy-MM-dd)
 const buildOccurrenceId = (baseId, date) => {
@@ -290,111 +302,6 @@ const processEventsWithRecurrence = (events, startRange = null, endRange = null)
   });
 
   return processedEvents;
-};
-
-/**
- * Add user-specific fields to events
- * @param {Array} events - Array of events
- * @param {string} userId - Current user ID
- * @param {Array} friends - User's friends array
- * @returns {Array} Events with user-specific fields added
- */
-const enrichEventsWithUserData = (events, userId, friends = []) => {
-  return events.map(event => {
-    try {
-      // Defensive check for event structure
-      if (!event || !userId) {
-        console.warn('Invalid event or userId in enrichEventsWithUserData:', { eventId: event?._id, userId });
-        return {
-          ...event,
-          isUserAttending: false,
-          isUserInvited: false,
-          isUserCreator: false,
-          isFriendEvent: false,
-          userStatus: null
-        };
-      }
-
-      // Ensure we're working with a plain object (convert Mongoose doc if needed)
-      const eventObj = event.toObject ? event.toObject() : event;
-
-      // Safe attendee lookup with comprehensive null checks
-      const userAttendee = eventObj.attendees?.find(att => {
-        // Check if attendee and user exist
-        if (!att || !att.user) {
-          return false;
-        }
-        
-        try {
-          // Handle both populated and non-populated user references
-          const attendeeUserId = att.user._id?.toString() || att.user.toString?.();
-          return attendeeUserId === userId.toString();
-        } catch (err) {
-          console.warn('Error processing attendee in enrichEventsWithUserData:', { 
-            eventId: eventObj._id, 
-            attendeeUser: att.user,
-            error: err.message 
-          });
-          return false;
-        }
-      });
-      
-      // Safe creator lookup with null checks
-      let creatorId = '';
-      let isCreator = false;
-      
-      if (eventObj.creator) {
-        try {
-          creatorId = eventObj.creator._id?.toString() || eventObj.creator.toString?.() || '';
-          isCreator = creatorId === userId.toString();
-        } catch (err) {
-          console.warn('Error processing creator in enrichEventsWithUserData:', { 
-            eventId: eventObj._id, 
-            creator: eventObj.creator,
-            error: err.message 
-          });
-        }
-      }
-      
-      // Safe friends check
-      const isFriendEvent = friends.some(friendId => {
-        try {
-          return friendId.toString() === creatorId;
-        } catch (err) {
-          return false;
-        }
-      });
-
-      return {
-        ...eventObj,
-        isUserAttending: !!userAttendee,
-        isUserInvited: !!userAttendee,
-        isUserCreator: isCreator,
-        isFriendEvent: isFriendEvent,
-        userStatus: userAttendee?.status || null
-      };
-      
-    } catch (error) {
-      // Catch-all error handler to prevent crashes
-      console.error('Error in enrichEventsWithUserData:', {
-        error: error.message,
-        eventId: event?._id,
-        userId,
-        stack: error.stack
-      });
-      
-      // Convert to plain object for safety and return with defaults
-      const eventObj = event?.toObject ? event.toObject() : event || {};
-      return {
-        ...eventObj,
-        isUserAttending: false,
-        isUserInvited: false,
-        isUserCreator: false,
-        isFriendEvent: false,
-        userStatus: null
-      };
-    }
-  });
 };
 
 /**
@@ -1993,6 +1900,622 @@ const buildFriendsEventsBaseQuery = async (userId, now, friends, filterData) => 
   }
 };
 
+/**
+ * Add user-specific fields to events
+ * @param {Array} events - Array of events
+ * @param {string} userId - Current user ID
+ * @param {Array} friends - User's friends array
+ * @returns {Array} Events with user-specific fields added
+ */
+// Enhanced version combining both approaches
+const enrichEventWithUserContext = async (event, currentUserId, options = {}) => {
+  const { includeFriends = true, userFriends = null } = options;
+
+  try {
+    // Defensive check for event structure
+    if (!event || !currentUserId) {
+      console.warn('Invalid event or userId in enrichEventWithUserContext:', {
+        eventId: event?._id,
+        currentUserId
+      });
+      return {
+        ...event,
+        userStatus: null,
+        isUserAttending: false,
+        isUserInvited: false,
+        isUserCreator: false,
+        isFriendEvent: false
+      };
+    }
+
+    // Get user's friends if needed and not provided
+    let friends = userFriends;
+    if (includeFriends && !friends) {
+      const user = await User.findById(currentUserId).select('friends');
+      friends = user?.friends || [];
+    }
+
+    // Ensure we're working with a plain object
+    const eventObj = event.toObject ? event.toObject() : event;
+
+    // CRITICAL: Ensure attendees are populated objects, not strings
+    if (eventObj.attendees) {
+      const hasUnpopulatedAttendees = eventObj.attendees.some(att =>
+        typeof att.user === 'string'
+      );
+
+      if (hasUnpopulatedAttendees) {
+        console.error('❌ UNPOPULATED ATTENDEES DETECTED:', {
+          eventId: eventObj._id,
+          attendees: eventObj.attendees
+        });
+        // This is the bug you're experiencing - return error state
+        throw new Error(`Event ${eventObj._id} has unpopulated attendees - this causes user 
+relationship bugs`);
+      }
+    }
+
+    // Safe attendee lookup with comprehensive null checks
+    const userAttendee = eventObj.attendees?.find(att => {
+      if (!att || !att.user) return false;
+
+      try {
+        const attendeeUserId = att.user._id?.toString() || att.user.toString?.();
+        return attendeeUserId === currentUserId.toString();
+      } catch (err) {
+        console.warn('Error processing attendee:', {
+          eventId: eventObj._id,
+          attendeeUser: att.user,
+          error: err.message
+        });
+        return false;
+      }
+    });
+
+    // Safe creator lookup
+    let creatorId = '';
+    let isCreator = false;
+
+    if (eventObj.creator) {
+      try {
+        // CRITICAL: Ensure creator is populated, not string
+        if (typeof eventObj.creator === 'string') {
+          console.error('❌ UNPOPULATED CREATOR DETECTED:', {
+            eventId: eventObj._id,
+            creator: eventObj.creator
+          });
+          throw new Error(`Event ${eventObj._id} has unpopulated creator - this causes user 
+relationship bugs`);
+        }
+
+        creatorId = eventObj.creator._id?.toString() || '';
+        isCreator = creatorId === currentUserId.toString();
+      } catch (err) {
+        console.warn('Error processing creator:', {
+          eventId: eventObj._id,
+          creator: eventObj.creator,
+          error: err.message
+        });
+      }
+    }
+
+    // Safe friends check
+    const isFriendEvent = includeFriends && friends ?
+      friends.some(friendId => friendId.toString() === creatorId) : false;
+
+    return {
+      ...eventObj,
+      // STANDARD USER RELATIONSHIP FIELDS
+      userStatus: userAttendee?.status || null,
+      isUserAttending: !!userAttendee,
+      isUserInvited: !!userAttendee,
+      isUserCreator: isCreator,
+      isFriendEvent: isFriendEvent,
+
+      // ENSURE ATTENDEES ARE ALWAYS POPULATED (validation)
+      attendees: eventObj.attendees?.map(att => {
+        if (typeof att.user === 'string') {
+          throw new Error(`Attendee user is not populated: ${att.user}`);
+        }
+        return {
+          _id: att._id,
+          status: att.status,
+          user: att.user // Validated to be object
+        };
+      }) || [],
+
+      // ENSURE CREATOR IS ALWAYS POPULATED (validation)
+      creator: eventObj.creator
+    };
+
+  } catch (error) {
+    console.error('❌ ERROR in enrichEventWithUserContext:', {
+      error: error.message,
+      eventId: event?._id,
+      currentUserId,
+      stack: error.stack
+    });
+
+    // For unpopulated data errors, throw to surface the issue
+    if (error.message.includes('unpopulated')) {
+      throw error;
+    }
+
+    // For other errors, return safe defaults
+    const eventObj = event?.toObject ? event.toObject() : event || {};
+    return {
+      ...eventObj,
+      userStatus: null,
+      isUserAttending: false,
+      isUserInvited: false,
+      isUserCreator: false,
+      isFriendEvent: false
+    };
+  }
+};
+
+// Array processing wrapper (keeps your existing pattern)
+const enrichEventsWithUserData = async (events, userId, friends = []) => {
+  const results = [];
+
+  for (const event of events) {
+    try {
+      const enriched = await enrichEventWithUserContext(event, userId, {
+        includeFriends: true,
+        userFriends: friends
+      });
+      results.push(enriched);
+    } catch (error) {
+      // Log the error but continue processing other events
+      console.error('Failed to enrich event:', error.message);
+      // Return event with safe defaults rather than crashing
+      results.push({
+        ...event,
+        userStatus: null,
+        isUserAttending: false,
+        isUserInvited: false,
+        isUserCreator: false,
+        isFriendEvent: false
+      });
+    }
+  }
+
+  return results;
+};
+
+const getStandardEventPopulation = () => [
+  {
+    path: 'attendees.user',
+    select: '-password -__v'
+  },
+  {
+    path: 'creator',
+    select: '-password -__v'
+  }
+];
+
+/**
+ * Process event invitations (reusable utility)
+ */
+const processEventInvitations = async (invitees, targetEventId, targetEvent) => {
+  const { updateEventAttendee, updateUserEventStatus, createEventInvitationNotification } = require('../utils/eventUtils');
+  
+  for (const invitee of invitees) {
+    await updateEventAttendee(targetEvent, invitee, 'pending');
+    await updateUserEventStatus(invitee, targetEventId, 'pending');
+  }
+
+  // Send invitation notifications (don't fail on notification errors)
+  try {
+    await createEventInvitationNotification(targetEventId, invitees);
+  } catch (notificationError) {
+    console.error('Error sending event invitation notifications:', notificationError);
+  }
+};
+
+/**
+ * Build enriched event response (reusable utility)
+ */
+const buildEnrichedEventResponse = async (eventId, currentUserId, message, extraData = {}) => {
+  
+  const updatedEvent = await Events.findById(eventId)
+    .populate(getStandardEventPopulation());
+  
+  const enrichedEvent = await enrichEventWithUserContext(updatedEvent, currentUserId);
+
+  return {
+    success: true,
+    message,
+    event: enrichedEvent,
+    ...extraData
+  };
+};
+
+/**
+ * Event array response utility
+ */
+const buildEnrichedEventsResponse = async (events, currentUserId, message, extraData = {}) => {
+  // Use the error-resilient version
+  const enrichedEvents = await enrichEventsWithUserData(events, currentUserId);
+
+  return {
+    success: true,
+    message,
+    events: enrichedEvents,
+    ...extraData
+  };
+};
+
+/**
+ * Success response utility
+ */
+const buildSuccessResponse = (message, extraData = {}) => {
+  return {
+    success: true,
+    message,
+    ...extraData
+  };
+};
+
+const validateEventModificationRequest = async (req, requiredParams = []) => {
+  const { eventId, occurrenceDate, modifyType } = req.body;
+  
+  // Validate required parameters
+  const validation = validateInputParams(req.body, requiredParams);
+  if (!validation.isValid) {
+    return {
+      isValid: false,
+      error: {
+        status: 400,
+        message: `Missing parameters: ${validation.missing.join(', ')}${validation.invalid.length ? `. Invalid: ${validation.invalid.map(i => i.message).join(', ')}` : ''}`
+      }
+    };
+  }
+  
+  // Find event
+  const event = await findEventById(eventId || req.params.eventId, {
+    populate: getStandardEventPopulation()
+  });
+  
+  if (!event) {
+    return {
+      isValid: false,
+      error: {
+        status: 404,
+        message: 'Event not found'
+      }
+    };
+  }
+  
+  return {
+    isValid: true,
+    event,
+    isRecurring: isRecurringEvent(event),
+    occurrenceDate,
+    modifyType
+  };
+};
+
+const validateEventPermissions = (event, userId, permissionType = 'creator') => {
+  if (permissionType === 'creator') {
+    if (!validateEventCreatorPermission(event, userId)) {
+      return {
+        isValid: false,
+        error: {
+          status: 403,
+          message: 'Only the event creator can perform this action'
+        }
+      };
+    }
+  } else if (permissionType === 'attendee') {
+    const attendeeIndex = findAttendeeIndex(event, userId);
+    if (attendeeIndex === -1) {
+      return {
+        isValid: false,
+        error: {
+          status: 404,
+          message: 'You are not an attendee of this event'
+        }
+      };
+    }
+    return {
+      isValid: true,
+      attendeeIndex
+    };
+  }
+  
+  return { isValid: true };
+};
+
+const handleRecurringEventOperation = async (options) => {
+  const {
+    event,
+    occurrenceDate,
+    modifyType,
+    operation,
+    operationData,
+    userId
+  } = options;
+  
+  // Not a recurring event or no modification type specified
+  if (!isRecurringEvent(event) || !occurrenceDate || !modifyType) {
+    return {
+      type: 'default',
+      event,
+      shouldContinue: true
+    };
+  }
+  
+  let result = {
+    type: modifyType,
+    shouldContinue: false
+  };
+  
+  switch (modifyType) {
+    case 'this_only':
+      result = await handleThisOnlyOperation(event, occurrenceDate, operation, operationData, userId);
+      break;
+      
+    case 'all_future':
+      result = await handleAllFutureOperation(event, occurrenceDate, operation, operationData, userId);
+      break;
+      
+    default:
+      result.shouldContinue = true;
+  }
+  
+  return result;
+};
+
+const handleThisOnlyOperation = async (event, occurrenceDate, operation, operationData, userId) => {
+  let modificationData = {};
+  
+  switch (operation) {
+    case 'removeAttendee':
+      modificationData.attendees = createAttendeesListWithoutUser(event.attendees, operationData.attendeeId);
+      break;
+      
+    case 'updateEvent':
+      modificationData = operationData.eventData;
+      break;
+      
+    case 'joinEvent':
+      const existingIndex = findAttendeeIndex(event, userId);
+      if (existingIndex !== -1) {
+        modificationData.attendees = event.attendees.map((att, index) => 
+          index === existingIndex 
+            ? { ...att.toObject(), status: operationData.status } 
+            : att.toObject()
+        );
+      } else {
+        modificationData.attendees = [...event.attendees, { user: userId, status: operationData.status }];
+      }
+      break;
+      
+    case 'cancelEvent':
+      await addExcludedDate(event, new Date(occurrenceDate));
+      return {
+        type: 'this_only',
+        cancelled: true,
+        occurrenceDate
+      };
+      
+    case 'respondInvitation':
+      modificationData.attendees = event.attendees.map(att => 
+        att.user.toString() === userId.toString()
+          ? { ...att.toObject(), status: operationData.status }
+          : att.toObject()
+      );
+      break;
+      
+    case 'inviteAttendees':
+      const newInvitees = operationData.invitees.map(userId => ({ user: userId, status: 'pending' }));
+      modificationData.attendees = [...event.attendees, ...newInvitees];
+      break;
+  }
+  
+  const separateEvent = await createSeparateOccurrenceEvent(event, occurrenceDate, modificationData);
+  
+  return {
+    type: 'this_only',
+    separateEvent,
+    occurrenceDate
+  };
+};
+
+const handleAllFutureOperation = async (event, occurrenceDate, operation, operationData, userId) => {
+  const futureEvent = await splitRecurringEvent(event, new Date(occurrenceDate));
+  
+  switch (operation) {
+    case 'removeAttendee':
+      await removeAttendeeFromEventArray(futureEvent, operationData.attendeeId);
+      await removeUserFromEvent(operationData.attendeeId, futureEvent._id);
+      break;
+      
+    case 'updateEvent':
+      Object.assign(futureEvent, sanitizeEventUpdateData(operationData.eventData));
+      await futureEvent.save();
+      break;
+      
+    case 'joinEvent':
+      await updateEventAttendee(futureEvent, userId, operationData.status);
+      await updateUserEventStatus(userId, futureEvent._id, operationData.status);
+      break;
+      
+    case 'cancelEvent':
+      futureEvent.status = 'cancelled';
+      await futureEvent.save();
+      break;
+      
+    case 'respondInvitation':
+      await updateEventAttendee(futureEvent, userId, operationData.status);
+      await updateUserEventStatus(userId, futureEvent._id, operationData.status);
+      break;
+      
+    case 'inviteAttendees':
+      for (const invitee of operationData.invitees) {
+        await updateEventAttendee(futureEvent, invitee, 'pending');
+        await updateUserEventStatus(invitee, futureEvent._id, 'pending');
+      }
+      break;
+  }
+  
+  return {
+    type: 'all_future',
+    futureEvent,
+    occurrenceDate
+  };
+};
+
+const handleEventReminders = async (options) => {
+  const {
+    event,
+    operation,
+    userId,
+    status,
+    occurrenceDate,
+    modifyType
+  } = options;
+  
+  try {
+    switch (operation) {
+      case 'delete':
+        await deleteEventReminders(event, userId, occurrenceDate);
+        break;
+        
+      case 'deleteAll':
+        await deleteAllEventReminders(event);
+        break;
+        
+      case 'schedule':
+        await scheduleEventReminders(event, userId, status, occurrenceDate);
+        break;
+        
+      case 'reschedule':
+        await rescheduleEventReminders(event);
+        break;
+        
+      case 'update':
+        await updateEventReminders(event, userId, status, occurrenceDate, modifyType);
+        break;
+    }
+  } catch (error) {
+    console.error(`Error handling reminders for operation ${operation}:`, error);
+    // Don't throw - reminders shouldn't break the main operation
+  }
+};
+
+const deleteEventReminders = async (event, userId, occurrenceDate) => {
+  if (occurrenceDate) {
+    await deleteUserEventReminders(event._id, userId, new Date(occurrenceDate));
+  } else if (isRecurringEvent(event)) {
+    const now = new Date();
+    const rule = new RRule({
+      freq: RRule[event.recurrence.frequency.toUpperCase()],
+      dtstart: new Date(event.start_time),
+      until: event.recurrence.end_date ? new Date(event.recurrence.end_date) : null
+    });
+    
+    const futureOccurrences = rule.all().filter(date => date >= now);
+    await Promise.allSettled(
+      futureOccurrences.map(occurrence => 
+        deleteUserEventReminders(event._id, userId, occurrence)
+      )
+    );
+  } else {
+    await deleteUserEventReminders(event._id, userId);
+  }
+};
+
+const scheduleEventReminders = async (event, userId, status, occurrenceDate) => {
+  if (status !== 'accepted' && status !== 'maybe') return;
+  
+  if (occurrenceDate) {
+    await updateAttendeeReminders(event._id, userId, status, event, occurrenceDate);
+  } else if (isRecurringEvent(event)) {
+    await scheduleRecurringEventReminders({ 
+      ...event.toObject(), 
+      attendees: [{ user: userId, status }] 
+    });
+  } else {
+    await updateAttendeeReminders(event._id, userId, status, event);
+  }
+};
+
+const rescheduleEventReminders = async (event) => {
+  await deleteAllEventReminders(event);
+  
+  if (isRecurringEvent(event)) {
+    await scheduleRecurringEventReminders(event);
+  } else {
+    await scheduleEventRemindersForAllAttendees(event);
+  }
+};
+
+const updateEventReminders = async (event, userId, status, occurrenceDate, modifyType) => {
+  if (modifyType === 'this_only' || modifyType === 'all_future') {
+    await handleRecurringEventReminderUpdate(event, event, occurrenceDate, modifyType);
+  } else {
+    await scheduleEventReminders(event, userId, status, occurrenceDate);
+  }
+};
+
+const sendEventNotifications = async (options) => {
+  const {
+    operation,
+    eventId,
+    userId,
+    attendeeIds,
+    status
+  } = options;
+  
+  if (!attendeeIds || attendeeIds.length === 0) return;
+  
+  try {
+    switch (operation) {
+      case 'invite':
+        await createEventInvitationNotification(eventId, attendeeIds);
+        break;
+        
+      case 'update':
+        await createEventUpdateNotification(eventId, userId, attendeeIds);
+        break;
+        
+      case 'cancel':
+        await createEventUpdateNotification(eventId, userId, attendeeIds);
+        break;
+        
+      case 'attendance':
+        if (status === 'accepted') {
+          await createEventAttendanceNotification(eventId, userId, status);
+        }
+        break;
+    }
+  } catch (error) {
+    console.error(`Error sending ${operation} notifications:`, error);
+    // Don't throw - notifications shouldn't break the main operation
+  }
+};
+
+const updateNotificationStatus = async (userId, eventId, type, status) => {
+  try {
+    await Notification.findOneAndUpdate(
+      {
+        recipient: userId,
+        event: eventId,
+        type: type
+      },
+      {
+        status: status,
+        is_seen: true,
+        updated_at: new Date()
+      }
+    );
+  } catch (error) {
+    console.error('Failed to update notification status:', error);
+  }
+};
+
 // =============================================================================
 // EXPORTS
 // =============================================================================
@@ -2058,5 +2581,23 @@ module.exports = {
   // scheduleEventReminders moved to reminderSchedulingUtils.js
   filterAttentionRequiredEvents, // reviewed
   recommendedEventsBaseQuery, // reviewed
-  buildFriendsEventsBaseQuery // reviewed
+  buildFriendsEventsBaseQuery, // reviewed
+  enrichEventWithUserContext,
+  getStandardEventPopulation,
+  processEventInvitations,
+  buildEnrichedEventResponse,
+  buildEnrichedEventsResponse,
+  buildSuccessResponse,
+  validateEventModificationRequest,
+  validateEventPermissions,
+  handleRecurringEventOperation,
+  handleThisOnlyOperation,
+  handleAllFutureOperation,
+  handleEventReminders,
+  deleteEventReminders,
+  scheduleEventReminders,
+  rescheduleEventReminders,
+  updateEventReminders,
+  sendEventNotifications,
+  updateNotificationStatus,
 }; 

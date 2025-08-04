@@ -18,8 +18,8 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   withSpring,
-  runOnJS
 } from 'react-native-reanimated';
+import { runOnJS } from 'react-native-worklets';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 interface Tag {

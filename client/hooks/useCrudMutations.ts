@@ -317,16 +317,12 @@ export const useUpdateEventMutation = (config: CrudMutationConfig = {}) => {
 
     onSuccess: (data, variables, _context) => {
       // Debug: Check what the server response looks like
-      console.log('Update event server response:', data);
-      console.log('Event ID:', variables.id);
       
       // Update the individual event cache with the actual server response
       if (data && data.event) {
-        console.log('Updating event cache with:', data.event);
         queryClient.setQueryData(queryKeys.eventById(variables.id), data.event);
       } else if (data) {
         // Maybe the server returns the event directly, not wrapped in { event: ... }
-        console.log('Updating event cache with direct data:', data);
         queryClient.setQueryData(queryKeys.eventById(variables.id), data);
       }
       

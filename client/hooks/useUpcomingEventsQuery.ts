@@ -83,6 +83,24 @@ export const useUpcomingEventsQuery = (options: UseUpcomingEventsOptions = {}) =
         `/api/manageevents/eventslist/get/my/upcoming/events${queryParams}`,
         { signal }
       );
+      // const eventsdata = response.data.events;
+
+      // const attendeesdata = eventsdata.map((event) => {
+      //   console.log('step 1:', event.attendees);
+      //   return event.attendees; // array of attendees
+      // });
+
+      // const userdata = attendeesdata.map((attendeeArray) => {
+      //   console.log('step 2:', attendeeArray);
+      //   return attendeeArray; // still array of attendees
+      // });
+
+      // userdata.forEach((attendeeArray) => {
+      //   attendeeArray.forEach((attendee) => {
+      //     console.log('step 3:', attendee.user); // Now logs each user
+      //   });
+      // });
+      // console.log('🔍 [UPCOMING EVENT QUERY] Event attendees count:', response.data.events);
       
       let events = response.data.events || [];
       

@@ -1,13 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, Dimensions } from 'react-native';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withTiming, 
-  withSequence,
-  runOnJS,
-  Easing 
-} from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -28,75 +21,54 @@ const LoginLoadingOverlay: React.FC<LoginLoadingOverlayProps> = ({
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   
-  const overlayOpacity = useSharedValue(0);
-  const checkmarkScale = useSharedValue(0);
-  const checkmarkOpacity = useSharedValue(0);
-  const loadingOpacity = useSharedValue(1);
-
-  useEffect(() => {
-    if (visible) {
-      // Show overlay
-      overlayOpacity.value = withTiming(1, { duration: 200 });
-    } else {
-      // Hide overlay
-      overlayOpacity.value = withTiming(0, { duration: 200 });
-    }
-  }, [visible]);
+  const [showCheckmark, setShowCheckmark] = useState(false);
+  const [hideLoading, setHideLoading] = useState(false);
 
   useEffect(() => {
     if (isSuccess && visible) {
-      // Hide loading indicator
-      loadingOpacity.value = withTiming(0, { duration: 150 });
+      setHideLoading(true);
+      setShowCheckmark(true);
       
-      // Show and animate checkmark
-      checkmarkOpacity.value = withTiming(1, { duration: 150 });
-      checkmarkScale.value = withSequence(
-        withTiming(1.2, { duration: 200, easing: Easing.out(Easing.cubic) }),
-        withTiming(1, { duration: 150, easing: Easing.out(Easing.cubic) }),
-        withTiming(1, { duration: 800 }), // Hold for a moment
-        withTiming(0, { duration: 200 }, () => {
-          if (onAnimationComplete) {
-            runOnJS(onAnimationComplete)();
-          }
-        })
-      );
+      // Call onAnimationComplete after animation sequence
+      const timer = setTimeout(() => {
+        if (onAnimationComplete) {
+          onAnimationComplete();
+        }
+      }, 1350); // Total animation time: 200 + 150 + 800 + 200
+      
+      return () => clearTimeout(timer);
     }
-  }, [isSuccess, visible]);
-
-  const overlayStyle = useAnimatedStyle(() => ({
-    opacity: overlayOpacity.value,
-  }));
-
-  const loadingStyle = useAnimatedStyle(() => ({
-    opacity: loadingOpacity.value,
-  }));
-
-  const checkmarkStyle = useAnimatedStyle(() => ({
-    opacity: checkmarkOpacity.value,
-    transform: [{ scale: checkmarkScale.value }],
-  }));
+  }, [isSuccess, visible, onAnimationComplete]);
 
   if (!visible) return null;
 
   return (
     <Animated.View 
-      style={[
-        {
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.7)',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000,
-        },
-        overlayStyle
-      ]}
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 1000,
+        opacity: visible ? 1 : 0,
+        transitionProperty: ['opacity'],
+        transitionDuration: '200ms',
+        transitionTimingFunction: 'ease-in-out',
+      }}
     >
       {/* Loading Indicator */}
-      <Animated.View style={[loadingStyle]}>
+      <Animated.View 
+        style={{
+          opacity: hideLoading ? 0 : 1,
+          transitionProperty: ['opacity'],
+          transitionDuration: '150ms',
+          transitionTimingFunction: 'ease-in-out',
+        }}
+      >
         <ActivityIndicator 
           size="large" 
           color={themeColors.mountainGreen} 
@@ -105,18 +77,43 @@ const LoginLoadingOverlay: React.FC<LoginLoadingOverlayProps> = ({
 
       {/* Success Checkmark */}
       <Animated.View 
-        style={[
-          {
-            position: 'absolute',
-            justifyContent: 'center',
-            alignItems: 'center',
-            backgroundColor: themeColors.mountainGreen,
-            borderRadius: 35,
-            width: 70,
-            height: 70,
-          },
-          checkmarkStyle
-        ]}
+        style={{
+          position: 'absolute',
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: themeColors.mountainGreen,
+          borderRadius: 35,
+          width: 70,
+          height: 70,
+          opacity: showCheckmark ? 1 : 0,
+          transform: [{ scale: showCheckmark ? 1 : 0 }],
+          ...(showCheckmark && {
+            animationName: {
+              '0%': { 
+                opacity: 0,
+                transform: [{ scale: 0 }] 
+              },
+              '15%': { 
+                opacity: 1,
+                transform: [{ scale: 1.2 }] 
+              },
+              '30%': { 
+                transform: [{ scale: 1 }] 
+              },
+              '80%': { 
+                opacity: 1,
+                transform: [{ scale: 1 }] 
+              },
+              '100%': { 
+                opacity: 0,
+                transform: [{ scale: 0 }] 
+              },
+            },
+            animationDuration: '1350ms',
+            animationTimingFunction: 'ease-out',
+            animationFillMode: 'forwards',
+          }),
+        }}
       >
         <Feather name="check" size={40} color="white" />
       </Animated.View>

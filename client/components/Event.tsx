@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { View, Text, Dimensions, TouchableOpacity, AppState } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, withRepeat, Easing, cancelAnimation } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { ThemedView } from '@/components/ThemedView';
@@ -26,7 +26,6 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = React.memo(({ ev
   const router = useRouter();
   const today = new Date();
 
-  const pulse = useSharedValue(1);
   const [isVisible, setIsVisible] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const mountedRef = useRef(true);
@@ -112,46 +111,17 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = React.memo(({ ev
     debouncedVisibilityCheck();
   }, [debouncedVisibilityCheck]);
 
-  // Animation logic - only run when visible AND live
-  useEffect(() => {
-    const shouldAnimate = isVisible && isEventLive && mountedRef.current;
-    
-    if (shouldAnimate) {
-      pulse.value = withRepeat(
-        withTiming(1.5, {
-          duration: 800,
-          easing: Easing.inOut(Easing.ease),
-        }),
-        -1,
-        true
-      );
-    } else {
-      cancelAnimation(pulse);
-      pulse.value = 1; // Reset to default state
-    }
-
-    // Cleanup function
-    return () => {
-      cancelAnimation(pulse);
-    };
-  }, [pulse, isVisible, isEventLive, event.title]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       mountedRef.current = false;
-      cancelAnimation(pulse);
       if (visibilityCheckTimeoutRef.current) {
         clearTimeout(visibilityCheckTimeoutRef.current);
       }
     };
   }, []);
   
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: pulse.value }],
-    };
-  }, [pulse]);
 
   // Determine styling based on user status
   const userStatus = event.userStatus;
@@ -314,10 +284,24 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = React.memo(({ ev
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
                 {isEventLive ? (
                   <>
-                    <Animated.View style={[
-                      { height: 4, width: 4, borderRadius: 999, marginRight: 8, backgroundColor: themeColors.mountainGreen },
-                      animatedStyle
-                    ]} />
+                    <Animated.View style={{
+                      height: 4, 
+                      width: 4, 
+                      borderRadius: 999, 
+                      marginRight: 8, 
+                      backgroundColor: themeColors.mountainGreen,
+                      transform: [{ scale: 1 }],
+                      ...(isEventLive && {
+                        animationName: {
+                          '0%': { transform: [{ scale: 1 }] },
+                          '50%': { transform: [{ scale: 1.5 }] },
+                          '100%': { transform: [{ scale: 1 }] },
+                        },
+                        animationDuration: '800ms',
+                        animationIterationCount: 'infinite',
+                        animationTimingFunction: 'ease-in-out',
+                      }),
+                    }} />
                     <ThemedText 
                       style={{ fontSize: 12, color: themeColors.tint }}
                       numberOfLines={1}
