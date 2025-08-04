@@ -1,54 +1,37 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, Image, Dimensions } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withDelay,
-  runOnJS,
-} from 'react-native-reanimated';
-import LinearGradient from 'react-native-linear-gradient';
+import Animated from 'react-native-reanimated';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
 const { width } = Dimensions.get('window');
 
 export default function KinovoSplash() {
-  const logoOpacity = useSharedValue(0);
-  const logoScale = useSharedValue(0.8);
-  const textOpacity = useSharedValue(0);
-  const subtitleOpacity = useSharedValue(0);
-  const subtitleDelay = 1000;
+  const [isVisible, setIsVisible] = useState(false);
   const { width, height } = Dimensions.get("window");
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
 
   useEffect(() => {
-    logoOpacity.value = withTiming(1, { duration: 500 });
-    logoScale.value = withTiming(1, { duration: 500 });
-    textOpacity.value = withDelay(500, withTiming(1, { duration: 500 }));
-    subtitleOpacity.value = withDelay(subtitleDelay, withTiming(0.7, { duration: 500 }));
+    // Trigger animations on mount
+    setIsVisible(true);
   }, []);
-
-  const logoStyle = useAnimatedStyle(() => ({
-    opacity: logoOpacity.value,
-    transform: [{ scale: logoScale.value }],
-  }));
-
-  const textStyle = useAnimatedStyle(() => ({
-    opacity: textOpacity.value,
-    transform: [{ translateY: textOpacity.value * -10 }],
-  }));
-
-  const subtitleStyle = useAnimatedStyle(() => ({
-    opacity: subtitleOpacity.value,
-  }));
 
   return (
     <View
       style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
     >
-      <Animated.View style={[{ alignItems: 'center', marginBottom: 16 }, logoStyle]}>
+      <Animated.View 
+        style={{
+          alignItems: 'center', 
+          marginBottom: 16,
+          opacity: isVisible ? 1 : 0,
+          transform: [{ scale: isVisible ? 1 : 0.8 }],
+          transitionProperty: ['opacity', 'transform'],
+          transitionDuration: '500ms',
+          transitionTimingFunction: 'ease-out',
+        }}
+      >
         <View style={{
           width: width * 0.45,
           height: width * 0.45,
@@ -64,7 +47,17 @@ export default function KinovoSplash() {
         </View>
       </Animated.View>
 
-      <Animated.View style={[{ alignItems: 'center' }, textStyle]}>
+      <Animated.View 
+        style={{
+          alignItems: 'center',
+          opacity: isVisible ? 1 : 0,
+          transform: [{ translateY: isVisible ? 0 : 10 }],
+          transitionProperty: ['opacity', 'transform'],
+          transitionDuration: '500ms',
+          transitionDelay: '500ms',
+          transitionTimingFunction: 'ease-out',
+        }}
+      >
         <Text
           style={{
             fontSize: 40,

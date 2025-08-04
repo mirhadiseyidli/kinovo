@@ -5,7 +5,8 @@ import { createContext, RefObject, ReactNode, useCallback, useContext, useEffect
 import axios, { AxiosError } from 'axios';
 import { View } from 'react-native';
 import { ApiError, AuthContextType, TokenTypes } from '@/types/allTypes';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import { runOnJS } from 'react-native-worklets';
 import { queryClient } from '@/utils/queryClient';
 import { asyncStoragePersister } from '@/utils/persistedQueryClient';
 

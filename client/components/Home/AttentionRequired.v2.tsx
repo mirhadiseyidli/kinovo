@@ -84,13 +84,32 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
   // Use initialEvents if provided, otherwise use query data
   const events = (initialEvents || eventsData) as Event[];
 
+  // Log when events data changes
+  React.useEffect(() => {
+    console.log('📊 [ATTENTION REQUIRED] Events data updated:', {
+      eventsCount: events?.length || 0,
+      usingInitialEvents: !!initialEvents,
+      queryDataAvailable: !!eventsData,
+      isLoading,
+      isError
+    });
+  }, [events, initialEvents, eventsData, isLoading, isError]);
+
   // Memoize expensive event filtering - filter out past events
   const futureEvents = React.useMemo(() => {
-    return events.filter((event) => {
+    const filtered = events.filter((event) => {
       const now = new Date();
       const eventStartDate = event.start_time ? new Date(event.start_time) : null;
       return eventStartDate && now < eventStartDate;
     });
+    
+    console.log('🔍 [ATTENTION REQUIRED] Filtered future events:', {
+      totalEvents: events?.length || 0,
+      futureEvents: filtered.length,
+      eventIds: filtered.map(e => e._id).slice(0, 3) // First 3 IDs for debugging
+    });
+    
+    return filtered;
   }, [events]);
 
   // Memoize time calculation function
@@ -167,8 +186,10 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
         requestOptions.modifyType = options.modifyType;
       }
 
+      console.log('🎯 [ATTENTION REQUIRED] Calling respondToInvitation mutation:', requestOptions);
       await respondToInvitation(requestOptions);
       setSelectedResponses(prev => ({ ...prev, [eventId]: status }));
+      console.log('✅ [ATTENTION REQUIRED] Mutation completed, UI should update');
 
       // Cache invalidation and optimistic updates handled automatically by useEventMutations
 

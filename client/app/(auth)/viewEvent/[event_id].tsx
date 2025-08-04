@@ -14,8 +14,8 @@ import { ViewEventSkeleton } from '@/components/Skeleton';
 import Animated, {
   useAnimatedScrollHandler,
   useSharedValue,
-  runOnJS,
 } from 'react-native-reanimated';
+import { runOnJS } from 'react-native-worklets';
 import { shareContent } from '@/utils/shareUtils';
 import { Feather } from '@expo/vector-icons';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -66,6 +66,7 @@ const ViewEvent = () => {
   const themeColors = Colors[colorScheme ?? 'dark'];
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  console.log('event', event?.attendees)
 
   // Animated values for scroll handling
   const scrollY = useSharedValue(0);

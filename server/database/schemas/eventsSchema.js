@@ -52,6 +52,10 @@ const eventsSchema = new mongoose.Schema({
     coordinates: {
       lat: { type: Number, default: null },
       lng: { type: Number, default: null }
+    },
+    mapSnapshotUrl: { 
+      light: { type: String, default: null }, 
+      dark: { type: String, default: null } 
     }
   },
   start_time: {

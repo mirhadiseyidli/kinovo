@@ -166,6 +166,20 @@ export const useAttentionRequiredQuery = (options: UseAttentionRequiredOptions =
     refetchInterval: false,
   });
 
+  // Log when query data changes
+  useEffect(() => {
+    if (query.data) {
+      console.log('📨 [ATTENTION REQUIRED QUERY] Data updated:', {
+        queryKey: JSON.stringify(stableQueryKey),
+        eventCount: query.data?.length || 0,
+        isLoading: query.isLoading,
+        isFetching: query.isFetching,
+        isError: query.isError,
+        fromHomeScreen
+      });
+    }
+  }, [query.data, query.isLoading, query.isFetching, query.isError, stableQueryKey, fromHomeScreen]);
+
   // Additional methods for cache management using stable query key
   const invalidateAttentionRequired = () => {
     queryClient.invalidateQueries({

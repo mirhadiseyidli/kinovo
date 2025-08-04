@@ -11,6 +11,14 @@ import { Feather } from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getCategoryIcon, getCategoryColor } from '@/utils/categoryIcons';
 import type { CreateEventTabParamList, AttendeeFriend } from '@/types/allTypes';
+import { useCreateEventContext } from '@/context/CreateEventContext';
+import { useUpdateEventMutation } from '@/hooks/useCreateEventMutation';
+import { format } from 'date-fns';
+import DefaultProfilePicture from '@/components/DefaultProfilePicture';
+import { CreateEventScrollContext } from '@/context/CreateEventScrollContext';
+import Animated, { useAnimatedScrollHandler } from 'react-native-reanimated';
+import { runOnJS } from 'react-native-worklets';
+import { useRouter } from 'expo-router';
 
 interface SuggestionsData {
   friends: AttendeeFriend[];
@@ -20,13 +28,6 @@ interface SuggestionsData {
     friends: AttendeeFriend[];
   }[];
 }
-import { useCreateEventContext } from '@/context/CreateEventContext';
-import { useUpdateEventMutation } from '@/hooks/useCreateEventMutation';
-import { format } from 'date-fns';
-import DefaultProfilePicture from '@/components/DefaultProfilePicture';
-import { CreateEventScrollContext } from '@/context/CreateEventScrollContext';
-import Animated, { useAnimatedScrollHandler, runOnJS } from 'react-native-reanimated';
-import { useRouter } from 'expo-router';
 
 const AnimatedScrollView = Animated.createAnimatedComponent(Animated.ScrollView);
 

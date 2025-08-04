@@ -48,11 +48,14 @@ export const useRespondToInvitationMutation = () => {
     },
     
     onMutate: async (variables) => {
+      console.log('🚀 [RESPOND MUTATION] Starting mutation:', { eventId: variables.eventId, status: variables.status, userId });
+      
       // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: queryKeys.eventById(variables.eventId) });
       
       // Get current event data
       const currentEvent = queryClient.getQueryData<Event>(queryKeys.eventById(variables.eventId));
+      console.log('📋 [RESPOND MUTATION] Current event data:', currentEvent ? 'Found' : 'Not found');
       
       if (currentEvent) {
         // Predict optimistic state
@@ -61,6 +64,12 @@ export const useRespondToInvitationMutation = () => {
           'respond', 
           { userId, response: variables.status }
         );
+        
+        console.log('⚡ [RESPOND MUTATION] Applying optimistic update:', { 
+          oldStatus: currentEvent.userStatus, 
+          newStatus: variables.status,
+          optimisticEvent: optimisticEvent 
+        });
         
         // Apply simple optimistic update
         const context = updateEventOptimistically(
@@ -75,14 +84,29 @@ export const useRespondToInvitationMutation = () => {
       return {};
     },
     
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      console.log('✅ [RESPOND MUTATION] Success! Server response:', data);
+      
+      // Update the event cache with the server response
+      if (data && data.event) {
+        console.log('📥 [RESPOND MUTATION] Setting server event data to cache');
+        queryClient.setQueryData(queryKeys.eventById(variables.eventId), data.event);
+      } else {
+        console.log('⚠️ [RESPOND MUTATION] No event data in server response, relying on cache invalidation');
+      }
+      
       // Invalidate all relevant queries for background consistency
+      console.log('🔄 [RESPOND MUTATION] Starting cache invalidation for userId:', userId);
       invalidateEventQueries(queryClient, userId);
+      console.log('✨ [RESPOND MUTATION] Cache invalidation completed');
     },
     
     onError: (error: any, variables, context) => {
+      console.log('❌ [RESPOND MUTATION] Error occurred:', error.response?.data || error.message);
+      
       // Rollback optimistic updates on error
       if (context?.context) {
+        console.log('🔙 [RESPOND MUTATION] Rolling back optimistic update');
         rollbackOptimisticUpdate(queryClient, variables.eventId, context.context);
       }
       
@@ -138,7 +162,12 @@ export const useJoinEventMutation = () => {
       return {};
     },
     
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      // Update the event cache with the server response
+      if (data && data.event) {
+        queryClient.setQueryData(queryKeys.eventById(variables.eventId), data.event);
+      }
+      
       invalidateEventQueries(queryClient, userId);
       // Also invalidate nearby queries (need lat/lng parameters)
       queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'infinite', 'nearby'] });
@@ -258,7 +287,13 @@ export const useCancelEventMutation = () => {
       Alert.alert('Error', errorMessage);
     },
     
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      // For cancel, if server returns updated event data (e.g. status changed to cancelled),
+      // we should update the cache. Otherwise, the optimistic deletion is correct.
+      if (data && data.event) {
+        queryClient.setQueryData(queryKeys.eventById(variables.eventId), data.event);
+      }
+      
       invalidateEventQueries(queryClient, userId);
       // Also invalidate user events and past events specifically for cancel
       if (userId) {
@@ -323,7 +358,12 @@ export const useRemoveAttendeeMutation = () => {
       return {};
     },
     
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      // Update the event cache with the server response
+      if (data && data.event) {
+        queryClient.setQueryData(queryKeys.eventById(variables.eventId), data.event);
+      }
+      
       invalidateEventQueries(queryClient, userId);
     },
     

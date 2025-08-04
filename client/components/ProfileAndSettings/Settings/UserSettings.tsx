@@ -5,6 +5,8 @@ import { router } from 'expo-router';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
+import ReanimatedShimmerLine from '@/components/CustomLoadingIndicatingLine';
+import { SkeletonBox } from '@/components/Skeleton';
 
 const UserSettings = () => {
   const colorScheme = useColorScheme();

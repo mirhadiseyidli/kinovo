@@ -13,7 +13,8 @@ import { View, TouchableOpacity, Text, Pressable, ScrollView } from 'react-nativ
 import { Feather } from '@expo/vector-icons';
 import type { CreateEventTabParamList, Suggestion } from '@/types/allTypes';
 import { CreateEventScrollContext } from '@/context/CreateEventScrollContext';
-import Animated, { useAnimatedScrollHandler, runOnJS } from 'react-native-reanimated';
+import Animated, { useAnimatedScrollHandler } from 'react-native-reanimated';
+import { runOnJS } from 'react-native-worklets';
 import { useRouter } from 'expo-router';
 
 const AnimatedScrollView = Animated.createAnimatedComponent(Animated.ScrollView);
@@ -25,6 +26,34 @@ export default React.memo(function EventDateAndLocation() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const locationSelectRef = useRef<((text: string, city: string, state: string, location: any) => void) | null>(null);
+  
+  // Refs to control all pickers - only one can be open at a time
+  const dateTimeRef = useRef<{
+    closeStartPicker: () => void;
+    closeEndPicker: () => void;
+    openStartPicker: () => void;
+    openEndPicker: () => void;
+  } | null>(null);
+  
+  const frequencyRef = useRef<{
+    closeRepeatPicker: () => void;
+    closeEndOnPicker: () => void;
+    openRepeatPicker: () => void;
+    openEndOnPicker: () => void;
+  } | null>(null);
+  
+  // Callback to manage exclusive picker behavior
+  const handlePickerOpen = (pickerType: 'startTime' | 'endTime' | 'repeat' | 'endOn') => {
+    // Close all other pickers first
+    if (dateTimeRef.current) {
+      if (pickerType !== 'startTime') dateTimeRef.current.closeStartPicker();
+      if (pickerType !== 'endTime') dateTimeRef.current.closeEndPicker();
+    }
+    if (frequencyRef.current) {
+      if (pickerType !== 'repeat') frequencyRef.current.closeRepeatPicker();
+      if (pickerType !== 'endOn') frequencyRef.current.closeEndOnPicker();
+    }
+  };
   const router = useRouter();
   const { bounceCompleted, wasDraggingAtTop, isDismissing, handleDismiss } = useContext(CreateEventScrollContext);
 
@@ -146,7 +175,7 @@ export default React.memo(function EventDateAndLocation() {
         bounces={true}
       >
         {/* Step 2: Date & Location */}
-        <DateTime />
+        <DateTime ref={dateTimeRef} onPickerOpen={handlePickerOpen} />
         <Location 
           suggestions={suggestions}
           setSuggestions={setSuggestions}
@@ -158,7 +187,7 @@ export default React.memo(function EventDateAndLocation() {
           }}
           onLocationSelectRef={locationSelectRef}
         />
-        <Frequency />
+        <Frequency ref={frequencyRef} onPickerOpen={handlePickerOpen} />
         
         {/* Back and Next Buttons */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>

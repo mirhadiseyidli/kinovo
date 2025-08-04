@@ -1,13 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, TouchableOpacity, TextInput } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  interpolateColor,
-  cancelAnimation
-} from 'react-native-reanimated';
-import { Picker } from '@expo/ui/swift-ui';
+import Animated from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
@@ -15,6 +8,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { useCreateEventContext } from '@/context/CreateEventContext';
 import AnimatedCheckBox from '../AnimatedCheckBox';
+import PickerModal from './PickerModal';
 
 const Options: React.FC<{ setLimit: (value: number | null) => void }> = ({ setLimit }) => {
   const colorScheme = useColorScheme();
@@ -27,16 +21,8 @@ const Options: React.FC<{ setLimit: (value: number | null) => void }> = ({ setLi
   const [capacityInput, setCapacityInput] = useState(contextCapacity !== null ? contextCapacity.toString() : '');
   const [showVisibilityPicker, setShowVisibilityPicker] = useState(false);
   
-  // Reanimated shared values
-  const isLimitedProgress = useSharedValue(contextCapacity !== null ? 1 : 0);
-  const showVisibilityPickerProgress = useSharedValue(0);
-  
   // Visibility options
   const visibilityOptions = ['Friends', 'Private', 'Public'];
-  const getVisibilitySelectedIndex = () => {
-    const visibilityMap = { 'private': 0, 'selected': 1, 'public': 2 };
-    return visibilityMap[visibility as keyof typeof visibilityMap] || 0;
-  };
 
   // Update local state when context changes (e.g., when loading existing event)
   useEffect(() => {
@@ -49,21 +35,10 @@ const Options: React.FC<{ setLimit: (value: number | null) => void }> = ({ setLi
       setIsLimited(contextCapacity !== null);
       setCapacityInput(contextCapacity !== null ? contextCapacity.toString() : '');
       
-      // Animate the capacity section if needed
-      isLimitedProgress.value = withTiming(contextCapacity !== null ? 1 : 0, { duration: 300 });
-      
       // Update parent component's limit
       setLimit(contextCapacity);
     }
   }, [contextVisibility, contextCapacity, setLimit]);
-
-  // Cleanup animations on unmount
-  useEffect(() => {
-    return () => {
-      cancelAnimation(isLimitedProgress);
-      cancelAnimation(showVisibilityPickerProgress);
-    };
-  }, []);
 
   const toggleCheck = (newValue: boolean) => {
     setIsLimited(newValue);
@@ -78,44 +53,14 @@ const Options: React.FC<{ setLimit: (value: number | null) => void }> = ({ setLi
       setLimit(capacity);
     }
 
-    // Animate with Reanimated
-    isLimitedProgress.value = withTiming(newValue ? 1 : 0, { duration: 300 });
+    // CSS animations handle the expansion automatically
   };
-
-  // Animated styles using Reanimated
-  const limitedTextStyle = useAnimatedStyle(() => {
-    const color = interpolateColor(
-      isLimitedProgress.value,
-      [0, 1],
-      [themeColors.placeholderTextColor, themeColors.text]
-    );
-    return { color };
-  });
-
-  const capacityContainerStyle = useAnimatedStyle(() => {
-    return {
-      height: withTiming(isLimitedProgress.value * 44, { duration: 300 }),
-      opacity: withTiming(isLimitedProgress.value, { duration: 300 })
-    };
-  });
-
-  const visibilityPickerStyle = useAnimatedStyle(() => {
-    return {
-      height: withTiming(showVisibilityPickerProgress.value === 1 ? 120 : 0, { duration: 300 }),
-      opacity: withTiming(showVisibilityPickerProgress.value, { duration: 200 })
-    };
-  });
 
   const toggleVisibilityPicker = () => {
-    const isOpening = !showVisibilityPicker;
-    setShowVisibilityPicker(isOpening);
-    
-    // Animate with Reanimated
-    showVisibilityPickerProgress.value = withTiming(isOpening ? 1 : 0, { duration: 300 });
+    setShowVisibilityPicker(!showVisibilityPicker);
   };
 
-  const handleVisibilitySelection = (event: { nativeEvent: { index: number; label: string } }) => {
-    const selected = event.nativeEvent.label;
+  const handleVisibilitySelection = (selected: string) => {
     let visibilityValue: string;
     
     switch (selected) {
@@ -195,29 +140,18 @@ const Options: React.FC<{ setLimit: (value: number | null) => void }> = ({ setLi
             <ThemedText style={{ fontSize: 12, fontWeight: 'bold', color: themeColors.text, marginRight: 8 }}>
               {interpretVisibility(visibility)}
             </ThemedText>
-            <Feather 
-              name={showVisibilityPicker ? "chevron-up" : "chevron-down"} 
-              size={20} 
-              color={themeColors.text} 
-            />
           </TouchableOpacity>
         </View>
 
-        {/* Visibility Picker - Expandable */}
-        <Animated.View 
-          style={[{ overflow: 'hidden' }, visibilityPickerStyle]}
-        >
-          <View>
-            <Picker
-              options={visibilityOptions}
-              selectedIndex={getVisibilitySelectedIndex()}
-              variant="wheel"
-              color={themeColors.mountainGreen}
-              onOptionSelected={handleVisibilitySelection}
-              style={{ height: 130, width: '100%' }}
-            />
-          </View>
-        </Animated.View>
+        {/* Visibility Picker Modal */}
+        <PickerModal
+          visible={showVisibilityPicker}
+          onClose={() => setShowVisibilityPicker(false)}
+          selectedValue={interpretVisibility(visibility)}
+          onValueChange={handleVisibilitySelection}
+          themeColors={themeColors}
+          options={visibilityOptions}
+        />
 
         <View
           style={{
@@ -234,55 +168,60 @@ const Options: React.FC<{ setLimit: (value: number | null) => void }> = ({ setLi
             onValueChange={toggleCheck}
             onCheckColor={themeColors.text} // checkmark color
             tintColors={{ true: themeColors.text, false: themeColors.placeholderTextColor  }} // border color states
-            style={{ height: 18, width: 18 }} // size or any custom inline style
-            topContainerStyle={{ marginRight: 10 }}
+            style={{ flexDirection: 'row', alignItems: 'center' }}
+            checkBoxStyle={{ height: 18, width: 18, marginRight: 8 }}
+            label='Limited Capacity'
+            textStyle={{ fontSize: 16, color: themeColors.text }}
           />
-          <Animated.Text style={[{ fontSize: 16 }, limitedTextStyle]}>
-            Limited Capacity
-          </Animated.Text>
         </View>
 
-        <Animated.View style={[{ overflow: 'hidden' }, capacityContainerStyle]}>
-          {isLimited && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Feather
-                  name="users"
-                  size={16}
-                  color={themeColors.placeholderTextColor}
-                  style={{ marginRight: 8 }}
-                />
-                <ThemedText
-                  style={{
-                    fontSize: 16,
-                    fontWeight: '500',
-                    color: themeColors.placeholderTextColor,
-                    marginRight: 12,
-                  }}
-                >
-                  Capacity
-                </ThemedText>
-              </View>
-              <TextInput 
-                value={capacityInput}
-                onChangeText={onCapacityChange}
-                placeholder='Number of Attendees'
-                placeholderTextColor={themeColors.placeholderTextColor}
-                keyboardType='numeric'
-                style={{
-                  backgroundColor: Colors[colorScheme ?? 'dark'].background,
-                  width: 'auto',
-                  paddingVertical: 10,
-                  paddingHorizontal: 16,
-                  borderRadius: 8,
-                  color: themeColors.text,
-                  fontSize: 12,
-                  fontWeight: 'bold',
-                  textAlign: 'right'
-                }}
+        {/* Expanding Capacity Section - Same as Frequency */}
+        <Animated.View style={{
+          maxHeight: isLimited ? 80 : 0,
+          opacity: isLimited ? 1 : 0,
+          transitionProperty: ['maxHeight', 'opacity'],
+          transitionDuration: '350ms',
+          transitionTimingFunction: 'ease-in-out',
+          overflow: 'hidden',
+        }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Feather
+                name="users"
+                size={16}
+                color={themeColors.placeholderTextColor}
+                style={{ marginRight: 8 }}
               />
+              <ThemedText
+                style={{
+                  fontSize: 16,
+                  fontWeight: '500',
+                  color: themeColors.placeholderTextColor,
+                  marginRight: 12,
+                }}
+              >
+                Capacity
+              </ThemedText>
             </View>
-          )}
+            <TextInput 
+              value={capacityInput}
+              onChangeText={onCapacityChange}
+              placeholder='Number of Attendees'
+              placeholderTextColor={themeColors.placeholderTextColor}
+              keyboardType='numeric'
+              style={{
+                backgroundColor: Colors[colorScheme ?? 'dark'].background,
+                width: 'auto',
+                paddingVertical: 10,
+                paddingHorizontal: 16,
+                borderRadius: 8,
+                color: themeColors.text,
+                fontSize: 12,
+                fontWeight: 'bold',
+                textAlign: 'right'
+              }}
+            />
+          </View>
         </Animated.View>
       </ThemedView>
   );

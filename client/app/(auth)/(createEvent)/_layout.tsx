@@ -97,6 +97,7 @@ function TabsNavigator() {
           // If you have multiple tabs, specify the initial route if needed:
           initialRouteName="Details"
           screenOptions={{
+            lazy: false, // Enable lazy loading - tabs only mount when first visited
             tabBarIndicatorContainerStyle: {
               justifyContent: 'center',
               alignItems: 'center',

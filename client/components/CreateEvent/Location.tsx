@@ -4,7 +4,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   TextInput,
-  Animated,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { ThemedView } from '@/components/ThemedView';
@@ -44,13 +43,13 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
   const abortControllerRef = useRef<AbortController | null>(null);
   
   const [selectedLocation, setSelectedLocation] = useState<SelectedLocation>(location?.text || null);
-  const [mapVisible] = useState(new Animated.Value(location?.coordinates ? 1 : 0)); // Controls slide animation
   const [inputText, setInputText] = useState<string>(location?.text || '');
   const [coordinates, setCoordinates] = useState<Coordinates | null>(
     location?.coordinates && location.coordinates.lat && location.coordinates.lng
       ? { latitude: location.coordinates.lat, longitude: location.coordinates.lng } 
       : null
   );
+  const [mapSnapshotUrl, setMapSnapshotUrl] = useState<{light: string | null, dark: string | null} | null>(null);
 
   const getUserLocation = async () => {
     // Require explicit permission from context
@@ -70,6 +69,36 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
     }
   };
 
+  const generateMapSnapshot = async (lat: number, lon: number) => {
+    try {
+      console.log('[CreateEvent] Generating map snapshot URLs for location preview...');
+      const response = await api.post('/api/mapkit/snapshot-urls', {
+        lat,
+        lon,
+        width: 640,
+        height: 265,
+        zoom: 15,
+        scale: 2
+      });
+      
+      if (response.data?.light && response.data?.dark) {
+        const snapshotUrls = {
+          light: response.data.light,
+          dark: response.data.dark
+        };
+        setMapSnapshotUrl(snapshotUrls);
+        console.log('[CreateEvent] Map snapshot URLs generated successfully');
+        console.log('[CreateEvent] Light snapshot URL:', snapshotUrls.light);
+        console.log('[CreateEvent] Dark snapshot URL:', snapshotUrls.dark);
+      } else {
+        console.log('[CreateEvent] No snapshot URLs in response:', response.data);
+      }
+    } catch (error) {
+      console.error('[CreateEvent] Failed to generate map snapshot URLs:', error);
+      // Don't block the UI, just let it fallback to interactive map
+    }
+  };
+
   useEffect(() => {
     mountedRef.current = true;
     getUserLocation();
@@ -84,9 +113,7 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
       }
-      // Clean up Animated.Value to prevent memory leak
-      mapVisible.stopAnimation();
-      mapVisible.removeAllListeners();
+      // Cleanup complete
     };
   }, [userLocation]);
 
@@ -102,12 +129,7 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
           longitude: location.coordinates.lng 
         });
         
-        // Show map if coordinates exist
-        Animated.timing(mapVisible, {
-          toValue: 1,
-          duration: 500,
-          useNativeDriver: false,
-        }).start();
+        // Map will animate automatically via MapViewModal
       }
     }
   }, [location]);
@@ -172,6 +194,10 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
     setShowSuggestions(false);
 
     if (!isNaN(location.latitude) && !isNaN(location.longitude)) {
+      console.log('[CreateEvent] About to generate snapshot for:', location.latitude, location.longitude);
+      // Generate map snapshot first, then set coordinates
+      await generateMapSnapshot(location.latitude, location.longitude);
+      console.log('[CreateEvent] Snapshot generation completed, setting coordinates...');
       setCoordinates({ latitude: location.latitude, longitude: location.longitude });
     } else {
       console.error("Invalid coordinates received:", location);
@@ -187,12 +213,7 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
       }
     });
 
-    // Animate map to slide down
-    Animated.timing(mapVisible, {
-      toValue: 1, // Fully visible
-      duration: 500,
-      useNativeDriver: false,
-    }).start();
+    // Map will animate automatically via MapViewModal
 
     // Call the parent's handler
     onLocationSelect(text, city, state, location);
@@ -205,12 +226,7 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
 
   const handleInputChange = (text: string) => {
     if (text.length < inputText.length) { // Detect letter removal
-      setCoordinates(null); // Hide the map
-      Animated.timing(mapVisible, {
-        toValue: 0, // Hide map animation
-        duration: 300,
-        useNativeDriver: false,
-      }).start();
+      setCoordinates(null); // Hide the map - animation handled by MapViewModal
       
       // Clear location in context if input is cleared
       if (!text.trim()) {
@@ -277,30 +293,18 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
           />
         </View>
 
-        {/* Animated Map View */}
-        {coordinates && Number.isFinite(coordinates.latitude) && Number.isFinite(coordinates.longitude) && (
-          <Animated.View style={{
-            marginTop: mapVisible.interpolate({
-              inputRange: [0, 1],
-              outputRange: [-150, 16], // Slides down from hidden to visible
-            }),
-            height: mapVisible.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 150], // Expands height smoothly
-            }),
-            width: '100%',
-            opacity: mapVisible,
-            borderRadius: 8,
-            overflow: 'hidden'
-          }}
-          pointerEvents="none" // Disable interactions with the map
-          >
-            <MapViewModal
-              coordinates={coordinates}
-              selectedLocation={selectedLocation}
-            />
-          </Animated.View>
-        )}
+        {/* Map Container - Animation handled inside MapViewModal */}
+        <View style={{
+          width: '100%',
+          borderRadius: 8,
+          overflow: 'hidden',
+        }}>
+          <MapViewModal
+            coordinates={coordinates}
+            selectedLocation={selectedLocation}
+            mapSnapshotUrl={mapSnapshotUrl}
+          />
+        </View>
       </KeyboardAvoidingView>
     </ThemedView>
   );

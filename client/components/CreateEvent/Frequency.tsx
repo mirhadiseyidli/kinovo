@@ -1,14 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useImperativeHandle } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import Animated, { 
   useSharedValue, 
   useAnimatedStyle, 
-  withTiming, 
-  interpolateColor,
-  useAnimatedRef,
-  cancelAnimation
+  withTiming
 } from 'react-native-reanimated';
-import { DateTimePicker, Picker } from '@expo/ui/swift-ui';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -16,13 +12,25 @@ import { Colors } from '@/constants/Colors';
 import { useCreateEventContext } from '@/context/CreateEventContext';
 import AnimatedCheckBox from '../AnimatedCheckBox';
 import { Feather } from '@expo/vector-icons';
+import DateTimePickerModal from './DateTimePickerModal';
+import PickerModal from './PickerModal';
 
-// Helper function to capitalize the first letter of a string
+// Helper function to capitalize the first letter of a string - moved outside component for better performance
 const capitalizeFirstLetter = (string: string): string => {
   return string.charAt(0).toUpperCase() + string.slice(1);
 };
 
-const Frequency: React.FC = () => {
+interface FrequencyProps {
+  ref?: React.Ref<{
+    closeRepeatPicker: () => void;
+    closeEndOnPicker: () => void;
+    openRepeatPicker: () => void;
+    openEndOnPicker: () => void;
+  }>;
+  onPickerOpen?: (pickerType: 'startTime' | 'endTime' | 'repeat' | 'endOn') => void;
+}
+
+const Frequency: React.FC<FrequencyProps> = ({ ref, onPickerOpen }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { recurrence, settingEventRecurrence, startTime } = useCreateEventContext();
@@ -30,32 +38,43 @@ const Frequency: React.FC = () => {
   const [isRecurring, setIsRecurring] = useState(recurrence?.checked || false);
   const [unit, setUnit] = useState<string>(recurrence?.frequency ? capitalizeFirstLetter(recurrence.frequency) : 'Select');
   
-  // Helper function to get default recurrence end date (1 month from start time)
-  const getDefaultRecurrenceEndDate = (startTimeParam?: Date | null) => {
+  // Helper function to get default recurrence end date (1 month from start time) - memoized
+  const getDefaultRecurrenceEndDate = useCallback((startTimeParam?: Date | null) => {
     const defaultDate = new Date(startTimeParam || new Date());
     defaultDate.setMonth(defaultDate.getMonth() + 1);
     return defaultDate;
-  };
+  }, []);
   
   const [endDate, setEndDate] = useState<Date | null>(recurrence?.end_date ? new Date(recurrence.end_date) : getDefaultRecurrenceEndDate(startTime));
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showUnitPicker, setShowUnitPicker] = useState(false);
   
-  // Reanimated shared values
-  const isRecurringProgress = useSharedValue(recurrence?.checked ? 1 : 0);
-  const showUnitPickerProgress = useSharedValue(0);
-  const showDatePickerProgress = useSharedValue(0);
+  // Text color animation now handled by AnimatedCheckBox
   
-  // Refs for measuring component heights
-  const unitPickerRef = useAnimatedRef();
-  const datePickerRef = useAnimatedRef();
+  // Shared values for chevron rotation
+  const unitChevronRotation = useSharedValue(0);
+  const dateChevronRotation = useSharedValue(0);
+  
+  // Using CSS transitions for animations
+  
+  // Animated styles for chevron rotation
+  const unitChevronStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ rotate: `${unitChevronRotation.value}deg` }]
+    };
+  });
+  
+  const dateChevronStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ rotate: `${dateChevronRotation.value}deg` }]
+    };
+  });
+  
 
-  // Picker options
-  const frequencyOptions = ['Select', 'Daily', 'Weekly', 'Monthly', 'Yearly'];
-  const getSelectedIndex = () => {
-    if (unit === 'Select') return 0;
-    return frequencyOptions.indexOf(unit);
-  };
+  // Picker options - memoized since they never change
+  const frequencyOptions = useMemo(() => ['Select', 'Daily', 'Weekly', 'Monthly', 'Yearly'], []);
+  
+  // No longer needed with @react-native-picker/picker
 
   // Initialize with context values when component mounts or recurrence changes
   useEffect(() => {
@@ -71,19 +90,10 @@ const Frequency: React.FC = () => {
         setEndDate(newEndDate);
       }
       
-      // Animate to expanded state if recurrence is checked
-      isRecurringProgress.value = withTiming(recurrence.checked ? 1 : 0, { duration: 300 });
+      // Animation now handled by AnimatedCheckBox component
     }
   }, [recurrence]);
 
-  // Cleanup animations on unmount
-  useEffect(() => {
-    return () => {
-      cancelAnimation(isRecurringProgress);
-      cancelAnimation(showUnitPickerProgress);
-      cancelAnimation(showDatePickerProgress);
-    };
-  }, []);
 
   // Update recurrence end date when start time changes
   useEffect(() => {
@@ -103,8 +113,9 @@ const Frequency: React.FC = () => {
     }
   }, [startTime]);
 
-  const toggleCheck = (newValue: boolean) => {
+  const toggleCheck = useCallback((newValue: boolean) => {
     setIsRecurring(newValue);
+    
     if (!newValue) {
       settingEventRecurrence({
         checked: false,
@@ -114,11 +125,9 @@ const Frequency: React.FC = () => {
       // Close pickers if open
       if (showDatePicker) {
         setShowDatePicker(false);
-        showDatePickerProgress.value = withTiming(0, { duration: 300 });
       }
       if (showUnitPicker) {
         setShowUnitPicker(false);
-        showUnitPickerProgress.value = withTiming(0, { duration: 300 });
       }
     } else if (unit !== 'Select' && endDate) {
       settingEventRecurrence({
@@ -128,50 +137,15 @@ const Frequency: React.FC = () => {
       });
     }
     
-    // Animate with Reanimated
-    isRecurringProgress.value = withTiming(newValue ? 1 : 0, { duration: 300 });
-  };
+    // Text color animation now handled by AnimatedCheckBox component
+  }, [settingEventRecurrence, showDatePicker, showUnitPicker, unit, endDate]);
 
-  // Animated styles using Reanimated
-  const recurringTextStyle = useAnimatedStyle(() => {
-    const color = interpolateColor(
-      isRecurringProgress.value,
-      [0, 1],
-      [themeColors.placeholderTextColor, themeColors.text]
-    );
-    return { color };
-  });
+  // Text color is now handled by AnimatedCheckBox component
 
-  const recurringContainerStyle = useAnimatedStyle(() => {
-    const baseHeight = isRecurringProgress.value * 84;
-    const unitPickerHeight = showUnitPickerProgress.value * 150;
-    const totalHeight = baseHeight + unitPickerHeight;
+  const handleUnitSelection = useCallback((selectedValue: string) => {
+    setUnit(selectedValue);
     
-    return {
-      height: withTiming(totalHeight, { duration: 300 }),
-      opacity: withTiming(isRecurringProgress.value, { duration: 300 })
-    };
-  });
-
-  const unitPickerStyle = useAnimatedStyle(() => {
-    return {
-      height: withTiming(showUnitPickerProgress.value === 1 ? 150 : 0, { duration: 300 }),
-      opacity: withTiming(showUnitPickerProgress.value, { duration: 200 })
-    };
-  });
-
-  const datePickerStyle = useAnimatedStyle(() => {
-    return {
-      height: withTiming(showDatePickerProgress.value === 1 ? 334 : 0, { duration: 300 }),
-      opacity: withTiming(showDatePickerProgress.value, { duration: 200 })
-    };
-  });
-
-  const handleUnitSelection = (event: { nativeEvent: { index: number; label: string } }) => {
-    const selected = event.nativeEvent.label;
-    setUnit(selected);
-    
-    if (selected === 'Select') {
+    if (selectedValue === 'Select') {
       // Clear the recurrence when "Select" is chosen
       settingEventRecurrence({
         checked: true,
@@ -181,27 +155,26 @@ const Frequency: React.FC = () => {
     } else if (endDate) {
       settingEventRecurrence({
         checked: true,
-        frequency: selected.toLowerCase() as 'daily' | 'weekly' | 'monthly' | 'yearly',
+        frequency: selectedValue.toLowerCase() as 'daily' | 'weekly' | 'monthly' | 'yearly',
         end_date: endDate
       });
     }
-  };
+  }, [endDate, settingEventRecurrence]);
 
-  const toggleUnitPicker = () => {
+  const toggleUnitPicker = useCallback(() => {
     const isOpening = !showUnitPicker;
-    setShowUnitPicker(isOpening);
     
-    // Close date picker if it's open
-    if (isOpening && showDatePicker) {
-      setShowDatePicker(false);
-      showDatePickerProgress.value = withTiming(0, { duration: 300 });
+    if (isOpening && onPickerOpen) {
+      onPickerOpen('repeat');
     }
     
-    // Animate with Reanimated
-    showUnitPickerProgress.value = withTiming(isOpening ? 1 : 0, { duration: 300 });
-  };
+    setShowUnitPicker(isOpening);
+    
+    // Animate chevron rotation
+    unitChevronRotation.value = withTiming(isOpening ? 180 : 0, { duration: 250 });
+  }, [showUnitPicker, onPickerOpen]);
 
-  const handleDateChange = (selectedDate: Date) => {
+  const handleDateChange = useCallback((selectedDate: Date) => {
     setEndDate(selectedDate);
     if (isRecurring && unit !== 'Select') {
       settingEventRecurrence({
@@ -210,22 +183,48 @@ const Frequency: React.FC = () => {
         end_date: selectedDate
       });
     }
-  };
+  }, [isRecurring, unit, settingEventRecurrence]);
 
-  const toggleDatePicker = () => {
+  const toggleDatePicker = useCallback(() => {
     const isOpening = !showDatePicker;
-    setShowDatePicker(isOpening);
     
-    // Close unit picker if it's open
-    if (isOpening && showUnitPicker) {
-      setShowUnitPicker(false);
-      showUnitPickerProgress.value = withTiming(0, { duration: 300 });
+    if (isOpening && onPickerOpen) {
+      onPickerOpen('endOn');
     }
     
-    // Animate with Reanimated
-    showDatePickerProgress.value = withTiming(isOpening ? 1 : 0, { duration: 300 });
-  };
+    setShowDatePicker(isOpening);
+    
+    // Animate chevron rotation
+    dateChevronRotation.value = withTiming(isOpening ? 180 : 0, { duration: 250 });
+  }, [showDatePicker, onPickerOpen]);
 
+  // Expose individual picker control methods
+  const closeRepeatPicker = useCallback(() => {
+    setShowUnitPicker(false);
+    unitChevronRotation.value = withTiming(0, { duration: 250 });
+  }, []);
+  
+  const closeEndOnPicker = useCallback(() => {
+    setShowDatePicker(false);
+    dateChevronRotation.value = withTiming(0, { duration: 250 });
+  }, []);
+  
+  const openRepeatPicker = useCallback(() => {
+    setShowUnitPicker(true);
+    unitChevronRotation.value = withTiming(180, { duration: 250 });
+  }, []);
+  
+  const openEndOnPicker = useCallback(() => {
+    setShowDatePicker(true);
+    dateChevronRotation.value = withTiming(180, { duration: 250 });
+  }, []);
+  
+  useImperativeHandle(ref, () => ({
+    closeRepeatPicker,
+    closeEndOnPicker,
+    openRepeatPicker,
+    openEndOnPicker
+  }), [closeRepeatPicker, closeEndOnPicker, openRepeatPicker, openEndOnPicker]);
 
   return (
     <ThemedView style={{ paddingVertical: 16, paddingHorizontal: 16, borderRadius: 8, backgroundColor: themeColors.inputBackgroundColor }}>
@@ -236,98 +235,76 @@ const Frequency: React.FC = () => {
           onValueChange={toggleCheck}
           onCheckColor={themeColors.text}
           tintColors={{ true: themeColors.text, false: themeColors.placeholderTextColor }}
-          style={{ height: 18, width: 18 }}
-          topContainerStyle={{ marginRight: 10 }}
+          style={{ flexDirection: 'row', alignItems: 'center' }}
+          checkBoxStyle={{ height: 18, width: 18, marginRight: 8 }}
+          label='Recurring'
+          textStyle={{ fontSize: 16, color: themeColors.text }}
         />
-        {/* Animated Text Color */}
-        <Animated.Text style={[{ fontSize: 16 }, recurringTextStyle]}>
-          Recurring
-        </Animated.Text>
       </View>
 
-      {/* Expanding Frequency Section */}
-      <Animated.View style={[{ overflow: 'hidden' }, recurringContainerStyle]}>
-        {isRecurring && (
-          <View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 16, justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: 16, color: Colors[colorScheme ?? 'dark'].text, marginRight: 8 }}>Repeat</Text>
-              <TouchableOpacity 
-                onPress={toggleUnitPicker}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                }}
-              >
-                <ThemedText style={{ fontSize: 12, fontWeight: 'bold', color: Colors[colorScheme ?? 'dark'].text, marginRight: 8 }}>
-                  {unit}
-                </ThemedText>
-                <Feather 
-                  name={showUnitPicker ? "chevron-up" : "chevron-down"} 
-                  size={20} 
-                  color={themeColors.text} 
-                />
-              </TouchableOpacity>
-            </View>
-
-            {/* Unit Picker - Expandable */}
-            <Animated.View 
-              ref={unitPickerRef}
-              style={[{ overflow: 'hidden' }, unitPickerStyle]}
+      {/* Expanding Frequency Section - Two-Layer CSS Animation */}
+      <Animated.View style={{
+        maxHeight: isRecurring ? 320 : 0,
+        opacity: isRecurring ? 1 : 0,
+        transitionProperty: ['maxHeight', 'opacity'],
+        transitionDuration: '350ms',
+        transitionTimingFunction: 'ease-in-out',
+        overflow: 'hidden',
+      }}>
+        <View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 16, justifyContent: 'space-between' }}>
+            <Text style={{ fontSize: 16, color: Colors[colorScheme ?? 'dark'].text, marginRight: 8 }}>Repeat</Text>
+            <TouchableOpacity 
+              onPress={toggleUnitPicker}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}
             >
-              <View>
-                <Picker
-                  options={frequencyOptions}
-                  selectedIndex={getSelectedIndex()}
-                  variant="wheel"
-                  color={themeColors.mountainGreen}
-                  onOptionSelected={handleUnitSelection}
-                  style={{ height: 130, width: '100%' }}
-                />
-              </View>
-            </Animated.View>
-
-            {/* End Date Picker */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-              <Text style={{ fontSize: 16, color: Colors[colorScheme ?? 'dark'].text, marginRight: 8 }}>End on</Text>
-              <TouchableOpacity 
-                onPress={toggleDatePicker}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                }}
-              >
-                <ThemedText style={{ fontSize: 12, fontWeight: 'bold', color: Colors[colorScheme ?? 'dark'].text, marginRight: 8 }}>
-                  {endDate?.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                </ThemedText>
-                <Feather 
-                  name={showDatePicker ? "chevron-up" : "chevron-down"} 
-                  size={20} 
-                  color={themeColors.text} 
-                />
-              </TouchableOpacity>
-            </View>
+              <ThemedText style={{ fontSize: 12, fontWeight: 'bold', color: Colors[colorScheme ?? 'dark'].text, marginRight: 8 }}>
+                {unit}
+              </ThemedText>
+            </TouchableOpacity>
           </View>
-        )}
+
+          {/* Unit Picker Modal */}
+          <PickerModal
+            visible={showUnitPicker}
+            onClose={() => setShowUnitPicker(false)}
+            selectedValue={unit}
+            onValueChange={handleUnitSelection}
+            themeColors={themeColors}
+            options={frequencyOptions}
+          />
+
+          {/* End Date Picker */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+            <Text style={{ fontSize: 16, color: Colors[colorScheme ?? 'dark'].text, marginRight: 8 }}>End on</Text>
+            <TouchableOpacity 
+              onPress={toggleDatePicker}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}
+            >
+              <ThemedText style={{ fontSize: 12, fontWeight: 'bold', color: Colors[colorScheme ?? 'dark'].text, marginRight: 8 }}>
+                {endDate?.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+              </ThemedText>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Animated.View>
 
-      {/* Date Picker - Expandable */}
-      {isRecurring && (
-        <Animated.View 
-          ref={datePickerRef}
-          style={[{ overflow: 'hidden' }, datePickerStyle]}
-        >
-          <View>
-            <DateTimePicker
-              initialDate={(endDate || getDefaultRecurrenceEndDate(startTime || undefined)).toISOString()}
-              color={themeColors.mountainGreen}
-              displayedComponents="date"
-              variant="graphical"
-              onDateSelected={handleDateChange}
-              style={{ height: 280, width: '100%' }}
-            />
-          </View>
-        </Animated.View>
-      )}
+      {/* Date Picker Modal */}
+      <DateTimePickerModal
+        visible={showDatePicker}
+        onClose={() => setShowDatePicker(false)}
+        initialDate={(endDate || getDefaultRecurrenceEndDate(startTime || undefined)).toISOString()}
+        onDateSelected={handleDateChange}
+        themeColors={themeColors}
+        displayedComponents="date"
+        variant="graphical"
+      />
     </ThemedView>
   );
 };

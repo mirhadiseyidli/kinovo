@@ -13,7 +13,6 @@ import type { RefObject } from 'react';
 // import { DateTimePickerEvent } from '@expo/ui/DatePicker';
 import { Feather, FontAwesome } from '@expo/vector-icons';
 import { IconSymbolName } from '@/components/ui/IconSymbol';
-import { AnimatedStyle, DerivedValue, SharedValue } from 'react-native-reanimated';
 import { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { JwtPayload } from 'jwt-decode';
 
@@ -148,8 +147,12 @@ export interface MapViewModalProps {
   coordinates: {
     latitude: number;
     longitude: number;
-  };
+  } | null;
   selectedLocation: string | null;
+  mapSnapshotUrl?: {
+    light: string | null;
+    dark: string | null;
+  } | null;
 }
 
 export interface OpenMapsAndNavigateButtonProps {
@@ -768,11 +771,11 @@ export interface FriendRequestStatusProps {
 // ========================
 
 export interface Event {
-  _id?: string;
-  creator?: User;
+  _id: string;
+  creator: User;
   event_picture?: string | null;
   status: string;
-  created_at?: Date;
+  created_at: Date;
   updated_at?: Date;
   title: string;
   category: string | null;
@@ -785,6 +788,10 @@ export interface Event {
       lat: number | null;
       lng: number | null;
     };
+    mapSnapshotUrl?: {
+      light: string | null;
+      dark: string | null;
+    } | null;
   };
   start_time: Date | null;
   end_time: Date | null;
@@ -804,11 +811,16 @@ export interface Event {
     status: 'pending' | 'maybe' | 'accepted' | 'rejected';
   }[];
   visibility: string;
-  // User's status for this event (from the user's events array)
-  userStatus?: 'pending' | 'maybe' | 'accepted' | 'rejected';
+  excludedDates?: string[];
   // Properties for recurring event occurrences (added by backend)
   originalEventId?: string;        // Reference to original recurring event
   isRecurringOccurrence?: boolean; // Flag to identify recurring occurrences
+  // USER RELATIONSHIP FIELDS (Backend calculated)
+  userStatus: 'pending' | 'maybe' | 'accepted' | 'rejected' | null;
+  isUserAttending: boolean;
+  isUserInvited: boolean;
+  isUserCreator: boolean;
+  isFriendEvent: boolean;
 }
 
 export type EventProp = {
@@ -845,6 +857,10 @@ export interface EventLocationInfoProps {
       lat: number | null;
       lng: number | null;
     };
+    mapSnapshotUrl?: {
+      light: string | null;
+      dark: string | null;
+    } | null;
   };
 }
 
@@ -870,6 +886,10 @@ export interface CreateEventContextType {
     city: string | null;
     state: string | null;
     coordinates: { lat: number | null; lng: number | null };
+    mapSnapshotUrl?: {
+      light: string | null;
+      dark: string | null;
+    } | null;
   };
   startTime: Date | null;
   endTime: Date | null;
@@ -901,7 +921,7 @@ export interface CreateEventContextType {
   settingEventCapacity: (value: number | null) => void;
   settingEventDescription: (description: string | null) => void;
   settingEventEndTime: (date: Date | null) => void;
-  settingEventLocation: (location: { text: string | null; city: string | null; state: string | null; coordinates: { lat: number | null; lng: number | null }}) => void;
+  settingEventLocation: (location: { text: string | null; city: string | null; state: string | null; coordinates: { lat: number | null; lng: number | null }; mapSnapshotUrl?: string | null }) => void;
   settingEventRecurrence: (data: { checked: boolean; frequency: string | null; end_date: Date | null }) => void;
   settingEventStartTime: (date: Date | null) => void;
   settingEventVisibility: (value: string) => void;
