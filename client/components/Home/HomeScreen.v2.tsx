@@ -12,7 +12,7 @@ import Event from '@/components/Event';
 import PastEvent from '@/components/Home/PastEvent'
 import EventFilters, { type DateFilter } from '@/components/Home/EventFilters';
 import { EventCardSkeleton } from '../Skeleton';
-import { usePastEventsInfiniteQuery } from '@/hooks/usePastEventsInfiniteQuery';
+import { useInfinitePastEvents } from '@/hooks/useInfiniteQueries.new';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import Animated, { useSharedValue, withTiming, useAnimatedStyle } from 'react-native-reanimated';
@@ -134,21 +134,28 @@ const HomeScreenV2 = () => {
   });
 
   // Use infinite query for past events with current filter
-  const {
-    events: pastEvents,
-    isLoading: isLoadingPastEvents,
-    isError: isErrorPastEvents,
-    hasMore: hasMorePastEvents,
-    loadMore: loadMorePastEvents,
-    isFetchingNextPage: isFetchingNextPagePastEvents,
-    refetch: refetchPastEvents,
-    totalCount: pastEventsTotalCount,
-  } = usePastEventsInfiniteQuery({
-    dateFilter: pastEventsDateFilter,
+  const pastEventsQuery = useInfinitePastEvents({
     pageSize: 5,
     enabled: true,
     staleTime: 1000 * 60 * 5, // 5 minutes cache
   });
+
+  // Extract values from the query result
+  const pastEvents = React.useMemo(() => {
+    return pastEventsQuery.data?.pages.flatMap(page => page.events) || [];
+  }, [pastEventsQuery.data]);
+
+  const isLoadingPastEvents = pastEventsQuery.isLoading;
+  const isErrorPastEvents = pastEventsQuery.isError;
+  const hasMorePastEvents = pastEventsQuery.data?.pages[pastEventsQuery.data.pages.length - 1]?.hasMore || false;
+  const isFetchingNextPagePastEvents = pastEventsQuery.isFetchingNextPage;
+  const pastEventsTotalCount = pastEventsQuery.data?.pages[0]?.totalCount || 0;
+  const refetchPastEvents = pastEventsQuery.refetch;
+  const loadMorePastEvents = () => {
+    if (hasMorePastEvents && !isFetchingNextPagePastEvents) {
+      pastEventsQuery.fetchNextPage();
+    }
+  };
 
   // Report past events errors to centralized error handling
   React.useEffect(() => {

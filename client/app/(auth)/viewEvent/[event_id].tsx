@@ -2,7 +2,7 @@ import React, { useCallback, useEffect } from 'react';
 import { View, Text, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation } from 'expo-router';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEventByIdQuery } from '@/hooks/useEventByIdQuery';
+import { useEventByIdQuery } from '@/hooks/useEventByIdQuery.new';
 import EventImage from '@/components/ViewEvent/EventImage';
 import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -22,7 +22,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { ViewEventModalProvider } from '@/context/ViewEventModalContext';
 
 const ShareEventButton = ({ event_id }: { event_id: string }) => {
-  const { event, loading, error } = useEventByIdQuery(event_id);
+  const { data: event, isLoading: loading, error } = useEventByIdQuery(event_id);
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
 
@@ -60,13 +60,12 @@ const ShareEventButton = ({ event_id }: { event_id: string }) => {
 const ViewEvent = () => {
   const { event_id, occurrence_start, occurrence_end, is_occurrence } = useLocalSearchParams();
   const id = Array.isArray(event_id) ? event_id[0] : event_id;
-  const { event, loading, error, refetch } = useEventByIdQuery(id);
+  const { data: event, isLoading: loading, error } = useEventByIdQuery(id);
   const navigation = useNavigation();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  console.log('event', event?.attendees)
 
   // Animated values for scroll handling
   const scrollY = useSharedValue(0);

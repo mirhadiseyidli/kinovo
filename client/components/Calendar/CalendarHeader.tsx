@@ -18,7 +18,7 @@ import MonthSmallView from './CalendarHeader/MonthSmallView';
 import { generateMonthGrid } from './CalendarHeader/utils';
 import { useCalendarViewContext } from '@/context/CalendarViewContext';
 import { useCalendarContext } from '@/context/CalendarProvider.v2';
-import { useNotifications } from '@/hooks/useNotifications';
+import { useNotifications } from '@/context/UserSessionContext';
 import { Feather } from '@expo/vector-icons';
 import { useCalendarError } from '@/context/CalendarErrorContext';
 import { CalendarErrorMessage } from './CalendarErrorMessage';

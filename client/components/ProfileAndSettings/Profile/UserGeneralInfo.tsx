@@ -24,7 +24,7 @@ import api from '@/utils/api';
 import { ThemedView } from '@/components/ThemedView';
 import { formatDistanceToNow } from 'date-fns';
 import { useManageFriends } from '@/hooks/useManageFriends';
-import { useNotifications } from '@/context/NotificationContext';
+import { useNotifications } from '@/context/UserSessionContext';
 import { UserGeneralInfoSkeleton } from '@/components/Skeleton';
 
 type ProfileTabsHandle = {

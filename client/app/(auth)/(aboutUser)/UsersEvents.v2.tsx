@@ -4,7 +4,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
-import { useUserEventsInfiniteQuery, useCanViewUserEvents } from '@/hooks/useUserEventsQuery';
+import { useUserEventsInfiniteQuery, useCanViewUserEvents } from '@/hooks/useUserEventsQuery.new';
 import SearchFriendsBar from '@/components/SearchFriendsBar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import EventView from '@/components/Event';
@@ -47,7 +47,7 @@ export default React.memo(function UserEvents({ userId, route, refreshing }: Use
 
   // Use TanStack Query for user events with infinite scroll
   const {
-    events: eventsList,
+    events: events,
     loading,
     refreshing: queryRefreshing,
     hasMore,
@@ -61,8 +61,11 @@ export default React.memo(function UserEvents({ userId, route, refreshing }: Use
     refetchOnWindowFocus: false
   });
 
+  console.log('jshdfkjshdf', events)
+
   // Check privacy permissions
   const { canView, relationship, isOwner } = useCanViewUserEvents(userId);
+  console.log(canView, relationship, isOwner)
 
   // Handle external refresh
   React.useEffect(() => {
@@ -73,16 +76,16 @@ export default React.memo(function UserEvents({ userId, route, refreshing }: Use
 
   // Filter and sort events
   const filteredEvents = useMemo(() => {
-    return eventsList
+    return events
       .filter(event => 
-        event.title.toLowerCase().includes(searchQuery.toLowerCase())
+        event.title && event.title.toLowerCase().includes(searchQuery.toLowerCase())
       )
       .sort((a, b) => {
         if (!a.start_time) return 1;
         if (!b.start_time) return -1;
         return new Date(b.start_time).getTime() - new Date(a.start_time).getTime();
       });
-  }, [eventsList, searchQuery]);
+  }, [events, searchQuery]);
 
   const renderItem = ({ item }: { item: Event }) => {
     return (
@@ -108,7 +111,7 @@ export default React.memo(function UserEvents({ userId, route, refreshing }: Use
 
     if (!canView && !isOwner) {
       return (
-        <View style={{ paddingTop: 16, width: '100%' }}>
+        <View style={{ width: '100%' }}>
           <View style={{
             backgroundColor: themeColors.background,
             borderRadius: 12,
@@ -155,7 +158,7 @@ export default React.memo(function UserEvents({ userId, route, refreshing }: Use
     }
 
     return (
-      <View style={{ paddingTop: 16, width: '100%' }}>
+      <View style={{ width: '100%' }}>
         <View style={{
           backgroundColor: themeColors.background,
           borderRadius: 12,
@@ -206,7 +209,7 @@ export default React.memo(function UserEvents({ userId, route, refreshing }: Use
 
   const ListHeaderComponent = () => {
     // Show skeleton on first load
-    if (loading && eventsList.length === 0) {
+    if (loading && events.length === 0) {
       return (
         <View style={{ marginTop: 16, marginBottom: 16 }}>
           <SkeletonBox width="100%" height={40} borderRadius={8} marginBottom={16} />
@@ -217,7 +220,7 @@ export default React.memo(function UserEvents({ userId, route, refreshing }: Use
     }
 
     // Show search bar if there are events
-    if (eventsList.length > 0) {
+    if (events.length > 0) {
       return (
         <View style={{ marginTop: 16, marginBottom: 16, width: '100%' }}>
           <SearchFriendsBar
@@ -254,7 +257,7 @@ export default React.memo(function UserEvents({ userId, route, refreshing }: Use
       );
     }
 
-    if (!hasMore && eventsList.length > 0) {
+    if (!hasMore && events.length > 0) {
       return (
         <View style={{ 
           paddingVertical: 20, 
@@ -274,7 +277,7 @@ export default React.memo(function UserEvents({ userId, route, refreshing }: Use
   };
 
   // Show error state if needed
-  if (error && eventsList.length === 0) {
+  if (error && events.length === 0) {
     return (
       <ThemedView style={{ flex: 1, paddingHorizontal: 16 }}>
         <View style={{ 

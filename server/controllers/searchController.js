@@ -3,6 +3,7 @@ const Events = require('../database/schemas/eventsSchema');
 const { getUserFilterData, buildEventFilter, processEventsForDiscovery, enrichEventsWithUserData } = require('../utils/eventUtils');
 
 const searchPeople = async (req, res) => {
+  console.log('dfgkjdsfhgkjfdshgjk')
     try {
         const term = req.query.query; // Search query from frontend
 
@@ -80,13 +81,13 @@ const searchRelevantEvents = async (req, res) => {
       .lean();
 
     // Process events for discovery - show only next occurrence of recurring events, handle cancelled events
-    const processedEvents = processEventsForDiscovery(events, {
+    const processedEvents = await processEventsForDiscovery(events, {
       excludeUserAttending: false,
       userId: userId
     });
 
     // Add user-specific fields using utility
-    const eventsWithUserStatus = enrichEventsWithUserData(processedEvents, userId, filterData.friends);
+    const eventsWithUserStatus = await enrichEventsWithUserData(processedEvents, userId, filterData.friends);
 
     // Sort by start time
     eventsWithUserStatus.sort((a, b) => new Date(a.start_time) - new Date(b.start_time));

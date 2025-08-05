@@ -20,7 +20,7 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import LinearGradient from 'react-native-linear-gradient';
 import { ImageBackground } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { useAIInsightsQuery } from '@/hooks/useAIInsightsQuery';
+import { useAIInsightsQuery } from '@/hooks/useAIInsightsQuery.new';
 import { useHomeError } from '@/context/HomeErrorContext';
 import PastEvent from '@/components/Home/PastEvent';
 import { getWeatherGradient, getWeatherConditionFromDescription, getWeatherEmoji } from '@/constants/WeatherConditions';

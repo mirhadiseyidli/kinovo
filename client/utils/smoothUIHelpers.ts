@@ -158,6 +158,11 @@ export const generatePlaceholderEvents = (count: number = 3): (Event & { isPlace
     updated_at: new Date(),
     participants: ['placeholder-user'],
     images: [],
+    userStatus: null,
+    isUserAttending: false,
+    isUserInvited: false,
+    isUserCreator: false,
+    isFriendEvent: false,
     isPlaceholder: true, // Flag to identify placeholder data
   }));
 };

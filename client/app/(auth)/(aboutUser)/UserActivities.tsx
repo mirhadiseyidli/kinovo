@@ -8,7 +8,7 @@ import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Route } from '@/components/CollapsibleTab';
 import { TabFlashList } from '@/components/CollapsibleTab/tab-flash-list';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useGetUserToViewActivities } from '@/hooks/useGetUserToViewActivities';
+import { useGetUserToViewActivities } from '@/hooks/useUserQueries.new';
 import { getCategoryIcon, getCategoryColor } from '@/utils/categoryIcons';
 import { SkeletonBox } from '@/components/Skeleton';
 
@@ -36,21 +36,19 @@ export default React.memo(function UserActivities({ userId, route, refreshing }:
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [searchQuery, setSearchQuery] = useState('');
-  const { activities, fetchUserToViewActivities, loading, isFirstFetch } = useGetUserToViewActivities(userId);
+  const userActivitiesQuery = useGetUserToViewActivities(userId);
+  const { data, isLoading: loading, refetch } = userActivitiesQuery;
+  const activities = data?.activities || [];
+  const isFirstFetch = loading && !data;
   const insets = useSafeAreaInsets();
 
-  useEffect(() => {
-    if (userId) {
-      fetchUserToViewActivities();
-    }
-  }, [fetchUserToViewActivities, userId]);
-
-  // Add effect to handle refreshing
+  // TanStack Query automatically fetches when userId changes
+  // Handle refreshing
   useEffect(() => {
     if (refreshing) {
-      fetchUserToViewActivities();
+      refetch();
     }
-  }, [refreshing, fetchUserToViewActivities]);
+  }, [refreshing, refetch]);
   
   const renderItem = ({ item }: { item: string }) => {
     const iconName = getCategoryIcon(item);

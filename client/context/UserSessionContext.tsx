@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { NotificationProvider, useNotifications as useNotificationsOriginal } from './NotificationContext';
+import { NotificationProvider, useNotifications as useNotificationsOriginal } from './NotificationContext.new';
 import { LocationProvider, useLocation as useLocationOriginal } from './LocationContext';
 
 /**

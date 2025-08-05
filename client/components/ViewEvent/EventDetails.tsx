@@ -15,12 +15,17 @@ import EventTimeAndDate from './EventTimeAndDate';
 import EventRecurrence from './EventRecurrence';
 import EventLocationInfo from './EventLocationInfo';
 import EventVisibilityInfo from './EventVisibilityInfo';
-import { useEventMutations } from '@/hooks/useEventMutations';
+import { 
+  useEventResponseMutation,
+  useJoinEventMutation, 
+  useMarkNotInterestedMutation,
+  useCancelEventMutation 
+} from '@/hooks/useEventMutations.new';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import AddAttendeesModal from './AddAttendeesModal';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
 import { jwtDecode } from 'jwt-decode';
-import { useEventReport } from '@/hooks/useEventReport';
+import { useEventReport } from '@/hooks/useEventReport.new';
 import { useViewEventModal } from '@/context/ViewEventModalContext';
 
 const EventDetailsSection: React.FC<EventProp & { isRecurringOccurrence: boolean | undefined, occurrence_start: Date | null }> = ({ event, isRecurringOccurrence, occurrence_start }) => {
@@ -29,11 +34,14 @@ const EventDetailsSection: React.FC<EventProp & { isRecurringOccurrence: boolean
   const [showAddAttendeesModal, setShowAddAttendeesModal] = useState(false);
   const { showModal } = useViewEventModal();
 
-  const { respondToInvitation, joinEvent, markNotInterested, cancelEvent: cancelEventApi } = useEventMutations();
+  const respondToInvitation = useEventResponseMutation();
+  const joinEvent = useJoinEventMutation();
+  const markNotInterested = useMarkNotInterestedMutation();
+  const cancelEventApi = useCancelEventMutation();
   const { accessToken, userId } = useAuthSession();
   const router = useRouter();
   const loggedInUserId = accessToken?.current ? (jwtDecode(accessToken.current) as any)?._id : null;
-  const { reportEvent: reportEventApi, loading: reportLoading } = useEventReport();
+  const reportEventMutation = useEventReport();
 
   // Check if event is in the past
   const isEventInPast = useMemo(() => {
@@ -77,7 +85,7 @@ const EventDetailsSection: React.FC<EventProp & { isRecurringOccurrence: boolean
         requestOptions.modifyType = options.modifyType;
       }
       
-      await respondToInvitation(requestOptions);
+      await respondToInvitation.mutateAsync(requestOptions);
       
       // Cache invalidation handled automatically by useEventMutations
     } catch (error) {
@@ -89,7 +97,7 @@ const EventDetailsSection: React.FC<EventProp & { isRecurringOccurrence: boolean
     if (!event._id) return;
     
     try {
-      await joinEvent({
+      await joinEvent.mutateAsync({
         eventId: event._id,
         status
       });
@@ -124,7 +132,7 @@ const EventDetailsSection: React.FC<EventProp & { isRecurringOccurrence: boolean
     if (!event._id) return;
     
     try {
-      await markNotInterested({
+      await markNotInterested.mutateAsync({
         eventId: event._id
       });
       
@@ -186,12 +194,16 @@ const EventDetailsSection: React.FC<EventProp & { isRecurringOccurrence: boolean
     if (!event._id) return;
     
     try {
-      await reportEventApi(event._id, reason as any, details);
+      await reportEventMutation.mutateAsync({
+        eventId: event._id,
+        reason: reason as any,
+        details
+      });
       showModal('report_success');
     } catch (error) {
       console.error('Failed to report event:', error);
     }
-  }, [event._id, reportEventApi, showModal]);
+  }, [event._id, reportEventMutation, showModal]);
 
   const reportEvent = useCallback(() => {
     showModal('report_confirm', { onReport: handleReportEvent });
@@ -219,7 +231,7 @@ const EventDetailsSection: React.FC<EventProp & { isRecurringOccurrence: boolean
         requestOptions.modifyType = options.modifyType;
       }
       
-      await cancelEventApi(requestOptions);
+      await cancelEventApi.mutateAsync(requestOptions);
       
       // Cache invalidation handled automatically by useEventMutations
       

@@ -478,7 +478,13 @@ const addExcludedDate = async (event, dateToExclude) => {
  */
 const findAttendeeIndex = (event, userId) => {
   return event.attendees.findIndex(
-    attendee => attendee.user.toString() === userId.toString()
+    attendee => {
+      // Handle both populated and unpopulated user references
+      const attendeeUserId = attendee.user?._id ? 
+        attendee.user._id.toString() : 
+        attendee.user.toString();
+      return attendeeUserId === userId.toString();
+    }
   );
 };
 
@@ -710,12 +716,12 @@ const handleRecurringEventModification = async (event, occurrenceDate, modifyTyp
 };
 
 /**
- * Validate common input parameters
+ * Validate attendee-related parameters (for invitation responses)
  * @param {Object} params - Parameters to validate
  * @param {Array} required - Required parameter names
  * @returns {Object} Validation result
  */
-const validateInputParams = (params, required) => {
+const validateAttendeeParams = (params, required) => {
   const missing = [];
   const invalid = [];
 
@@ -725,19 +731,49 @@ const validateInputParams = (params, required) => {
     }
   }
 
-  // Specific validations
+  // Attendee-specific validations
   if ('status' in params && !['accepted', 'maybe', 'rejected', 'pending'].includes(params.status)) {
-    invalid.push({ param: 'status', message: 'Invalid status value' });
+    invalid.push({ param: 'status', message: 'Invalid attendee status value' });
   }
-
   if ('eventId' in params && typeof params.eventId !== 'string') {
     invalid.push({ param: 'eventId', message: 'Event ID must be a string' });
   }
-
   if ('attendeeId' in params && typeof params.attendeeId !== 'string') {
     invalid.push({ param: 'attendeeId', message: 'Attendee ID must be a string' });
   }
+  
+  return {
+    isValid: missing.length === 0 && invalid.length === 0,
+    missing,
+    invalid
+  };
+};
 
+/**
+ * Validate event-related parameters (for event updates)
+ * @param {Object} params - Parameters to validate
+ * @param {Array} required - Required parameter names
+ * @returns {Object} Validation result
+ */
+const validateEventParams = (params, required) => {
+  const missing = [];
+  const invalid = [];
+
+  for (const param of required) {
+    if (!(param in params)) {
+      missing.push(param);
+    }
+  }
+
+  // Event-specific validations
+  if ('_id' in params && typeof params._id !== 'string') {
+    invalid.push({ param: '_id', message: 'Event ID must be a string' });
+  }
+  if ('eventId' in params && typeof params.eventId !== 'string') {
+    invalid.push({ param: 'eventId', message: 'Event ID must be a string' });
+  }
+  // Note: Event status validation is intentionally omitted as event status values vary
+  
   return {
     isValid: missing.length === 0 && invalid.length === 0,
     missing,
@@ -2157,11 +2193,11 @@ const buildSuccessResponse = (message, extraData = {}) => {
   };
 };
 
-const validateEventModificationRequest = async (req, requiredParams = []) => {
+const validateAttendeeRequest = async (req, requiredParams = []) => {
   const { eventId, occurrenceDate, modifyType } = req.body;
   
-  // Validate required parameters
-  const validation = validateInputParams(req.body, requiredParams);
+  // Validate required parameters for attendee operations
+  const validation = validateAttendeeParams(req.body, requiredParams);
   if (!validation.isValid) {
     return {
       isValid: false,
@@ -2174,6 +2210,45 @@ const validateEventModificationRequest = async (req, requiredParams = []) => {
   
   // Find event
   const event = await findEventById(eventId || req.params.eventId, {
+    populate: getStandardEventPopulation()
+  });
+  
+  if (!event) {
+    return {
+      isValid: false,
+      error: {
+        status: 404,
+        message: 'Event not found'
+      }
+    };
+  }
+  
+  return {
+    isValid: true,
+    event,
+    isRecurring: isRecurringEvent(event),
+    occurrenceDate,
+    modifyType
+  };
+};
+
+const validateEventRequest = async (req, requiredParams = []) => {
+  const { _id, occurrenceDate, modifyType } = req.body;
+  
+  // Validate required parameters for event operations
+  const validation = validateEventParams(req.body, requiredParams);
+  if (!validation.isValid) {
+    return {
+      isValid: false,
+      error: {
+        status: 400,
+        message: `Missing parameters: ${validation.missing.join(', ')}${validation.invalid.length ? `. Invalid: ${validation.invalid.map(i => i.message).join(', ')}` : ''}`
+      }
+    };
+  }
+  
+  // Find event - for event operations, prefer _id from body, fallback to eventId or URL params
+  const event = await findEventById(_id || req.body.eventId || req.params.eventId, {
     populate: getStandardEventPopulation()
   });
   
@@ -2209,6 +2284,7 @@ const validateEventPermissions = (event, userId, permissionType = 'creator') => 
     }
   } else if (permissionType === 'attendee') {
     const attendeeIndex = findAttendeeIndex(event, userId);
+    console.log(attendeeIndex)
     if (attendeeIndex === -1) {
       return {
         isValid: false,
@@ -2542,7 +2618,10 @@ module.exports = {
   removeUserEvent, // reviewed
   addUserNotInterestedEvent, // reviewed
   handleRecurringEventModification, // reviewed
-  validateInputParams, // reviewed
+  validateAttendeeParams,
+  validateEventParams,
+  validateAttendeeRequest,
+  validateEventRequest,
   createApiResponse,
   handleEventInvitationResponse,
   getStandardEventPopulateConfig, // reviewed
@@ -2582,13 +2661,13 @@ module.exports = {
   filterAttentionRequiredEvents, // reviewed
   recommendedEventsBaseQuery, // reviewed
   buildFriendsEventsBaseQuery, // reviewed
+  enrichEventsWithUserData,
   enrichEventWithUserContext,
   getStandardEventPopulation,
   processEventInvitations,
   buildEnrichedEventResponse,
   buildEnrichedEventsResponse,
   buildSuccessResponse,
-  validateEventModificationRequest,
   validateEventPermissions,
   handleRecurringEventOperation,
   handleThisOnlyOperation,

@@ -12,7 +12,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
 import type { ApiError, Friend } from '@/types/allTypes';
-import { useGetMyFriends } from '@/hooks/useGetMyFriends';
+import { useGetMyFriends } from '@/hooks/useUserQueries.new';
 import { useFocusEffect } from '@react-navigation/native';
 // import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,28 +23,19 @@ export default function FriendsList() {
   const [refreshing, setRefreshing] = useState(false);
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const { fetchFriends, refetchFriends, loading } = useGetMyFriends();
+  const friendsQuery = useGetMyFriends();
+  const { data: friendsList = [], isLoading: loading, refetch, isFetching } = friendsQuery;
   // const tabBarHeight = useBottomTabBarHeight(); // Get tab bar height dynamically
   const insets = useSafeAreaInsets();
-  const [friendsList, setFriendsList] = useState<Friend[]>([]);
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
-    const fetchedFriendsList = await fetchFriends();
-    setFriendsList(fetchedFriendsList);
+    await refetch();
     setRefreshing(false);
-  }, [fetchFriends]);
+  }, [refetch]);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      const getFriendsList = async () => {
-        const fetchedFriendsList = await fetchFriends();
-        setFriendsList(fetchedFriendsList);
-      }
-      
-      getFriendsList();
-    }, [fetchFriends])
-  );
+  // TanStack Query automatically fetches data and handles focus refetching
+  // No need for manual useFocusEffect with the new hook
 
   // Filter friends based on search query
   const filteredFriends = useMemo(() => {

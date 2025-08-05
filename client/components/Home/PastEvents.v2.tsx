@@ -6,7 +6,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Event } from '@/types/allTypes';
-import { usePastEventsQuery } from '@/hooks/usePastEventsQuery';
+import { usePastEventsQuery } from '@/hooks/usePastEventsQuery.new';
 import { DateFilter } from '@/components/Home/EventFilters';
 import EventFilters from './EventFilters';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -47,20 +47,20 @@ const PastEvents: React.FC<{ refreshing: boolean; onFinishRefresh: () => void }>
   const [activeFilter, setActiveFilter] = useState<DateFilter>({ type: 'all', date: null });
 
   // TanStack React Query hook - replaces useGetMyPastEvents and all manual state management
+  // Extract year and month from activeFilter
+  const year = activeFilter.type === 'year' && activeFilter.date ? activeFilter.date.getFullYear() : undefined;
+  const month = activeFilter.type === 'month' && activeFilter.date ? activeFilter.date.getMonth() : undefined;
+
   const {
     data: eventsData,
     isLoading: loading,
     isError,
     error,
-    refetch,
-    isFirstFetch,
-  } = usePastEventsQuery({
-    displayMode: 'homeScreen',
-    dateFilter: activeFilter,
-    onFinishRefresh,
-    enableSmoothTransitions: true,
-    usePlaceholderData: true
-  });
+    refetch
+  } = usePastEventsQuery(1, 20, year, month);
+
+  // Derive isFirstFetch from loading state and data availability
+  const isFirstFetch = loading && !eventsData;
 
   // Type assertion for homeScreen mode - we know this returns Event[] for homeScreen
   const myPastEventsList = eventsData as Event[];

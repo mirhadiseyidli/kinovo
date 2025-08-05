@@ -14,7 +14,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import { useViewEventModal } from '@/context/ViewEventModalContext';
-import { useEventMutations } from '@/hooks/useEventMutations';
+import { useRemoveAttendeeMutation } from '@/hooks/useEventMutations.new';
 import { useLocalSearchParams } from 'expo-router';
 import AttendeeAvatar from './AttendeeAvatar';
 import AttendeeRow from './AttendeeRow';
@@ -27,7 +27,7 @@ const EventAttendees = ({ userId, event }: { userId: string | null, event: Event
   const [isExpanded, setIsExpanded] = useState(false);
   const attendeeCount = (event?.attendees ?? []).length || 0;
   const { showModal } = useViewEventModal();
-  const { removeAttendee } = useEventMutations();
+  const removeAttendee = useRemoveAttendeeMutation();
   // Cache invalidation handled automatically by useEventMutations
   const { occurrence_start, is_occurrence } = useLocalSearchParams();
   const [attendees, setAttendees] = useState<Event['attendees']>(event.attendees ?? []);
@@ -56,7 +56,7 @@ const EventAttendees = ({ userId, event }: { userId: string | null, event: Event
         requestOptions.modifyType = options.modifyType;
       }
       
-      await removeAttendee({
+      await removeAttendee.mutateAsync({
         eventId: event._id!,
         attendeeId: id,
         ...requestOptions

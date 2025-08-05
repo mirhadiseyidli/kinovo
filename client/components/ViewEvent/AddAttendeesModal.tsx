@@ -5,12 +5,12 @@ import { ThemedText } from '@/components/ThemedText';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { Feather } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+// Safe area insets not needed for this modal
 import SearchFriendsBar from '@/components/SearchFriendsBar';
 import UserListItem from './UserListItem';
 import type { Friend, Event as EventType } from '@/types/allTypes';
-import { useGetMyFriends } from '@/hooks/useGetMyFriends';
-import { useInviteAttendeesMutation } from '@/hooks/useEventMutations';
+import { useGetMyFriends } from '@/hooks/useUserQueries.new';
+import { useInviteAttendeesMutation } from '@/hooks/useEventMutations.new';
 import { useViewEventModal } from '@/context/ViewEventModalContext';
 import { useLocalSearchParams } from 'expo-router';
 
@@ -30,13 +30,11 @@ const AddAttendeesModal: React.FC<AddAttendeesModalProps> = ({
   onInviteSuccess,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [friendsLoading, setFriendsLoading] = useState(false);
   const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set());
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const insets = useSafeAreaInsets();
-  const { fetchFriends } = useGetMyFriends();
-  const [friendsList, setFriendsList] = useState<Friend[]>([]);
+  const friendsQuery = useGetMyFriends();
+  const { data: allFriends = [], isLoading: friendsLoading } = friendsQuery;
   const { showModal } = useViewEventModal();
   const inviteAttendeesMutation = useInviteAttendeesMutation();
   const { occurrence_start, is_occurrence } = useLocalSearchParams();
@@ -44,30 +42,19 @@ const AddAttendeesModal: React.FC<AddAttendeesModalProps> = ({
   // Check if this is a recurring occurrence
   const isRecurringOccurrence = is_occurrence === 'true' && occurrence_start;
 
-  // Fetch friends list when modal opens
+  // Filter out friends who are already invited - now done with useMemo for better performance
+  const friendsList = React.useMemo(() => {
+    const existingInvitees = new Set(event.attendees?.map(att => att.user._id) || []);
+    return allFriends.filter((friend: Friend) => !existingInvitees.has(friend._id));
+  }, [allFriends, event.attendees]);
+
+  // Reset state when modal closes
   useEffect(() => {
-    if (visible) {
-      const getFriendsList = async () => {
-        setFriendsLoading(true);
-        try {
-          const fetchedFriendsList = await fetchFriends();
-          // Filter out friends who are already invited
-          const existingInvitees = new Set(event.attendees?.map(att => att.user._id) || []);
-          const filteredFriends = fetchedFriendsList.filter((friend: Friend) => !existingInvitees.has(friend._id));
-          setFriendsList(filteredFriends);
-        } catch (error) {
-          console.error('Error fetching friends:', error);
-        } finally {
-          setFriendsLoading(false);
-        }
-      };
-      getFriendsList();
-    } else {
-      // Reset state when modal closes
+    if (!visible) {
       setSearchQuery('');
       setSelectedFriends(new Set());
     }
-  }, [visible, event.attendees]);
+  }, [visible]);
 
   const toggleFriendSelection = (friendId: string) => {
     setSelectedFriends(prev => {
@@ -132,7 +119,7 @@ const AddAttendeesModal: React.FC<AddAttendeesModalProps> = ({
     });
   };
 
-  const filteredFriends = friendsList.filter(friend => 
+  const filteredFriends = friendsList.filter((friend: Friend) => 
     friend.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     friend.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -227,7 +214,7 @@ const AddAttendeesModal: React.FC<AddAttendeesModalProps> = ({
             {friendsLoading ? (
               <ThemedText style={{ textAlign: 'center', marginTop: 20 }}>Loading friends...</ThemedText>
             ) : filteredFriends.length > 0 ? (
-              filteredFriends.map((friend) => (
+              filteredFriends.map((friend: Friend) => (
                 <TouchableOpacity
                   key={friend._id}
                   onPress={() => toggleFriendSelection(friend._id)}

@@ -12,10 +12,20 @@ import {
 } from 'react-native';
 import { FlashList, ListRenderItem as FlashListRenderItem } from '@shopify/flash-list';
 import { 
-  useInfiniteEventsQuery, 
-  InfiniteEventsQueryConfig,
-  InfiniteEvent as Event 
-} from '@/hooks/useInfiniteEventsQuery';
+  useInfiniteAttentionRequiredEvents,
+  useInfiniteUpcomingEvents,
+  useInfinitePastEvents,
+  useInfiniteNearbyEvents,
+  useInfiniteFriendsEvents,
+  useInfiniteRecommendedEvents,
+  useInfiniteUserEvents,
+  useInfiniteSearchEvents
+} from '@/hooks/useInfiniteQueries.new';
+import { useInfiniteEventsQuery, InfiniteEvent, Event as InfiniteQueryEvent } from '@/hooks/useInfiniteEventsQuery';
+import { Event } from '@/types/allTypes';
+
+// Use the main Event type which already has all required properties
+export type UnifiedEvent = Event;
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -34,13 +44,33 @@ import { ThemedText } from '@/components/ThemedText';
  * - Error handling and retry mechanisms
  */
 
-interface InfiniteEventsListProps extends InfiniteEventsQueryConfig {
+interface InfiniteEventsListProps {
+  // Event type and configuration
+  eventType: 'attention-required' | 'upcoming' | 'past' | 'nearby' | 'friends' | 'recommended' | 'user' | 'search' | 'category' | 'city';
+  
+  // Query parameters
+  userId?: string;
+  targetUserId?: string; // For user events
+  searchQuery?: string; // For search events
+  category?: string; // For search events with category filter or category events
+  city?: string; // For city events
+  latitude?: number; // For nearby events
+  longitude?: number; // For nearby events
+  distance?: number; // For nearby events
+  pageSize?: number;
+  enabled?: boolean;
+  
+  // Query behavior options
+  enableSmooth?: boolean;
+  keepPreviousData?: boolean;
+  staleTime?: number;
+  gcTime?: number;
   // List configuration
   useFlashList?: boolean;
   estimatedItemSize?: number;
   
   // Rendering
-  renderItem?: (item: Event, index: number) => React.ReactElement | null | undefined;
+  renderItem?: (item: UnifiedEvent, index: number) => React.ReactElement | null | undefined;
   renderEmptyState?: () => React.ReactNode;
   renderLoadingState?: () => React.ReactNode;
   renderErrorState?: (error: any, retry: () => void) => React.ReactNode;
@@ -52,7 +82,7 @@ interface InfiniteEventsListProps extends InfiniteEventsQueryConfig {
   loadMoreText?: string;
   
   // Callbacks
-  onItemPress?: (item: Event) => void;
+  onItemPress?: (item: UnifiedEvent) => void;
   onRefresh?: () => void;
   onViewableItemsChanged?: (info: { viewableItems: ViewToken[] }) => void;
   
@@ -67,9 +97,9 @@ interface InfiniteEventsListProps extends InfiniteEventsQueryConfig {
 
 // Default event item renderer
 const DefaultEventItem: React.FC<{
-  event: Event;
+  event: UnifiedEvent;
   index: number;
-  onPress?: (event: Event) => void;
+  onPress?: (event: UnifiedEvent) => void;
   colorScheme: 'light' | 'dark';
 }> = ({ event, index, onPress, colorScheme }) => {
   const colors = Colors[colorScheme];
@@ -294,14 +324,20 @@ export const InfiniteEventsList: React.FC<InfiniteEventsListProps> = ({
   eventType,
   latitude,
   longitude,
-  distance,
+  distance = 10,
   userId,
+  targetUserId,
   searchQuery,
   category,
-  startDate,
-  endDate,
+  city,
   pageSize = 10,
   enabled = true,
+  
+  // Query behavior options
+  enableSmooth = true,
+  keepPreviousData = true,
+  staleTime,
+  gcTime,
   
   // List configuration
   useFlashList = true,
@@ -331,38 +367,161 @@ export const InfiniteEventsList: React.FC<InfiniteEventsListProps> = ({
   
   // Accessibility
   testID = 'infinite-events-list',
-  
-  // Pass through other query options
-  ...queryOptions
 }) => {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   
-  // Use the infinite query hook
-  const {
-    events,
-    isLoading,
-    isFetchingNextPage,
-    hasMore,
-    error,
-    isError,
-    loadMore,
-    refetch,
-    totalCount,
-  } = useInfiniteEventsQuery({
-    eventType,
-    latitude,
-    longitude,
-    distance,
-    userId,
-    searchQuery,
-    category,
-    startDate,
-    endDate,
-    pageSize,
-    enabled,
-    ...queryOptions,
-  });
+  // Use the appropriate infinite query hook based on event type
+  const getQueryHook = () => {
+    const hookOptions = {
+      pageSize,
+      enabled,
+      staleTime,
+      gcTime,
+      keepPreviousData
+    };
+
+    switch (eventType) {
+      case 'attention-required':
+        return useInfiniteAttentionRequiredEvents();
+      case 'upcoming':
+        return useInfiniteUpcomingEvents();
+      case 'past':
+        return useInfinitePastEvents();
+      case 'nearby':
+        if (latitude !== undefined && longitude !== undefined) {
+          return useInfiniteNearbyEvents(latitude, longitude, distance);
+        }
+        throw new Error('Nearby events require latitude and longitude');
+      case 'friends':
+        return useInfiniteFriendsEvents(hookOptions);
+      case 'recommended':
+        return useInfiniteRecommendedEvents();
+      case 'user':
+        if (targetUserId) {
+          return useInfiniteUserEvents(targetUserId);
+        }
+        throw new Error('User events require targetUserId');
+      case 'search':
+        if (searchQuery) {
+          return useInfiniteSearchEvents(searchQuery, category);
+        }
+        throw new Error('Search events require searchQuery');
+      case 'category':
+        if (category) {
+          return useInfiniteEventsQuery({
+            eventType: 'category',
+            category,
+            pageSize,
+            enabled,
+            staleTime,
+            gcTime,
+            keepPreviousData
+          });
+        }
+        throw new Error('Category events require category');
+      case 'city':
+        if (city) {
+          return useInfiniteEventsQuery({
+            eventType: 'city',
+            city,
+            pageSize,
+            enabled,
+            staleTime,
+            gcTime,
+            keepPreviousData
+          });
+        }
+        throw new Error('City events require city');
+      default:
+        throw new Error(`Unsupported event type: ${eventType}`);
+    }
+  };
+
+  const queryResult = getQueryHook();
+  
+  // Extract values from the query result and flatten events
+  const events = React.useMemo((): UnifiedEvent[] => {
+    let flatEvents: (Event | InfiniteQueryEvent)[] = [];
+    
+    // Check if this is the comprehensive hook result (has events property)
+    if ('events' in queryResult) {
+      flatEvents = queryResult.events || [];
+    } else {
+      // Otherwise use the pages structure from individual hooks
+      flatEvents = queryResult.data?.pages.flatMap(page => page.events) || [];
+    }
+    
+    // Apply smooth filtering if enabled
+    if (enableSmooth) {
+      // Filter out events without creators for friends events
+      if (eventType === 'friends') {
+        flatEvents = flatEvents.filter(event => {
+          if (!event || !event.creator) {
+            console.warn('Friends event missing creator:', event);
+            return false;
+          }
+          return true;
+        });
+      }
+    }
+    
+    // Ensure all events conform to the full Event type
+    return flatEvents.map(event => ({
+      ...event,
+      // Ensure required properties are present with defaults
+      _id: event._id || `temp-${Date.now()}-${Math.random()}`,
+      creator: event.creator || {
+        _id: 'unknown-user',
+        first_name: 'Unknown',
+        last_name: 'User',
+        full_name: 'Unknown User',
+        username: 'unknown',
+        email: 'unknown@example.com',
+        email_verified: false,
+        phone_number: { country_code: null, area_code: null, phone_num: null, full_num: null },
+        created_at: new Date(),
+        mutualFriendsCount: 0
+      },
+      userStatus: ('userStatus' in event ? event.userStatus : null) as 'pending' | 'maybe' | 'accepted' | 'rejected' | null,
+      isUserAttending: 'isUserAttending' in event ? event.isUserAttending : false,
+      isUserInvited: 'isUserInvited' in event ? event.isUserInvited : false,
+      isUserCreator: 'isUserCreator' in event ? event.isUserCreator : false,
+      isFriendEvent: 'isFriendEvent' in event ? event.isFriendEvent : false,
+    })) as UnifiedEvent[];
+  }, [queryResult, enableSmooth, eventType]);
+
+  const totalCount = React.useMemo(() => {
+    // Check if this is the comprehensive hook result (has totalCount property)
+    if ('totalCount' in queryResult) {
+      return queryResult.totalCount || 0;
+    }
+    return queryResult.data?.pages[0]?.totalCount || 0;
+  }, [queryResult]);
+
+  const hasMore = React.useMemo(() => {
+    // Check if this is the comprehensive hook result (has hasMore property)
+    if ('hasMore' in queryResult) {
+      return queryResult.hasMore || false;
+    }
+    return queryResult.data?.pages[queryResult.data.pages.length - 1]?.hasMore || false;
+  }, [queryResult]);
+
+  const isLoading = queryResult.isLoading;
+  const isFetchingNextPage = queryResult.isFetchingNextPage;
+  const error = queryResult.error;
+  const isError = queryResult.isError;
+  const refetch = queryResult.refetch;
+  const loadMore = () => {
+    if (hasMore && !isFetchingNextPage) {
+      // Check if this is the comprehensive hook result (has loadMore method)
+      if ('loadMore' in queryResult && queryResult.loadMore) {
+        queryResult.loadMore();
+      } else if ('fetchNextPage' in queryResult && queryResult.fetchNextPage) {
+        queryResult.fetchNextPage();
+      }
+    }
+  };
 
   // Handle refresh
   const handleRefresh = useCallback(() => {
@@ -385,12 +544,12 @@ export const InfiniteEventsList: React.FC<InfiniteEventsListProps> = ({
   }, [hasMore, isFetchingNextPage, loadMore]);
 
   // Handle item press
-  const handleItemPress = useCallback((event: Event) => {
+  const handleItemPress = useCallback((event: UnifiedEvent) => {
     onItemPress?.(event);
   }, [onItemPress]);
 
   // Render item function with proper typing for both FlatList and FlashList
-  const renderEventItem = useCallback((info: { item: Event; index: number }) => {
+  const renderEventItem = useCallback((info: { item: UnifiedEvent; index: number }) => {
     const { item, index } = info;
     
     if (renderItem) {
@@ -477,7 +636,7 @@ export const InfiniteEventsList: React.FC<InfiniteEventsListProps> = ({
   // Common list props
   const commonProps = {
     data: events,
-    keyExtractor: (item: Event, index: number) => item._id || `event-${index}`,
+    keyExtractor: (item: UnifiedEvent, index: number) => item._id || `event-${index}`,
     onEndReached: handleEndReached,
     onEndReachedThreshold,
     onViewableItemsChanged,
@@ -533,9 +692,9 @@ export const InfiniteEventsList: React.FC<InfiniteEventsListProps> = ({
   if (useFlashList) {
     return (
       <View style={[{ flex: 1 }, containerStyle]}>
-        <FlashList<Event>
+        <FlashList<UnifiedEvent>
           {...updatedCommonProps}
-          renderItem={renderEventItem as FlashListRenderItem<Event>}
+          renderItem={renderEventItem as FlashListRenderItem<UnifiedEvent>}
           estimatedItemSize={estimatedItemSize}
           removeClippedSubviews={true}
           showsVerticalScrollIndicator={false}
@@ -550,9 +709,9 @@ export const InfiniteEventsList: React.FC<InfiniteEventsListProps> = ({
 
   return (
     <View style={[{ flex: 1 }, containerStyle]}>
-      <FlatList<Event>
+      <FlatList<UnifiedEvent>
         {...updatedCommonProps}
-        renderItem={renderEventItem as RNListRenderItem<Event>}
+        renderItem={renderEventItem as RNListRenderItem<UnifiedEvent>}
         removeClippedSubviews={true}
         showsVerticalScrollIndicator={false}
         maxToRenderPerBatch={10}

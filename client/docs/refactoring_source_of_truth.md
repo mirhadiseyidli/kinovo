@@ -2048,3 +2048,547 @@ const { userStatus, isUserCreator, isUserAttending, isFriendEvent } = event;
 - [ ] Analyze and simplify useCDNImageUpload.ts (11,090 lines)
 - [ ] Additional utility file cleanup
 - [ ] Performance optimization
+
+---
+
+## 📁 COMPLETE HOOKS & UTILS ANALYSIS - WHAT TO DO WITH EACH FILE
+
+### 🎯 EVENT-RELATED HOOKS (Already Covered Above)
+
+| Hook | Current Lines | Action | New Lines |
+|------|---------------|--------|-----------|
+| useEventByIdQuery.ts | 112 | ✅ REPLACE | 35 |
+| useUpcomingEventsQuery.ts | 281 | ✅ REPLACE | 27 |
+| useAttentionRequiredQuery.ts | 285 | ✅ REPLACE | 27 |
+| usePastEventsQuery.ts | 354 | ✅ REPLACE | 20 |
+| useNearbyEventsQuery.ts | 352 | ✅ REPLACE | 30 |
+| useUserEventsQuery.ts | 259 | ✅ REPLACE | 25 |
+| useEventOccurrencesQuery.ts | 277 | ✅ REPLACE | 30 |
+| useOptimalCalendarQuery.ts | 234 | ✅ REPLACE | 25 |
+| useInfiniteEventsQuery.ts | 17,502 | ✅ REPLACE | 40 |
+| useCalendarEventsQuery.ts | 5,911 | ✅ REPLACE | 25 |
+| usePastEventsInfiniteQuery.ts | 3,508 | ❌ DELETE | 0 |
+| useEventMutations.ts | 17,543 | ❌ DELETE (use useEventCrud) | 0 |
+| useCreateEventMutation.ts | 11,455 | ❌ DELETE (use useEventCrud) | 0 |
+| useCrudMutations.ts | 19,393 | ❌ DELETE (use useEventCrud) | 0 |
+| useEventActions.ts | 1,477 | ❌ DELETE (use useEventCrud) | 0 |
+| useEventReport.ts | 1,123 | ✅ KEEP (specific functionality) | 1,123 |
+| useEventCount.ts | 1,884 | ✅ SIMPLIFY | 30 |
+| useUserEventCount.ts | 1,044 | ✅ SIMPLIFY | 30 |
+
+### 🤖 AI & INSIGHTS HOOKS
+
+| Hook | Current Lines | Action | Reason |
+|------|---------------|--------|--------|
+| useAIInsightsQuery.ts | 4,002 | ✅ SIMPLIFY to ~50 lines | Remove complex caching, trust React Query |
+
+```typescript
+// Simplified useAIInsightsQuery.ts
+export const useAIInsightsQuery = (enabled = true) => {
+  const { userId } = useAuthSession();
+  
+  return useQuery({
+    queryKey: queryKeys.aiInsights(userId),
+    queryFn: async () => {
+      const response = await api.get('/api/ai/insights');
+      return response.data.insights;
+    },
+    enabled: enabled && !!userId,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+};
+```
+
+### 👤 USER & SOCIAL HOOKS
+
+| Hook | Current Lines | Action | Reason |
+|------|---------------|--------|--------|
+| useUserData.ts | 2,305 | ✅ KEEP but SIMPLIFY | Basic user data fetching |
+| useGetMyFriends.ts | 852 | ✅ SIMPLIFY to ~30 lines | Remove manual caching |
+| useManageFriends.ts | 1,641 | ✅ KEEP | Friend management mutations |
+| useGetUserToViewActivities.ts | 1,881 | ❌ DELETE | Merge into useUserData |
+| useGetUserToViewFriends.ts | 1,617 | ❌ DELETE | Merge into useUserData |
+| useContactFriendshipStatus.ts | 1,433 | ✅ KEEP | Specific contact functionality |
+| useInviteContact.ts | 872 | ✅ KEEP | Contact invitation logic |
+| useFavoriteActivities.ts | 1,972 | ✅ SIMPLIFY | Basic activity preferences |
+| useEditUserData.ts | 2,623 | ✅ KEEP | User profile mutations |
+| useAccountDeletion.ts | 1,466 | ✅ KEEP | Account deletion logic |
+
+### 📱 PLATFORM & UI HOOKS
+
+| Hook | Current Lines | Action | Reason |
+|------|---------------|--------|--------|
+| useAPNsTokenManager.ts | 5,601 | ✅ KEEP | Push notification management |
+| useNotificationData.ts | 6,612 | ✅ SIMPLIFY | Remove complex caching |
+| useNotificationPreferences.ts | 5,596 | ✅ KEEP | User preferences |
+| useNotifications.ts | 122 | ✅ KEEP | Simple notification hook |
+| usePaginatedNotifications.ts | 6,699 | ✅ SIMPLIFY to infinite query | Use React Query infinite |
+| useBadgeManager.ts | 559 | ✅ KEEP | Badge count management |
+| useUserPresence.ts | 5,223 | ✅ KEEP | Real-time presence |
+| useColorScheme.ts | 47 | ✅ KEEP | Theme management |
+| useColorScheme.web.ts | 480 | ✅ KEEP | Web-specific theme |
+| useThemeColor.ts | 536 | ✅ KEEP | Theme color helper |
+| useDefaultProfilePicture.ts | 2,571 | ✅ KEEP | Profile picture generation |
+| useImageCache.ts | 5,044 | ✅ KEEP | Image caching logic |
+| useMapMemoryOptimization.ts | 5,309 | ✅ KEEP | Map performance |
+
+### ⚙️ UTILITY & OPTIMIZATION HOOKS
+
+| Hook | Current Lines | Action | Reason |
+|------|---------------|--------|--------|
+| useCDNImageUpload.ts | 11,090 | ⚠️ ANALYZE SEPARATELY | Too complex, needs deep review |
+| useOfflineQueue.ts | 6,823 | ✅ KEEP | Offline support |
+| useCategories.ts | 1,770 | ✅ SIMPLIFY | Basic category fetching |
+| useGetWeather.ts | 1,895 | ✅ KEEP | Weather API integration |
+| useSearchEverythingDiscovery.ts | 2,786 | ✅ SIMPLIFY | Use React Query |
+| useSmoothUIQueries.ts | 10,300 | ❌ DELETE | Over-engineered |
+| useTelemetryHooks.ts | 18,550 | ⚠️ ANALYZE SEPARATELY | Too complex |
+| useTelemetryIntegration.ts | 13,116 | ⚠️ ANALYZE SEPARATELY | Too complex |
+| useTypedMutations.ts | 15,055 | ❌ DELETE | Over-abstraction |
+
+### 📂 UTILS FILES ANALYSIS
+
+| Util | Current Lines | Action | Reason |
+|------|---------------|--------|--------|
+| api.ts | 16,343 | ✅ KEEP but REVIEW | Core API client |
+| queryKeys.ts | 10,770 | ✅ REPLACED (shown above) | ~60 lines |
+| queryFunctions.ts | 9,478 | ✅ REPLACED (shown above) | ~50 lines |
+| smoothUIHelpers.ts | 10,964 | ✅ REPLACED (shown above) | ~50 lines |
+| optimisticUpdates.ts | 9,957 | ❌ DELETE | Integrated into useEventCrud |
+| cacheInvalidationStrategies.ts | 32,216 | ❌ DELETE | Over-engineered |
+| infiniteQueryUtils.ts | 9,741 | ❌ DELETE | React Query handles this |
+| stableQueryKey.ts | 5,963 | ❌ DELETE | React Query v5 handles this |
+| typedMutationFactory.ts | 14,423 | ❌ DELETE | Over-abstraction |
+| offlineMutationQueue.ts | 9,690 | ✅ KEEP | Offline support |
+| backgroundNotificationHandler.ts | 3,975 | ✅ KEEP | Push notifications |
+| persistedQueryClient.ts | 3,467 | ✅ KEEP | Query persistence |
+| devtools.ts | 12,535 | ✅ KEEP | Development tools |
+| errorHandling.ts | 14,637 | ✅ SIMPLIFY | Basic error handling |
+| telemetrySetup.ts | 13,274 | ⚠️ ANALYZE SEPARATELY | Complex telemetry |
+| eventGrouping.ts | 2,969 | ✅ KEEP | Event UI helpers |
+| eventUtils.ts | 7,421 | ✅ KEEP | Event utilities |
+| categoryIcons.ts | 3,244 | ✅ KEEP | Icon mappings |
+| profilePictureGenerator.ts | 4,107 | ✅ KEEP | Avatar generation |
+| shareUtils.ts | 771 | ✅ KEEP | Share functionality |
+| truncateName.ts | 186 | ✅ KEEP | String helper |
+| queryClient.ts | 3,387 | ✅ KEEP but SIMPLIFY | Query client config |
+
+## 📊 FINAL REFACTORING SUMMARY WITH ALL FILES
+
+### Total Lines Analysis:
+- **Current Total**: ~350,000+ lines
+- **After Refactoring**: ~15,000 lines
+- **Reduction**: ~95%+
+
+### Action Summary:
+- **DELETE**: 15 files (all over-engineered abstractions)
+- **REPLACE**: 14 files (with simplified versions)
+- **SIMPLIFY**: 12 files (remove complexity)
+- **KEEP**: 20 files (core functionality)
+- **ANALYZE LATER**: 4 files (too complex for this phase)
+
+### Key Principles Applied:
+1. **Trust React Query**: Remove manual cache management
+2. **Direct Updates**: Use setQueriesData instead of invalidation
+3. **Simple Hooks**: 20-50 lines instead of 1000s
+4. **No Over-Abstraction**: Direct API calls, simple patterns
+5. **Backend First**: Rely on backend for data consistency
+
+### Migration Priority:
+1. **Phase 1**: Backend standardization (MUST be first)
+2. **Phase 2**: Event hooks simplification
+3. **Phase 3**: Delete over-engineered files
+4. **Phase 4**: Simplify remaining hooks
+5. **Phase 5**: Analyze complex files (CDN, telemetry)
+
+### Expected Benefits:
+- 95% less code to maintain
+- Faster app startup
+- Easier debugging
+- Better performance
+- Simpler onboarding for new developers
+
+---
+
+## 📝 MISSING HOOK IMPLEMENTATIONS
+
+### 1. useCalendarEventsQuery.ts (5,911 → 25 lines)
+**File:** `client/hooks/useCalendarEventsQuery.ts`
+**Action:** REPLACE entire file
+
+```typescript
+import { useQuery } from '@tanstack/react-query';
+import { Event } from '@/types/allTypes';
+import { queryKeys } from '@/utils/queryKeys';
+import api from '@/utils/api';
+
+interface UseCalendarEventsOptions {
+  month: number;
+  year: number;
+  enabled?: boolean;
+}
+
+export const useCalendarEventsQuery = (options: UseCalendarEventsOptions) => {
+  const { month, year, enabled = true } = options;
+
+  return useQuery({
+    queryKey: queryKeys.calendarEvents('current-user', { month, year }),
+    queryFn: async () => {
+      const response = await api.get('/api/manageevents/eventslist/get/my/events/calendar/month', {
+        params: { month, year }
+      });
+      return response.data.events || [];
+    },
+    enabled: enabled && month !== undefined && year !== undefined,
+    staleTime: 5 * 60 * 1000,
+  });
+};
+```
+
+### 2. useEventCount.ts (1,884 → 30 lines)
+**File:** `client/hooks/useEventCount.ts`
+**Action:** REPLACE entire file
+
+```typescript
+import { useQuery } from '@tanstack/react-query';
+import { queryKeys } from '@/utils/queryKeys';
+import api from '@/utils/api';
+
+export const useEventCount = (userId: string, enabled = true) => {
+  return useQuery({
+    queryKey: ['users', userId, 'eventCount'],
+    queryFn: async () => {
+      const response = await api.get(`/api/users/${userId}/event-count`);
+      return response.data.count || 0;
+    },
+    enabled: enabled && !!userId,
+    staleTime: 5 * 60 * 1000,
+  });
+};
+```
+
+### 3. useUserEventCount.ts (1,044 → 30 lines)
+**File:** `client/hooks/useUserEventCount.ts`
+**Action:** REPLACE entire file
+
+```typescript
+import { useQuery } from '@tanstack/react-query';
+import api from '@/utils/api';
+
+export const useUserEventCount = (targetUserId: string, enabled = true) => {
+  return useQuery({
+    queryKey: ['users', targetUserId, 'publicEventCount'],
+    queryFn: async () => {
+      const response = await api.get(`/api/users/${targetUserId}/public-event-count`);
+      return response.data.count || 0;
+    },
+    enabled: enabled && !!targetUserId,
+    staleTime: 10 * 60 * 1000,
+  });
+};
+```
+
+### 4. useGetMyFriends.ts (852 → 30 lines)
+**File:** `client/hooks/useGetMyFriends.ts`
+**Action:** REPLACE entire file
+
+```typescript
+import { useQuery } from '@tanstack/react-query';
+import { User } from '@/types/allTypes';
+import api from '@/utils/api';
+
+export const useGetMyFriends = (enabled = true) => {
+  return useQuery({
+    queryKey: ['friends', 'current-user'],
+    queryFn: async (): Promise<User[]> => {
+      const response = await api.get('/api/friends');
+      return response.data.friends || [];
+    },
+    enabled,
+    staleTime: 10 * 60 * 1000,
+  });
+};
+```
+
+### 5. useCategories.ts (1,770 → 30 lines)
+**File:** `client/hooks/useCategories.ts`
+**Action:** REPLACE entire file
+
+```typescript
+import { useQuery } from '@tanstack/react-query';
+import { Category } from '@/types/allTypes';
+import api from '@/utils/api';
+
+export const useCategories = (enabled = true) => {
+  return useQuery({
+    queryKey: ['categories'],
+    queryFn: async (): Promise<Category[]> => {
+      const response = await api.get('/api/categories');
+      return response.data.categories || [];
+    },
+    enabled,
+    staleTime: 60 * 60 * 1000, // 1 hour - categories rarely change
+  });
+};
+```
+
+### 6. useSearchEverythingDiscovery.ts (2,786 → 40 lines)
+**File:** `client/hooks/useSearchEverythingDiscovery.ts`
+**Action:** REPLACE entire file
+
+```typescript
+import { useQuery } from '@tanstack/react-query';
+import api from '@/utils/api';
+
+interface SearchResults {
+  events: any[];
+  users: any[];
+}
+
+export const useSearchEverythingDiscovery = (query: string, enabled = true) => {
+  return useQuery({
+    queryKey: ['search', 'everything', query],
+    queryFn: async (): Promise<SearchResults> => {
+      if (!query || query.length < 2) {
+        return { events: [], users: [] };
+      }
+      
+      const response = await api.get('/api/search/everything', {
+        params: { q: query }
+      });
+      
+      return {
+        events: response.data.events || [],
+        users: response.data.users || []
+      };
+    },
+    enabled: enabled && query.length >= 2,
+    staleTime: 30 * 1000, // 30 seconds
+    debounceDelay: 300, // Debounce search requests
+  });
+};
+```
+
+### 7. useNotificationData.ts (6,612 → 50 lines)
+**File:** `client/hooks/useNotificationData.ts`
+**Action:** REPLACE entire file
+
+```typescript
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import api from '@/utils/api';
+
+export const useNotificationData = () => {
+  const queryClient = useQueryClient();
+
+  const notificationsQuery = useQuery({
+    queryKey: ['notifications'],
+    queryFn: async () => {
+      const response = await api.get('/api/notifications');
+      return response.data.notifications || [];
+    },
+    staleTime: 1 * 60 * 1000,
+  });
+
+  const markAsRead = useMutation({
+    mutationFn: async (notificationId: string) => {
+      const response = await api.put(`/api/notifications/${notificationId}/read`);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    },
+  });
+
+  const markAllAsRead = useMutation({
+    mutationFn: async () => {
+      const response = await api.put('/api/notifications/read-all');
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    },
+  });
+
+  return {
+    notifications: notificationsQuery.data || [],
+    isLoading: notificationsQuery.isLoading,
+    markAsRead,
+    markAllAsRead,
+  };
+};
+```
+
+### 8. usePaginatedNotifications.ts (6,699 → 50 lines)
+**File:** `client/hooks/usePaginatedNotifications.ts`
+**Action:** REPLACE entire file
+
+```typescript
+import { useInfiniteQuery } from '@tanstack/react-query';
+import api from '@/utils/api';
+
+export const usePaginatedNotifications = () => {
+  return useInfiniteQuery({
+    queryKey: ['notifications', 'infinite'],
+    queryFn: async ({ pageParam = 1 }) => {
+      const response = await api.get('/api/notifications', {
+        params: {
+          page: pageParam,
+          limit: 20
+        }
+      });
+      
+      return {
+        notifications: response.data.notifications || [],
+        nextPage: response.data.hasMore ? pageParam + 1 : undefined,
+        totalCount: response.data.totalCount || 0
+      };
+    },
+    getNextPageParam: (lastPage) => lastPage.nextPage,
+    staleTime: 1 * 60 * 1000,
+  });
+};
+```
+
+### 9. useFavoriteActivities.ts (1,972 → 40 lines)
+**File:** `client/hooks/useFavoriteActivities.ts`
+**Action:** REPLACE entire file
+
+```typescript
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import api from '@/utils/api';
+
+export const useFavoriteActivities = () => {
+  const queryClient = useQueryClient();
+
+  const updateFavorites = useMutation({
+    mutationFn: async (activities: string[]) => {
+      const response = await api.put('/api/users/favorite-activities', {
+        activities
+      });
+      return response.data;
+    },
+    onSuccess: (data) => {
+      // Update user data cache with new favorite activities
+      queryClient.setQueryData(['users', 'current'], (oldData: any) => {
+        if (!oldData) return oldData;
+        return {
+          ...oldData,
+          favorite_activities: data.favorite_activities
+        };
+      });
+    },
+  });
+
+  return {
+    updateFavoriteActivities: updateFavorites.mutate,
+    isUpdating: updateFavorites.isPending,
+    error: updateFavorites.error,
+  };
+};
+```
+
+### 10. Simplified errorHandling.ts (14,637 → 100 lines)
+**File:** `client/utils/errorHandling.ts`
+**Action:** REPLACE entire file
+
+```typescript
+import { Alert } from 'react-native';
+
+export class AppError extends Error {
+  constructor(
+    message: string,
+    public code?: string,
+    public statusCode?: number
+  ) {
+    super(message);
+    this.name = 'AppError';
+  }
+}
+
+export const handleApiError = (error: any): AppError => {
+  // Network error
+  if (!error.response) {
+    return new AppError('Network error. Please check your connection.', 'NETWORK_ERROR');
+  }
+
+  // API error response
+  const { status, data } = error.response;
+  const message = data?.message || 'An unexpected error occurred';
+
+  switch (status) {
+    case 400:
+      return new AppError(message, 'BAD_REQUEST', 400);
+    case 401:
+      return new AppError('Please log in again', 'UNAUTHORIZED', 401);
+    case 403:
+      return new AppError('You do not have permission', 'FORBIDDEN', 403);
+    case 404:
+      return new AppError('Not found', 'NOT_FOUND', 404);
+    case 429:
+      return new AppError('Too many requests. Please try again later.', 'RATE_LIMITED', 429);
+    case 500:
+      return new AppError('Server error. Please try again later.', 'SERVER_ERROR', 500);
+    default:
+      return new AppError(message, 'UNKNOWN_ERROR', status);
+  }
+};
+
+export const showErrorAlert = (error: Error | AppError) => {
+  const message = error instanceof AppError ? error.message : 'An unexpected error occurred';
+  Alert.alert('Error', message);
+};
+
+export const isNetworkError = (error: any): boolean => {
+  return !error.response && error.message === 'Network Error';
+};
+
+export const isAuthError = (error: any): boolean => {
+  return error.response?.status === 401;
+};
+```
+
+### 11. Simplified queryClient.ts (3,387 → 50 lines)
+**File:** `client/utils/queryClient.ts`
+**Action:** REPLACE entire file
+
+```typescript
+import { QueryClient } from '@tanstack/react-query';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { persistQueryClient } from '@tanstack/react-query-persist-client';
+import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      gcTime: 1000 * 60 * 10, // 10 minutes
+      retry: (failureCount, error: any) => {
+        // Don't retry on 4xx errors
+        if (error?.response?.status >= 400 && error?.response?.status < 500) {
+          return false;
+        }
+        return failureCount < 2;
+      },
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: 'always',
+    },
+    mutations: {
+      retry: false,
+    },
+  },
+});
+
+// Optional: Add persistence
+const asyncStoragePersister = createAsyncStoragePersister({
+  storage: AsyncStorage,
+  key: 'REACT_QUERY_OFFLINE_CACHE',
+});
+
+persistQueryClient({
+  queryClient,
+  persister: asyncStoragePersister,
+  maxAge: 1000 * 60 * 60 * 24, // 24 hours
+});
+
+export default queryClient;
+```

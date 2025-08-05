@@ -9,28 +9,14 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { EventCardSkeleton } from '@/components/Skeleton';
 import { Feather } from '@expo/vector-icons';
-import { useInfiniteEventsQuery } from '@/hooks/useInfiniteEventsQuery';
+import { useInfiniteNearbyEvents } from '@/hooks/useInfiniteQueries.new';
+import { Event as EventType } from '@/types/allTypes';
 
 /**
- * TanStack React Query version of NearbyEvents stack page
+ * Nearby Events Page - New TanStack Query Implementation
  * 
- * Key improvements over the legacy version:
- * - Uses useInfiniteEventsQuery for infinite scroll with React Query
- * - Automatic background refetching and cache management
- * - Better error handling with retry logic and cached data support
- * - Simplified state management (no manual pagination state)
- * - Built-in loading states and optimistic updates
- * - Cleaner code with fewer side effects
- * - Location-based caching for better performance
- * 
- * Migration changes:
- * - Removed manual pagination state management
- * - Removed usePaginatedNearbyEvents hook
- * - Removed complex refresh and loadMore logic
- * - Simplified event handling
- * - Added smooth UI transitions
- * - Better error handling with cached data support
- * - Automatic infinite scroll management
+ * Uses the new simplified useInfiniteNearbyEvents hook instead of the
+ * complex useInfiniteEventsQuery. Much cleaner and more maintainable.
  */
 
 const NearbyEventsPageV2 = () => {
@@ -45,30 +31,23 @@ const NearbyEventsPageV2 = () => {
   const longitude = parseFloat(lng as string);
   const distanceValue = parseInt(distance as string);
 
-  // TanStack React Query infinite hook - replaces usePaginatedNearbyEvents
-  const {
-    events,
-    isLoading,
-    isFetchingNextPage,
-    hasMore,
-    error,
-    isError,
-    loadMore,
-    refetch,
-    totalCount,
-  } = useInfiniteEventsQuery({
-    eventType: 'nearby',
-    latitude,
-    longitude,
-    distance: distanceValue,
-    pageSize: 6, // First page loads 6 events, matches legacy behavior
-    enabled: Boolean(latitude && longitude), // Only fetch when we have coordinates
-  });
+  // Use the new simplified infinite nearby events hook
+  const nearbyQuery = useInfiniteNearbyEvents(latitude, longitude, distanceValue);
+  
+  // Extract data with proper fallbacks
+  const events: EventType[] = nearbyQuery.data?.pages?.flatMap(page => page.events) || [];
+  const isLoading = nearbyQuery.isLoading;
+  const isFetchingNextPage = nearbyQuery.isFetchingNextPage;
+  const hasMore = nearbyQuery.hasNextPage;
+  const error = nearbyQuery.error;
+  const isError = nearbyQuery.isError;
+  const refetch = nearbyQuery.refetch;
+  const totalCount = nearbyQuery.data?.pages?.[0]?.totalCount || 0;
 
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await refetch();
+      await nearbyQuery.refetch();
     } catch (error) {
       console.error('Error refreshing nearby events:', error);
     } finally {
@@ -78,7 +57,7 @@ const NearbyEventsPageV2 = () => {
 
   const handleLoadMore = async () => {
     if (hasMore && !isFetchingNextPage) {
-      await loadMore();
+      await nearbyQuery.fetchNextPage();
     }
   };
 
@@ -354,7 +333,6 @@ const NearbyEventsPageV2 = () => {
                   borderWidth: 2,
                   borderColor: 'white',
                   borderTopColor: 'transparent',
-                  animation: 'spin 1s linear infinite',
                 }} />
                 <ThemedText style={{ 
                   color: 'white',

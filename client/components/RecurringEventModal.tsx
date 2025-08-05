@@ -38,15 +38,9 @@ const RecurringEventModal: React.FC<RecurringEventModalProps> = ({
       icon: 'calendar' as const
     },
     {
-      key: 'this_and_future' as const,
-      title: 'This and future events',
-      description: `Modify this event and all future occurrences`,
-      icon: 'arrow-right' as const
-    },
-    {
       key: 'all_instances' as const,
       title: 'All events in the series',
-      description: `Modify all occurrences of this recurring event`,
+      description: `Modify all future occurrences of this recurring event`,
       icon: 'repeat' as const
     }
   ];

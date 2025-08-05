@@ -6,7 +6,7 @@ import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import DefaultProfilePicture from './DefaultProfilePicture';
 import { NotificationCardProps } from '@/types/allTypes';
 import InvitationActionButtons from './InvitationActionButtons';
-import { useEventMutations } from '@/hooks/useEventMutations';
+import { useEventResponseMutation } from '@/hooks/useEventMutations.new';
 import { ThemedText } from '@/components/ThemedText';
 import { getCategoryImage } from '@/constants/CategoryImages';
 import { Image } from 'expo-image';
@@ -66,7 +66,7 @@ const NotificationCard: React.FC<NotificationCardProps> = React.memo(({ notifica
     return `${Math.floor(diffInMinutes / 1440)}d ago`;
   }, [notification.time, notification.created_at]);
 
-  const { respondToInvitation, loading: respondToInvitationLoading } = useEventMutations();
+  const respondToInvitation = useEventResponseMutation();
   const [selectedResponse, setSelectedResponse] = useState<EventResponseStatus | null>(null);
 
   const handleInvitationResponse = React.useCallback(async (status: EventResponseStatus, options?: { modifyType: 'this_only' | 'all_future' }) => {
@@ -83,9 +83,9 @@ const NotificationCard: React.FC<NotificationCardProps> = React.memo(({ notifica
         requestOptions.modifyType = options.modifyType;
       }
       setSelectedResponse(status);
-      await respondToInvitation(requestOptions);
+      await respondToInvitation.mutateAsync(requestOptions);
 
-      // Cache invalidation and optimistic updates handled automatically by useEventMutations
+      // Cache invalidation and optimistic updates handled automatically by useEventResponseMutation
     } catch (err) {
       // errors already handled in hook
     }
@@ -106,7 +106,7 @@ const NotificationCard: React.FC<NotificationCardProps> = React.memo(({ notifica
     } else {
       handleInvitationResponse(status);
     }
-  }, [notification.event?._id, respondToInvitation]);
+  }, [notification.event?._id, handleInvitationResponse]);
 
   const formatEventDateTime = React.useCallback((dateStr?: string) => {
     if (!dateStr) return null;
@@ -142,7 +142,7 @@ const NotificationCard: React.FC<NotificationCardProps> = React.memo(({ notifica
     if (invitationStatus === 'pending') {
       return (
         <InvitationActionButtons
-          loading={respondToInvitationLoading}
+          loading={respondToInvitation.isPending}
           onAccept={() => handleInvitationAlerts('accepted').finally(()=>setInvitationStatus('accepted'))}
           onMaybe={() => handleInvitationAlerts('maybe').finally(()=>setInvitationStatus('maybe'))}
           onDecline={() => handleInvitationAlerts('rejected').finally(()=>setInvitationStatus('rejected'))}

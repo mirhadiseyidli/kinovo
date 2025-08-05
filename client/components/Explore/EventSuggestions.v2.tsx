@@ -6,7 +6,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import { useInfiniteEventsQuery } from '@/hooks/useInfiniteEventsQuery';
+import { useInfiniteRecommendedEvents } from '@/hooks/useInfiniteQueries.new';
 import { EventCardSkeleton } from '../Skeleton';
 
 interface EventSuggestionsProps {
@@ -42,21 +42,24 @@ const EventSuggestionsV2: React.FC<EventSuggestionsProps> = ({ refreshing, onFin
   const themeColors = Colors[colorScheme ?? 'dark'];
 
   // Use infinite query for recommended events with pagination
-  const {
-    events,
-    isLoading,
-    isError,
-    error,
-    hasMore,
-    loadMore,
-    isFetchingNextPage,
-    refetch,
-  } = useInfiniteEventsQuery({
-    eventType: 'recommended',
-    pageSize: 5, // 5 events per page
-    enabled: true,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  });
+  const queryResult = useInfiniteRecommendedEvents();
+
+  // Extract values from the query result
+  const events = React.useMemo(() => {
+    return queryResult.data?.pages.flatMap(page => page.events) || [];
+  }, [queryResult.data]);
+
+  const isLoading = queryResult.isLoading;
+  const isError = queryResult.isError;
+  const error = queryResult.error;
+  const hasMore = queryResult.data?.pages[queryResult.data.pages.length - 1]?.hasMore || false;
+  const isFetchingNextPage = queryResult.isFetchingNextPage;
+  const refetch = queryResult.refetch;
+  const loadMore = () => {
+    if (hasMore && !isFetchingNextPage) {
+      queryResult.fetchNextPage();
+    }
+  };
 
   // Handle refresh
   React.useEffect(() => {

@@ -5,7 +5,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import { useNotifications } from '@/hooks/useNotifications';
+import { useNotifications } from '@/context/UserSessionContext';
 
 const Header: React.FC<{ refreshing?: boolean }> = React.memo(({ refreshing }) => {
   const colorScheme = useColorScheme();

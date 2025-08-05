@@ -1,8 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
-import { useCalendarEventsQuery } from './useCalendarEventsQuery';
-import { queryKeys } from '@/utils/queryKeys';
-import { Event } from '@/types/allTypes';
+import { useCalendarEventsQuery } from './useCalendarEventsQuery.new';
+import { queryKeys } from '@/utils/queryKeys.new';
 import { 
   EventOccurrence, 
   RecurringEventModification, 
@@ -62,17 +61,15 @@ export const useEventOccurrencesQuery = (
     refetchOnWindowFocus = false
   } = options;
 
-  // Get raw events from calendar query
+  // Get raw events from calendar query - convert Date objects to month/year
+  const month = startDate.getMonth();
+  const year = startDate.getFullYear();
+  const calendarQuery = useCalendarEventsQuery(month, year);
   const { 
-    events: rawEvents, 
-    loading: eventsLoading, 
+    data: rawEvents, 
+    isLoading: eventsLoading, 
     error: eventsError 
-  } = useCalendarEventsQuery(startDate, endDate, {
-    enabled,
-    staleTime,
-    refetchOnMount,
-    refetchOnWindowFocus
-  });
+  } = calendarQuery;
 
   // Generate stable query key for occurrences
   const occurrencesQueryKey = useMemo(

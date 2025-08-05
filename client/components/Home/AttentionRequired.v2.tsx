@@ -7,8 +7,8 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Event } from '@/types/allTypes';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useAttentionRequiredQuery } from '@/hooks/useAttentionRequiredQuery';
-import { useEventMutations } from '@/hooks/useEventMutations';
+import { useAttentionRequiredQuery } from '@/hooks/useAttentionRequiredQuery.new';
+import { useEventResponseMutation } from '@/hooks/useEventMutations.new';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { getCategoryImage } from '@/constants/CategoryImages';
@@ -56,7 +56,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
-  const { respondToInvitation, loading: respondToInvitationLoading } = useEventMutations();
+  const respondToInvitation = useEventResponseMutation();
   // Removed contextRefreshing - TanStack Query handles refresh coordination automatically
   const { userId } = useAuthSession();
   const { setComponentError } = useHomeError();
@@ -69,17 +69,10 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
     isLoading,
     isError,
     refetch,
-    isFirstFetch,
-  } = useAttentionRequiredQuery({
-    fromHomeScreen: !initialEvents, // Use fromHomeScreen when not provided with initialEvents
-    displayMode: 'homeScreen',
-    limit: initialEvents ? undefined : 3, // Limit to 3 events for home screen
-    onFinishRefresh,
-    // contextRefreshing removed - not needed with TanStack Query
-    enableSmoothTransitions: true,
-    usePlaceholderData: true,
-    enabled: !initialEvents // Only fetch if no initialEvents provided
-  });
+  } = useAttentionRequiredQuery(!initialEvents); // Use fromHomeScreen when not provided with initialEvents
+  
+  // Derive isFirstFetch from loading state and data availability
+  const isFirstFetch = isLoading && !eventsData;
 
   // Use initialEvents if provided, otherwise use query data
   const events = (initialEvents || eventsData) as Event[];
@@ -97,16 +90,14 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
 
   // Memoize expensive event filtering - filter out past events
   const futureEvents = React.useMemo(() => {
+    if (!events || !Array.isArray(events)) {
+      return [];
+    }
+    
     const filtered = events.filter((event) => {
       const now = new Date();
       const eventStartDate = event.start_time ? new Date(event.start_time) : null;
       return eventStartDate && now < eventStartDate;
-    });
-    
-    console.log('🔍 [ATTENTION REQUIRED] Filtered future events:', {
-      totalEvents: events?.length || 0,
-      futureEvents: filtered.length,
-      eventIds: filtered.map(e => e._id).slice(0, 3) // First 3 IDs for debugging
     });
     
     return filtered;
@@ -187,7 +178,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
       }
 
       console.log('🎯 [ATTENTION REQUIRED] Calling respondToInvitation mutation:', requestOptions);
-      await respondToInvitation(requestOptions);
+      await respondToInvitation.mutateAsync(requestOptions);
       setSelectedResponses(prev => ({ ...prev, [eventId]: status }));
       console.log('✅ [ATTENTION REQUIRED] Mutation completed, UI should update');
 
@@ -491,7 +482,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
                     flex: 1,
                   }}
                 >
-                  {respondToInvitationLoading ? (
+                  {respondToInvitation.isPending ? (
                     <ActivityIndicator size="small" color={themeColors.text} />
                   ) : (
                     <>
@@ -518,7 +509,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
                     flex: 1,
                   }}
                 >
-                  {respondToInvitationLoading ? (
+                  {respondToInvitation.isPending ? (
                     <ActivityIndicator size="small" color={themeColors.text} />
                   ) : (
                     <>
@@ -545,7 +536,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
                     flex: 1,
                   }}
                 >
-                  {respondToInvitationLoading ? (
+                  {respondToInvitation.isPending ? (
                     <ActivityIndicator size="small" color={themeColors.text} />
                   ) : (
                     <>
@@ -560,7 +551,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
         </View>
       </TouchableOpacity>
     );
-  }, [getTimeLeft, themeColors, handleViewEvent, handleResponseAlert, formatDate, selectedResponses, respondToInvitationLoading]);
+  }, [getTimeLeft, themeColors, handleViewEvent, handleResponseAlert, formatDate, selectedResponses, respondToInvitation.isPending]);
 
   // Don't render if no future events
   if (futureEvents.length === 0) {

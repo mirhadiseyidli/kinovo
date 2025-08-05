@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
-import { createEvent } from '@/utils/queryFunctions';
-import { queryKeys } from '@/utils/queryKeys';
+import { eventApi } from '@/utils/queryFunctions.new';
+import { queryKeys } from '@/utils/queryKeys.new';
 import { Event } from '@/types/allTypes';
 
 /**
@@ -22,7 +22,7 @@ export const useCreateEventMutation = () => {
 
   return useMutation({
     mutationKey: ['events', 'create'],
-    mutationFn: createEvent,
+    mutationFn: eventApi.createEvent,
     
     // Optimistic updates for better UX
     onMutate: async (newEvent: Partial<Event>) => {
@@ -86,7 +86,7 @@ export const useCreateEventMutation = () => {
     onSuccess: (response, variables, context) => {
       
       // Extract the event from the response
-      const newEvent = response.event;
+      const newEvent = response?.event;
       
       // Update the cache with the real event data
       if (userId && context?.optimisticEvent) {
@@ -105,19 +105,19 @@ export const useCreateEventMutation = () => {
 
       // Invalidate related queries to ensure consistency
       queryClient.invalidateQueries({ 
-        queryKey: queryKeys.userEvents(userId || '') 
+        queryKey: queryKeys.myEvents(userId || '') 
       });
       
       // Also invalidate infinite queries for upcoming events
       queryClient.invalidateQueries({ 
-        queryKey: queryKeys.infiniteUpcoming(userId || '', {}) 
+        queryKey: [...queryKeys.upcomingEvents(userId || '', false), 'infinite'] 
       });
       
       // Invalidate calendar cache - new events need to appear in calendar
       queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'calendar-range'] });
       queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'calendar-occurrences'] });
       if (userId) {
-        queryClient.invalidateQueries({ queryKey: [...queryKeys.userEvents(userId), 'calendar'] });
+        queryClient.invalidateQueries({ queryKey: [...queryKeys.myEvents(userId), 'calendar'] });
         queryClient.invalidateQueries({ queryKey: ['recurring-event-modifications', userId] });
       }
     },
@@ -132,7 +132,7 @@ export const useCreateEventMutation = () => {
         
         // Also invalidate infinite queries
         queryClient.invalidateQueries({ 
-          queryKey: queryKeys.infiniteUpcoming(userId, {}) 
+          queryKey: [...queryKeys.upcomingEvents(userId, false), 'infinite'] 
         });
       }
     },
@@ -162,15 +162,14 @@ export const useUpdateEventMutation = () => {
   return useMutation({
     mutationKey: ['events', 'update'],
     mutationFn: async (variables: { eventId: string; updates: Partial<Event>; occurrenceDate?: Date; modifyType?: 'this_only' | 'all_instances' }) => {
-      const { updateEvent } = await import('@/utils/queryFunctions');
       const { eventId, updates, occurrenceDate, modifyType } = variables;
       
       // Pass recurring event options if provided
       if (occurrenceDate && modifyType) {
-        return updateEvent(eventId, updates, { occurrenceDate, modifyType });
+        return eventApi.updateEvent(eventId, updates, { occurrenceDate, modifyType });
       }
       
-      return updateEvent(eventId, updates);
+      return eventApi.updateEvent(eventId, updates);
     },
 
     onMutate: async ({ eventId, updates }) => {
@@ -241,19 +240,19 @@ export const useUpdateEventMutation = () => {
 
       // Invalidate related queries (but NOT individual event since we just updated it)
       queryClient.invalidateQueries({ 
-        queryKey: queryKeys.userEvents(userId || '') 
+        queryKey: queryKeys.myEvents(userId || '') 
       });
       
       // Also invalidate infinite queries
       queryClient.invalidateQueries({ 
-        queryKey: queryKeys.infiniteUpcoming(userId || '', {}) 
+        queryKey: [...queryKeys.upcomingEvents(userId || '', false), 'infinite'] 
       });
       
       // Invalidate calendar cache - updated events need to be reflected in calendar
       queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'calendar-range'] });
       queryClient.invalidateQueries({ queryKey: [...queryKeys.all, 'calendar-occurrences'] });
       if (userId) {
-        queryClient.invalidateQueries({ queryKey: [...queryKeys.userEvents(userId), 'calendar'] });
+        queryClient.invalidateQueries({ queryKey: [...queryKeys.myEvents(userId), 'calendar'] });
         queryClient.invalidateQueries({ queryKey: ['recurring-event-modifications', userId] });
       }
     },
@@ -266,7 +265,7 @@ export const useUpdateEventMutation = () => {
         
         // Also invalidate infinite queries
         queryClient.invalidateQueries({ 
-          queryKey: queryKeys.infiniteUpcoming(userId, {}) 
+          queryKey: [...queryKeys.upcomingEvents(userId, false), 'infinite'] 
         });
       }
     },
@@ -292,8 +291,7 @@ export const useDeleteEventMutation = () => {
   return useMutation({
     mutationKey: ['events', 'delete'],
     mutationFn: async (eventId: string) => {
-      const { deleteEvent } = await import('@/utils/queryFunctions');
-      return deleteEvent(eventId);
+      return eventApi.deleteEvent(eventId);
     },
 
     onMutate: async (eventId) => {
@@ -337,12 +335,12 @@ export const useDeleteEventMutation = () => {
       
       // Invalidate related queries
       queryClient.invalidateQueries({ 
-        queryKey: queryKeys.userEvents(userId || '') 
+        queryKey: queryKeys.myEvents(userId || '') 
       });
       
       // Also invalidate infinite queries
       queryClient.invalidateQueries({ 
-        queryKey: queryKeys.infiniteUpcoming(userId || '', {}) 
+        queryKey: [...queryKeys.upcomingEvents(userId || '', false), 'infinite'] 
       });
     },
 
@@ -354,7 +352,7 @@ export const useDeleteEventMutation = () => {
         
         // Also invalidate infinite queries
         queryClient.invalidateQueries({ 
-          queryKey: queryKeys.infiniteUpcoming(userId, {}) 
+          queryKey: [...queryKeys.upcomingEvents(userId, false), 'infinite'] 
         });
       }
     },

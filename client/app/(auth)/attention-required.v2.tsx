@@ -9,8 +9,8 @@ import { Stack, useRouter } from 'expo-router';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import AttentionRequiredCard from '@/components/Home/AttentionRequired.v2';
-import { InfiniteEventsList } from '@/components/InfiniteList/InfiniteEventsList';
-import { useInfiniteEventsQuery } from '@/hooks/useInfiniteEventsQuery';
+import { InfiniteEventsList, UnifiedEvent } from '@/components/InfiniteList/InfiniteEventsList';
+import { useInfiniteAttentionRequiredEvents } from '@/hooks/useInfiniteQueries.new';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
 import { HomeErrorProvider } from '@/context/HomeErrorContext';
 import type { Event } from '@/types/allTypes';
@@ -46,13 +46,16 @@ export default function AttentionRequiredScreen() {
   const router = useRouter();
   const { userId } = useAuthSession();
 
-  // Get event count for the header - using the same query as InfiniteEventsList
-  const { events, totalCount, isFetchingNextPage } = useInfiniteEventsQuery({
-    eventType: 'attention-required',
-    userId,
-    pageSize: 10,
-    enabled: Boolean(userId),
-  });
+  // Get event count for the header - using the new attention required infinite query
+  const queryResult = useInfiniteAttentionRequiredEvents();
+  
+  // Extract flattened events for the header count calculation
+  const events = React.useMemo(() => {
+    return queryResult.data?.pages.flatMap(page => page.events) || [];
+  }, [queryResult.data]);
+
+  const { isLoading, error, isFetchingNextPage } = queryResult;
+  const totalCount = queryResult.data?.pages[0]?.totalCount || 0;
 
   // Filter out past events for the count (same logic as renderItem)
   const futureEventsCount = React.useMemo(() => {
@@ -64,7 +67,7 @@ export default function AttentionRequiredScreen() {
   }, [events]);
 
   // Custom render function for attention required events
-  const renderAttentionRequiredItem = React.useCallback((event: Event, index: number) => {
+  const renderAttentionRequiredItem = React.useCallback((event: UnifiedEvent, index: number) => {
     // Filter out past events (same logic as the component)
     const now = new Date();
     const eventStartDate = event.start_time ? new Date(event.start_time) : null;

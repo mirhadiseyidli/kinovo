@@ -11,7 +11,8 @@ import { jwtDecode } from 'jwt-decode';
 import Feather from '@expo/vector-icons/Feather';
 import DefaultProfilePicture from '@/components/DefaultProfilePicture';
 import { InfiniteEventsList } from '@/components/InfiniteList';
-import { InfiniteEvent as Event, useInfiniteEventsQuery } from '@/hooks/useInfiniteEventsQuery';
+import { useInfiniteFriendsEvents } from '@/hooks/useInfiniteQueries.new';
+import { Event } from '@/types/allTypes';
 import EventComponent from '@/components/Event';
 
 /**
@@ -31,13 +32,22 @@ const FriendsEventsInfinitePage = () => {
   const router = useRouter();
   const { accessToken, userId } = useAuthSession();
 
-  // Get event count for the header - using the same query as InfiniteEventsList
-  const { events, totalCount, isFetchingNextPage } = useInfiniteEventsQuery({
-    eventType: 'friends',
-    userId,
+  // Get event count for the header - using the new friends infinite query
+  const queryResult = useInfiniteFriendsEvents({
     pageSize: 10,
     enabled: Boolean(userId),
+    keepPreviousData: true,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 30 // 30 minutes
   });
+  
+  // Extract flattened events for the header count calculation
+  const events = React.useMemo(() => {
+    return queryResult.data?.pages.flatMap(page => page.events) || [];
+  }, [queryResult.data]);
+
+  const totalCount = queryResult.data?.pages[0]?.totalCount || 0;
+  const isFetchingNextPage = queryResult.isFetchingNextPage;
 
   // Custom event item renderer with friend info
   const renderEventItem = useCallback((event: Event, index: number) => {
@@ -374,8 +384,12 @@ const FriendsEventsInfinitePage = () => {
     <ThemedView style={{ flex: 1, paddingHorizontal: 16 }}>
       <InfiniteEventsList
         eventType="friends"
-        userId={userId}
         pageSize={10}
+        enabled={Boolean(userId)}
+        enableSmooth={true}
+        keepPreviousData={true}
+        staleTime={1000 * 60 * 5} // 5 minutes
+        gcTime={1000 * 60 * 30} // 30 minutes
         useFlashList={true}
         renderItem={renderEventItem}
         renderEmptyState={renderEmptyState}
@@ -384,10 +398,6 @@ const FriendsEventsInfinitePage = () => {
         ListHeaderComponent={renderListHeader}
         estimatedItemSize={200}
         onEndReachedThreshold={0.5}
-        enableSmooth={true}
-        keepPreviousData={true}
-        staleTime={1000 * 60 * 5} // 5 minutes
-        gcTime={1000 * 60 * 30} // 30 minutes
         testID="friends-events-infinite-list"
         containerStyle={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 24 }}

@@ -70,7 +70,7 @@ const AppleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess, onLoginStart, on
           throw new Error('Invalid token response from backend');
         }
 
-        onLoginSuccess(accessToken, refreshToken, user._id, firebaseToken);
+        onLoginSuccess(accessToken, refreshToken, user._id);
       } else {
         console.error('Authentication failed with status:', backendResponse.status);
         Alert.alert('Error', 'Authentication failed.');

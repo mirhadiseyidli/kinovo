@@ -2,8 +2,6 @@ import React from 'react';
 import { TouchableOpacity, Text, Dimensions } from "react-native";
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import LinearGradient from 'react-native-linear-gradient';
-import { ThemedText } from '@/components/ThemedText';
 import { Feather, Octicons } from '@expo/vector-icons';
 import { ManageFriendButtonProps } from '@/types/allTypes';
 import { shareContent } from '@/utils/shareUtils';

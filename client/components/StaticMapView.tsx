@@ -46,10 +46,6 @@ const StaticMapView: React.FC<StaticMapViewProps> = ({
     ? (colorScheme === 'dark' ? mapSnapshotUrl.dark : mapSnapshotUrl.light)
     : null;
 
-  console.log('[StaticMapView] Received mapSnapshotUrl:', mapSnapshotUrl);
-  console.log('[StaticMapView] Current theme:', colorScheme);
-  console.log('[StaticMapView] Selected URL:', currentMapSnapshotUrl);
-
   const handleImageError = useCallback(() => {
     console.log('Map snapshot failed to load, falling back to interactive map');
     setImageError(true);
@@ -65,7 +61,7 @@ const StaticMapView: React.FC<StaticMapViewProps> = ({
     width: width as any,
     borderRadius: 8,
     overflow: 'hidden',
-    backgroundColor: themeColors.mapBackground || themeColors.card,
+    backgroundColor: themeColors.eventCardBackgroundColor || themeColors.card,
     ...style as ViewStyle
   };
 
@@ -94,7 +90,7 @@ const StaticMapView: React.FC<StaticMapViewProps> = ({
             flex: 1, 
             justifyContent: 'center', 
             alignItems: 'center',
-            backgroundColor: themeColors.mapBackground || themeColors.card
+            backgroundColor: themeColors.eventCardBackgroundColor || themeColors.card
           }}>
             <Feather name="map" size={32} color={themeColors.placeholderTextColor} />
             <Text style={{ 
@@ -139,7 +135,7 @@ const StaticMapView: React.FC<StaticMapViewProps> = ({
             bottom: 0,
             justifyContent: 'center',
             alignItems: 'center',
-            backgroundColor: themeColors.mapBackground || themeColors.card,
+            backgroundColor: themeColors.eventCardBackgroundColor || themeColors.card,
             zIndex: 1
           }}>
             <MapSkeleton height={typeof height === 'number' ? height : 150} />

@@ -2,6 +2,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { persistQueryClient } from '@tanstack/react-query-persist-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
+import { eventApi } from './queryFunctions.new';
 
 /**
  * Offline Mutation Queue Implementation
@@ -208,13 +209,10 @@ const processSingleMutation = async (
   queryClient: QueryClient,
   mutation: OfflineMutation
 ): Promise<void> => {
-  // Import mutation functions dynamically to avoid circular dependencies
-  const { createEvent, updateEvent, deleteEvent } = await import('./queryFunctions');
-
   switch (mutation.type) {
     case 'create':
       if (mutation.entityType === 'event') {
-        await createEvent(mutation.data);
+        await eventApi.createEvent(mutation.data);
         // Invalidate relevant queries
         await queryClient.invalidateQueries({ queryKey: ['events'] });
       }
@@ -222,7 +220,7 @@ const processSingleMutation = async (
     
     case 'update':
       if (mutation.entityType === 'event') {
-        await updateEvent(mutation.data.id, mutation.data);
+        await eventApi.updateEvent(mutation.data.id, mutation.data);
         // Invalidate relevant queries
         await queryClient.invalidateQueries({ queryKey: ['events'] });
       }
@@ -230,7 +228,7 @@ const processSingleMutation = async (
     
     case 'delete':
       if (mutation.entityType === 'event') {
-        await deleteEvent(mutation.data.id);
+        await eventApi.deleteEvent(mutation.data.id);
         // Invalidate relevant queries
         await queryClient.invalidateQueries({ queryKey: ['events'] });
       }

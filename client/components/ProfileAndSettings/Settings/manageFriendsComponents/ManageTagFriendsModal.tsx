@@ -8,7 +8,7 @@ import { Feather } from '@expo/vector-icons';
 import SearchFriendsBar from '@/components/SearchFriendsBar';
 import SelectableFriendItem from './SelectableFriendItem';
 import api from '@/utils/api';
-import { useGetMyFriends } from '@/hooks/useGetMyFriends';
+import { useGetMyFriends } from '@/hooks/useUserQueries.new';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -37,11 +37,11 @@ const ManageTagFriendsModal: React.FC<ManageTagFriendsModalProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
-  const [allFriends, setAllFriends] = useState<Friend[]>([]);
   const [newlySelectedFriends, setNewlySelectedFriends] = useState<Friend[]>([]);
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const { fetchFriends } = useGetMyFriends();
+  const friendsQuery = useGetMyFriends();
+  const { data: allFriends = [], isLoading: friendsLoading } = friendsQuery;
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -51,23 +51,7 @@ const ManageTagFriendsModal: React.FC<ManageTagFriendsModalProps> = ({
     }
   }, [visible]);
 
-  // Fetch all friends when modal opens
-  useEffect(() => {
-    if (visible) {
-      const getFriendsList = async () => {
-        setLoading(true);
-        try {
-          const fetchedFriendsList = await fetchFriends();
-          setAllFriends(fetchedFriendsList);
-        } catch (error) {
-          console.error('Error fetching friends:', error);
-        } finally {
-          setLoading(false);
-        }
-      };
-      getFriendsList();
-    }
-  }, [visible]);
+  // TanStack Query automatically fetches friends data
 
   const handleAddFriend = (friend: Friend) => {
     setNewlySelectedFriends(prev => {

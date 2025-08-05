@@ -1,8 +1,7 @@
 import React from 'react';
 import { useInfiniteQuery, QueryFunctionContext, InfiniteData } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
-import { queryKeys } from '@/utils/queryKeys';
-import { createStableQueryKey } from '@/utils/stableQueryKey';
+import { queryKeys } from '@/utils/queryKeys.new';
 import api from '@/utils/api';
 import { User } from '@/types/allTypes';
 
@@ -374,7 +373,7 @@ export const useInfiniteEventsQuery = (config: UseInfiniteEventsQueryConfig = {}
       return allPages.length + 1;
     },
     
-    getPreviousPageParam: (firstPage: PaginatedEventsResponse, allPages: PaginatedEventsResponse[]) => {
+    getPreviousPageParam: (_firstPage: PaginatedEventsResponse, allPages: PaginatedEventsResponse[]) => {
       if (allPages.length <= 1) return undefined;
       return allPages.length - 1;
     },

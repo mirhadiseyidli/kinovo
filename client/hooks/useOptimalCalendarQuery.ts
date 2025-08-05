@@ -16,8 +16,8 @@ import {
   isWithinInterval
 } from 'date-fns';
 import { useQueryClient } from '@tanstack/react-query';
-import { queryKeys } from '@/utils/queryKeys';
-import { getCalendarEventsForDateRange, getCalendarEvents } from '@/utils/queryFunctions';
+import { queryKeys } from '@/utils/queryKeys.new';
+import { eventApi } from '@/utils/queryFunctions.new';
 
 interface OptimalCalendarQueryOptions {
   staleTime?: number;
@@ -54,8 +54,6 @@ const getDateRangeForView = (date: Date, view: 'Month' | 'Week' | 'Schedule') =>
       return { startDate: extendedStart, endDate: extendedEnd };
     }
     case 'Week': {
-      const start = startOfWeek(date);
-      const end = endOfWeek(date);
       // Extend to include previous and next week
       const extendedStart = startOfWeek(subWeeks(date, 1));
       const extendedEnd = endOfWeek(addWeeks(date, 1));
@@ -92,7 +90,7 @@ export const useOptimalCalendarQuery = (
     // Create unified query key using existing queryKeys structure
     const queryKey = currentView === 'Month' 
       ? queryKeys.calendarEvents(userId || 'anonymous', currentDate.getMonth(), currentDate.getFullYear())
-      : queryKeys.calendarEventsForDateRange(startDate, endDate, false);
+      : queryKeys.calendarRange(userId || 'anonymous', startDate.toISOString(), endDate.toISOString());
 
     const occurrenceKey = queryKeys.calendarOccurrences(startDate, endDate);
 
@@ -113,9 +111,9 @@ export const useOptimalCalendarQuery = (
       let events: Event[];
       
       if (queryConfig.view === 'Month') {
-        events = await getCalendarEvents(userId || 'anonymous', currentDate.getMonth(), currentDate.getFullYear());
+        events = await eventApi.getCalendarEvents(userId || 'anonymous', currentDate.getMonth(), currentDate.getFullYear());
       } else {
-        events = await getCalendarEventsForDateRange(queryConfig.startDate, queryConfig.endDate, false);
+        events = await eventApi.getCalendarRange(userId || 'anonymous', queryConfig.startDate.toISOString(), queryConfig.endDate.toISOString());
       }
       
       // The server already provides userStatus for calendar events, no client processing needed

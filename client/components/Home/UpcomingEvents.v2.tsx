@@ -4,7 +4,7 @@ import EventComponent from '@/components/Event';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { useUpcomingEventsQuery } from '@/hooks/useUpcomingEventsQuery';
+import { useUpcomingEventsQuery } from '@/hooks/useUpcomingEventsQuery.new';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { useRouter } from 'expo-router';
@@ -54,17 +54,11 @@ const UpcomingEvents: React.FC<UpcomingEventsProps> = React.memo(({
     isError,
     error,
     isFetching,
-    refetch,
-    isFirstFetch
-  } = useUpcomingEventsQuery({
-    fromHomeScreen: true,
-    displayMode: 'homeScreen',
-    limit: 3, // Home screen optimization - limit to 3 events
-    onFinishRefresh,
-    // contextRefreshing removed - not needed with TanStack Query
-    enableSmoothTransitions: true,
-    usePlaceholderData: true
-  });
+    refetch
+  } = useUpcomingEventsQuery(true); // fromHomeScreen = true
+
+  // Derive isFirstFetch from loading state and data availability
+  const isFirstFetch = isLoading && !eventsData;
 
   // Type assertion for homeScreen mode - we know this returns Event[] for homeScreen
   const events = eventsData as Event[];

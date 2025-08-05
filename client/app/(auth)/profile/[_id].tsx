@@ -14,7 +14,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Colors } from "@/constants/Colors";
 import { TabBar } from "react-native-tab-view";
 import { useManageFriends } from "@/hooks/useManageFriends";
-import { useUserDataLegacy as useUserData } from "@/hooks/useUserData";
+import { useUserData } from "@/hooks/useUserQueries.new";
 import api from "@/utils/api";
 import ContextMenuWithTrigger from "@/components/ContextMenuWithTrigger";
 import { Feather } from "@expo/vector-icons";
@@ -51,7 +51,15 @@ const ProfilePage = () => {
   const [isFriend, setIsFriend] = useState(false);
   const navigation = useNavigation();
   const { removeFriendFromFriendList } = useManageFriends();
-  const { fetchUserData, loading: userDataLoading, isFirstFetch } = useUserData();
+  const {
+    data: userData,
+    isLoading: userDataLoading,
+    isError,
+    refetch: fetchUserData
+  } = useUserData();
+  
+  // Derived state for isFirstFetch equivalent
+  const isFirstFetch = userDataLoading && !userData;
   
   // Memoize derived values
   const userId = useMemo(() => Array.isArray(_id) ? _id[0] : _id, [_id]);
@@ -154,14 +162,18 @@ const ProfilePage = () => {
     </TouchableOpacity>
   ), [themeColors.text]);
 
-  // Data loading effect
+  // Set current user when userData is available
   useEffect(() => {
-    const loadUsers = async () => {
-      try {
-        const userData = await fetchUserData();
-        setCurrentUser(userData);
+    if (userData) {
+      setCurrentUser(userData);
+    }
+  }, [userData]);
 
-        if (userId) {
+  // Data loading effect for viewed user
+  useEffect(() => {
+    const loadViewedUser = async () => {
+      try {
+        if (userId && userData) {
           const response = await api.get(`/api/users/user/get/profile?_id=${userId}`);
           setViewedUser(response.data.user);
           
@@ -170,12 +182,12 @@ const ProfilePage = () => {
           setIsFriend(areFriends);
         }
       } catch (error) {
-        console.error('Failed to load users:', error);
+        console.error('Failed to load viewed user:', error);
       }
     };
     
-    loadUsers();
-  }, [userId]);
+    loadViewedUser();
+  }, [userId, userData]);
 
   // Navigation options effect
   useEffect(() => {

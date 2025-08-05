@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, Image } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { Feather } from '@expo/vector-icons';
@@ -12,12 +12,16 @@ interface FriendRequestCardProps {
   request: FriendRequestNotification;
   onAccept?: (senderId: string) => void;
   onDecline?: (senderId: string) => void;
+  isAccepting?: boolean;
+  isDeclining?: boolean;
 }
 
 const FriendRequestCard: React.FC<FriendRequestCardProps> = React.memo(({ 
   request, 
   onAccept, 
-  onDecline 
+  onDecline,
+  isAccepting = false,
+  isDeclining = false
 }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
@@ -70,11 +74,19 @@ const FriendRequestCard: React.FC<FriendRequestCardProps> = React.memo(({
             padding: 8,
             flexDirection: 'row',
             alignItems: 'center',
+            opacity: isAccepting ? 0.7 : 1,
           }}
-          onPress={() => onAccept?.(request.sender._id)}
+          onPress={() => !isAccepting && !isDeclining && onAccept?.(request.sender._id)}
+          disabled={isAccepting || isDeclining}
         >
-          <Feather name="check" size={12} color={themeColors.text} />
-          <Text style={{ fontSize: 10, fontWeight: 'bold', color: themeColors.text, marginLeft: 4 }}>Accept</Text>
+          {isAccepting ? (
+            <ActivityIndicator size={12} color={themeColors.text} />
+          ) : (
+            <Feather name="check" size={12} color={themeColors.text} />
+          )}
+          <Text style={{ fontSize: 10, fontWeight: 'bold', color: themeColors.text, marginLeft: 4 }}>
+            {isAccepting ? 'Accepting...' : 'Accept'}
+          </Text>
         </TouchableOpacity>
         
         <TouchableOpacity
@@ -84,15 +96,23 @@ const FriendRequestCard: React.FC<FriendRequestCardProps> = React.memo(({
             padding: 8,
             flexDirection: 'row',
             alignItems: 'center',
+            opacity: isDeclining ? 0.7 : 1,
           }}
-          onPress={() => onDecline?.(request.sender._id)}
+          onPress={() => !isAccepting && !isDeclining && onDecline?.(request.sender._id)}
+          disabled={isAccepting || isDeclining}
         >
-          <Feather name="x" size={12} color={themeColors.text} />
-          <Text style={{ fontSize: 10, fontWeight: 'bold', color: themeColors.text, marginLeft: 4 }}>Reject</Text>
+          {isDeclining ? (
+            <ActivityIndicator size={12} color={themeColors.text} />
+          ) : (
+            <Feather name="x" size={12} color={themeColors.text} />
+          )}
+          <Text style={{ fontSize: 10, fontWeight: 'bold', color: themeColors.text, marginLeft: 4 }}>
+            {isDeclining ? 'Rejecting...' : 'Reject'}
+          </Text>
         </TouchableOpacity>
       </View>
     );
-  }, [request.status, themeColors.mountainGreen, themeColors.inputBackgroundColor, themeColors.text, onAccept, onDecline, request.sender._id]);
+  }, [request.status, themeColors.mountainGreen, themeColors.inputBackgroundColor, themeColors.text, onAccept, onDecline, request.sender._id, isAccepting, isDeclining]);
 
   const formattedTime = useMemo(() => {
     const date = new Date(request.created_at);

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
-import { queryKeys } from '@/utils/queryKeys';
+import { queryKeys } from '@/utils/queryKeys.new';
 import api from '@/utils/api';
 
 /**

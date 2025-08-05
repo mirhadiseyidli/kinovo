@@ -14,7 +14,7 @@ import CityLocationModal from './CityLocationModal';
 import DistanceModal from './DistanceModal';
 import { EventCardSkeleton, SkeletonBox } from '../Skeleton';
 import { useRouter } from 'expo-router';
-import { useNearbyEventsQuery } from '@/hooks/useNearbyEventsQuery';
+import { useNearbyEventsQuery } from '@/hooks/useNearbyEventsQuery.new';
 import { useDiscoverError } from '@/context/DiscoverErrorContext';
 import { useLocation } from '@/context/LocationContext';
 
@@ -59,29 +59,25 @@ const NearbyEvents: React.FC<NearbyEventsProps> = React.memo(({ refreshing, onFi
   const { currentLocation, setCustomLocation } = useLocation();
 
   // TanStack React Query hook - replaces useGetNearByEvents and all manual state management
+  const queryResult = useNearbyEventsQuery(
+    currentLocation?.lat ?? undefined,
+    currentLocation?.lng ?? undefined,
+    selectedDistance
+  );
+  
   const {
-    events: nearbyEvents,
-    totalCount: totalEventCount,
+    data: nearbyEventsData,
     isLoading,
     isError,
     error,
     isFetching,
     refetch,
-    isFirstFetch,
-    isTransitioning
-  } = useNearbyEventsQuery({
-    latitude: currentLocation?.lat,
-    longitude: currentLocation?.lng,
-    distance: selectedDistance,
-    previewMode: true,
-    previewLimit: 5,
-    displayMode: 'homeScreen',
-    onFinishRefresh,
-    locationText: currentLocation?.text,
-    enableSmoothTransitions: true,
-    usePlaceholderData: true,
-    enabled: Boolean(currentLocation?.lat && currentLocation?.lng) // Only fetch when we have coordinates
-  });
+  } = queryResult;
+  
+  // Extract events array from the response (assuming the API returns an object with events array)
+  const nearbyEvents = nearbyEventsData || [];
+  const totalEventCount = nearbyEvents.length; // For preview mode, we'll use the array length
+  const isFirstFetch = isLoading && !nearbyEventsData;
 
   // Report errors to centralized error handling
   useEffect(() => {
@@ -93,9 +89,11 @@ const NearbyEvents: React.FC<NearbyEventsProps> = React.memo(({ refreshing, onFi
   // Handle refresh when pull-to-refresh is triggered
   useEffect(() => {
     if (refreshing) {
-      refetch();
+      refetch().finally(() => {
+        onFinishRefresh();
+      });
     }
-  }, [refreshing, refetch]);
+  }, [refreshing, refetch, onFinishRefresh]);
 
   const handleMomentumScrollEnd = (event: ScrollHandlerEvent) => {
     const offsetX = event.nativeEvent.contentOffset.x;
@@ -301,7 +299,7 @@ const NearbyEvents: React.FC<NearbyEventsProps> = React.memo(({ refreshing, onFi
               scrollEventThrottle={16}
               style={{ marginBottom: 16 }}
             >
-              {nearbyEvents.map((event) => (
+              {nearbyEvents.map((event: Event) => (
                 <ThemedView key={event._id} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, width: screenWidth }}>
                   <EventCardView 
                     event={event}

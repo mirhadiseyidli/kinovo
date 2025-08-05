@@ -120,7 +120,8 @@ const {
   // Friends Events utilities
   buildFriendsEventsBaseQuery,
 
-  validateEventModificationRequest,
+  validateAttendeeRequest,
+  validateEventRequest,
   validateEventPermissions,
   handleRecurringEventOperation,
   handleThisOnlyOperation,
@@ -347,9 +348,9 @@ const getMyEventsCalendarMonthView = async (req, res) => {
 
     // Use standardized response utility
     const response = await buildEnrichedEventsResponse(
-      uniqueEvents,
+      filtered,
       req.user._id,
-      uniqueEvents.length > 0 ? `Calendar events retrieved successfully for ${year}/${month + 1}` : `No events found for ${year}/${month + 1}`,
+      filtered.length > 0 ? `Calendar events retrieved successfully for ${year}/${month + 1}` : `No events found for ${year}/${month + 1}`,
       { 
         month: month,
         year: year,
@@ -605,17 +606,14 @@ const getUserEvents = async (req, res) => {
       ['accepted', 'maybe'] // allowedStatuses
     );
 
-    // Extract just the events from user events
-    const eventsToEnrich = relevantEvents.map(userEvent => userEvent.event);
-
     // Sort by start_time (most recent first)
-    eventsToEnrich.sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
+    relevantEvents.sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
 
     // Use standardized response utility
     const response = await buildEnrichedEventsResponse(
-      eventsToEnrich,
+      relevantEvents,
       req.user._id,
-      eventsToEnrich.length > 0 ? 'User events retrieved successfully' : 'No events found for this user'
+      relevantEvents.length > 0 ? 'User events retrieved successfully' : 'No events found for this user'
     );
 
     return res.status(200).json(response);
@@ -736,14 +734,14 @@ const getNearbyEvents = async (req, res) => {
     const allNearbyEvents = calculateEventsDistance(processedEvents, userLat, userLng, searchDistance);
 
     // Apply pagination if limit is specified
-    let paginatedEvents = enrichedEvents;
+    let paginatedEvents = allNearbyEvents;
     if (limitNumber > 0) {
-      paginatedEvents = enrichedEvents.slice(skipNumber, skipNumber + limitNumber);
+      paginatedEvents = allNearbyEvents.slice(skipNumber, skipNumber + limitNumber);
     }
 
     // Extract events for enrichment and preserve distance data
     const eventsWithDistance = paginatedEvents.map(item => ({
-      ...item.event.toObject(),
+      ...item.event,
       distance: item.distance
     }));
 
@@ -767,13 +765,15 @@ const getNearbyEvents = async (req, res) => {
 };
 
 const respondToEventInvitation = async (req, res) => {
+  console.log('happening')
   let result = { statusCode: 500, response: { message: 'Server error' } };
   
   try {
     const { eventId, status, occurrenceDate, modifyType } = req.body;
+    console.log(req.body)
     
     // Validate request and get event
-    const validationResult = await validateEventModificationRequest(req, ['eventId', 'status']);
+    const validationResult = await validateAttendeeRequest(req, ['eventId', 'status']);
     if (!validationResult.isValid) {
       result = {
         statusCode: validationResult.error.status,
@@ -905,7 +905,7 @@ const cancelEvent = async (req, res) => {
     const { eventId, occurrenceDate, modifyType } = req.body;
     
     // Validate request and get event
-    const validationResult = await validateEventModificationRequest(req, ['eventId']);
+    const validationResult = await validateAttendeeRequest(req, ['eventId']);
     if (!validationResult.isValid) {
       result = {
         statusCode: validationResult.error.status,
@@ -1116,7 +1116,7 @@ const inviteEventAttendees = async (req, res) => {
       };
     } else {
       // Validate request and get event
-      const validationResult = await validateEventModificationRequest(req, ['eventId']);
+      const validationResult = await validateAttendeeRequest(req, ['eventId']);
       if (!validationResult.isValid) {
         result = {
           statusCode: validationResult.error.status,
@@ -1537,7 +1537,7 @@ const joinEvent = async (req, res) => {
     const { eventId, status, occurrenceDate, modifyType } = req.body;
     
     // Validate request and get event
-    const validationResult = await validateEventModificationRequest(req, ['eventId', 'status']);
+    const validationResult = await validateAttendeeRequest(req, ['eventId', 'status']);
     if (!validationResult.isValid) {
       result = {
         statusCode: validationResult.error.status,
@@ -1805,9 +1805,10 @@ const reportEvent = async (req, res) => {
 const updateEvent = async (req, res) => {
   try {
     const { occurrenceDate, modifyType, ...eventData } = req.body;
+    console.log(req.body)
     
     // Validate request and get event
-    const validationResult = await validateEventModificationRequest(req, ['eventId']);
+    const validationResult = await validateEventRequest(req, ['_id']);
     if (!validationResult.isValid) {
       return res.status(validationResult.error.status).json({ message: validationResult.error.message });
     }
@@ -2014,7 +2015,7 @@ const removeEventAttendee = async (req, res) => {
     const { attendeeId } = req.body;
     
     // Validate request and get event
-    const validationResult = await validateEventModificationRequest(req, ['eventId', 'attendeeId']);
+    const validationResult = await validateAttendeeRequest(req, ['eventId', 'attendeeId']);
     if (!validationResult.isValid) {
       result = {
         statusCode: validationResult.error.status,
