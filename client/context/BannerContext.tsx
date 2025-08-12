@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
-import { Animated, Text } from 'react-native';
+import { Text } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,7 +17,7 @@ export const BannerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const themeColors = Colors[colorScheme ?? 'dark'];
 
   const [message, setMessage] = useState<string | null>(null);
-  const translateY = useRef(new Animated.Value(-100)).current;
+  const [isVisible, setIsVisible] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
 
@@ -31,24 +32,16 @@ export const BannerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, []);
 
   const hideBanner = useCallback(() => {
-    Animated.timing(translateY, {
-      toValue: -100,
-      duration: 300,
-      useNativeDriver: true,
-    }).start(() => {
+    setIsVisible(false);
+    // Hide message after animation completes
+    setTimeout(() => {
       setMessage(null);
-    });
-  }, [translateY]);
+    }, 300);
+  }, []);
 
   const showBanner = useCallback((msg: string) => {
     setMessage(msg);
-
-    // Slide down
-    Animated.timing(translateY, {
-      toValue: 0,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
+    setIsVisible(true);
 
     // Auto hide after 2 seconds
     // Clear any existing timeout first
@@ -60,33 +53,32 @@ export const BannerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         hideBanner();
       }
     }, 2000);
-  }, [translateY, hideBanner]);
+  }, [hideBanner]);
 
   return (
     <BannerContext.Provider value={{ showBanner }}>
       {children}
       {message && (
         <Animated.View
-          style={[
-            {
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              zIndex: 9999,
-              justifyContent: 'center',
-              alignItems: 'center',
-              paddingVertical: 12,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.25,
-              shadowRadius: 2,
-              elevation: 4,
-            },
-            {
-              transform: [{ translateY }],
-              backgroundColor: themeColors.mountainGreen,
-            },
-          ]}
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            zIndex: 9999,
+            justifyContent: 'center',
+            alignItems: 'center',
+            paddingVertical: 12,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25,
+            shadowRadius: 2,
+            elevation: 4,
+            backgroundColor: themeColors.mountainGreen,
+            transform: [{ translateY: isVisible ? 0 : -100 }],
+            transitionProperty: ['transform'],
+            transitionDuration: '300ms',
+            transitionTimingFunction: 'ease-in-out',
+          }}
         >
           <Text style={{ fontSize: 14, fontWeight: '600', color: themeColors.text }}> {message} </Text>
         </Animated.View>

@@ -12,7 +12,8 @@ import { Colors } from '@/constants/Colors';
 import type { CreateEventTabParamList } from '@/types/allTypes';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { CreateEventScrollContext } from '@/context/CreateEventScrollContext';
-import Animated, { useAnimatedScrollHandler, runOnJS } from 'react-native-reanimated';
+import Animated, { useAnimatedScrollHandler } from 'react-native-reanimated';
+import { runOnJS } from 'react-native-worklets';
 import { useRouter } from 'expo-router';
 
 const AnimatedKeyboardAwareScrollView = Animated.createAnimatedComponent(KeyboardAwareScrollView);

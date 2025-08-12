@@ -10,7 +10,7 @@ import { format } from 'date-fns';
 interface RecurringEventModalProps {
   visible: boolean;
   onClose: () => void;
-  onSelectOption: (option: 'this_only' | 'this_and_future' | 'all_instances') => void;
+  onSelectOption: (option: 'this_only' | 'all_future') => void;
   eventTitle: string;
   occurrenceDate: Date;
 }
@@ -25,7 +25,7 @@ const RecurringEventModal: React.FC<RecurringEventModalProps> = ({
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
 
-  const handleOptionSelect = (option: 'this_only' | 'this_and_future' | 'all_instances') => {
+  const handleOptionSelect = (option: 'this_only' | 'all_future') => {
     onSelectOption(option);
     onClose();
   };
@@ -38,16 +38,10 @@ const RecurringEventModal: React.FC<RecurringEventModalProps> = ({
       icon: 'calendar' as const
     },
     {
-      key: 'this_and_future' as const,
+      key: 'all_future' as const,
       title: 'This and future events',
       description: `Modify this event and all future occurrences`,
       icon: 'arrow-right' as const
-    },
-    {
-      key: 'all_instances' as const,
-      title: 'All events in the series',
-      description: `Modify all occurrences of this recurring event`,
-      icon: 'repeat' as const
     }
   ];
 

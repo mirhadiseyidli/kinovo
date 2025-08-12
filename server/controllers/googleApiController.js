@@ -157,9 +157,56 @@ const getPlaceDetails = async (req, res) => {
   }
 };
 
+/**
+ * Get directions and traffic information between two points
+ * @route GET /api/google/directions
+ * @access Private
+ */
+const getDirections = async (req, res) => {
+  try {
+    const { origin, destination, departure_time, arrival_time, mode, traffic_model } = req.query;
+    
+    if (!origin || !destination) {
+      return res.status(400).json({ message: 'Origin and destination are required' });
+    }
+
+    const params = {
+      origin,
+      destination,
+      key: process.env.GOOGLE_MAPS_API_KEY,
+      mode: mode || 'driving', // driving, walking, bicycling, transit
+      traffic_model: traffic_model || 'best_guess', // best_guess, pessimistic, optimistic
+    };
+
+    // Add departure time if provided (for traffic-aware routing)
+    if (departure_time) {
+      params.departure_time = departure_time;
+    }
+
+    // Add arrival time if provided (for transit)
+    if (arrival_time) {
+      params.arrival_time = arrival_time;
+    }
+
+    const response = await axios.get(
+      `https://maps.googleapis.com/maps/api/directions/json`,
+      { params }
+    );
+
+    res.status(200).json(response.data);
+  } catch (error) {
+    console.error('Error in getDirections:', error);
+    res.status(500).json({ 
+      message: 'Server error fetching directions', 
+      error: error.response?.data || error.message 
+    });
+  }
+};
+
 module.exports = {
   searchPlacesByText,
   autocompletePlaces,
   geocodeAddress,
-  getPlaceDetails
+  getPlaceDetails,
+  getDirections
 }; 

@@ -4,7 +4,7 @@ import EventComponent from '@/components/Event';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { useUpcomingEventsQuery } from '@/hooks/useUpcomingEventsQuery';
+import { useInfiniteUpcomingEvents } from '@/hooks/useInfiniteEvents';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { useRouter } from 'expo-router';
@@ -13,9 +13,13 @@ import { Event } from '@/types/allTypes';
 import { useHomeError } from '@/context/HomeErrorContext';
 
 /**
- * TanStack React Query version of UpcomingEvents component
+ * UpcomingEvents.v2 - MIGRATED to New TanStack Query Architecture
  * 
  * Key improvements over the legacy version:
+ * - Uses new simplified TanStack Query architecture with useInfiniteUpcomingEvents
+ * - Direct cache updates instead of invalidations for better performance
+ * - Single event store with tagging system
+ * - Better performance through unified caching
  * - Uses TanStack React Query for data management
  * - Automatic background refetching and cache management
  * - Better error handling with retry logic
@@ -24,6 +28,8 @@ import { useHomeError } from '@/context/HomeErrorContext';
  * - Cleaner code with fewer side effects
  * 
  * Migration changes:
+ * - Replaced useUpcomingEventsQuery with useInfiniteUpcomingEvents hook
+ * - Updated to handle paginated response format
  * - Removed manual state management (useState, useEffect)
  * - Removed complex useFocusEffect logic
  * - Removed manual cache invalidation
@@ -49,25 +55,26 @@ const UpcomingEvents: React.FC<UpcomingEventsProps> = React.memo(({
 
   // TanStack React Query hook - replaces useGetMyEvents and all manual state management
   const {
-    data: eventsData,
+    data,
     isLoading,
     isError,
     error,
     isFetching,
     refetch,
-    isFirstFetch
-  } = useUpcomingEventsQuery({
-    fromHomeScreen: true,
-    displayMode: 'homeScreen',
-    limit: 3, // Home screen optimization - limit to 3 events
-    onFinishRefresh,
-    // contextRefreshing removed - not needed with TanStack Query
-    enableSmoothTransitions: true,
-    usePlaceholderData: true
-  });
-
-  // Type assertion for homeScreen mode - we know this returns Event[] for homeScreen
-  const events = eventsData as Event[];
+  } = useInfiniteUpcomingEvents(3, true); // Home screen optimization - limit to 3 events, from_home_screen=true
+  
+  // Extract events from paginated response - take only first 3 for home screen
+  const events = (data?.pages.flatMap(page => page.events) ?? []).slice(0, 3);
+  
+  // Determine if this is first fetch (no cached data)
+  const isFirstFetch = isLoading && !data;
+  
+  // Handle finish refresh
+  React.useEffect(() => {
+    if (!isLoading && !error) {
+      onFinishRefresh?.();
+    }
+  }, [isLoading, error, onFinishRefresh]);
 
   // Navigation callbacks (unchanged from legacy version)
   const navigateToCalendar = React.useCallback(() => {

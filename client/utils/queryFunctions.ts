@@ -213,7 +213,7 @@ export const createEvent = async (eventData: Partial<Event>): Promise<{success: 
 export const updateEvent = async (
   eventId: string, 
   eventData: Partial<Event>, 
-  options?: { occurrenceDate?: Date; modifyType?: 'this_only' | 'all_instances' }
+  options?: { occurrenceDate?: Date; modifyType?: 'this_only' | 'all_future' }
 ): Promise<{success: boolean, event: Event}> => {
   const requestBody = {
     ...eventData,

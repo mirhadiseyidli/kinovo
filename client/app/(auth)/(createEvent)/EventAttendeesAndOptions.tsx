@@ -8,19 +8,27 @@ import { Colors } from '@/constants/Colors';
 import React, { useState, useRef, useContext } from 'react';
 import { ScrollView, View, Text, ActivityIndicator, Alert, TouchableOpacity, Image, Pressable } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { getCategoryIcon, getCategoryColor } from '@/utils/categoryIcons';
+import FriendSuggestionsDropdown from '@/components/CreateEvent/FriendSuggestionsDropdown';
 import type { CreateEventTabParamList, AttendeeFriend } from '@/types/allTypes';
+import { useCreateEventContext } from '@/context/CreateEventContext';
+import { useUpdateEvent } from '@/hooks/useNewEventMutations';
+import { format } from 'date-fns';
+import DefaultProfilePicture from '@/components/DefaultProfilePicture';
+import { CreateEventScrollContext } from '@/context/CreateEventScrollContext';
+import Animated, { useAnimatedScrollHandler } from 'react-native-reanimated';
+import { runOnJS } from 'react-native-worklets';
+import { useRouter } from 'expo-router';
 
 interface SuggestionsData {
   friends: AttendeeFriend[];
   nonFriends: AttendeeFriend[];
+  tags: {
+    activity_name: string;
+    friends: AttendeeFriend[];
+  }[];
 }
-import { useCreateEventContext } from '@/context/CreateEventContext';
-import { useUpdateEventMutation } from '@/hooks/useCreateEventMutation';
-import { format } from 'date-fns';
-import DefaultProfilePicture from '@/components/DefaultProfilePicture';
-import { CreateEventScrollContext } from '@/context/CreateEventScrollContext';
-import Animated, { useAnimatedScrollHandler, runOnJS } from 'react-native-reanimated';
-import { useRouter } from 'expo-router';
 
 const AnimatedScrollView = Animated.createAnimatedComponent(Animated.ScrollView);
 
@@ -30,10 +38,11 @@ export default React.memo(function EventAttendeesAndOptions() {
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [limit, setLimit] = useState<number | null>(null);
   const [suggestions, setSuggestions] = useState<AttendeeFriend[]>([]);
-  const [suggestionsData, setSuggestionsData] = useState<SuggestionsData>({ friends: [], nonFriends: [] });
+  const [suggestionsData, setSuggestionsData] = useState<SuggestionsData>({ friends: [], nonFriends: [], tags: [] });
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [inputPosition, setInputPosition] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const suggestionSelectRef = useRef<((item: any) => void) | null>(null);
-  const updateEventMutation = useUpdateEventMutation();
+  const updateEventMutation = useUpdateEvent();
   const router = useRouter();
   const { bounceCompleted, wasDraggingAtTop, isDismissing, handleDismiss } = useContext(CreateEventScrollContext);
   const { 
@@ -108,7 +117,7 @@ export default React.memo(function EventAttendeesAndOptions() {
         },
         {
           text: 'All Occurrences',
-          onPress: () => saveEvent('all_instances'),
+          onPress: () => saveEvent('all_future'),
           style: 'default',
         },
         {
@@ -119,7 +128,7 @@ export default React.memo(function EventAttendeesAndOptions() {
     );
   };
 
-  const saveEvent = async (recurringOption?: 'this_only' | 'all_instances') => {
+  const saveEvent = async (recurringOption?: 'this_only' | 'all_future') => {
     if (isEditMode && eventId && recurringOption) {
       // Handle recurring event update with the selected option
       setLoading(true);
@@ -128,8 +137,8 @@ export default React.memo(function EventAttendeesAndOptions() {
       try {
         const eventData = compileEventData();
         const response = await updateEventMutation.mutateAsync({
-          eventId,
-          updates: eventData,
+          eventId: eventId,
+          ...eventData,
           occurrenceDate: startTime!,
           modifyType: recurringOption
         });
@@ -187,61 +196,20 @@ export default React.memo(function EventAttendeesAndOptions() {
 
   return (
     <ThemedView style={{ flex: 1, width: '100%', paddingHorizontal: 16 }}>
-      {/* Backdrop overlay - split to avoid covering input field */}
-      {showSuggestions && (
-        <>
-          {/* Top overlay - above input field */}
-          <Pressable
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              height: 116, // Options component height + gap
-              backgroundColor: 'transparent',
-              zIndex: 999,
-            }}
-            onPress={handleBackdropPress}
-          />
-          {/* Bottom overlay - below dropdown */}
-          <Pressable
-            style={{
-              position: 'absolute',
-              top: 484, // Start after dropdown area
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: 'transparent',
-              zIndex: 999,
-            }}
-            onPress={handleBackdropPress}
-          />
-          {/* Side overlays - left and right of dropdown */}
-          <Pressable
-            style={{
-              position: 'absolute',
-              top: 116,
-              left: 0,
-              width: 16,
-              height: 368,
-              backgroundColor: 'transparent',
-              zIndex: 999,
-            }}
-            onPress={handleBackdropPress}
-          />
-          <Pressable
-            style={{
-              position: 'absolute',
-              top: 116,
-              right: 0,
-              width: 16,
-              height: 368,
-              backgroundColor: 'transparent',
-              zIndex: 999,
-            }}
-            onPress={handleBackdropPress}
-          />
-        </>
+      {/* Full screen backdrop when suggestions are showing */}
+      {showSuggestions && inputPosition && (
+        <Pressable
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'transparent',
+            zIndex: 999,
+          }}
+          onPress={handleBackdropPress}
+        />
       )}
 
       <AnimatedScrollView 
@@ -264,6 +232,7 @@ export default React.memo(function EventAttendeesAndOptions() {
           showSuggestions={showSuggestions}
           setShowSuggestions={setShowSuggestions}
           onSuggestionSelectRef={suggestionSelectRef}
+          onInputPositionChange={setInputPosition}
         />
 
         {/* Error message if any */}
@@ -324,164 +293,14 @@ export default React.memo(function EventAttendeesAndOptions() {
         </View>
       </AnimatedScrollView>
 
-      {/* Friends Suggestions Dropdown - Rendered outside ScrollView */}
-      {showSuggestions && (suggestionsData.friends.length > 0 || suggestionsData.nonFriends.length > 0) && (
-        <ThemedView style={{
-          position: 'absolute',
-          top: 180, // Options (≈60px) + gap (16px) + Attendees input (≈44px) + spacing (4px) + padding
-          left: 16,
-          right: 16,
-          backgroundColor: themeColors.inputBackgroundColor,
-          borderWidth: 1,
-          borderColor: themeColors.border,
-          borderRadius: 8,
-          maxHeight: 300,
-          zIndex: 1000,
-          shadowColor: '#000',
-          shadowOffset: {
-            width: 0,
-            height: 4,
-          },
-          shadowOpacity: 0.15,
-          shadowRadius: 8,
-          elevation: 8,
-        }}>
-          <ScrollView 
-            style={{ maxHeight: 300 }} 
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="none"
-            nestedScrollEnabled={true}
-            showsVerticalScrollIndicator={false}
-          >
-            {suggestionsData.friends.length > 0 && (
-              <>
-                <View style={{ 
-                  paddingHorizontal: 16, 
-                  paddingVertical: 12, 
-                  borderBottomWidth: 1, 
-                  borderBottomColor: themeColors.border 
-                }}>
-                  <Text style={{ 
-                    fontWeight: 'bold', 
-                    fontSize: 14, 
-                    color: themeColors.text,
-                    textTransform: 'uppercase',
-                    letterSpacing: 0.5
-                  }}>
-                    Friends
-                  </Text>
-                </View>
-                {suggestionsData.friends.map((friend, index) => (
-                  <TouchableOpacity
-                    key={friend._id}
-                    style={{
-                      paddingVertical: 12,
-                      paddingHorizontal: 16,
-                      borderBottomWidth: index !== suggestionsData.friends.length - 1 || suggestionsData.nonFriends.length > 0 ? 1 : 0,
-                      borderBottomColor: themeColors.border,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                    }}
-                    onPress={() => handleSuggestionSelect(friend)}
-                  >
-                    <View style={{ marginRight: 12 }}>
-                      <DefaultProfilePicture
-                        profilePicture={friend.profile_picture}
-                        fullName={friend.full_name}
-                        size={40}
-                        borderRadius={20}
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ 
-                        fontWeight: '600', 
-                        fontSize: 16, 
-                        color: themeColors.text 
-                      }}>
-                        {friend.full_name}
-                      </Text>
-                      <Text style={{ 
-                        fontSize: 14, 
-                        color: themeColors.placeholderTextColor 
-                      }}>
-                        @{friend.username}
-                      </Text>
-                    </View>
-                    <Feather 
-                      name="user-plus" 
-                      size={16} 
-                      color={themeColors.placeholderTextColor} 
-                    />
-                  </TouchableOpacity>
-                ))}
-              </>
-            )}
-            
-            {suggestionsData.nonFriends.length > 0 && (
-              <>
-                <View style={{ 
-                  paddingHorizontal: 16, 
-                  paddingVertical: 12, 
-                  borderBottomWidth: 1, 
-                  borderBottomColor: themeColors.border 
-                }}>
-                  <Text style={{ 
-                    fontWeight: 'bold', 
-                    fontSize: 14, 
-                    color: themeColors.text,
-                    textTransform: 'uppercase',
-                    letterSpacing: 0.5
-                  }}>
-                    Users
-                  </Text>
-                </View>
-                {suggestionsData.nonFriends.map((user, index) => (
-                  <TouchableOpacity
-                    key={user._id}
-                    style={{
-                      paddingVertical: 12,
-                      paddingHorizontal: 16,
-                      borderBottomWidth: index !== suggestionsData.nonFriends.length - 1 ? 1 : 0,
-                      borderBottomColor: themeColors.border,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                    }}
-                    onPress={() => handleSuggestionSelect(user)}
-                  >
-                    <View style={{ marginRight: 12 }}>
-                      <DefaultProfilePicture
-                        profilePicture={user.profile_picture}
-                        fullName={user.full_name}
-                        size={40}
-                        borderRadius={20}
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ 
-                        fontWeight: '600', 
-                        fontSize: 16, 
-                        color: themeColors.text 
-                      }}>
-                        {user.full_name}
-                      </Text>
-                      <Text style={{ 
-                        fontSize: 14, 
-                        color: themeColors.placeholderTextColor 
-                      }}>
-                        @{user.username}
-                      </Text>
-                    </View>
-                    <Feather 
-                      name="user-plus" 
-                      size={16} 
-                      color={themeColors.placeholderTextColor} 
-                    />
-                  </TouchableOpacity>
-                ))}
-              </>
-            )}
-          </ScrollView>
-        </ThemedView>
+      {/* Friends Suggestions Dropdown - Positioned based on input location */}
+      {showSuggestions && (suggestionsData.friends.length > 0 || suggestionsData.nonFriends.length > 0 || suggestionsData.tags.length > 0) && inputPosition && (
+        <FriendSuggestionsDropdown
+          suggestionsData={suggestionsData}
+          showSuggestions={showSuggestions}
+          onSuggestionSelect={handleSuggestionSelect}
+          inputPosition={inputPosition}
+        />
       )}
     </ThemedView>
   );

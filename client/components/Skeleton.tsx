@@ -1,61 +1,25 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { View, DimensionValue, ScrollView } from 'react-native';
 import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withRepeat,
-  withTiming,
-  cancelAnimation,
-  interpolate,
-  Extrapolation
-} from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
+import Animated from 'react-native-reanimated';
 
-// Reusable shimmer effect hook with memory optimization
+// Reusable shimmer effect with CSS animations
 const useShimmerAnimation = (shouldAnimate: boolean = true) => {
-  const translateX = useSharedValue(-1);
-  const mountedRef = useRef(true);
-  
-  useEffect(() => {
-    if (shouldAnimate && mountedRef.current) {
-    translateX.value = withRepeat(
-      withTiming(1, { duration: 1000 }),
-      -1,
-      false
-    );
-    } else {
-      cancelAnimation(translateX);
-      translateX.value = -1; // Reset to initial state
-    }
-    
-    return () => {
-      cancelAnimation(translateX);
-    };
-  }, [shouldAnimate]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      mountedRef.current = false;
-      cancelAnimation(translateX);
-    };
-  }, []);
-  
-  return useAnimatedStyle(() => ({
-    transform: [
-      { 
-        translateX: interpolate(
-          translateX.value,
-          [-1, 1],
-          [-100, 300],
-          Extrapolation.CLAMP
-        ) 
-      }
-    ],
-  }), [translateX]);
+  return {
+    opacity: shouldAnimate ? 1 : 0.3,
+    ...(shouldAnimate && {
+      animationName: {
+        '0%': { opacity: 0.3 },
+        '50%': { opacity: 0.7 },
+        '100%': { opacity: 0.3 },
+      },
+      animationDuration: '1500ms',
+      animationIterationCount: 'infinite' as const,
+      animationTimingFunction: 'ease-in-out',
+    }),
+  };
 };
 
 // Reusable skeleton box component
@@ -83,7 +47,7 @@ export const SkeletonBox: React.FC<SkeletonBoxProps> = ({
   const animatedStyle = useShimmerAnimation();
   
   return (
-    <View 
+    <Animated.View 
       style={{
         width,
         height,
@@ -93,31 +57,9 @@ export const SkeletonBox: React.FC<SkeletonBoxProps> = ({
         marginRight,
         marginLeft,
         marginTop,
-        overflow: 'hidden',
+        ...animatedStyle,
       }}
-    >
-      <Animated.View
-        style={[
-          {
-            position: 'absolute',
-            width: '100%',
-            height: '100%',
-          },
-          animatedStyle
-        ]}
-      >
-        <LinearGradient
-          colors={[
-            'transparent',
-            themeColors.mountainGreen + '30',
-            'transparent'
-          ]}
-          start={{ x: 0, y: 0.5 }}
-          end={{ x: 1, y: 0.5 }}
-          style={{ width: '100%' }}
-        />
-      </Animated.View>
-    </View>
+    />
   );
 };
 

@@ -20,6 +20,7 @@ const {
   addFriendsToTag,
   removeFriendsFromTag,
   getUserTags,
+  searchUserTags,
   getFavoriteActivities,
   addFavoriteActivity,
   removeFavoriteActivity,
@@ -47,6 +48,7 @@ router.delete('/tags', authMiddleware, removeActivityTag);
 router.post('/tags/friends', authMiddleware, addFriendsToTag);
 router.delete('/tags/friends', authMiddleware, removeFriendsFromTag);
 router.get('/tags', authMiddleware, getUserTags);
+router.get('/tags/search', authMiddleware, searchUserTags);
 
 // Blocked users routes
 router.get('/blocked', authMiddleware, getBlockedUsers);

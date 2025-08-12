@@ -12,19 +12,24 @@ import Event from '@/components/Event';
 import PastEvent from '@/components/Home/PastEvent'
 import EventFilters, { type DateFilter } from '@/components/Home/EventFilters';
 import { EventCardSkeleton } from '../Skeleton';
-import { usePastEventsInfiniteQuery } from '@/hooks/usePastEventsInfiniteQuery';
+import { useInfinitePastEvents } from '@/hooks/useInfiniteEvents';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import Animated, { useSharedValue, withTiming, useAnimatedStyle } from 'react-native-reanimated';
 import { useHomeError } from '@/context/HomeErrorContext';
 import { HomeErrorMessage } from '@/components/Home/HomeErrorMessage';
 import { queryClient } from '@/utils/queryClient';
+import AISummary from './AISummary.v2';
 
 /**
- * HomeScreen v2 - Using FlashList for all content with infinite scroll for past events
+ * HomeScreen.v2 - MIGRATED to New TanStack Query Architecture
  * 
  * This version uses a single FlashList to render all components as sections,
  * similar to Discover.v2, with:
+ * - New simplified TanStack Query architecture with useInfinitePastEvents
+ * - Direct cache updates instead of invalidations for better performance
+ * - Single event store with tagging system
+ * - Better performance through unified caching
  * - Hide-on-scroll header animation
  * - Infinite scroll for past events with server-side pagination
  * - Month/year filtering for past events
@@ -44,6 +49,7 @@ import { queryClient } from '@/utils/queryClient';
 type SectionType = 
   | 'header'
   | 'errorMessage'
+  | 'aiSummary'
   | 'upcomingEvents'
   | 'attentionRequired'
   | 'pastEventsHeader'
@@ -68,6 +74,7 @@ const HomeScreenV2 = () => {
   // Refresh states for individual sections
   const [refreshingUpcomingEvents, setRefreshingUpcomingEvents] = useState(false);
   const [refreshingAttentionRequired, setRefreshingAttentionRequired] = useState(false);
+  const [refreshingAIInsights, setRefreshingAIInsights] = useState(false);
 
   // Header animation states (using refs for performance like Discover.v2)
   const headerHeight = useRef(0);
@@ -131,21 +138,31 @@ const HomeScreenV2 = () => {
   });
 
   // Use infinite query for past events with current filter
+  const filters = React.useMemo(() => {
+    if (pastEventsDateFilter.type === 'year' && pastEventsDateFilter.date) {
+      return { year: pastEventsDateFilter.date.getFullYear() };
+    } else if (pastEventsDateFilter.type === 'month' && pastEventsDateFilter.date) {
+      return { 
+        year: pastEventsDateFilter.date.getFullYear(),
+        month: pastEventsDateFilter.date.getMonth() // Keep JS 0-based months (0=January, 6=July)
+      };
+    }
+    return {};
+  }, [pastEventsDateFilter]);
+  
   const {
-    events: pastEvents,
+    data,
     isLoading: isLoadingPastEvents,
     isError: isErrorPastEvents,
-    hasMore: hasMorePastEvents,
-    loadMore: loadMorePastEvents,
+    hasNextPage: hasMorePastEvents,
+    fetchNextPage: loadMorePastEvents,
     isFetchingNextPage: isFetchingNextPagePastEvents,
     refetch: refetchPastEvents,
-    totalCount: pastEventsTotalCount,
-  } = usePastEventsInfiniteQuery({
-    dateFilter: pastEventsDateFilter,
-    pageSize: 5,
-    enabled: true,
-    staleTime: 1000 * 60 * 5, // 5 minutes cache
-  });
+  } = useInfinitePastEvents(5, filters);
+  
+  // Extract events and totalCount from paginated response
+  const pastEvents = data?.pages.flatMap(page => page.events) ?? [];
+  const pastEventsTotalCount = data?.pages[0]?.totalCount ?? 0;
 
   // Report past events errors to centralized error handling
   React.useEffect(() => {
@@ -157,13 +174,11 @@ const HomeScreenV2 = () => {
     setRefreshing(true);
     setRefreshingUpcomingEvents(true);
     setRefreshingAttentionRequired(true);
+    setRefreshingAIInsights(true);
     
     try {
-      // Invalidate all event-related queries to force fresh data
-      await queryClient.invalidateQueries({ queryKey: ['events'] });
-      await queryClient.invalidateQueries({ queryKey: ['upcomingEvents'] });
-      await queryClient.invalidateQueries({ queryKey: ['attentionRequired'] });
-      await queryClient.invalidateQueries({ queryKey: ['pastEvents'] });
+      // Refresh the unified event store - this will update most event-related data
+      await queryClient.refetchQueries({ queryKey: ['events'] });
       
       // Refresh past events
       await refetchPastEvents();
@@ -188,6 +203,12 @@ const HomeScreenV2 = () => {
 
   const onFinishRefreshAttentionRequired = useCallback(() => {
     setRefreshingAttentionRequired(false);
+    // Clear errors when individual component refresh finishes successfully
+    // The component's useEffect will set the error state based on the result
+  }, []);
+
+  const onFinishRefreshAIInsights = useCallback(() => {
+    setRefreshingAIInsights(false);
     // Clear errors when individual component refresh finishes successfully
     // The component's useEffect will set the error state based on the result
   }, []);
@@ -225,6 +246,9 @@ const HomeScreenV2 = () => {
     if (hasAnyError) {
       sections.push({ id: 'errorMessage', type: 'errorMessage' });
     }
+
+    // AI Summary section
+    sections.push({ id: 'aiSummary', type: 'aiSummary' });
     
     // Upcoming Events section
     sections.push({ id: 'upcomingEvents', type: 'upcomingEvents' });
@@ -289,6 +313,16 @@ const HomeScreenV2 = () => {
       case 'errorMessage':
         return <HomeErrorMessage errors={errors} showCachedDataWarning={true} />;
 
+      case 'aiSummary':
+        return (
+          <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, marginBottom: 24 }}>
+            <AISummary
+              refreshing={refreshingAIInsights}
+              onFinishRefresh={onFinishRefreshAIInsights}
+            />
+          </ThemedView>
+        );        
+      
       case 'upcomingEvents':
         return (
           <ThemedView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, marginBottom: 24 }}>
@@ -328,16 +362,16 @@ const HomeScreenV2 = () => {
               </ThemedView>
               
               <TouchableOpacity 
-                style={{
-                  width: 36,
-                  height: 36,
+                style={{ 
+                  flexDirection: 'row', 
+                  alignItems: 'center', 
                   justifyContent: 'center',
-                  alignItems: 'center',
-                  marginLeft: 12,
+                  gap: 4,
                 }}
                 onPress={() => setShowPastEventsFilters(true)}
                 accessibilityLabel="Filter past events"
               >
+                <ThemedText style={{ fontSize: 16, color: pastEventsDateFilter.type !== 'all' ? themeColors.tint : themeColors.textSecondary }}>Filter</ThemedText>
                 <IconSymbol
                   name="slider.horizontal.3"
                   size={24}
@@ -394,7 +428,8 @@ const HomeScreenV2 = () => {
               style={{
                 fontSize: 16,
                 textAlign: 'center',
-                color: themeColors.textSecondary,
+                color: themeColors.placeholderTextColor,
+                fontWeight: '600'
               }}
             >
               {pastEventsDateFilter.type === 'all' 
@@ -407,7 +442,7 @@ const HomeScreenV2 = () => {
                 fontSize: 14,
                 textAlign: 'center',
                 marginTop: 8,
-                color: themeColors.textThird,
+                color: themeColors.placeholderTextColor,
               }}
             >
               {pastEventsDateFilter.type === 'all'
@@ -420,7 +455,7 @@ const HomeScreenV2 = () => {
                 fontSize: 14,
                 textAlign: 'center',
                 marginTop: 8,
-                color: themeColors.textThird,
+                color: themeColors.placeholderTextColor,
               }}
             >
               Tap to refresh
@@ -452,8 +487,10 @@ const HomeScreenV2 = () => {
     headerStyle,
     refreshingUpcomingEvents,
     refreshingAttentionRequired,
+    refreshingAIInsights,
     onFinishRefreshUpcomingEvents,
     onFinishRefreshAttentionRequired,
+    onFinishRefreshAIInsights,
     pastEventsDateFilter,
     pastEventsTotalCount,
     themeColors,
@@ -483,7 +520,7 @@ const HomeScreenV2 = () => {
         ref={flashListRef}
         data={sections}
         renderItem={renderItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item, index) => `home-section-${item.id}-${index}`}
         getItemType={getItemType}
         stickyHeaderIndices={[0]}
         refreshControl={

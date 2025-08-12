@@ -14,14 +14,18 @@ import CityLocationModal from './CityLocationModal';
 import DistanceModal from './DistanceModal';
 import { EventCardSkeleton, SkeletonBox } from '../Skeleton';
 import { useRouter } from 'expo-router';
-import { useNearbyEventsQuery } from '@/hooks/useNearbyEventsQuery';
+import { useInfiniteNearbyEvents } from '@/hooks/useInfiniteEvents';
 import { useDiscoverError } from '@/context/DiscoverErrorContext';
 import { useLocation } from '@/context/LocationContext';
 
 /**
- * TanStack React Query version of NearbyEvents component
+ * NearbyEvents.v2 - MIGRATED to New TanStack Query Architecture
  * 
  * Key improvements over the legacy version:
+ * - Uses new simplified TanStack Query architecture with useInfiniteNearbyEvents hook
+ * - Direct cache updates instead of invalidations for better performance
+ * - Single event store with tagging system
+ * - Better performance through unified caching
  * - Uses TanStack React Query for data management
  * - Automatic background refetching and cache management
  * - Better error handling with retry logic
@@ -31,10 +35,11 @@ import { useLocation } from '@/context/LocationContext';
  * - Location-based caching for better performance
  * 
  * Migration changes:
+ * - Replaced useNearbyEventsQuery with useInfiniteNearbyEvents hook
+ * - Updated to handle new paginated response format
  * - Removed manual state management for events (nearbyEvents, totalEventCount)
- * - Removed complex fetchEvents and debouncedFetch logic
- * - Removed manual cache invalidation
- * - Simplified refresh logic
+ * - Removed complex configuration object in favor of simple parameters
+ * - Simplified refresh logic with useEffect
  * - Added smooth UI transitions
  * - Better error handling with cached data support
  */
@@ -60,35 +65,35 @@ const NearbyEvents: React.FC<NearbyEventsProps> = React.memo(({ refreshing, onFi
 
   // TanStack React Query hook - replaces useGetNearByEvents and all manual state management
   const {
-    events: nearbyEvents,
-    totalCount: totalEventCount,
+    data,
     isLoading,
     isError,
     error,
     isFetching,
     refetch,
-    isFirstFetch,
-    isTransitioning
-  } = useNearbyEventsQuery({
-    latitude: currentLocation?.lat,
-    longitude: currentLocation?.lng,
-    distance: selectedDistance,
-    previewMode: true,
-    previewLimit: 5,
-    displayMode: 'homeScreen',
-    onFinishRefresh,
-    locationText: currentLocation?.text,
-    enableSmoothTransitions: true,
-    usePlaceholderData: true,
-    enabled: Boolean(currentLocation?.lat && currentLocation?.lng) // Only fetch when we have coordinates
-  });
+  } = useInfiniteNearbyEvents(
+    currentLocation?.lat ?? 0,
+    currentLocation?.lng ?? 0,
+    selectedDistance,
+    5 // previewLimit
+  );
+  
+  // Extract events and totalCount from paginated response
+  const nearbyEvents = data?.pages.flatMap(page => page.events).slice(0, 5) ?? [];
+  const totalEventCount = data?.pages[0]?.totalCount ?? 0;
+  
+  // Handle finish refresh
+  React.useEffect(() => {
+    if (!isLoading && !error) {
+      onFinishRefresh?.();
+    }
+  }, [isLoading, error, onFinishRefresh]);
+  
 
   // Report errors to centralized error handling
   useEffect(() => {
     setComponentError('nearbyEvents', isError);
   }, [isError, setComponentError]);
-
-  // Location is now managed by LocationContext - removed local location fetching
 
   // Handle refresh when pull-to-refresh is triggered
   useEffect(() => {
@@ -136,9 +141,9 @@ const NearbyEvents: React.FC<NearbyEventsProps> = React.memo(({ refreshing, onFi
     // React Query will automatically refetch when selectedDistance changes
   };
 
-  // Show skeleton only on first fetch, not on refreshes
-  const shouldShowSkeleton = isFirstFetch && isLoading;
-  const shouldShowNoEvents = !isFirstFetch && nearbyEvents.length === 0 && !isLoading;
+  // Show skeleton only when no data exists and loading (true first fetch)
+  const shouldShowSkeleton = !data && isLoading;
+  const shouldShowNoEvents = !isLoading && nearbyEvents.length === 0;
 
   if (shouldShowSkeleton) {
     return (
@@ -262,7 +267,8 @@ const NearbyEvents: React.FC<NearbyEventsProps> = React.memo(({ refreshing, onFi
                 fontSize: 16, 
                 textAlign: 'center', 
                 marginTop: 12,
-                color: themeColors.textSecondary 
+                color: themeColors.placeholderTextColor,
+                fontWeight: '600'
               }}>
                 No nearby events found
               </ThemedText>
@@ -270,7 +276,7 @@ const NearbyEvents: React.FC<NearbyEventsProps> = React.memo(({ refreshing, onFi
                 fontSize: 14, 
                 textAlign: 'center', 
                 marginTop: 8,
-                color: themeColors.textThird 
+                color: themeColors.placeholderTextColor 
               }}>
                 Tap to refresh
               </ThemedText>

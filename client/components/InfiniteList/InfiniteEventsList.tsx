@@ -11,11 +11,19 @@ import {
   ViewToken
 } from 'react-native';
 import { FlashList, ListRenderItem as FlashListRenderItem } from '@shopify/flash-list';
+import { Event } from '@/types/allTypes';
 import { 
-  useInfiniteEventsQuery, 
-  InfiniteEventsQueryConfig,
-  InfiniteEvent as Event 
-} from '@/hooks/useInfiniteEventsQuery';
+  useInfiniteUpcomingEvents,
+  useInfinitePastEvents,
+  useInfiniteNearbyEvents,
+  useInfiniteFriendsEvents,
+  useInfiniteSearchEvents,
+  useInfiniteUserEvents,
+  useInfiniteCategoryEvents,
+  useInfiniteCityEvents,
+  useInfiniteRecommendedEvents,
+  useInfiniteAttentionRequiredEvents
+} from '@/hooks/useInfiniteEvents';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -23,9 +31,14 @@ import { ThemedText } from '@/components/ThemedText';
 
 
 /**
- * Infinite Events List Component
+ * Infinite Events List Component - MIGRATED to New TanStack Query Architecture
  * 
  * A comprehensive infinite scroll list component for events with:
+ * - Uses new simplified infinite hooks (useInfiniteUpcomingEvents, etc.)
+ * - Direct cache updates instead of invalidations
+ * - Single event store with tagging system
+ * - Better performance through unified caching
+ * - Automatic eventType routing to appropriate hooks
  * - Infinite scroll with automatic loading
  * - Pull-to-refresh functionality
  * - Smooth loading states and transitions
@@ -34,7 +47,23 @@ import { ThemedText } from '@/components/ThemedText';
  * - Error handling and retry mechanisms
  */
 
-interface InfiniteEventsListProps extends InfiniteEventsQueryConfig {
+interface InfiniteEventsListProps {
+  // Query configuration - simplified to match our new hooks
+  eventType: 'upcoming' | 'past' | 'nearby' | 'friends' | 'search' | 'user' | 'category' | 'city' | 'recommended' | 'attention-required';
+  pageSize?: number;
+  enabled?: boolean;
+  
+  // Event type specific parameters
+  latitude?: number;
+  longitude?: number;
+  distance?: number;
+  userId?: string;
+  searchQuery?: string;
+  category?: string;
+  city?: string;
+  year?: number;
+  month?: number;
+  
   // List configuration
   useFlashList?: boolean;
   estimatedItemSize?: number;
@@ -289,6 +318,34 @@ const LoadMoreButton: React.FC<{
   );
 };
 
+// Hook selector function to choose the right hook based on eventType
+const useInfiniteEventsHook = (eventType: string, props: any) => {
+  switch (eventType) {
+    case 'upcoming':
+      return useInfiniteUpcomingEvents(props.pageSize);
+    case 'past':
+      return useInfinitePastEvents(props.pageSize, { year: props.year, month: props.month });
+    case 'nearby':
+      return useInfiniteNearbyEvents(props.latitude, props.longitude, props.distance, props.pageSize);
+    case 'friends':
+      return useInfiniteFriendsEvents(props.pageSize);
+    case 'search':
+      return useInfiniteSearchEvents(props.searchQuery, props.pageSize);
+    case 'user':
+      return useInfiniteUserEvents(props.userId, props.pageSize);
+    case 'category':
+      return useInfiniteCategoryEvents(props.category, props.pageSize);
+    case 'city':
+      return useInfiniteCityEvents(props.city, props.pageSize);
+    case 'recommended':
+      return useInfiniteRecommendedEvents(props.pageSize);
+    case 'attention-required':
+      return useInfiniteAttentionRequiredEvents(props.pageSize);
+    default:
+      throw new Error(`Unknown eventType: ${eventType}`);
+  }
+};
+
 export const InfiniteEventsList: React.FC<InfiniteEventsListProps> = ({
   // Query configuration
   eventType,
@@ -298,8 +355,9 @@ export const InfiniteEventsList: React.FC<InfiniteEventsListProps> = ({
   userId,
   searchQuery,
   category,
-  startDate,
-  endDate,
+  city,
+  year,
+  month,
   pageSize = 10,
   enabled = true,
   
@@ -331,38 +389,37 @@ export const InfiniteEventsList: React.FC<InfiniteEventsListProps> = ({
   
   // Accessibility
   testID = 'infinite-events-list',
-  
-  // Pass through other query options
-  ...queryOptions
 }) => {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   
-  // Use the infinite query hook
-  const {
-    events,
-    isLoading,
-    isFetchingNextPage,
-    hasMore,
-    error,
-    isError,
-    loadMore,
-    refetch,
-    totalCount,
-  } = useInfiniteEventsQuery({
-    eventType,
+  // Use the appropriate infinite query hook based on eventType
+  const queryResult = useInfiniteEventsHook(eventType, {
+    pageSize,
     latitude,
     longitude,
     distance,
     userId,
     searchQuery,
     category,
-    startDate,
-    endDate,
-    pageSize,
-    enabled,
-    ...queryOptions,
+    city,
+    year,
+    month,
   });
+
+  // Extract data from the new hook structure
+  const events = useMemo(() => {
+    return queryResult.data?.pages.flatMap(page => page.events) || [];
+  }, [queryResult.data]);
+
+  const isLoading = queryResult.isLoading;
+  const isFetchingNextPage = queryResult.isFetchingNextPage;
+  const hasMore = queryResult.hasNextPage || false;
+  const error = queryResult.error;
+  const isError = queryResult.isError;
+  const loadMore = queryResult.fetchNextPage;
+  const refetch = queryResult.refetch;
+  const totalCount = queryResult.data?.pages?.[0]?.totalCount || 0;
 
   // Handle refresh
   const handleRefresh = useCallback(() => {
@@ -477,7 +534,13 @@ export const InfiniteEventsList: React.FC<InfiniteEventsListProps> = ({
   // Common list props
   const commonProps = {
     data: events,
-    keyExtractor: (item: Event, index: number) => item._id || `event-${index}`,
+    keyExtractor: (item: Event, index: number) => {
+      // Create a unique key that handles recurring events and ensures no collisions
+      const baseId = item._id || `event-${index}`;
+      const startTime = item.start_time ? new Date(item.start_time).getTime() : index;
+      const uniqueKey = `${baseId}-${startTime}-${index}`;
+      return uniqueKey;
+    },
     onEndReached: handleEndReached,
     onEndReachedThreshold,
     onViewableItemsChanged,

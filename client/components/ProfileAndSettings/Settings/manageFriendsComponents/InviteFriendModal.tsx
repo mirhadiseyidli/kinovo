@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, TouchableWithoutFeedback, Animated, KeyboardAvoidingView, Platform, Linking } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, TouchableWithoutFeedback, Animated, KeyboardAvoidingView, Platform, Linking, Alert } from 'react-native';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { ThemedView } from '@/components/ThemedView';
@@ -137,8 +137,38 @@ const InviteFriendModal: React.FC<InviteFriendModalProps> = ({ visible, onClose 
         handleClose();
       } catch (error: any) {
         console.error('Error sending invitation:', error);
-        const errorMessage = error.response?.data?.message || 'Failed to send invitation.';
-        showBanner(errorMessage);
+        // Try multiple ways to get the error message
+        const errorMessage = error.message || error.response?.data?.message || error.details?.message || 'Failed to send invitation.';
+        
+        // Check if user is already on Kinovo
+        if (errorMessage.includes('already on Kinovo')) {
+          Alert.alert(
+            'User Already on Kinovo',
+            'This person is already using Kinovo! You can find them by searching their name or username and send them a friend request directly.',
+            [
+              {
+                text: 'Got it',
+                style: 'default',
+                onPress: handleClose
+              }
+            ]
+          );
+        } else if (errorMessage.includes('already friends')) {
+          Alert.alert(
+            'Already Friends',
+            'You are already friends with this user!',
+            [
+              {
+                text: 'OK',
+                style: 'default',
+                onPress: handleClose
+              }
+            ]
+          );
+        } else {
+          // For other errors, show banner
+          showBanner(errorMessage);
+        }
       } finally {
         setLoading(false);
       }

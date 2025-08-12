@@ -1,5 +1,6 @@
 const User = require('../database/schemas/usersSchema');
 const Events = require('../database/schemas/eventsSchema');
+const { getUserFilterData, buildEventFilter, processEventsForDiscovery, enrichEventsWithUserData } = require('../utils/eventUtils');
 
 const searchPeople = async (req, res) => {
     try {
@@ -52,36 +53,45 @@ const searchRelevantEvents = async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Fetch the user's friends, reported events, and not interested events
-    const user = await User.findById(userId).select('friends reported_events not_interested_events');
-    const friendIds = user?.friends || [];
-    const reportedEventIds = (user?.reported_events || []).map(event => event.toString());
-    const notInterestedEventIds = (user?.not_interested_events || []).map(item => item.event.toString());
+    // Get user filter data using utility from eventUtils
+    const filterData = await getUserFilterData(userId);
 
-    // Build the query with term matching on title and description
-    const query = {
-      $and: [
-        {
-          $or: [
-            { visibility: 'public' }, // public
-            { visibility: 'private', creator: { $in: friendIds } }, // private if creator is a friend
-            { visibility: 'select', 'attendees.user': userId } // select if user is in attendees
-          ]
-        },
-        {
-          $or: [
-            { title: { $regex: term, $options: 'i' } },
-            { description: { $regex: term, $options: 'i' } }
-          ]
-        },
-        // Exclude reported events and not interested events
-        { _id: { $nin: [...reportedEventIds, ...notInterestedEventIds] } }
+    // Build event filter using eventUtils utility with search-specific filters
+    const eventFilter = buildEventFilter(filterData, { 
+      includePublic: true,
+      includePrivateFriends: true,
+      includeSelected: true,
+      userId: userId
+    });
+
+    // Add search term filters to the built filter
+    eventFilter.$and = eventFilter.$and || [];
+    eventFilter.$and.push({
+      $or: [
+        { title: { $regex: term, $options: 'i' } },
+        { description: { $regex: term, $options: 'i' } }
       ]
-    };
-    
-    const events = await Events.find(query).sort({ start_time: 1 });
+    });
 
-    res.status(200).json(events);
+    // Find events using the built filter with population
+    const events = await Events.find(eventFilter)
+      .populate('creator', 'first_name last_name username full_name profile_picture')
+      .populate('attendees.user', 'first_name last_name username full_name profile_picture')
+      .lean();
+
+    // Process events for discovery - show only next occurrence of recurring events, handle cancelled events
+    const processedEvents = await processEventsForDiscovery(events, {
+      excludeUserAttending: false,
+      userId: userId
+    });
+
+    // Add user-specific fields using utility
+    const eventsWithUserStatus = await enrichEventsWithUserData(processedEvents, userId, filterData.friends);
+
+    // Sort by start time
+    eventsWithUserStatus.sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+
+    res.status(200).json(eventsWithUserStatus);
   } catch (err) {
     console.error('Error fetching relevant events:', err);
     res.status(500).json({ error: 'Server error while fetching events.' });
