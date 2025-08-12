@@ -12,10 +12,9 @@ type AttendeeRowProps = {
   attendee: (NonNullable<Event['attendees']>)[number];
   isCreator: boolean;
   creatorId: string | undefined;
-  onRemove: (id: string) => void;
 };
 
-const AttendeeRow = React.memo<AttendeeRowProps>(({ attendee, isCreator, creatorId, onRemove }) => {
+const AttendeeRow = React.memo<AttendeeRowProps>(({ attendee, isCreator, creatorId }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
@@ -133,11 +132,6 @@ const AttendeeRow = React.memo<AttendeeRowProps>(({ attendee, isCreator, creator
           </View>
         </View>
       </TouchableOpacity>
-      {isCreator && attendee.user._id !== creatorId && (
-        <TouchableOpacity onPress={() => onRemove(attendee.user._id!)}>
-          <Feather name="x" size={20} color="red" />
-        </TouchableOpacity>
-      )}
     </View>
   );
 });

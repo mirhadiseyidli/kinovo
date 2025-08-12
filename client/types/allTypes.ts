@@ -821,6 +821,8 @@ export interface Event {
   isUserInvited: boolean;
   isUserCreator: boolean;
   isFriendEvent: boolean;
+  // Flag for recurring event modifications - indicates which event to display
+  eventToView?: boolean;
 }
 
 export type EventProp = {

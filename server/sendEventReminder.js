@@ -14,6 +14,11 @@ const {
   createEventReminderNotification,
 } = require('./controllers/notificationsController');
 
+// Import efficient reminder scheduling
+const {
+  scheduleNextOccurrenceReminder
+} = require('./utils/efficientReminderScheduling');
+
 /**
  * AWS Lambda handler invoked by EventBridge Scheduler.
  * Expects a JSON payload that includes the target `eventId`.
@@ -24,15 +29,15 @@ module.exports.handler = async (event = {}) => {
   const res = await axios.get('https://checkip.amazonaws.com');
   
   let eventId;
-  let userId;
   let reminderType;
+  let occurrenceDate;
 
   try {
     // EventBridge Scheduler sends the Input directly as the event object
-    // So we should access eventId, userId and reminderType directly from the event
+    // So we should access eventId, reminderType and occurrenceDate directly from the event
     eventId = event.eventId;
-    userId = event.userId;
     reminderType = event.reminderType;
+    occurrenceDate = event.occurrenceDate ? new Date(event.occurrenceDate) : null;
     
     // Fallback: try other possible formats for compatibility
     if (!eventId) {
@@ -41,8 +46,8 @@ module.exports.handler = async (event = {}) => {
         : event.detail || JSON.parse(event.body || '{}');
       
       eventId = payload.eventId;
-      userId = payload.userId;
       reminderType = payload.reminderType;
+      occurrenceDate = payload.occurrenceDate ? new Date(payload.occurrenceDate) : null;
     }
   } catch (err) {
     console.error('Failed to parse Scheduler payload:', err);
@@ -63,12 +68,13 @@ module.exports.handler = async (event = {}) => {
     // Default to 1-hour reminder for backward compatibility
     const notificationReminderType = reminderType === '10min' ? 'event_reminder_10_mins' : 'event_reminder_1_hour';
     
-    if (userId) {
-      // New user-specific reminder handling
-      await createEventReminderNotification(eventId, notificationReminderType, userId);
-    } else {
-      // Backward compatibility - send to all accepted attendees
-      await createEventReminderNotification(eventId, notificationReminderType);
+    // New efficient system: always send to all eligible attendees (no userId filtering in Lambda)
+    // The efficiency comes from scheduling fewer Lambda invocations, not from filtering users
+    await createEventReminderNotification(eventId, notificationReminderType);
+    
+    // If this was for a recurring event occurrence, schedule the next occurrence reminder
+    if (occurrenceDate) {
+      await scheduleNextOccurrenceReminder(eventId, occurrenceDate);
     }
     
     return {

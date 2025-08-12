@@ -32,7 +32,6 @@ export default React.memo(function Home() {
         <StatusBar
           barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'}
         />
-          {/* <HomeScreen /> */}
           <HomeScreenV2 />
       </ThemedView>
     </HomeErrorProvider>

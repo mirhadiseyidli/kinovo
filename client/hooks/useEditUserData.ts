@@ -18,8 +18,8 @@ export const useEditUserProfile = ({
 }: EditUserProfileParams) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showSavedMessage, setShowSavedMessage] = useState(false);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const delayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timeoutRef = useRef<number | null>(null);
+  const delayTimeoutRef = useRef<number | null>(null);
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -73,7 +73,7 @@ export const useEditUserProfile = ({
       const elapsed = Date.now() - startTime;
       if (elapsed < 1000) {
         await new Promise(resolve => {
-          delayTimeoutRef.current = setTimeout(resolve, 1000 - elapsed) as ReturnType<typeof setTimeout>;
+          delayTimeoutRef.current = setTimeout(resolve, 1000 - elapsed) as unknown as number;
         });
       }
       if (mountedRef.current) {
@@ -83,7 +83,7 @@ export const useEditUserProfile = ({
           if (mountedRef.current) {
             setShowSavedMessage(false);
           }
-        }, 2000) as ReturnType<typeof setTimeout>;
+        }, 2000) as unknown as number;
       }
     }
   };

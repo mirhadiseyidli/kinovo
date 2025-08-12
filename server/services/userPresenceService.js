@@ -42,7 +42,6 @@ class UserPresenceService {
 
       this.presenceTimeouts.set(userId, timeout);
 
-      logger.info(`User ${userId} set to online`);
       return presence;
     } catch (error) {
       logger.error('Error setting user online:', error);
@@ -71,7 +70,6 @@ class UserPresenceService {
       //   await this.notifyFriendsOfPresenceChange(userId, friendIds, false);
       // }
 
-      logger.info(`User ${userId} set to offline`);
       return presence;
     } catch (error) {
       logger.error('Error setting user offline:', error);
@@ -180,7 +178,6 @@ class UserPresenceService {
   async cleanupOldPresences() {
     try {
       await UserPresence.cleanupOldStatuses();
-      logger.info('Cleaned up old presence statuses');
     } catch (error) {
       logger.error('Error cleaning up old presences:', error);
     }
@@ -197,7 +194,6 @@ class UserPresenceService {
       }
       this.presenceTimeouts.clear();
 
-      logger.info('User presence service shut down');
     } catch (error) {
       logger.error('Error during presence service shutdown:', error);
     }

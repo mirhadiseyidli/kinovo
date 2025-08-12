@@ -12,7 +12,7 @@ import Event from '@/components/Event';
 import PastEvent from '@/components/Home/PastEvent'
 import EventFilters, { type DateFilter } from '@/components/Home/EventFilters';
 import { EventCardSkeleton } from '../Skeleton';
-import { usePastEventsInfiniteQuery } from '@/hooks/usePastEventsInfiniteQuery';
+import { useInfinitePastEvents } from '@/hooks/useInfiniteEvents';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import Animated, { useSharedValue, withTiming, useAnimatedStyle } from 'react-native-reanimated';
@@ -22,10 +22,14 @@ import { queryClient } from '@/utils/queryClient';
 import AISummary from './AISummary.v2';
 
 /**
- * HomeScreen v2 - Using FlashList for all content with infinite scroll for past events
+ * HomeScreen.v2 - MIGRATED to New TanStack Query Architecture
  * 
  * This version uses a single FlashList to render all components as sections,
  * similar to Discover.v2, with:
+ * - New simplified TanStack Query architecture with useInfinitePastEvents
+ * - Direct cache updates instead of invalidations for better performance
+ * - Single event store with tagging system
+ * - Better performance through unified caching
  * - Hide-on-scroll header animation
  * - Infinite scroll for past events with server-side pagination
  * - Month/year filtering for past events
@@ -134,21 +138,31 @@ const HomeScreenV2 = () => {
   });
 
   // Use infinite query for past events with current filter
+  const filters = React.useMemo(() => {
+    if (pastEventsDateFilter.type === 'year' && pastEventsDateFilter.date) {
+      return { year: pastEventsDateFilter.date.getFullYear() };
+    } else if (pastEventsDateFilter.type === 'month' && pastEventsDateFilter.date) {
+      return { 
+        year: pastEventsDateFilter.date.getFullYear(),
+        month: pastEventsDateFilter.date.getMonth() // Keep JS 0-based months (0=January, 6=July)
+      };
+    }
+    return {};
+  }, [pastEventsDateFilter]);
+  
   const {
-    events: pastEvents,
+    data,
     isLoading: isLoadingPastEvents,
     isError: isErrorPastEvents,
-    hasMore: hasMorePastEvents,
-    loadMore: loadMorePastEvents,
+    hasNextPage: hasMorePastEvents,
+    fetchNextPage: loadMorePastEvents,
     isFetchingNextPage: isFetchingNextPagePastEvents,
     refetch: refetchPastEvents,
-    totalCount: pastEventsTotalCount,
-  } = usePastEventsInfiniteQuery({
-    dateFilter: pastEventsDateFilter,
-    pageSize: 5,
-    enabled: true,
-    staleTime: 1000 * 60 * 5, // 5 minutes cache
-  });
+  } = useInfinitePastEvents(5, filters);
+  
+  // Extract events and totalCount from paginated response
+  const pastEvents = data?.pages.flatMap(page => page.events) ?? [];
+  const pastEventsTotalCount = data?.pages[0]?.totalCount ?? 0;
 
   // Report past events errors to centralized error handling
   React.useEffect(() => {
@@ -163,12 +177,8 @@ const HomeScreenV2 = () => {
     setRefreshingAIInsights(true);
     
     try {
-      // Invalidate all event-related queries to force fresh data
-      await queryClient.invalidateQueries({ queryKey: ['events'] });
-      await queryClient.invalidateQueries({ queryKey: ['upcomingEvents'] });
-      await queryClient.invalidateQueries({ queryKey: ['attentionRequired'] });
-      await queryClient.invalidateQueries({ queryKey: ['pastEvents'] });
-      await queryClient.invalidateQueries({ queryKey: ['aiInsights'] });
+      // Refresh the unified event store - this will update most event-related data
+      await queryClient.refetchQueries({ queryKey: ['events'] });
       
       // Refresh past events
       await refetchPastEvents();
@@ -237,7 +247,7 @@ const HomeScreenV2 = () => {
       sections.push({ id: 'errorMessage', type: 'errorMessage' });
     }
 
-    // Upcoming Events section
+    // AI Summary section
     sections.push({ id: 'aiSummary', type: 'aiSummary' });
     
     // Upcoming Events section
@@ -510,7 +520,7 @@ const HomeScreenV2 = () => {
         ref={flashListRef}
         data={sections}
         renderItem={renderItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item, index) => `home-section-${item.id}-${index}`}
         getItemType={getItemType}
         stickyHeaderIndices={[0]}
         refreshControl={

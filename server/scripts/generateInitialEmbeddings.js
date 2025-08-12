@@ -13,13 +13,10 @@ const EventEmbeddings = require('../database/schemas/eventEmbeddingsSchema');
 const UserEmbeddings = require('../database/schemas/userEmbeddingsSchema');
 
 async function generateEventEmbeddings() {
-  console.log('🎯 Generating event embeddings...');
   
   const events = await Events.find({}).lean();
-  console.log(`Found ${events.length} events to process`);
   
   if (events.length === 0) {
-    console.log('No events found to process');
     return;
   }
   
@@ -31,7 +28,6 @@ async function generateEventEmbeddings() {
       // Check if embedding already exists
       const existingEmbedding = await EventEmbeddings.findOne({ event: event._id });
       if (existingEmbedding) {
-        console.log(`⏭️  Skipping event ${event._id} - embedding already exists`);
         continue;
       }
       
@@ -84,7 +80,6 @@ async function generateEventEmbeddings() {
       await eventEmbedding.save();
       processed++;
       
-      console.log(`✅ Processed event: ${titleText} (${processed}/${events.length})`);
       
       // Rate limiting to avoid API limits
       await new Promise(resolve => setTimeout(resolve, 200));
@@ -95,17 +90,13 @@ async function generateEventEmbeddings() {
     }
   }
   
-  console.log(`🎉 Event embeddings complete: ${processed} processed, ${errors} errors`);
 }
 
 async function generateUserEmbeddings() {
-  console.log('👤 Generating user embeddings...');
   
   const users = await Users.find({}).lean();
-  console.log(`Found ${users.length} users to process`);
   
   if (users.length === 0) {
-    console.log('No users found to process');
     return;
   }
   
@@ -117,7 +108,6 @@ async function generateUserEmbeddings() {
       // Check if embedding already exists
       const existingEmbedding = await UserEmbeddings.findOne({ user: user._id });
       if (existingEmbedding) {
-        console.log(`⏭️  Skipping user ${user._id} - embedding already exists`);
         continue;
       }
       
@@ -162,8 +152,6 @@ async function generateUserEmbeddings() {
       await userEmbedding.save();
       processed++;
       
-      console.log(`✅ Processed user: ${user.full_name || user.username} (${processed}/${users.length})`);
-      
       // Rate limiting to avoid API limits
       await new Promise(resolve => setTimeout(resolve, 200));
       
@@ -172,15 +160,11 @@ async function generateUserEmbeddings() {
       errors++;
     }
   }
-  
-  console.log(`🎉 User embeddings complete: ${processed} processed, ${errors} errors`);
 }
 
 async function main() {
   try {
-    console.log('🔗 Connecting to MongoDB Atlas...');
     await mongoose.connect(process.env.MONGODB_URI);
-    console.log('✅ Connected to database');
     
     // Check if we have OpenAI API key
     if (!process.env.OPENAI_API_KEY) {
@@ -191,13 +175,10 @@ async function main() {
     await generateEventEmbeddings();
     await generateUserEmbeddings();
     
-    console.log('🎊 All embeddings generated successfully!');
-    
   } catch (error) {
     console.error('💥 Script failed:', error.message);
   } finally {
     await mongoose.connection.close();
-    console.log('👋 Database connection closed');
   }
 }
 

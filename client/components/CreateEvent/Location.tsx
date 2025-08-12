@@ -23,6 +23,7 @@ interface LocationComponentProps {
   setShowSuggestions: (show: boolean) => void;
   onLocationSelect: (text: string, city: string, state: string, location: any) => void;
   onLocationSelectRef: React.MutableRefObject<((text: string, city: string, state: string, location: any) => void) | null>;
+  onInputPositionChange?: (position: { x: number; y: number; width: number; height: number } | null) => void;
 }
 
 const LocationComponent: React.FC<LocationComponentProps> = ({
@@ -32,6 +33,7 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
   setShowSuggestions,
   onLocationSelect,
   onLocationSelectRef,
+  onInputPositionChange,
 }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
@@ -50,6 +52,7 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
       : null
   );
   const [mapSnapshotUrl, setMapSnapshotUrl] = useState<{light: string | null, dark: string | null} | null>(null);
+  const inputRef = useRef<View>(null);
 
   const getUserLocation = async () => {
     // Require explicit permission from context
@@ -71,7 +74,6 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
 
   const generateMapSnapshot = async (lat: number, lon: number) => {
     try {
-      console.log('[CreateEvent] Generating map snapshot URLs for location preview...');
       const response = await api.post('/api/mapkit/snapshot-urls', {
         lat,
         lon,
@@ -87,11 +89,6 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
           dark: response.data.dark
         };
         setMapSnapshotUrl(snapshotUrls);
-        console.log('[CreateEvent] Map snapshot URLs generated successfully');
-        console.log('[CreateEvent] Light snapshot URL:', snapshotUrls.light);
-        console.log('[CreateEvent] Dark snapshot URL:', snapshotUrls.dark);
-      } else {
-        console.log('[CreateEvent] No snapshot URLs in response:', response.data);
       }
     } catch (error) {
       console.error('[CreateEvent] Failed to generate map snapshot URLs:', error);
@@ -194,10 +191,8 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
     setShowSuggestions(false);
 
     if (!isNaN(location.latitude) && !isNaN(location.longitude)) {
-      console.log('[CreateEvent] About to generate snapshot for:', location.latitude, location.longitude);
       // Generate map snapshot first, then set coordinates
       await generateMapSnapshot(location.latitude, location.longitude);
-      console.log('[CreateEvent] Snapshot generation completed, setting coordinates...');
       setCoordinates({ latitude: location.latitude, longitude: location.longitude });
     } else {
       console.error("Invalid coordinates received:", location);
@@ -257,6 +252,11 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
   };
 
   const handleInputFocus = () => {
+    // Measure input position and pass to parent
+    inputRef.current?.measureInWindow((x, y, width, height) => {
+      onInputPositionChange?.({ x, y, width, height });
+    });
+    
     if (suggestions.length > 0) {
       setShowSuggestions(true);
     }
@@ -268,6 +268,7 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
     <ThemedView>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View 
+          ref={inputRef}
           style={{
             flexDirection: 'row',
             alignItems: 'center',

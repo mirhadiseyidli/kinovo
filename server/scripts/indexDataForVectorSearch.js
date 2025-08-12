@@ -41,7 +41,6 @@ async function generateEventEmbeddings(event) {
       .join(' ');
 
     if (!combinedText.trim()) {
-      console.log(`⚠️  Skipping event ${event._id} - no content to embed`);
       return null;
     }
 
@@ -115,7 +114,6 @@ async function generateUserEmbeddings(user) {
     const combinedProfileText = profileParts.join(' ');
 
     if (!combinedProfileText.trim()) {
-      console.log(`⚠️  Skipping user ${user._id} - no content to embed`);
       return null;
     }
 
@@ -180,15 +178,12 @@ async function indexEvents(options = {}) {
   const { batchSize = 10, limit = null, skipExisting = true } = options;
 
   try {
-    console.log('🎪 Starting event indexing...');
 
     // Get total count
     const totalEvents = await Events.countDocuments();
-    console.log(`📊 Total events in database: ${totalEvents}`);
 
     if (skipExisting) {
       const existingCount = await EventEmbeddings.countDocuments();
-      console.log(`📊 Existing event embeddings: ${existingCount}`);
     }
 
     let processed = 0;
@@ -205,8 +200,6 @@ async function indexEvents(options = {}) {
         .skip(skip)
         .limit(batchSize)
         .lean();
-
-      console.log(`\\n📦 Processing batch ${batch + 1}/${batches} (${events.length} events)`);
 
       for (const event of events) {
         try {
@@ -249,9 +242,6 @@ async function indexEvents(options = {}) {
       }
     }
 
-    console.log(`\\n\\n🎉 Event indexing complete!`);
-    console.log(`📊 Stats: ${successful} successful, ${skipped} skipped, ${processed - successful - skipped} failed`);
-
   } catch (error) {
     console.error('❌ Event indexing failed:', error);
     throw error;
@@ -265,15 +255,12 @@ async function indexUsers(options = {}) {
   const { batchSize = 10, limit = null, skipExisting = true } = options;
 
   try {
-    console.log('👥 Starting user indexing...');
 
     // Get total count
     const totalUsers = await Users.countDocuments();
-    console.log(`📊 Total users in database: ${totalUsers}`);
 
     if (skipExisting) {
       const existingCount = await UserEmbeddings.countDocuments();
-      console.log(`📊 Existing user embeddings: ${existingCount}`);
     }
 
     let processed = 0;
@@ -290,8 +277,6 @@ async function indexUsers(options = {}) {
         .skip(skip)
         .limit(batchSize)
         .lean();
-
-      console.log(`\\n📦 Processing batch ${batch + 1}/${batches} (${users.length} users)`);
 
       for (const user of users) {
         try {
@@ -334,9 +319,6 @@ async function indexUsers(options = {}) {
       }
     }
 
-    console.log(`\\n\\n🎉 User indexing complete!`);
-    console.log(`📊 Stats: ${successful} successful, ${skipped} skipped, ${processed - successful - skipped} failed`);
-
   } catch (error) {
     console.error('❌ User indexing failed:', error);
     throw error;
@@ -357,17 +339,6 @@ async function showStatus() {
       UserEmbeddings.countDocuments(),
     ]);
 
-    console.log(`\\n📊 Vector Search Indexing Status:`);
-    console.log(`\\n🎪 Events:`);
-    console.log(`  - Total events: ${totalEvents}`);
-    console.log(`  - Indexed events: ${eventEmbeddings}`);
-    console.log(`  - Coverage: ${totalEvents > 0 ? ((eventEmbeddings / totalEvents) * 100).toFixed(1) : 0}%`);
-
-    console.log(`\\n👥 Users:`);
-    console.log(`  - Total users: ${totalUsers}`);
-    console.log(`  - Indexed users: ${userEmbeddings}`);
-    console.log(`  - Coverage: ${totalUsers > 0 ? ((userEmbeddings / totalUsers) * 100).toFixed(1) : 0}%`);
-
     // Show recent embeddings
     const recentEventEmbeddings = await EventEmbeddings.find({})
       .sort({ created_at: -1 })
@@ -378,20 +349,6 @@ async function showStatus() {
       .sort({ created_at: -1 })
       .limit(3)
       .populate('user', 'full_name username');
-
-    if (recentEventEmbeddings.length > 0) {
-      console.log(`\\n🔍 Recent Event Embeddings:`);
-      recentEventEmbeddings.forEach(e => {
-        console.log(`  - ${e.event?.title || 'Unknown'} (${e.event?.category || 'No category'})`);
-      });
-    }
-
-    if (recentUserEmbeddings.length > 0) {
-      console.log(`\\n🔍 Recent User Embeddings:`);
-      recentUserEmbeddings.forEach(u => {
-        console.log(`  - ${u.user?.full_name || u.user?.username || 'Unknown'}`);
-      });
-    }
 
   } catch (error) {
     console.error('❌ Status check failed:', error);
@@ -430,9 +387,7 @@ async function main() {
         break;
 
       case 'all':
-        console.log('🚀 Starting complete indexing...');
         await indexEvents({ batchSize: 5, skipExisting: true });
-        console.log('\\n');
         await indexUsers({ batchSize: 5, skipExisting: true });
         break;
 
@@ -441,29 +396,6 @@ async function main() {
         return;
 
       default:
-        console.log(`
-🔍 Vector Search Data Indexing
-
-Usage:
-  node indexDataForVectorSearch.js <command> [options]
-
-Commands:
-  events [batchSize] [limit] [force]  Index events (default: batch=10)
-  users [batchSize] [limit] [force]   Index users (default: batch=10)
-  all                                 Index both events and users
-  status                              Show indexing status
-
-Options:
-  batchSize  Number of items to process at once (default: 10)
-  limit      Maximum number of items to process (default: all)
-  force      Skip existing check and reindex all
-
-Examples:
-  node indexDataForVectorSearch.js events 5 100     # Index first 100 events, 5 at a time
-  node indexDataForVectorSearch.js users 10         # Index all users, 10 at a time
-  node indexDataForVectorSearch.js all              # Index everything
-  node indexDataForVectorSearch.js status           # Show current status
-        `);
         break;
     }
 

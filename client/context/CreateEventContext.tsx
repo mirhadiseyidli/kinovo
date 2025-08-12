@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { CreateEventContextType, Event, AttendeeFriend } from '@/types/allTypes';
-import { useCreateEventMutation, useUpdateEventMutation } from '@/hooks/useCreateEventMutation';
+import { useCreateEvent, useUpdateEvent } from '@/hooks/useNewEventMutations';
 import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -37,8 +37,8 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
     state: null,
     coordinates: { lat: null, lng: null },
   });
-  const [startTime, setStartTime] = useState<Date | null>(new Date());
-  const [endTime, setEndTime] = useState<Date | null>(new Date());
+  const [startTime, setStartTime] = useState<Date | null>(null);
+  const [endTime, setEndTime] = useState<Date | null>(null);
   const [capacity, setCapacity] = useState<number | null>(null);
   const [recurrence, setRecurrence] = useState<{
     checked: boolean;
@@ -63,8 +63,8 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [eventId, setEventId] = useState<string | null>(null);
 
   // TanStack Query mutations
-  const createEventMutation = useCreateEventMutation();
-  const updateEventMutation = useUpdateEventMutation();
+  const createEventMutation = useCreateEvent();
+  const updateEventMutation = useUpdateEvent();
 
   // Define loadEventForEdit separately first
   const loadEventForEdit = (eventToEdit: Event) => {
@@ -290,10 +290,8 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
       
       // Call API based on whether we're creating or editing
       if (isEditMode && eventId) {
-        // Use TanStack Query mutation for editing
-        response = await updateEventMutation.mutateAsync({ eventId, updates: eventData });
+        response = await updateEventMutation.mutateAsync({ eventId: eventId, ...eventData });
       } else {
-        // Create new event with TanStack Query mutation
         response = await createEventMutation.mutateAsync(eventData);
       }
       

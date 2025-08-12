@@ -36,7 +36,6 @@ const googleAuth = async (req, res) => {
 
   try {
     const { userId, email, name, payload } = await verifyIdToken(idToken);
-    logger.info(`Google Token Verified for user ID: ${userId}`);
 
     const firstName = payload.given_name || 'FirstName';
     const lastName = payload.family_name || 'LastName';
@@ -46,7 +45,6 @@ const googleAuth = async (req, res) => {
 
     let user = await User.findOne({ google_id: userId });
     if (!user) {
-      logger.info(`Creating new user for Google ID: ${userId}`);
       
       // Generate default profile image if none provided
       let finalProfilePicture = profilePicture;
@@ -116,7 +114,6 @@ const appleAuth = async (req, res) => {
 
   try {
     const { userId, email, email_verified, payload } = await verifyIdentityToken(identityToken);
-    logger.info(`Apple Token Verified for user ID: ${userId}`);
 
     // Apple might not return these details every time, so we need to handle that
     const firstName = user?.fullName?.givenName || 'FirstName';
@@ -145,7 +142,6 @@ const appleAuth = async (req, res) => {
     }
 
     if (!existingUser) {
-      logger.info(`Creating new user for Apple ID: ${userId}`);
       
       // For testing purpose, use default values if needed
       const finalEmail = userEmail || `apple_${userId}@example.com`;
@@ -885,7 +881,6 @@ const resetPasswordRequest = async (req, res) => {
       html: passwordResetEmailTemplate(user.first_name || 'User', resetCode)
     });
 
-    logger.info(`Password reset code sent to: ${email}`);
     res.json({
       success: true,
       message: 'Password reset code sent to your email'
@@ -955,7 +950,6 @@ const resetPassword = async (req, res) => {
     user.reset_password_expires = undefined;
     await user.save();
 
-    logger.info(`Password reset completed for user: ${email}`);
     res.json({
       success: true,
       message: 'Password reset successfully'

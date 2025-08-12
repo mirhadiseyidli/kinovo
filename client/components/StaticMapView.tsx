@@ -46,12 +46,7 @@ const StaticMapView: React.FC<StaticMapViewProps> = ({
     ? (colorScheme === 'dark' ? mapSnapshotUrl.dark : mapSnapshotUrl.light)
     : null;
 
-  console.log('[StaticMapView] Received mapSnapshotUrl:', mapSnapshotUrl);
-  console.log('[StaticMapView] Current theme:', colorScheme);
-  console.log('[StaticMapView] Selected URL:', currentMapSnapshotUrl);
-
   const handleImageError = useCallback(() => {
-    console.log('Map snapshot failed to load, falling back to interactive map');
     setImageError(true);
     setImageLoading(false);
   }, []);
@@ -65,7 +60,7 @@ const StaticMapView: React.FC<StaticMapViewProps> = ({
     width: width as any,
     borderRadius: 8,
     overflow: 'hidden',
-    backgroundColor: themeColors.mapBackground || themeColors.card,
+    backgroundColor: themeColors.skeletonBoxColor || themeColors.card,
     ...style as ViewStyle
   };
 
@@ -77,24 +72,14 @@ const StaticMapView: React.FC<StaticMapViewProps> = ({
 
   // If no snapshot URL or image failed to load, use interactive map
   if (!currentMapSnapshotUrl || imageError) {
-    // Log the specific reason for fallback
-    if (!mapSnapshotUrl) {
-      console.log('[StaticMapView] No map snapshot URL provided, falling back to interactive map');
-    } else if (!currentMapSnapshotUrl) {
-      console.log(`[StaticMapView] No ${colorScheme} theme snapshot URL available (light: ${mapSnapshotUrl?.light ? 'yes' : 'no'}, dark: ${mapSnapshotUrl?.dark ? 'yes' : 'no'}), falling back to interactive map`);
-    } else if (imageError) {
-      console.log(`[StaticMapView] Image failed to load for ${colorScheme} theme (URL: ${currentMapSnapshotUrl}), falling back to interactive map`);
-    }
-
     if (!fallbackToInteractive) {
-      console.log('[StaticMapView] Fallback to interactive map disabled, showing placeholder');
       return (
         <View style={containerStyle}>
           <View style={{ 
             flex: 1, 
             justifyContent: 'center', 
             alignItems: 'center',
-            backgroundColor: themeColors.mapBackground || themeColors.card
+            backgroundColor: themeColors.skeletonBoxColor || themeColors.card
           }}>
             <Feather name="map" size={32} color={themeColors.placeholderTextColor} />
             <Text style={{ 
@@ -109,7 +94,6 @@ const StaticMapView: React.FC<StaticMapViewProps> = ({
       );
     }
 
-    console.log('[StaticMapView] Using interactive map fallback');
     return (
       <OptimizedMapView
         coordinates={coordinates}
@@ -139,7 +123,7 @@ const StaticMapView: React.FC<StaticMapViewProps> = ({
             bottom: 0,
             justifyContent: 'center',
             alignItems: 'center',
-            backgroundColor: themeColors.mapBackground || themeColors.card,
+            backgroundColor: themeColors.skeletonBoxColor || themeColors.card,
             zIndex: 1
           }}>
             <MapSkeleton height={typeof height === 'number' ? height : 150} />

@@ -6,7 +6,6 @@ const mapKitService = require('../services/appleMapKitService');
 const MAP_SNAPSHOT_SCHEDULE = '0 3 * * *';
 
 async function generateMissingMapSnapshots() {
-  console.log('[MapSnapshot Cron] Starting map snapshot generation for events...');
   
   try {
     // Find events created in the last 7 days that are missing map snapshots
@@ -26,11 +25,8 @@ async function generateMissingMapSnapshots() {
     .select('_id title location creator');
 
     if (events.length === 0) {
-      console.log('[MapSnapshot Cron] No events need map snapshots');
       return;
     }
-
-    console.log(`[MapSnapshot Cron] Found ${events.length} events needing map snapshots`);
 
     let successful = 0;
     let failed = 0;
@@ -60,7 +56,6 @@ async function generateMissingMapSnapshots() {
         );
 
         successful++;
-        console.log(`[MapSnapshot Cron] ✓ Generated snapshot for: ${event.title}`);
       } catch (error) {
         failed++;
         console.error(`[MapSnapshot Cron] ✗ Failed for event ${event._id}:`, error.message);
@@ -70,7 +65,6 @@ async function generateMissingMapSnapshots() {
       await new Promise(resolve => setTimeout(resolve, 500));
     }
 
-    console.log(`[MapSnapshot Cron] Completed: ${successful} successful, ${failed} failed`);
   } catch (error) {
     console.error('[MapSnapshot Cron] Error:', error);
   }
@@ -85,11 +79,9 @@ const mapSnapshotJob = cron.schedule(MAP_SNAPSHOT_SCHEDULE, generateMissingMapSn
 module.exports = {
   startMapSnapshotCron: () => {
     mapSnapshotJob.start();
-    console.log('[MapSnapshot Cron] Job scheduled to run daily at 3 AM');
   },
   stopMapSnapshotCron: () => {
     mapSnapshotJob.stop();
-    console.log('[MapSnapshot Cron] Job stopped');
   },
   // Manual trigger for testing
   triggerMapSnapshotGeneration: generateMissingMapSnapshots

@@ -125,6 +125,13 @@ export const findEventByTitleSchema = z.object({
   type: z.enum(['upcoming', 'past', 'all']).default('all').describe('Type of events to search in'),
 });
 
+// Location search schema
+export const searchLocationSchema = z.object({
+  query: z.string().describe('The location query (e.g., "Central Park", "123 Main St, New York", "Starbucks near Times Square")'),
+  userLat: z.number().optional().describe('User\'s current latitude for location bias'),
+  userLng: z.number().optional().describe('User\'s current longitude for location bias'),
+});
+
 // Join event schema
 export const joinEventSchema = z.object({
   eventId: z.string().describe('The MongoDB ObjectId of the event to join'),

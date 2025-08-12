@@ -7,13 +7,7 @@ const {
   createEventInvitationNotification, 
   createEventAttendanceNotification 
 } = require('../controllers/notificationsController');
-const { 
-  scheduleRecurringEventReminders, 
-  deleteAllEventReminders, 
-  updateAttendeeReminders, 
-  deleteUserEventReminders, 
-  handleRecurringEventReminderUpdate
-} = require('./reminderSchedulingUtils');
+// Reminder scheduling is now handled directly in eventsController.js
 
 // Global helper: build a stable occurrence ID (baseId-yyyy-MM-dd)
 const buildOccurrenceId = (baseId, date) => {
@@ -313,7 +307,8 @@ const processEventsWithRecurrence = (events, startRange = null, endRange = null)
  * @returns {Array} Filtered events with user status
  */
 const filterUserEvents = (userEvents, reportedEventIds, notInterestedEventIds, allowedStatuses = ['accepted', 'maybe']) => {
-  return (userEvents || [])
+  // First filter valid events
+  const filteredEvents = (userEvents || [])
     .filter(userEvent => {
       if (!userEvent.event) return false;
       
@@ -329,11 +324,32 @@ const filterUserEvents = (userEvents, reportedEventIds, notInterestedEventIds, a
       }
       
       return hasAllowedStatus && !isReported && !isNotInterested;
-    })
-    .map(userEvent => ({
-      ...userEvent.event.toObject(),
-      userStatus: userEvent.status
-    }));
+    });
+  
+  // Deduplicate by event ID, keeping the first occurrence (or prioritizing 'accepted' status)
+  const eventMap = new Map();
+  filteredEvents.forEach(userEvent => {
+    const eventId = userEvent.event._id.toString();
+    
+    // If we haven't seen this event yet, add it
+    if (!eventMap.has(eventId)) {
+      eventMap.set(eventId, {
+        ...userEvent.event.toObject(),
+        userStatus: userEvent.status
+      });
+    } else {
+      // If we have a duplicate, keep the one with 'accepted' status if available
+      const existing = eventMap.get(eventId);
+      if (userEvent.status === 'accepted' && existing.userStatus !== 'accepted') {
+        eventMap.set(eventId, {
+          ...userEvent.event.toObject(),
+          userStatus: userEvent.status
+        });
+      }
+    }
+  });
+  
+  return Array.from(eventMap.values());
 };
 
 /**
@@ -477,9 +493,11 @@ const addExcludedDate = async (event, dateToExclude) => {
  * @returns {number} Index of attendee or -1 if not found
  */
 const findAttendeeIndex = (event, userId) => {
-  return event.attendees.findIndex(
-    attendee => attendee.user.toString() === userId.toString()
-  );
+  return event.attendees.findIndex(attendee => {
+    // Handle both populated and non-populated user field
+    const attendeeUserId = attendee.user?._id || attendee.user;
+    return attendeeUserId?.toString() === userId?.toString();
+  });
 };
 
 /**
@@ -557,11 +575,20 @@ const updateEventAttendee = async (event, userId, status) => {
     // Update existing attendee
     event.attendees[attendeeIndex].status = status;
   } else {
-    // Add new attendee
-    event.attendees.push({
-      user: userId,
-      status
-    });
+    // Add new attendee with populated user object
+    const populatedUser = await User.findById(userId);
+    if (populatedUser) {
+      event.attendees.push({
+        user: populatedUser,
+        status
+      });
+    } else {
+      // Fallback to ObjectId if user not found
+      event.attendees.push({
+        user: userId,
+        status
+      });
+    }
   }
   
   await event.save();
@@ -716,6 +743,7 @@ const handleRecurringEventModification = async (event, occurrenceDate, modifyTyp
  * @returns {Object} Validation result
  */
 const validateInputParams = (params, required) => {
+  
   const missing = [];
   const invalid = [];
 
@@ -726,18 +754,25 @@ const validateInputParams = (params, required) => {
   }
 
   // Specific validations
-  if ('status' in params && !['accepted', 'maybe', 'rejected', 'pending'].includes(params.status)) {
-    invalid.push({ param: 'status', message: 'Invalid status value' });
+  // Only validate status if it's specifically required (for RSVP operations)
+  if (required.includes('status') && 'status' in params) {
+    if (!['accepted', 'maybe', 'rejected', 'pending'].includes(params.status)) {
+      invalid.push({ param: 'status', message: 'Invalid attendee status value' });
+    }
   }
 
-  if ('eventId' in params && typeof params.eventId !== 'string') {
-    invalid.push({ param: 'eventId', message: 'Event ID must be a string' });
+  if ('eventId' in params) {
+    if (typeof params.eventId !== 'string') {
+      invalid.push({ param: 'eventId', message: 'Event ID must be a string' });
+    }
   }
 
-  if ('attendeeId' in params && typeof params.attendeeId !== 'string') {
-    invalid.push({ param: 'attendeeId', message: 'Attendee ID must be a string' });
+  if ('attendeeId' in params) {
+    if (typeof params.attendeeId !== 'string') {
+      invalid.push({ param: 'attendeeId', message: 'Attendee ID must be a string' });
+    }
   }
-
+  
   return {
     isValid: missing.length === 0 && invalid.length === 0,
     missing,
@@ -1059,7 +1094,9 @@ const processEventsWithRecurrenceEnhanced = (events, startDate, endDate, include
  * @returns {boolean} True if user is the creator, false otherwise
  */
 const validateEventCreatorPermission = (event, userId) => {
-  return event?.creator?.toString?.() === userId?.toString?.();
+  // Handle both populated and non-populated creator field
+  const creatorId = event?.creator?._id || event?.creator;
+  return creatorId?.toString() === userId?.toString();
 };
 
 /**
@@ -1118,6 +1155,15 @@ const createSeparateOccurrenceEvent = async (originalEvent, occurrenceDate, modi
   const duration = originalEndDate.getTime() - originalStartDate.getTime();
   const occurrenceEndDate = new Date(occurrenceStartDate.getTime() + duration);
   
+  // Ensure attendees are in the correct format (just user IDs, not populated objects)
+  let attendeesData = modifications.attendees || originalEvent.attendees;
+  if (attendeesData && attendeesData.length > 0) {
+    attendeesData = attendeesData.map(att => ({
+      user: typeof att.user === 'object' && att.user._id ? att.user._id : att.user,
+      status: att.status
+    }));
+  }
+  
   // Merge original event data with modifications
   const eventData = {
     creator: originalEvent.creator,
@@ -1130,7 +1176,7 @@ const createSeparateOccurrenceEvent = async (originalEvent, occurrenceDate, modi
     end_time: modifications.end_time ? new Date(modifications.end_time) : occurrenceEndDate,
     capacity: modifications.capacity !== undefined ? modifications.capacity : originalEvent.capacity,
     recurrence: { checked: false, frequency: null, end_date: null }, // Make it non-recurring
-    attendees: modifications.attendees || originalEvent.attendees,
+    attendees: attendeesData,
     visibility: modifications.visibility || originalEvent.visibility,
     excludedDates: [], // Single events don't need excludedDates
     status: 'upcoming'
@@ -1141,7 +1187,11 @@ const createSeparateOccurrenceEvent = async (originalEvent, occurrenceDate, modi
   // Add this date to the original event's excludedDates
   await addExcludedDate(originalEvent, occurrenceStartDate);
   
-  return separateEvent;
+  // Populate the separate event before returning
+  const populatedSeparateEvent = await Events.findById(separateEvent._id)
+    .populate(getStandardEventPopulation());
+  
+  return populatedSeparateEvent;
 };
 
 /**
@@ -1240,9 +1290,14 @@ const splitRecurringEvent = async (originalEvent, splitDate, modifications = {})
     end_time: futureEndTime,
     capacity: modifications.capacity !== undefined ? modifications.capacity : originalEvent.capacity,
     recurrence: futureRecurrence,
-    attendees: modifications.attendees || originalEvent.attendees,
+    attendees: modifications.attendees || (originalEvent.attendees || []).map(att => ({
+      user: att.user._id || att.user, // Normalize to ObjectId
+      status: att.status
+    })),
     visibility: modifications.visibility || originalEvent.visibility,
-    excludedDates: originalEvent.excludedDates ? [...originalEvent.excludedDates] : [],
+    excludedDates: originalEvent.excludedDates 
+      ? originalEvent.excludedDates.filter(date => new Date(date) >= splitStartDate)
+      : [],
     status: 'upcoming'
   };
   
@@ -1265,9 +1320,20 @@ const synchronizeUserEventList = async (userId, originalEventId, newEventId = nu
   const user = await User.findById(userId);
   if (!user) return;
   
-  // Add new event if provided
+  // Add new event if provided (but check for duplicates first)
   if (newEventId) {
-    user.events.push({ event: newEventId, status });
+    // Check if the new event already exists in user's events
+    const existingIndex = user.events.findIndex(e => 
+      e.event && e.event.toString() === newEventId.toString()
+    );
+    
+    if (existingIndex !== -1) {
+      // Update existing event status
+      user.events[existingIndex].status = status;
+    } else {
+      // Add new event
+      user.events.push({ event: newEventId, status });
+    }
   }
   
   await user.save();
@@ -1327,9 +1393,10 @@ const sendEventUpdateNotifications = async (eventId, senderId, attendeeIds) => {
  * @returns {boolean} Whether attendee was found and removed
  */
 const removeAttendeeFromEventArray = async (event, attendeeId) => {
-  const attendeeIndex = event.attendees.findIndex(
-    attendee => attendee.user.toString() === attendeeId.toString()
-  );
+  const attendeeIndex = event.attendees.findIndex(attendee => {
+    const attendeeUserId = attendee.user?._id || attendee.user;
+    return attendeeUserId?.toString() === attendeeId?.toString();
+  });
   
   if (attendeeIndex === -1) {
     return false; // Attendee not found
@@ -1677,7 +1744,8 @@ const findNextRecurringOccurrence = (event, fromDate = new Date()) => {
  * @returns {Array} Updated attendees array with creator included
  */
 const ensureCreatorIsAttendee = (attendees, userId) => {
-  const processedAttendees = [...attendees];
+  // Handle case where attendees is undefined, null, or not an array
+  const processedAttendees = Array.isArray(attendees) ? [...attendees] : [];
   const creatorIncluded = processedAttendees.some(
     att => att.user && att.user._id && att.user._id.toString() === userId
   );
@@ -1909,7 +1977,7 @@ const buildFriendsEventsBaseQuery = async (userId, now, friends, filterData) => 
  */
 // Enhanced version combining both approaches
 const enrichEventWithUserContext = async (event, currentUserId, options = {}) => {
-  const { includeFriends = true, userFriends = null } = options;
+  const { includeFriends = true, userFriends = null, eventToView = null } = options;
 
   try {
     // Defensive check for event structure
@@ -2003,6 +2071,9 @@ relationship bugs`);
     const isFriendEvent = includeFriends && friends ?
       friends.some(friendId => friendId.toString() === creatorId) : false;
 
+    // Check if this event is the one to view (compare IDs)
+    const isEventToView = eventToView && eventObj._id && eventObj._id.toString() === eventToView.toString();
+    
     return {
       ...eventObj,
       // STANDARD USER RELATIONSHIP FIELDS
@@ -2025,7 +2096,10 @@ relationship bugs`);
       }) || [],
 
       // ENSURE CREATOR IS ALWAYS POPULATED (validation)
-      creator: eventObj.creator
+      creator: eventObj.creator,
+      
+      // Include eventToView flag if this is the event to view
+      ...(isEventToView && { eventToView: true })
     };
 
   } catch (error) {
@@ -2115,19 +2189,89 @@ const processEventInvitations = async (invitees, targetEventId, targetEvent) => 
 
 /**
  * Build enriched event response (reusable utility)
+ * Handles both single events and recurring event modifications
  */
-const buildEnrichedEventResponse = async (eventId, currentUserId, message, extraData = {}) => {
+const buildEnrichedEventResponse = async (eventOrId, currentUserId, message, extraData = {}) => {
+  // Handle case where event object is passed directly (for recurring modifications)
+  let enrichedEvent;
+  // Prepare options for enrichEventWithUserContext, including eventToView if it exists
+  const enrichOptions = {};
+  if (extraData.eventToView) {
+    enrichOptions.eventToView = extraData.eventToView;
+  }
   
-  const updatedEvent = await Events.findById(eventId)
-    .populate(getStandardEventPopulation());
-  
-  const enrichedEvent = await enrichEventWithUserContext(updatedEvent, currentUserId);
+  if (typeof eventOrId === 'object' && eventOrId._id) {
+    // Event object passed directly - check if ALL attendees are fully populated
+    const isFullyPopulated = eventOrId.populated && 
+      eventOrId.populated('attendees.user') && 
+      eventOrId.populated('creator') &&
+      // Additional check: ensure all attendees.user are objects (not undefined)
+      eventOrId.attendees && 
+      eventOrId.attendees.every(att => att.user && typeof att.user === 'object' && att.user._id);
+    
+    if (isFullyPopulated) {
+      enrichedEvent = await enrichEventWithUserContext(eventOrId, currentUserId, enrichOptions);
+    } else {
+      // Re-fetch with population if needed (this is the case for newly created separate events or mixed population)
+      const populatedEvent = await Events.findById(eventOrId._id)
+        .populate(getStandardEventPopulation());
+      enrichedEvent = await enrichEventWithUserContext(populatedEvent, currentUserId, enrichOptions);
+    }
+  } else {
+    // Event ID passed - fetch and enrich
+    const updatedEvent = await Events.findById(eventOrId)
+      .populate(getStandardEventPopulation());
+    enrichedEvent = await enrichEventWithUserContext(updatedEvent, currentUserId, enrichOptions);
+  }
 
+  // Prepare events array for response
+  const eventsArray = [enrichedEvent];
+  
+  // For this_only: Include master event with updated excludedDates
+  if (extraData.recurringModificationType === 'this_only' && extraData.masterEventId) {
+    let masterEvent;
+    // Handle both event object and event ID
+    if (typeof extraData.masterEventId === 'object' && extraData.masterEventId._id) {
+      // Event object passed - check if populated
+      masterEvent = extraData.masterEventId.populated('attendees.user') && extraData.masterEventId.populated('creator')
+        ? extraData.masterEventId
+        : await Events.findById(extraData.masterEventId._id).populate(getStandardEventPopulation());
+    } else {
+      // Event ID passed - fetch and populate
+      masterEvent = await Events.findById(extraData.masterEventId)
+        .populate(getStandardEventPopulation());
+    }
+    const enrichedMasterEvent = await enrichEventWithUserContext(masterEvent, currentUserId);
+    eventsArray.push(enrichedMasterEvent);
+  }
+  
+  // For all_future: Include original event if it was split
+  if (extraData.recurringModificationType === 'all_future' && extraData.originalEventId) {
+    let originalEvent;
+    // Handle both event object and event ID
+    if (typeof extraData.originalEventId === 'object' && extraData.originalEventId._id) {
+      // Event object passed - check if populated
+      originalEvent = extraData.originalEventId.populated('attendees.user') && extraData.originalEventId.populated('creator')
+        ? extraData.originalEventId
+        : await Events.findById(extraData.originalEventId._id).populate(getStandardEventPopulation());
+    } else {
+      // Event ID passed - fetch and populate
+      originalEvent = await Events.findById(extraData.originalEventId)
+        .populate(getStandardEventPopulation());
+    }
+    const enrichedOriginalEvent = await enrichEventWithUserContext(originalEvent, currentUserId);
+    eventsArray.unshift(enrichedOriginalEvent); // Put original event first in array
+  }
+
+  // Return simplified response with just events array and essential metadata
   return {
     success: true,
     message,
-    event: enrichedEvent,
-    ...extraData
+    events: eventsArray,
+    ...(extraData.recurringModificationType && { 
+      modificationType: extraData.recurringModificationType,
+      status: extraData.status 
+    })
   };
 };
 
@@ -2158,10 +2302,18 @@ const buildSuccessResponse = (message, extraData = {}) => {
 };
 
 const validateEventModificationRequest = async (req, requiredParams = []) => {
-  const { eventId, occurrenceDate, modifyType } = req.body;
   
-  // Validate required parameters
-  const validation = validateInputParams(req.body, requiredParams);
+  const { occurrenceDate, modifyType } = req.body;
+  
+  // Merge params and body for validation (params take precedence for route params like eventId)
+  const allParams = { ...req.body, ...req.params };
+  
+  // Get eventId from either source
+  const eventId = req.params.eventId || req.body.eventId;
+  
+  // Validate required parameters (check both body and params)
+  const validation = validateInputParams(allParams, requiredParams);
+  
   if (!validation.isValid) {
     return {
       isValid: false,
@@ -2173,7 +2325,7 @@ const validateEventModificationRequest = async (req, requiredParams = []) => {
   }
   
   // Find event
-  const event = await findEventById(eventId || req.params.eventId, {
+  const event = await findEventById(eventId, {
     populate: getStandardEventPopulation()
   });
   
@@ -2198,22 +2350,25 @@ const validateEventModificationRequest = async (req, requiredParams = []) => {
 
 const validateEventPermissions = (event, userId, permissionType = 'creator') => {
   if (permissionType === 'creator') {
-    if (!validateEventCreatorPermission(event, userId)) {
+    const isCreator = validateEventCreatorPermission(event, userId);
+    
+    if (!isCreator) {
       return {
         isValid: false,
         error: {
-          status: 403,
+          status: 400,
           message: 'Only the event creator can perform this action'
         }
       };
     }
   } else if (permissionType === 'attendee') {
     const attendeeIndex = findAttendeeIndex(event, userId);
+    
     if (attendeeIndex === -1) {
       return {
         isValid: false,
         error: {
-          status: 404,
+          status: 400,
           message: 'You are not an attendee of this event'
         }
       };
@@ -2367,98 +2522,7 @@ const handleAllFutureOperation = async (event, occurrenceDate, operation, operat
   };
 };
 
-const handleEventReminders = async (options) => {
-  const {
-    event,
-    operation,
-    userId,
-    status,
-    occurrenceDate,
-    modifyType
-  } = options;
-  
-  try {
-    switch (operation) {
-      case 'delete':
-        await deleteEventReminders(event, userId, occurrenceDate);
-        break;
-        
-      case 'deleteAll':
-        await deleteAllEventReminders(event);
-        break;
-        
-      case 'schedule':
-        await scheduleEventReminders(event, userId, status, occurrenceDate);
-        break;
-        
-      case 'reschedule':
-        await rescheduleEventReminders(event);
-        break;
-        
-      case 'update':
-        await updateEventReminders(event, userId, status, occurrenceDate, modifyType);
-        break;
-    }
-  } catch (error) {
-    console.error(`Error handling reminders for operation ${operation}:`, error);
-    // Don't throw - reminders shouldn't break the main operation
-  }
-};
-
-const deleteEventReminders = async (event, userId, occurrenceDate) => {
-  if (occurrenceDate) {
-    await deleteUserEventReminders(event._id, userId, new Date(occurrenceDate));
-  } else if (isRecurringEvent(event)) {
-    const now = new Date();
-    const rule = new RRule({
-      freq: RRule[event.recurrence.frequency.toUpperCase()],
-      dtstart: new Date(event.start_time),
-      until: event.recurrence.end_date ? new Date(event.recurrence.end_date) : null
-    });
-    
-    const futureOccurrences = rule.all().filter(date => date >= now);
-    await Promise.allSettled(
-      futureOccurrences.map(occurrence => 
-        deleteUserEventReminders(event._id, userId, occurrence)
-      )
-    );
-  } else {
-    await deleteUserEventReminders(event._id, userId);
-  }
-};
-
-const scheduleEventReminders = async (event, userId, status, occurrenceDate) => {
-  if (status !== 'accepted' && status !== 'maybe') return;
-  
-  if (occurrenceDate) {
-    await updateAttendeeReminders(event._id, userId, status, event, occurrenceDate);
-  } else if (isRecurringEvent(event)) {
-    await scheduleRecurringEventReminders({ 
-      ...event.toObject(), 
-      attendees: [{ user: userId, status }] 
-    });
-  } else {
-    await updateAttendeeReminders(event._id, userId, status, event);
-  }
-};
-
-const rescheduleEventReminders = async (event) => {
-  await deleteAllEventReminders(event);
-  
-  if (isRecurringEvent(event)) {
-    await scheduleRecurringEventReminders(event);
-  } else {
-    await scheduleEventRemindersForAllAttendees(event);
-  }
-};
-
-const updateEventReminders = async (event, userId, status, occurrenceDate, modifyType) => {
-  if (modifyType === 'this_only' || modifyType === 'all_future') {
-    await handleRecurringEventReminderUpdate(event, event, occurrenceDate, modifyType);
-  } else {
-    await scheduleEventReminders(event, userId, status, occurrenceDate);
-  }
-};
+// Reminder scheduling functions removed - now handled directly in eventsController.js
 
 const sendEventNotifications = async (options) => {
   const {
@@ -2514,6 +2578,18 @@ const updateNotificationStatus = async (userId, eventId, type, status) => {
   } catch (error) {
     console.error('Failed to update notification status:', error);
   }
+};
+
+/**
+ * Add eventToView field to an event object (mutates the event)
+ * Used for recurring event controllers to determine which event to display to user
+ * @param {Object} event - The event object to modify
+ * @param {boolean} shouldView - Whether this event should be viewed (default: true)
+ * @returns {Object} The same event object with eventToView field added
+ */
+const addEventToViewFlag = (event, shouldView = false) => {
+  event.eventToView = shouldView;
+  return event;
 };
 
 // =============================================================================
@@ -2593,11 +2669,8 @@ module.exports = {
   handleRecurringEventOperation,
   handleThisOnlyOperation,
   handleAllFutureOperation,
-  handleEventReminders,
-  deleteEventReminders,
-  scheduleEventReminders,
-  rescheduleEventReminders,
-  updateEventReminders,
+  // Reminder functions removed - handled in eventsController.js
   sendEventNotifications,
   updateNotificationStatus,
+  addEventToViewFlag,
 }; 

@@ -23,7 +23,6 @@ setInterval(() => {
 export function invalidateUserInsights(userId) {
   const cacheKey = `insight_${userId}`;
   const deleted = insightCache.delete(cacheKey);
-  console.log(`🗑️ Cache invalidation for user ${userId}: ${deleted ? 'SUCCESS' : 'NOT_FOUND'}`);
   return deleted;
 }
 
@@ -103,11 +102,6 @@ async function getUserContext(token, userId, userLat = null, userLng = null) {
   } else if (upcomingEventsResponse && Array.isArray(upcomingEventsResponse.data)) {
     upcomingEvents = upcomingEventsResponse.data;
   }
-  
-  console.log(`📊 Found ${upcomingEvents.length} upcoming events for insights`);
-  if (upcomingEvents.length > 0) {
-    console.log(`📅 Next event: "${upcomingEvents[0]?.title}" at ${upcomingEvents[0]?.start_time}`);
-  }
 
   let weatherData = null;
   let trafficData = null;
@@ -149,9 +143,6 @@ async function getUserContext(token, userId, userLat = null, userLng = null) {
     priorityEvent = upcomingEvents[0] || null; // Next upcoming event if any
   }
   
-  console.log(`🎯 Insight type: ${insightType}, Priority event: ${priorityEvent?.title || 'none'}`);
-  console.log(`📊 Today's events: ${todaysEvents.length}, Urgent events: ${urgentEvents.length}`);
-  
   // Fetch weather and traffic data for urgent events (Case 1)
   if (insightType === 'event' && priorityEvent?.location?.coordinates) {
     const { lat, lng } = priorityEvent.location.coordinates;
@@ -165,14 +156,11 @@ async function getUserContext(token, userId, userLat = null, userLng = null) {
       // Prepare traffic request - use user's location as origin if available
       let trafficPromise = null;
       if (userLat && userLng) {
-        console.log(`🚗 Fetching traffic from user location (${userLat}, ${userLng}) to event (${lat}, ${lng})`);
         // Use user's current location as origin, event location as destination
         trafficPromise = client.request('GET', `/api/google/directions?origin=${userLat},${userLng}&destination=${lat},${lng}&departure_time=${departureTimeUnix}&mode=driving&traffic_model=best_guess`).catch((error) => {
           console.error('🚗 Traffic API error:', error.message);
           return null;
         });
-      } else {
-        console.log(`📍 User location not available - skipping traffic data (userLat: ${userLat}, userLng: ${userLng})`);
       }
       
       // Fetch weather and traffic in parallel
@@ -198,11 +186,6 @@ async function getUserContext(token, userId, userLat = null, userLng = null) {
           distance: traffic.value.routes[0].legs?.[0]?.distance
         }
       } : null;
-      
-      console.log(`🌤️ Weather data (trimmed):`, weatherData);
-      console.log(`🚗 Traffic data (trimmed):`, trafficData);
-      console.log(`📍 User location: ${userLat && userLng ? `${userLat}, ${userLng}` : 'Not provided'}`);
-      console.log(`🎯 Event location: ${lat}, ${lng}`);
     } catch (error) {
       console.warn('Failed to fetch weather/traffic data for insights:', error);
     }
@@ -428,7 +411,6 @@ Requirements:
     // Add full event data for urgent events (for attendee information)
     if (context.insightType === 'event' && context.priorityEventFull) {
       insight.fullEventData = context.priorityEventFull;
-      console.log(`📋 Added full event data with ${context.priorityEventFull.attendees?.length || 0} attendees`);
     }
 
     // Cache the result

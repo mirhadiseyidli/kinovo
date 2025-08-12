@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ScrollView, RefreshControl, TouchableOpacity, View } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -9,28 +9,23 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { EventCardSkeleton } from '@/components/Skeleton';
 import { Feather } from '@expo/vector-icons';
-import { useInfiniteEventsQuery } from '@/hooks/useInfiniteEventsQuery';
+import { useInfiniteNearbyEvents } from '@/hooks/useInfiniteEvents';
 
 /**
- * TanStack React Query version of NearbyEvents stack page
+ * NEW Simplified TanStack React Query version of NearbyEvents stack page
  * 
- * Key improvements over the legacy version:
- * - Uses useInfiniteEventsQuery for infinite scroll with React Query
- * - Automatic background refetching and cache management
- * - Better error handling with retry logic and cached data support
- * - Simplified state management (no manual pagination state)
- * - Built-in loading states and optimistic updates
- * - Cleaner code with fewer side effects
- * - Location-based caching for better performance
+ * Key improvements over the old implementation:
+ * - Uses new useInfiniteNearbyEvents hook with simplified architecture
+ * - Direct cache updates instead of invalidations
+ * - Single event store with tagging system
+ * - Better performance through unified caching
+ * - Simplified query key management
  * 
- * Migration changes:
- * - Removed manual pagination state management
- * - Removed usePaginatedNearbyEvents hook
- * - Removed complex refresh and loadMore logic
- * - Simplified event handling
- * - Added smooth UI transitions
- * - Better error handling with cached data support
- * - Automatic infinite scroll management
+ * Migration changes from old useInfiniteEventsQuery:
+ * - Replaced useInfiniteEventsQuery with useInfiniteNearbyEvents
+ * - Updated data extraction to use pages.flatMap pattern
+ * - Aligned with new simplified TanStack Query architecture
+ * - Benefits from single event store and direct cache updates
  */
 
 const NearbyEventsPageV2 = () => {
@@ -45,25 +40,27 @@ const NearbyEventsPageV2 = () => {
   const longitude = parseFloat(lng as string);
   const distanceValue = parseInt(distance as string);
 
-  // TanStack React Query infinite hook - replaces usePaginatedNearbyEvents
-  const {
-    events,
-    isLoading,
-    isFetchingNextPage,
-    hasMore,
-    error,
-    isError,
-    loadMore,
-    refetch,
-    totalCount,
-  } = useInfiniteEventsQuery({
-    eventType: 'nearby',
+  // New simplified TanStack React Query infinite hook
+  const nearbyEventsQuery = useInfiniteNearbyEvents(
     latitude,
     longitude,
-    distance: distanceValue,
-    pageSize: 6, // First page loads 6 events, matches legacy behavior
-    enabled: Boolean(latitude && longitude), // Only fetch when we have coordinates
-  });
+    distanceValue,
+    6 // First page loads 6 events, matches legacy behavior
+  );
+
+  // Extract data from the new hook structure
+  const events = useMemo(() => {
+    return nearbyEventsQuery.data?.pages.flatMap(page => page.events) || [];
+  }, [nearbyEventsQuery.data]);
+
+  const isLoading = nearbyEventsQuery.isLoading;
+  const isFetchingNextPage = nearbyEventsQuery.isFetchingNextPage;
+  const hasMore = nearbyEventsQuery.hasNextPage || false;
+  const error = nearbyEventsQuery.error;
+  const isError = nearbyEventsQuery.isError;
+  const loadMore = nearbyEventsQuery.fetchNextPage;
+  const refetch = nearbyEventsQuery.refetch;
+  const totalCount = nearbyEventsQuery.data?.pages?.[0]?.totalCount || 0;
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -354,7 +351,7 @@ const NearbyEventsPageV2 = () => {
                   borderWidth: 2,
                   borderColor: 'white',
                   borderTopColor: 'transparent',
-                  animation: 'spin 1s linear infinite',
+                  // animation: 'spin 1s linear infinite',
                 }} />
                 <ThemedText style={{ 
                   color: 'white',
@@ -405,45 +402,36 @@ export default NearbyEventsPageV2;
 /**
  * Migration Summary:
  * 
- * REMOVED (Legacy Code):
- * - const { fetchNearbyEvents, loadMore, refresh, reset } = usePaginatedNearbyEvents();
- * - const [refreshing, setRefreshing] = useState(false);
- * - const loadEvents = useCallback(async () => { ... }, []);
- * - useEffect(() => { reset(); loadEvents(); }, [distance, lat, lng]);
- * - useFocusEffect for auto-recovery
- * - Manual pagination state management
- * - Complex handleLoadMore and handleScroll logic
- * - Manual error recovery logic
- * 
- * ADDED (TanStack React Query):
- * - useInfiniteEventsQuery hook with location parameters
- * - Automatic cache management with location-based keys
- * - Built-in infinite scroll management
- * - Enhanced error state UI with cached data support
- * - Automatic refresh coordination
- * - Real-time loading indicators
- * - Smooth UI transitions
- * - Better error handling with retry
+ * CHANGED (New Implementation):
+ * - useInfiniteEventsQuery → useInfiniteNearbyEvents (simplified)
+ * - Object-based params → Direct function parameters
+ * - Complex data extraction → Simple pages.flatMap pattern
+ * - Multiple query invalidations → Direct cache updates
+ * - Custom query keys → Standardized query keys
  * 
  * PRESERVED (Unchanged):
  * - All UI components and styling
- * - Header card design
- * - Stack screen configuration
- * - Empty state handling
- * - ScrollView with RefreshControl
+ * - Header card design and Stack screen configuration
+ * - Empty state handling and ScrollView with RefreshControl
  * - Event rendering with Event component
- * - Navigation logic
+ * - Navigation logic and error handling UI
+ * - Load more functionality and refresh control
  * 
  * BENEFITS:
- * - ~50% less code (pagination and state management removed)
- * - No manual pagination state management
- * - Better error handling with cached data support
- * - Automatic infinite scroll with better UX
- * - Built-in retry logic
- * - Better memory management
- * - DevTools integration
- * - Type safety improvements
- * - Location-based caching prevents unnecessary API calls
- * - Automatic background refetching
- * - Optimistic updates support
+ * - Single event store reduces memory usage
+ * - Direct cache updates improve performance
+ * - Simplified query key management
+ * - Better consistency across the app
+ * - Reduced cache invalidation complexity
+ * - Unified event data handling
+ * 
+ * OLD INTERFACE:
+ * useInfiniteEventsQuery({
+ *   eventType: 'nearby',
+ *   latitude, longitude, distance: distanceValue,
+ *   pageSize: 6, enabled: Boolean(latitude && longitude)
+ * })
+ * 
+ * NEW INTERFACE:
+ * useInfiniteNearbyEvents(latitude, longitude, distanceValue, 6)
  */

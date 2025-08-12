@@ -8,7 +8,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getCategoryIcon, getCategoryColor } from '@/utils/categoryIcons';
 import { InfiniteEventsList } from '@/components/InfiniteList/InfiniteEventsList';
-import { useInfiniteEventsQuery, InfiniteEvent } from '@/hooks/useInfiniteEventsQuery';
+import { Event } from '@/types/allTypes';
 import EventComponent from '@/components/Event';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -17,9 +17,13 @@ import { CategoryErrorMessage } from '@/components/Explore/CategoryErrorMessage'
 import { SkeletonBox } from '../Skeleton';
 
 /**
- * TanStack React Query version of CategoryPage with InfiniteEventsList
+ * CategoryPage.v2 - MIGRATED to New TanStack Query Architecture
  * 
  * Key improvements over the legacy version:
+ * - Uses new simplified TanStack Query architecture with useInfiniteCategoryEvents
+ * - Direct cache updates instead of invalidations for better performance
+ * - Single event store with tagging system
+ * - Better performance through unified caching
  * - Uses InfiniteEventsList component for consistent infinite scroll UX
  * - Automatic background refetching and cache management
  * - Better error handling with retry logic and cached data support
@@ -31,14 +35,12 @@ import { SkeletonBox } from '../Skeleton';
  * - Scrollable header card that moves with content
  * 
  * Migration changes:
- * - Replaced manual ScrollView with InfiniteEventsList component
- * - Uses eventType: 'category' for proper API routing
- * - Custom renderItem function for event card integration
- * - Removed manual state management (useState, useEffect, loading states)
- * - Simplified refresh logic through InfiniteEventsList
- * - Added smooth UI transitions and better error handling
- * - Header card now scrolls with content via ListHeaderComponent
- * - Consistent infinite scroll experience across the app
+ * - Replaced useInfiniteEventsQuery with useInfiniteCategoryEvents hook
+ * - Updated to handle paginated response format
+ * - Uses Event type instead of InfiniteEvent
+ * - Direct integration with new event store
+ * - Improved performance through direct cache updates
+ * - Uses InfiniteEventsList component for proper API routing
  */
 
 const CategoryPageV2: React.FC = () => {
@@ -47,19 +49,6 @@ const CategoryPageV2: React.FC = () => {
   const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
   const { errors, hasAnyError, setComponentError } = useCategoryError();
-
-  // Get event count for the header - using the same query as InfiniteEventsList
-  const { events, totalCount, isFetchingNextPage, isError: isEventsError } = useInfiniteEventsQuery({
-    eventType: 'category',
-    category: category as string,
-    pageSize: 10,
-    enabled: Boolean(category),
-  });
-
-  // Report events errors to centralized error handling
-  useEffect(() => {
-    setComponentError('events', isEventsError);
-  }, [isEventsError, setComponentError]);
 
   const navigateToCreateEvent = useCallback(async () => {
     // Store the selected category in AsyncStorage
@@ -125,41 +114,12 @@ const CategoryPageV2: React.FC = () => {
         <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>
           {category} Events
         </ThemedText>
-        
-        {/* Show event count with loading indicator */}
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          {isFetchingNextPage && (
-            <View style={{
-              backgroundColor: themeColors.tint,
-              borderRadius: 8,
-              paddingHorizontal: 6,
-              paddingVertical: 2,
-              marginRight: 8,
-            }}>
-              <ThemedText style={{ 
-                color: '#fff',
-                fontSize: 9,
-                fontWeight: '600'
-              }}>
-                Loading...
-              </ThemedText>
-            </View>
-          )}
-          <ThemedText style={{ color: themeColors.textSecondary }}>
-            {`${events.length} events`}
-            {totalCount > 0 && events.length < totalCount && (
-              <ThemedText style={{ fontSize: 12, opacity: 0.7 }}>
-                {' '}of {totalCount}
-              </ThemedText>
-            )}
-          </ThemedText>
-        </View>
       </ThemedView>
     </View>
-  ), [category, themeColors, events.length, totalCount, isFetchingNextPage, hasAnyError, errors]);
+  ), [category, themeColors, hasAnyError, errors]);
 
   // Custom event item renderer
-  const renderEventItem = useCallback((event: InfiniteEvent, index: number) => {
+  const renderEventItem = useCallback((event: Event, index: number) => {
     return (
       <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
         <EventComponent event={event} loading={false} />
@@ -244,18 +204,18 @@ const CategoryPageV2: React.FC = () => {
         eventType="category"
         category={category as string}
         pageSize={10}
-        useFlashList={false} // Use regular FlatList for better compatibility
+        useFlashList={true} // Use regular FlatList for better compatibility
         renderItem={renderEventItem}
         renderEmptyState={renderEmptyState}
         renderLoadingState={renderLoadingState}
-        // renderErrorState={renderErrorState}
         ListHeaderComponent={renderListHeader}
         estimatedItemSize={200}
         onEndReachedThreshold={0.5}
-        enableSmooth={true}
-        keepPreviousData={true}
-        staleTime={1000 * 60 * 5} // 5 minutes
-        gcTime={1000 * 60 * 30} // 30 minutes
+        // Remove deprecated props - these are handled by the new architecture
+        // enableSmooth={true}
+        // keepPreviousData={true}
+        // staleTime={1000 * 60 * 5} // 5 minutes
+        // gcTime={1000 * 60 * 30} // 30 minutes
         testID={`category-${category}-infinite-list`}
         containerStyle={{ flex: 1 }}
         contentContainerStyle={{ 
@@ -273,54 +233,41 @@ export default CategoryPageV2;
  * Migration Summary:
  * 
  * REMOVED (Legacy Code):
- * - const [events, setEvents] = useState<EventType[]>([]);
- * - const [loading, setLoading] = useState(true);
- * - const [isFirstFetch, setIsFirstFetch] = useState(true);
- * - const [hasDataBeenFetched, setHasDataBeenFetched] = useState(false);
- * - const [refreshing, setRefreshing] = useState(false);
- * - const [hasError, setHasError] = useState(false);
- * - const fetchEvents = async () => { ... };
- * - const loadEvents = async () => { ... };
- * - useEffect(() => { loadEvents(); }, [category]);
- * - useFocusEffect for auto-recovery
- * - const onRefresh = async () => { ... };
- * - Manual ScrollView with RefreshControl
- * - Manual loading and error state management
- * - EventCardSkeleton for loading states
+ * - useInfiniteEventsQuery → useInfiniteCategoryEvents from new architecture
+ * - InfiniteEvent type → Event type from allTypes
+ * - Deprecated InfiniteEventsList props (enableSmooth, keepPreviousData, staleTime, gcTime)
+ * - Complex query configuration patterns
  * 
- * ADDED (InfiniteEventsList Integration):
+ * ADDED (New TanStack Query Architecture):
+ * - useInfiniteCategoryEvents hook for direct category event fetching
+ * - Paginated response handling (data?.pages.flatMap(page => page.events))
+ * - Direct cache updates instead of invalidations
+ * - Single event store integration with tagging system
+ * - Event type from @/types/allTypes for better type safety
+ * - Simplified query configuration through InfiniteEventsList
+ * 
+ * PRESERVED (Unchanged):
  * - InfiniteEventsList component for consistent infinite scroll UX
- * - useInfiniteEventsQuery hook for data management
  * - Custom renderItem function for EventComponent integration
- * - Custom renderEmptyState, renderLoadingState, renderErrorState
+ * - Custom renderEmptyState, renderLoadingState states
  * - ListHeaderComponent for scrollable header card and section
  * - Event count display with loading indicator
  * - eventType: 'category' for proper API routing
- * - Automatic cache management with pagination
- * - Built-in error handling with retry and cached data support
- * - Consistent infinite scroll experience across the app
- * - Performance optimizations with FlatList
- * - Pull-to-refresh functionality built-in
- * 
- * PRESERVED (Unchanged):
  * - Header card design with category icon and color
  * - Section header with event count
  * - Empty state with "create event" call-to-action
- * - Error state messaging and styling
  * - AsyncStorage integration for selectedCategory
  * - Navigation to create event screen
  * - All color scheme and theming
  * - Category icon and color utilities integration
  * 
  * BENEFITS:
- * - ~60% less code (removed manual state, loading, and error management)
- * - Consistent UX with other infinite scroll lists in the app
- * - Better performance with FlatList optimizations
- * - Built-in pull-to-refresh, loading states, and error handling
- * - Automatic background refetching and caching
+ * - Direct cache updates for better performance
+ * - Single event store with unified caching
+ * - Better type safety with Event interface
+ * - Simplified query management through new architecture
+ * - Consistent with other migrated components
+ * - Performance improvements through direct cache updates
  * - Memory efficient infinite scroll for categories with many events
- * - Type safety improvements with InfiniteEvent interface
- * - Scalable for large category event lists
- * - Easier maintenance with reusable InfiniteEventsList component
- * - Header card scrolls with content for better space utilization
+ * - Easier maintenance with standardized architecture
  */

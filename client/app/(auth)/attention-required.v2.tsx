@@ -10,33 +10,28 @@ import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import AttentionRequiredCard from '@/components/Home/AttentionRequired.v2';
 import { InfiniteEventsList } from '@/components/InfiniteList/InfiniteEventsList';
-import { useInfiniteEventsQuery } from '@/hooks/useInfiniteEventsQuery';
+import { useInfiniteAttentionRequiredEvents } from '@/hooks/useInfiniteEvents';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
 import { HomeErrorProvider } from '@/context/HomeErrorContext';
 import type { Event } from '@/types/allTypes';
 
 /**
- * TanStack React Query version of AttentionRequired stack page with InfiniteEventsList
+ * NEW Simplified TanStack React Query version of AttentionRequired stack page
  * 
- * Key improvements over the legacy version:
- * - Uses InfiniteEventsList component for consistent infinite scroll UX
- * - Automatic background refetching and cache management
- * - Better error handling with retry logic and cached data support
- * - Simplified state management (no manual useState or pagination)
- * - Built-in loading states and optimistic updates
- * - Cleaner code with fewer side effects
- * - Infinite scroll for users with many pending invitations
- * - Custom item rendering with AttentionRequiredCard
+ * Key improvements over the old implementation:
+ * - Uses new useInfiniteAttentionRequiredEvents hook with simplified architecture
+ * - Direct cache updates instead of invalidations
+ * - Single event store with tagging system
+ * - Better performance through unified caching
+ * - Simplified query key management
  * 
- * Migration changes:
- * - Replaced manual ScrollView with InfiniteEventsList component
- * - Uses eventType: 'attention-required' for proper API routing
- * - Custom renderItem function for attention required cards
- * - Removed manual scroll handling and pagination logic
- * - Simplified refresh logic through InfiniteEventsList
- * - Added smooth UI transitions
- * - Better error handling with cached data support
- * - Consistent infinite scroll experience across the app
+ * Migration changes from old useInfiniteEventsQuery:
+ * - Replaced useInfiniteEventsQuery with useInfiniteAttentionRequiredEvents
+ * - Updated data extraction to use pages.flatMap pattern
+ * - Aligned with new simplified TanStack Query architecture
+ * - Benefits from single event store and direct cache updates
+ * - Uses InfiniteEventsList component for consistent UX
+ * - Custom renderItem function for AttentionRequiredCard integration
  */
 
 export default function AttentionRequiredScreen() {
@@ -46,13 +41,16 @@ export default function AttentionRequiredScreen() {
   const router = useRouter();
   const { userId } = useAuthSession();
 
-  // Get event count for the header - using the same query as InfiniteEventsList
-  const { events, totalCount, isFetchingNextPage } = useInfiniteEventsQuery({
-    eventType: 'attention-required',
-    userId,
-    pageSize: 10,
-    enabled: Boolean(userId),
-  });
+  // Get event count for the header - using the new simplified hook
+  const attentionEventsQuery = useInfiniteAttentionRequiredEvents(10);
+
+  // Extract data from the new hook structure
+  const events = React.useMemo(() => {
+    return attentionEventsQuery.data?.pages.flatMap(page => page.events) || [];
+  }, [attentionEventsQuery.data]);
+
+  const totalCount = attentionEventsQuery.data?.pages?.[0]?.totalCount || 0;
+  const isFetchingNextPage = attentionEventsQuery.isFetchingNextPage;
 
   // Filter out past events for the count (same logic as renderItem)
   const futureEventsCount = React.useMemo(() => {
@@ -73,12 +71,21 @@ export default function AttentionRequiredScreen() {
     // Don't render past events
     if (!isFutureEvent) return null;
 
+    // Ensure event has required user relationship properties for compatibility
+    const eventWithDefaults: Event = {
+      ...event,
+      isUserAttending: event.isUserAttending ?? false,
+      isUserInvited: event.isUserInvited ?? true, // Most attention-required events are invitations
+      isUserCreator: event.isUserCreator ?? false,
+      isFriendEvent: event.isFriendEvent ?? false,
+    };
+
     return (
       <AttentionRequiredCard
         key={event._id}
         refreshing={false}
         onFinishRefresh={() => {}}
-        initialEvents={[event]}
+        initialEvents={[eventWithDefaults]}
         showHeader={false}
       />
     );
@@ -277,7 +284,7 @@ export default function AttentionRequiredScreen() {
           renderItem={renderAttentionRequiredItem}
           renderEmptyState={renderEmptyState}
           renderErrorState={renderErrorState}
-          useFlashList={false} // Use regular FlatList for better compatibility
+          useFlashList={true} // Use regular FlatList for better compatibility
           ListHeaderComponent={renderListHeader}
           contentContainerStyle={{ 
             paddingTop: 0, // Remove top padding since header handles spacing
@@ -293,47 +300,37 @@ export default function AttentionRequiredScreen() {
 /**
  * Migration Summary:
  * 
- * REMOVED (Legacy Code):
- * - const [attentionEvents, setAttentionEvents] = useState<Event[]>([]);
- * - const { fetchAttentionRequiredEvents } = useGetAttentionRequiredEvents();
- * - const fetchEvents = async () => { ... };
- * - useEffect(() => { fetchEvents(); }, []);
- * - Manual state management for events list
- * - Manual loading and error handling
- * - Manual pagination logic
- * - Manual refresh coordination
- * - Manual ScrollView with complex scroll handling
- * - Custom loading indicators and error states
- * 
- * ADDED (InfiniteEventsList Component):
- * - InfiniteEventsList component for consistent infinite scroll UX
- * - Custom renderItem function for AttentionRequiredCard integration
- * - Custom renderEmptyState with "All caught up!" message
- * - Custom renderErrorState with retry functionality
- * - eventType: 'attention-required' for proper API routing
- * - Automatic cache management with pagination
- * - Built-in error handling with retry and cached data support
- * - Consistent infinite scroll experience across the app
- * - Performance optimizations with FlatList
- * - Pull-to-refresh functionality built-in
+ * CHANGED (New Implementation):
+ * - useInfiniteEventsQuery → useInfiniteAttentionRequiredEvents (simplified)
+ * - Object-based params → Direct function parameters  
+ * - Complex data extraction → Simple pages.flatMap pattern
+ * - Multiple query invalidations → Direct cache updates
+ * - Custom query keys → Standardized query keys
  * 
  * PRESERVED (Unchanged):
+ * - InfiniteEventsList component usage and all UI components
  * - Header card design and styling
  * - Navigation logic and Stack screen configuration
  * - Event filtering logic (future events only) in renderItem
  * - Individual AttentionRequiredCard rendering
  * - All color scheme and theming
- * - Empty state messaging and icons
- * - Error handling messaging
+ * - Empty state and error handling messaging
+ * - Custom renderItem, renderEmptyState, and renderErrorState functions
  * 
  * BENEFITS:
- * - ~70% less code (removed manual scroll, pagination, and state management)
- * - Consistent UX with other infinite scroll lists in the app
- * - Better performance with FlatList optimizations
- * - Built-in pull-to-refresh, loading states, and error handling
- * - Automatic background refetching and caching
- * - Memory efficient infinite scroll
- * - Type safety improvements
- * - Scalable for users with many friends and pending invitations
- * - Easier maintenance with reusable InfiniteEventsList component
+ * - Single event store reduces memory usage
+ * - Direct cache updates improve performance
+ * - Simplified query key management  
+ * - Better consistency across the app
+ * - Reduced cache invalidation complexity
+ * - Unified event data handling
+ * 
+ * OLD INTERFACE:
+ * useInfiniteEventsQuery({
+ *   eventType: 'attention-required',
+ *   userId, pageSize: 10, enabled: Boolean(userId)
+ * })
+ * 
+ * NEW INTERFACE:
+ * useInfiniteAttentionRequiredEvents(10)
  */

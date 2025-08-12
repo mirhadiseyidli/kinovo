@@ -9,15 +9,11 @@ const {
   createEventInvitationNotification,
   createNearbyEventNotification
 } = require('./notificationsController');
-// Event reminder scheduling helpers
+// Event reminder scheduling helpers - efficient system
 const {
-  scheduleEventRemindersForAllAttendees,
-  deleteAllEventReminders,
-  scheduleRecurringEventReminders,
-  updateAttendeeReminders,
-  handleRecurringEventReminderUpdate,
-  deleteUserEventReminders
-} = require('../utils/reminderSchedulingUtils');
+  scheduleEfficientEventReminders,
+  deleteEfficientEventReminders
+} = require('../utils/efficientReminderScheduling');
 const {
   // Core utilities
   getUserFilterData,
@@ -125,11 +121,7 @@ const {
   handleRecurringEventOperation,
   handleThisOnlyOperation,
   handleAllFutureOperation,
-  handleEventReminders,
-  deleteEventReminders,
-  scheduleEventReminders,
-  rescheduleEventReminders,
-  updateEventReminders,
+  // Reminder functions removed - handled directly in this file
   sendEventNotifications,
   updateNotificationStatus,
 } = require('../utils/eventUtils');
@@ -220,7 +212,7 @@ const createEvent = async (req, res) => {
     await upsertUserEvent(req.user._id, event._id, 'accepted');
 
     // Add event to attendees' events lists with pending status
-    const attendeeIds = attendees
+    const attendeeIds = processedAttendees
       .map(({ user }) => user._id)
       .filter(id => id.toString() !== req.user._id.toString());
 
@@ -236,13 +228,9 @@ const createEvent = async (req, res) => {
       }
     }
 
-    // Schedule reminders for all attendees based on their preferences
+    // Schedule reminders using efficient system
     try {
-      if (isRecurringEvent(event)) {
-        await scheduleRecurringEventReminders(event);
-      } else {
-        await scheduleEventRemindersForAllAttendees(event);
-      }
+      await scheduleEfficientEventReminders(event);
     } catch (reminderError) {
       console.error('Error scheduling event reminders during creation:', reminderError);
       // Don't fail event creation if reminder scheduling fails
@@ -347,9 +335,9 @@ const getMyEventsCalendarMonthView = async (req, res) => {
 
     // Use standardized response utility
     const response = await buildEnrichedEventsResponse(
-      uniqueEvents,
+      filtered,
       req.user._id,
-      uniqueEvents.length > 0 ? `Calendar events retrieved successfully for ${year}/${month + 1}` : `No events found for ${year}/${month + 1}`,
+      filtered.length > 0 ? `Calendar events retrieved successfully for ${year}/${month + 1}` : `No events found for ${year}/${month + 1}`,
       { 
         month: month,
         year: year,
@@ -605,17 +593,14 @@ const getUserEvents = async (req, res) => {
       ['accepted', 'maybe'] // allowedStatuses
     );
 
-    // Extract just the events from user events
-    const eventsToEnrich = relevantEvents.map(userEvent => userEvent.event);
-
     // Sort by start_time (most recent first)
-    eventsToEnrich.sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
+    relevantEvents.sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
 
     // Use standardized response utility
     const response = await buildEnrichedEventsResponse(
-      eventsToEnrich,
+      relevantEvents,
       req.user._id,
-      eventsToEnrich.length > 0 ? 'User events retrieved successfully' : 'No events found for this user'
+      relevantEvents.length > 0 ? 'User events retrieved successfully' : 'No events found for this user'
     );
 
     return res.status(200).json(response);
@@ -688,6 +673,7 @@ const getEventById = async (req, res) => {
       return res.status(404).json({ message: 'No event with that id was found'});
     }
 
+
     // Use standardized response utility
     const response = await buildEnrichedEventResponse(
       found_event,
@@ -736,14 +722,14 @@ const getNearbyEvents = async (req, res) => {
     const allNearbyEvents = calculateEventsDistance(processedEvents, userLat, userLng, searchDistance);
 
     // Apply pagination if limit is specified
-    let paginatedEvents = enrichedEvents;
+    let paginatedEvents = allNearbyEvents;
     if (limitNumber > 0) {
-      paginatedEvents = enrichedEvents.slice(skipNumber, skipNumber + limitNumber);
+      paginatedEvents = allNearbyEvents.slice(skipNumber, skipNumber + limitNumber);
     }
 
     // Extract events for enrichment and preserve distance data
     const eventsWithDistance = paginatedEvents.map(item => ({
-      ...item.event.toObject(),
+      ...item.event,
       distance: item.distance
     }));
 
@@ -795,6 +781,7 @@ const respondToEventInvitation = async (req, res) => {
           response: { message: 'You are not invited to this event' }
         };
       } else {
+
         // Handle recurring event modifications
         const recurringResult = await handleRecurringEventOperation({
           event,
@@ -806,82 +793,98 @@ const respondToEventInvitation = async (req, res) => {
         });
 
         if (recurringResult.type === 'this_only') {
-          await synchronizeUserEventList(req.user._id, event._id, recurringResult.separateEvent._id, status);
-
-          await handleEventReminders({
-            event: recurringResult.separateEvent,
-            operation: 'update',
-            userId: req.user._id,
-            status,
-            modifyType: 'this_only'
-          });
+          // Update both the user's event list AND the event's attendees array with the new status
+          await Promise.all([
+            updateUserEventStatus(req.user._id, recurringResult.separateEvent._id, status),
+            updateEventAttendee(recurringResult.separateEvent, req.user._id, status)
+          ]);
+          
+          const [, response] = await Promise.all([
+            // Background operations (can run in parallel)
+            Promise.allSettled([
+              synchronizeUserEventList(req.user._id, event._id, recurringResult.separateEvent._id, status),
+              // Efficient scheduler: ensure reminders are scheduled for the separate event
+              scheduleEfficientEventReminders(recurringResult.separateEvent).catch(err => 
+                console.error('Error scheduling reminders for separate event:', err)
+              )
+            ]),
+            // Critical path: Build response
+            buildEnrichedEventResponse(
+              recurringResult.separateEvent,
+              req.user._id,
+              `Successfully ${status} this specific event occurrence`,
+              {
+                status,
+                separateEventId: recurringResult.separateEvent,
+                occurrenceDate: recurringResult.occurrenceDate,
+                recurringModificationType: 'this_only',
+                masterEventId: event,
+                eventToView: recurringResult.separateEvent._id
+              }
+            )
+          ]);
 
           result = {
             statusCode: 200,
-            response: {
-              success: true, 
-              message: `Successfully ${status} this specific event occurrence`,
-              status,
-              separateEventId: recurringResult.separateEvent._id,
-              occurrenceDate: recurringResult.occurrenceDate,
-              event: recurringResult.separateEvent
-            }
+            response
           };
         } else if (recurringResult.type === 'all_future') {
-          await handleEventReminders({
-            event: recurringResult.futureEvent,
-            operation: 'update',
-            userId: req.user._id,
-            status,
-            modifyType: 'all_future'
-          });
+          const [, response] = await Promise.all([
+            // Background operation
+            // Efficient scheduler: ensure reminders are scheduled for the future event
+            scheduleEfficientEventReminders(recurringResult.futureEvent).catch(err => 
+              console.error('Error scheduling reminders for future event:', err)
+            ),
+            // Critical path: Build response
+            buildEnrichedEventResponse(
+              recurringResult.futureEvent,
+              req.user._id,
+              `Successfully ${status} all future occurrences of this event`,
+              {
+                status,
+                recurringModificationType: 'all_future',
+                originalEventId: event,
+                eventToView: recurringResult.futureEvent._id
+              }
+            )
+          ]);
 
           result = {
             statusCode: 200,
-            response: {
-              success: true, 
-              message: `Successfully ${status} all future occurrences of this event`,
-              status,
-              event: recurringResult.futureEvent
-            }
+            response
           };
+
         } else {
           // Handle non-recurring or regular response
-          await updateEventAttendee(event, req.user._id, status);
-          await updateUserEventStatus(req.user._id, eventId, status);
+          const updatedEvent = await updateEventAttendee(event, req.user._id, status);
 
-          await handleEventReminders({
-            event,
-            operation: 'update',
-            userId: req.user._id,
-            status
-          });
-
-          // Send notification if accepted
-          await sendEventNotifications({
-            operation: 'attendance',
-            eventId,
-            userId: req.user._id,
-            status
-          });
-
-          // Update invitation notification status
-          await updateNotificationStatus(req.user._id, eventId, 'event_invitation', status);
-
-          // Fetch updated event
-          const updatedEvent = await Events.findById(eventId)
-            .populate(getStandardEventPopulation());
-
-          const enrichedEvent = await enrichEventWithUserContext(updatedEvent, req.user._id);
-          
+          const [, , , response] = await Promise.all([
+            // Background operations (don't block response)
+            updateUserEventStatus(req.user._id, eventId, status),
+            // Efficient scheduler: User responses don't require reminder updates
+            Promise.resolve(),
+            // Notification operations
+            Promise.allSettled([
+              sendEventNotifications({
+                operation: 'attendance',
+                eventId,
+                userId: req.user._id,
+                status
+              }),
+              updateNotificationStatus(req.user._id, eventId, 'event_invitation', status)
+            ]),
+            // Critical path: Build enriched response (consistent with other paths)
+            buildEnrichedEventResponse(
+              updatedEvent, // Use the updated event object directly
+              req.user._id,
+              `Successfully ${status} the event invitation`,
+              { status }
+            )
+          ]);
+      
           result = {
             statusCode: 200,
-            response: {
-              success: true, 
-              message: `Successfully ${status} the event invitation`,
-              status,
-              event: enrichedEvent
-            }
+            response
           };
         }
       }
@@ -935,12 +938,8 @@ const cancelEvent = async (req, res) => {
         if (recurringResult.type === 'this_only' && recurringResult.cancelled) {
           const attendeeIds = event.attendees.map(att => att.user._id || att.user);
           
-          await handleEventReminders({
-            event,
-            operation: 'delete',
-            occurrenceDate: recurringResult.occurrenceDate,
-            userIds: attendeeIds
-          });
+          // Efficient scheduler: Canceling a single occurrence doesn't require reminder changes
+          // The excluded date prevents reminders from firing for this occurrence
 
           const notificationAttendeeIds = attendeeIds
             .filter(userId => userId.toString() !== req.user._id.toString());
@@ -964,10 +963,12 @@ const cancelEvent = async (req, res) => {
             response: apiResponse.response
           };
         } else if (recurringResult.type === 'all_future') {
-          await handleEventReminders({
-            event: recurringResult.futureEvent,
-            operation: 'deleteAll'
-          });
+          // Delete reminders for the cancelled future event
+          try {
+            await deleteEfficientEventReminders(recurringResult.futureEvent._id);
+          } catch (reminderError) {
+            console.error('Error deleting reminders for cancelled future event:', reminderError);
+          }
 
           const attendeeIds = recurringResult.futureEvent.attendees
             .map(attendee => attendee.user)
@@ -1022,10 +1023,12 @@ const cancelEvent = async (req, res) => {
             { $pull: { events: { event: event._id } } }
           );
 
-          await handleEventReminders({
-            event,
-            operation: 'deleteAll'
-          });
+          // Delete reminders for the cancelled event
+          try {
+            await deleteEfficientEventReminders(event._id);
+          } catch (reminderError) {
+            console.error('Error deleting reminders for cancelled event:', reminderError);
+          }
 
           // Use createApiResponse for consistency
           const apiResponse = createApiResponse(
@@ -1079,7 +1082,7 @@ const deleteRecurringEvents = async (req, res) => {
     // Delete all reminders for these recurring events
     for (const event of recurringEvents) {
       try {
-        await deleteAllEventReminders(event);
+        await deleteEfficientEventReminders(event._id);
       } catch (scheduleErr) {
         console.error('Failed to delete reminders for recurring event:', event._id, scheduleErr);
       }
@@ -1133,7 +1136,7 @@ const inviteEventAttendees = async (req, res) => {
 
         if (!isCreator && !isAcceptedAttendee) {
           result = {
-            statusCode: 403,
+            statusCode: 400,
             response: { message: 'Not authorized to invite attendees' }
           };
         } else {
@@ -1148,44 +1151,92 @@ const inviteEventAttendees = async (req, res) => {
           });
 
           if (recurringResult.type === 'this_only') {
-            await synchronizeAttendeesWithNewEvent(
-              recurringResult.separateEvent.attendees,
-              recurringResult.separateEvent._id
-            );
-
-            await sendEventNotifications({
-              operation: 'invite',
-              eventId: recurringResult.separateEvent._id,
-              userId: req.user._id,
-              attendeeIds: invitees
-            });
-
+            // Add invitees to the separate event
+            for (const invitee of invitees) {
+              await updateEventAttendee(recurringResult.separateEvent, invitee, 'pending');
+              await updateUserEventStatus(invitee, recurringResult.separateEvent._id, 'pending');
+            }
+            
+            const [, response] = await Promise.all([
+              // Background operations (can run in parallel)
+              Promise.allSettled([
+                synchronizeUserEventList(req.user._id, event._id, recurringResult.separateEvent._id),
+                // Efficient scheduler: ensure reminders are scheduled for the separate event
+                scheduleEfficientEventReminders(recurringResult.separateEvent).catch(err => 
+                  console.error('Error scheduling reminders for separate event:', err)
+                ),
+                sendEventNotifications({
+                  operation: 'invite',
+                  eventId: recurringResult.separateEvent._id,
+                  userId: req.user._id,
+                  attendeeIds: invitees
+                })
+              ]),
+              // Critical path: Build response
+              buildEnrichedEventResponse(
+                recurringResult.separateEvent,
+                req.user._id,
+                'Successfully invited attendees to this specific event occurrence',
+                {
+                  separateEventId: recurringResult.separateEvent,
+                  occurrenceDate: recurringResult.occurrenceDate,
+                  recurringModificationType: 'this_only',
+                  masterEventId: event, // Pass the master event object
+                  eventToView: recurringResult.separateEvent
+                }
+              )
+            ]);
+  
             result = {
               statusCode: 200,
-              response: {
-                success: true, 
-                message: 'Successfully invited attendees to this specific event occurrence',
-                separateEventId: recurringResult.separateEvent._id,
-                occurrenceDate: recurringResult.occurrenceDate,
-                attendees: recurringResult.separateEvent.attendees
-              }
+              response
             };
           } else if (recurringResult.type === 'all_future') {
-            await sendEventNotifications({
-              operation: 'invite',
-              eventId: recurringResult.futureEvent._id,
-              userId: req.user._id,
-              attendeeIds: invitees
-            });
+            // First, add the future event to all existing attendees' user.events arrays
+            // This ensures the event appears for everyone who was already in the event
+            const existingAttendees = recurringResult.futureEvent.attendees || [];
+            for (const attendee of existingAttendees) {
+              const attendeeUserId = attendee.user._id || attendee.user;
+              const attendeeStatus = attendee.status;
+              await updateUserEventStatus(attendeeUserId, recurringResult.futureEvent._id, attendeeStatus);
+            }
+            
+            // Then add the new invitees to the future event
+            for (const invitee of invitees) {
+              await updateEventAttendee(recurringResult.futureEvent, invitee, 'pending');
+              await updateUserEventStatus(invitee, recurringResult.futureEvent._id, 'pending');
+            }
+            
+            const [, , response] = await Promise.all([
+              // Background operation
+              // Efficient scheduler: ensure reminders are scheduled for the future event
+              scheduleEfficientEventReminders(recurringResult.futureEvent).catch(err => 
+                console.error('Error scheduling reminders for future event:', err)
+              ),
+              sendEventNotifications({
+                operation: 'invite',
+                eventId: recurringResult.futureEvent._id,
+                userId: req.user._id,
+                attendeeIds: invitees
+              }),
+              // Critical path: Build response
+              buildEnrichedEventResponse(
+                recurringResult.futureEvent,
+                req.user._id,
+                'Successfully invited attendees to all future occurrences of this event',
+                {
+                  recurringModificationType: 'all_future',
+                  originalEventId: event, // Pass the original event object
+                  eventToView: recurringResult.futureEvent._id
+                }
+              )
+            ]);
 
             result = {
               statusCode: 200,
-              response: {
-                success: true,
-                message: 'Successfully invited attendees to all future occurrences of this event',
-                attendees: recurringResult.futureEvent.attendees
-              }
+              response
             };
+
           } else {
             // Add to non-recurring or all instances
             for (const invitee of invitees) {
@@ -1193,26 +1244,29 @@ const inviteEventAttendees = async (req, res) => {
               await updateUserEventStatus(invitee, eventId, 'pending');
             }
 
-            await sendEventNotifications({
-              operation: 'invite',
-              eventId,
-              userId: req.user._id,
-              attendeeIds: invitees
-            });
-
-            const updatedEvent = await Events.findById(eventId)
-              .populate(getStandardEventPopulation());
-
-            const enrichedEvent = await enrichEventWithUserContext(updatedEvent, req.user._id);
-
+            const [, , , response] = await Promise.all([
+              // Efficient scheduler: User responses don't require reminder updates
+              Promise.resolve(),
+              // Notification operations
+              Promise.allSettled([
+                await sendEventNotifications({
+                  operation: 'invite',
+                  eventId,
+                  userId: req.user._id,
+                  attendeeIds: invitees
+                }),
+              ]),
+              // Critical path: Build enriched response (consistent with other paths)
+              buildEnrichedEventResponse(
+                event,
+                req.user._id,
+                'Invitations sent successfully'
+              )
+            ]);
+        
             result = {
               statusCode: 200,
-              response: {
-                success: true,
-                message: 'Invitations sent successfully',
-                event: enrichedEvent,
-                attendees: enrichedEvent.attendees
-              }
+              response
             };
           }
         }
@@ -1567,12 +1621,12 @@ const joinEvent = async (req, res) => {
           recurringResult.separateEvent._id
         );
         
-        await handleEventReminders({
-          event: recurringResult.separateEvent,
-          operation: 'schedule',
-          userId: req.user._id,
-          status
-        });
+        // Ensure the new separate event has reminders scheduled
+        try {
+          await scheduleEfficientEventReminders(recurringResult.separateEvent);
+        } catch (reminderError) {
+          console.error('Error scheduling reminders for separate event:', reminderError);
+        }
         
         // Use buildEnrichedEventResponse to return updated event data for cache
         const response = await buildEnrichedEventResponse(
@@ -1591,13 +1645,12 @@ const joinEvent = async (req, res) => {
           response
         };
       } else if (recurringResult.type === 'all_future') {
-        await handleEventReminders({
-          event: recurringResult.futureEvent,
-          operation: 'schedule',
-          userId: req.user._id,
-          status,
-          modifyType: 'all_future'
-        });
+        // Ensure the new future event has reminders scheduled
+        try {
+          await scheduleEfficientEventReminders(recurringResult.futureEvent);
+        } catch (reminderError) {
+          console.error('Error scheduling reminders for future event:', reminderError);
+        }
         
         // Use buildEnrichedEventResponse to return updated event data for cache
         const response = await buildEnrichedEventResponse(
@@ -1616,12 +1669,7 @@ const joinEvent = async (req, res) => {
         await updateEventAttendee(event, req.user._id, status);
         await updateUserEventStatus(req.user._id, eventId, status);
 
-        await handleEventReminders({
-          event,
-          operation: 'schedule',
-          userId: req.user._id,
-          status
-        });
+        // Efficient scheduler: User responses don't require reminder updates
 
         // Use buildEnrichedEventResponse to return updated event data for cache
         const response = await buildEnrichedEventResponse(
@@ -1674,29 +1722,8 @@ const markEventNotInterested = async (req, res) => {
       return res.status(200).json({ message: 'Event already marked as not interested' });
     }
 
-    // Remove reminders for this user since they're no longer interested
-    try {
-      if (isRecurringEvent(event)) {
-        // For recurring events, delete all occurrence reminders
-        const now = new Date();
-        const rule = new RRule({
-          freq: RRule[event.recurrence.frequency.toUpperCase()],
-          dtstart: new Date(event.start_time),
-          until: event.recurrence.end_date ? new Date(event.recurrence.end_date) : null
-        });
-        
-        const futureOccurrences = rule.all().filter(date => date >= now);
-        await Promise.allSettled(
-          futureOccurrences.map(occurrence => 
-            deleteUserEventReminders(eventId, req.user._id, occurrence)
-          )
-        );
-      } else {
-        await deleteUserEventReminders(eventId, req.user._id);
-      }
-    } catch (reminderError) {
-      console.error('Error removing reminders for not interested event:', reminderError);
-    }
+    // Note: With efficient scheduling system, reminders are per-occurrence, not per-user
+    // User preferences will be checked when reminders are sent
 
     // Perform updates in parallel
     await Promise.all([
@@ -1766,29 +1793,8 @@ const reportEvent = async (req, res) => {
       reporter: reporter._id
     });
 
-    // Remove reminders for the reporting user since they're reporting the event
-    try {
-      if (isRecurringEvent(event)) {
-        // For recurring events, delete all occurrence reminders
-        const now = new Date();
-        const rule = new RRule({
-          freq: RRule[event.recurrence.frequency.toUpperCase()],
-          dtstart: new Date(event.start_time),
-          until: event.recurrence.end_date ? new Date(event.recurrence.end_date) : null
-        });
-        
-        const futureOccurrences = rule.all().filter(date => date >= now);
-        await Promise.allSettled(
-          futureOccurrences.map(occurrence => 
-            deleteUserEventReminders(eventId, req.user._id, occurrence)
-          )
-        );
-      } else {
-        await deleteUserEventReminders(eventId, req.user._id);
-      }
-    } catch (reminderError) {
-      console.error('Error removing reminders for reported event:', reminderError);
-    }
+    // Note: With efficient scheduling system, reminders are per-occurrence, not per-user
+    // User preferences will be checked when reminders are sent
 
     await Promise.all([reporter.save(), eventCreator.save()]);
 
@@ -1808,6 +1814,7 @@ const updateEvent = async (req, res) => {
     
     // Validate request and get event
     const validationResult = await validateEventModificationRequest(req, ['eventId']);
+    
     if (!validationResult.isValid) {
       return res.status(validationResult.error.status).json({ message: validationResult.error.message });
     }
@@ -1858,27 +1865,94 @@ const updateEvent = async (req, res) => {
     
     let finalEvent = event;
     let finalEventId = event._id;
+    let responseMetadata = {};
     
+    // === HANDLE THIS_ONLY MODIFICATIONS ===
     if (recurringResult.type === 'this_only') {
       finalEvent = recurringResult.separateEvent;
       finalEventId = recurringResult.separateEvent._id;
       
-      await handleEventReminders({
-        event: finalEvent,
-        operation: 'update',
-        modifyType: 'this_only',
-        occurrenceDate
-      });
+      // Synchronize all attendees with the new separate event
+      await synchronizeAttendeesWithNewEvent(finalEvent.attendees, finalEventId);
+      
+      // Handle new attendees that were added in this update
+      if (newAttendees && newAttendees.length > 0) {
+        const originalAttendeeIds = originalAttendees.map(attendee => 
+          attendee.user._id ? attendee.user._id.toString() : attendee.user.toString()
+        );
+        
+        const newAttendeeIds = newAttendees.map(attendee => 
+          attendee.user._id ? attendee.user._id.toString() : attendee.user.toString()
+        );
+        
+        const invitedAttendeeIds = newAttendeeIds.filter(id => !originalAttendeeIds.includes(id));
+        
+        // Add new attendees to users' events lists
+        if (invitedAttendeeIds.length > 0) {
+          await addEventToUsers(invitedAttendeeIds, finalEventId, 'pending');
+        }
+      }
+      
+      // Reschedule reminders for the new separate event
+      try {
+        await scheduleEfficientEventReminders(finalEvent);
+      } catch (reminderError) {
+        console.error('Error scheduling reminders for this_only event:', reminderError);
+      }
+      
+      responseMetadata = {
+        separateEventId: finalEvent,
+        occurrenceDate: recurringResult.occurrenceDate,
+        recurringModificationType: 'this_only',
+        masterEventId: event,
+        eventToView: finalEventId
+      };
+      
+    // === HANDLE ALL_FUTURE MODIFICATIONS ===
     } else if (recurringResult.type === 'all_future') {
       finalEvent = recurringResult.futureEvent;
       finalEventId = recurringResult.futureEvent._id;
       
-      await handleEventReminders({
-        event: finalEvent,
-        operation: 'update',
-        modifyType: 'all_future',
-        occurrenceDate
-      });
+      // Synchronize all existing attendees with the new future event
+      const existingAttendees = finalEvent.attendees || [];
+      for (const attendee of existingAttendees) {
+        const attendeeUserId = attendee.user._id || attendee.user;
+        const attendeeStatus = attendee.status;
+        await updateUserEventStatus(attendeeUserId, finalEventId, attendeeStatus);
+      }
+      
+      // Handle new attendees that were added in this update
+      if (newAttendees && newAttendees.length > 0) {
+        const originalAttendeeIds = originalAttendees.map(attendee => 
+          attendee.user._id ? attendee.user._id.toString() : attendee.user.toString()
+        );
+        
+        const newAttendeeIds = newAttendees.map(attendee => 
+          attendee.user._id ? attendee.user._id.toString() : attendee.user.toString()
+        );
+        
+        const invitedAttendeeIds = newAttendeeIds.filter(id => !originalAttendeeIds.includes(id));
+        
+        // Add new attendees to users' events lists
+        if (invitedAttendeeIds.length > 0) {
+          await addEventToUsers(invitedAttendeeIds, finalEventId, 'pending');
+        }
+      }
+      
+      // Reschedule reminders for the new future event
+      try {
+        await scheduleEfficientEventReminders(finalEvent);
+      } catch (reminderError) {
+        console.error('Error scheduling reminders for all_future event:', reminderError);
+      }
+      
+      responseMetadata = {
+        recurringModificationType: 'all_future',
+        originalEventId: event,
+        eventToView: finalEventId
+      };
+      
+    // === HANDLE NON-RECURRING EVENTS ===
     } else {
       // Handle non-recurring event updates
       let updatedAttendees = originalAttendees;
@@ -1899,6 +1973,21 @@ const updateEvent = async (req, res) => {
             status: existingStatus || attendee.status || 'pending'
           };
         });
+        
+        // Add new attendees to users' events lists
+        const originalAttendeeIds = originalAttendees.map(attendee => 
+          attendee.user._id ? attendee.user._id.toString() : attendee.user.toString()
+        );
+        
+        const newAttendeeIds = updatedAttendees.map(attendee => 
+          attendee.user._id ? attendee.user._id.toString() : attendee.user.toString()
+        );
+        
+        const invitedAttendeeIds = newAttendeeIds.filter(id => !originalAttendeeIds.includes(id));
+        
+        if (invitedAttendeeIds.length > 0) {
+          await addEventToUsers(invitedAttendeeIds, finalEventId, 'pending');
+        }
       }
 
       const sanitizedData = sanitizeEventUpdateData({
@@ -1908,7 +1997,22 @@ const updateEvent = async (req, res) => {
       
       Object.assign(event, sanitizedData);
       await event.save();
+      
+      // Update reminder schedules if needed for non-recurring events
+      try {
+        if (sanitizedData.status === 'cancelled') {
+          await deleteEfficientEventReminders(finalEvent._id);
+        } else if (Object.prototype.hasOwnProperty.call(sanitizedData, 'start_time')) {
+          // If start time changed, delete old reminders and create new ones
+          await deleteEfficientEventReminders(finalEvent._id);
+          await scheduleEfficientEventReminders(finalEvent);
+        }
+      } catch (reminderError) {
+        console.error('Error updating reminder schedules:', reminderError);
+      }
     }
+    
+    // === COMMON OPERATIONS FOR ALL CASES ===
     
     // Regenerate map snapshot if location changed
     if (eventData.location?.coordinates?.lat && eventData.location?.coordinates?.lng) {
@@ -1934,7 +2038,7 @@ const updateEvent = async (req, res) => {
       }
     }
     
-    // Handle notifications
+    // Handle notifications for all cases
     if (newAttendees && newAttendees.length > 0) {
       const originalAttendeeIds = originalAttendees.map(attendee => 
         attendee.user._id ? attendee.user._id.toString() : attendee.user.toString()
@@ -1949,55 +2053,47 @@ const updateEvent = async (req, res) => {
         originalAttendeeIds.includes(id) && id !== req.user._id.toString()
       );
 
-      await sendEventNotifications({
-        operation: 'invite',
-        eventId: finalEventId,
-        userId: req.user._id,
-        attendeeIds: invitedAttendeeIds
-      });
+      if (invitedAttendeeIds.length > 0) {
+        await sendEventNotifications({
+          operation: 'invite',
+          eventId: finalEventId,
+          userId: req.user._id,
+          attendeeIds: invitedAttendeeIds
+        });
+      }
 
-      await sendEventNotifications({
-        operation: 'update',
-        eventId: finalEventId,
-        userId: req.user._id,
-        attendeeIds: remainingAttendeeIds
-      });
+      if (remainingAttendeeIds.length > 0) {
+        await sendEventNotifications({
+          operation: 'update',
+          eventId: finalEventId,
+          userId: req.user._id,
+          attendeeIds: remainingAttendeeIds
+        });
+      }
     } else {
       const existingAttendeeIds = originalAttendees
         .map(attendee => attendee.user._id ? attendee.user._id.toString() : attendee.user.toString())
         .filter(id => id !== req.user._id.toString());
 
-      await sendEventNotifications({
-        operation: 'update',
-        eventId: finalEventId,
-        userId: req.user._id,
-        attendeeIds: existingAttendeeIds
-      });
+      if (existingAttendeeIds.length > 0) {
+        await sendEventNotifications({
+          operation: 'update',
+          eventId: finalEventId,
+          userId: req.user._id,
+          attendeeIds: existingAttendeeIds
+        });
+      }
     }
-    
-    // Update reminder schedules if needed
-    const sanitizedData = sanitizeEventUpdateData(eventData);
-    if (sanitizedData.status === 'cancelled') {
-      await handleEventReminders({
-        event: finalEvent,
-        operation: 'deleteAll'
-      });
-    } else if (Object.prototype.hasOwnProperty.call(sanitizedData, 'start_time')) {
-      await handleEventReminders({
-        event: finalEvent,
-        operation: 'reschedule'
-      });
-    }
-    
-    // Build enriched response
-    const populatedEvent = await Events.findById(finalEventId)
-      .populate(getStandardEventPopulation());
-    
+
     const response = await buildEnrichedEventResponse(
-      populatedEvent,
+      finalEventId,
       req.user._id,
-      'Event updated successfully',
-      { ...(finalEventId !== event._id && { updatedEventId: finalEventId }) }
+      recurringResult.type === 'this_only' 
+        ? 'Successfully updated this specific event occurrence'
+        : recurringResult.type === 'all_future'
+        ? 'Successfully updated all future occurrences of this event'
+        : 'Event updated successfully',
+      responseMetadata
     );
     
     return res.status(200).json(response);
@@ -2011,10 +2107,11 @@ const removeEventAttendee = async (req, res) => {
   let result = { statusCode: 500, response: { message: 'Server error' } };
   
   try {
-    const { attendeeId } = req.body;
+    const { eventId, attendeeId } = req.body;
     
     // Validate request and get event
     const validationResult = await validateEventModificationRequest(req, ['eventId', 'attendeeId']);
+    
     if (!validationResult.isValid) {
       result = {
         statusCode: validationResult.error.status,
@@ -2025,6 +2122,7 @@ const removeEventAttendee = async (req, res) => {
       
       // Validate permissions
       const permissionResult = validateEventPermissions(event, req.user._id, 'creator');
+      
       if (!permissionResult.isValid) {
         result = {
           statusCode: permissionResult.error.status,
@@ -2033,6 +2131,7 @@ const removeEventAttendee = async (req, res) => {
       } else {
         // Check if attendee exists
         const attendeeCheck = validateEventPermissions(event, attendeeId, 'attendee');
+        
         if (!attendeeCheck.isValid) {
           result = {
             statusCode: 404,
@@ -2050,71 +2149,91 @@ const removeEventAttendee = async (req, res) => {
           });
           
           if (recurringResult.type === 'this_only') {
-            await handleEventReminders({
-              event,
-              operation: 'delete',
-              userId: attendeeId,
-              occurrenceDate
-            });
-            
+            // Efficient scheduler: Removing attendees doesn't require reminder updates
             await synchronizeAttendeesWithNewEvent(
               recurringResult.separateEvent.attendees,
               recurringResult.separateEvent._id
             );
+
+            await Promise.all([
+              removeAttendeeFromEventArray(recurringResult.separateEvent, attendeeId),
+              removeUserFromEvent(attendeeId, recurringResult.separateEvent._id)
+            ]);
             
-            // Use createApiResponse for consistency
-            const apiResponse = createApiResponse(
-              true,
+            // Build enriched response with updated event
+            const response = await buildEnrichedEventResponse(
+              recurringResult.separateEvent._id,
+              req.user._id,
               'Successfully removed attendee from this specific event occurrence',
               {
                 separateEventId: recurringResult.separateEvent._id,
-                occurrenceDate: recurringResult.occurrenceDate
+                occurrenceDate: recurringResult.occurrenceDate,
+                recurringModificationType: 'this_only',
+                masterEventId: event, // Pass the master event object
+                eventToView: recurringResult.separateEvent._id
               }
             );
             
             result = {
-              statusCode: apiResponse.statusCode,
-              response: apiResponse.response
+              statusCode: 200,
+              response: {
+                ...response,
+                separateEventId: recurringResult.separateEvent._id,
+                occurrenceDate: recurringResult.occurrenceDate
+              }
             };
           } else if (recurringResult.type === 'all_future') {
-            await handleEventReminders({
-              event: recurringResult.futureEvent,
-              operation: 'deleteAll',
-              userId: attendeeId
-            });
-            
-            // Use createApiResponse for consistency
-            const apiResponse = createApiResponse(
-              true,
-              'Successfully removed attendee from all future occurrences of this event'
+            // First, add the future event to all existing attendees' user.events arrays
+            // This ensures the event appears for everyone who was already in the event
+            const existingAttendees = recurringResult.futureEvent.attendees || [];
+            for (const attendee of existingAttendees) {
+              const attendeeUserId = attendee.user._id || attendee.user;
+              const attendeeStatus = attendee.status;
+              await updateUserEventStatus(attendeeUserId, recurringResult.futureEvent._id, attendeeStatus);
+            }
+            // Efficient scheduler: Removing attendees doesn't require reminder updates     
+            await Promise.all([
+              removeAttendeeFromEventArray(recurringResult.futureEvent, attendeeId),
+              removeUserFromEvent(attendeeId, recurringResult.futureEvent._id)
+            ]);
+            // Build enriched response with updated event
+            const response = await buildEnrichedEventResponse(
+              recurringResult.futureEvent._id,
+              req.user._id,
+              'Successfully removed attendee from all future occurrences of this event',
+              {
+                recurringModificationType: 'all_future',
+                originalEventId: event, // Pass the original event object
+                eventToView: recurringResult.futureEvent._id
+              }
             );
             
             result = {
-              statusCode: apiResponse.statusCode,
-              response: apiResponse.response
+              statusCode: 200,
+              response
             };
           } else {
             // Handle non-recurring or all instances
-            await handleEventReminders({
-              event,
-              operation: 'delete',
-              userId: attendeeId
-            });
-            
+            // Efficient scheduler: Removing attendees doesn't require reminder updates     
             await Promise.all([
               removeAttendeeFromEventArray(event, attendeeId),
               removeUserFromEvent(attendeeId, event._id)
             ]);
             
-            // Use createApiResponse for consistency
-            const apiResponse = createApiResponse(
-              true,
+            // Fetch the updated event with populated fields
+            const updatedEvent = await Events.findById(event._id)
+              .populate(getStandardEventPopulation());
+            
+            // Build enriched response with updated event
+            const response = await buildEnrichedEventResponse(
+              updatedEvent,
+              req.user._id,
               'Successfully removed attendee from the event'
             );
             
             result = {
-              statusCode: apiResponse.statusCode,
-              response: apiResponse.response
+              statusCode: 200,
+              response
             };
           }
         }
@@ -2143,18 +2262,18 @@ module.exports = {
   getMyEventsForDateRange, // fixed
   getEventById, // fixed
   getNearbyEvents, // fixed
-  respondToEventInvitation,
-  cancelEvent,
+  respondToEventInvitation, // fixed
+  cancelEvent, // fixed
   deleteRecurringEvents, // internal use tool, not necessary
-  inviteEventAttendees, 
+  inviteEventAttendees, // fixed
   getEventsByCategory, // fixed
   getEventsByCity, // fixed
   getAttentionRequiredEvents, // fixed
   getRecommendedEvents, // fixed
   getFriendsEvents, // fixed
-  joinEvent,
+  joinEvent, 
   markEventNotInterested, // already good
   reportEvent, // already good
-  updateEvent,
-  removeEventAttendee
+  updateEvent, // fixed
+  removeEventAttendee // fixed
 };

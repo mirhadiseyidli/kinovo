@@ -16,6 +16,7 @@ import { CreateEventScrollContext } from '@/context/CreateEventScrollContext';
 import Animated, { useAnimatedScrollHandler } from 'react-native-reanimated';
 import { runOnJS } from 'react-native-worklets';
 import { useRouter } from 'expo-router';
+import LocationSuggestionsDropdown from '@/components/CreateEvent/LocationSuggestionsDropdown'
 
 const AnimatedScrollView = Animated.createAnimatedComponent(Animated.ScrollView);
 
@@ -25,6 +26,7 @@ export default React.memo(function EventDateAndLocation() {
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [inputPosition, setInputPosition] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const locationSelectRef = useRef<((text: string, city: string, state: string, location: any) => void) | null>(null);
   
   // Refs to control all pickers - only one can be open at a time
@@ -107,61 +109,20 @@ export default React.memo(function EventDateAndLocation() {
 
   return (
     <ThemedView style={{ flex: 1, width: '100%', paddingHorizontal: 16 }}>
-      {/* Backdrop overlay - split to avoid covering input field */}
-      {showSuggestions && (
-        <>
-          {/* Top overlay - above input field */}
-          <Pressable
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              height: 116, // DateTime height + gap (80px + 16px)
-              backgroundColor: 'transparent',
-              zIndex: 999,
-            }}
-            onPress={handleBackdropPress}
-          />
-          {/* Bottom overlay - below dropdown */}
-          <Pressable
-            style={{
-              position: 'absolute',
-              top: 484, // Start after dropdown area (184px + 300px max height)
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: 'transparent',
-              zIndex: 999,
-            }}
-            onPress={handleBackdropPress}
-          />
-          {/* Side overlays - left and right of dropdown */}
-          <Pressable
-            style={{
-              position: 'absolute',
-              top: 96, // Start after DateTime + gap
-              left: 0,
-              width: 16, // Width of padding
-              height: 388, // Cover input + dropdown area (58px input + 4px gap + 300px dropdown + padding)
-              backgroundColor: 'transparent',
-              zIndex: 999,
-            }}
-            onPress={handleBackdropPress}
-          />
-          <Pressable
-            style={{
-              position: 'absolute',
-              top: 96,
-              right: 0,
-              width: 16,
-              height: 388,
-              backgroundColor: 'transparent',
-              zIndex: 999,
-            }}
-            onPress={handleBackdropPress}
-          />
-        </>
+      {/* Full screen backdrop when suggestions are showing */}
+      {showSuggestions && inputPosition && (
+        <Pressable
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'transparent',
+            zIndex: 999,
+          }}
+          onPress={handleBackdropPress}
+        />
       )}
 
       <AnimatedScrollView 
@@ -186,6 +147,7 @@ export default React.memo(function EventDateAndLocation() {
             setSuggestions([]);
           }}
           onLocationSelectRef={locationSelectRef}
+          onInputPositionChange={setInputPosition}
         />
         <Frequency ref={frequencyRef} onPickerOpen={handlePickerOpen} />
         
@@ -222,92 +184,14 @@ export default React.memo(function EventDateAndLocation() {
         </View>
       </AnimatedScrollView>
 
-      {/* Location Suggestions Dropdown - Rendered outside ScrollView */}
-      {showSuggestions && suggestions.length > 0 && (
-        <ThemedView style={{
-          position: 'absolute',
-          top: 184, // DateTime (≈80px) + gap (16px) + Location input (≈58px) + spacing (4px) + ScrollView content padding
-          left: 16,
-          right: 16,
-          backgroundColor: themeColors.inputBackgroundColor,
-          borderWidth: 1,
-          borderColor: themeColors.border,
-          borderRadius: 8,
-          maxHeight: 300,
-          zIndex: 1000,
-          shadowColor: '#000',
-          shadowOffset: {
-            width: 0,
-            height: 4,
-          },
-          shadowOpacity: 0.15,
-          shadowRadius: 8,
-          elevation: 8,
-        }}>
-          <ScrollView 
-            style={{ maxHeight: 300 }} 
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="none"
-            nestedScrollEnabled={true}
-            showsVerticalScrollIndicator={false}
-          >
-            {suggestions.map((item, index) => (
-              <TouchableOpacity
-                key={index}
-                style={{
-                  paddingVertical: 12,
-                  paddingHorizontal: 16,
-                  borderBottomWidth: index !== suggestions.length - 1 ? 1 : 0,
-                  borderBottomColor: themeColors.border,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                }}
-                onPress={() => handleLocationSelect(
-                  item?.displayName?.text || '',
-                  item?.postalAddress?.locality || '',
-                  item?.postalAddress?.administrativeArea || '',
-                  item?.location,
-                )}
-              >
-                <View style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 8,
-                  backgroundColor: themeColors.background,
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  marginRight: 12,
-                }}>
-                  <Feather 
-                    name="map-pin" 
-                    size={20} 
-                    color={themeColors.text} 
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ 
-                    fontWeight: '600', 
-                    fontSize: 16, 
-                    color: themeColors.text 
-                  }}>
-                    {item['displayName']['text']}
-                  </Text>
-                  <Text style={{ 
-                    fontSize: 14, 
-                    color: themeColors.placeholderTextColor 
-                  }}>
-                    {item['formattedAddress']}
-                  </Text>
-                </View>
-                <Feather 
-                  name="arrow-up-right" 
-                  size={16} 
-                  color={themeColors.placeholderTextColor} 
-                />
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </ThemedView>
+      {/* Location Suggestions Dropdown - Positioned based on input location */}
+      {showSuggestions && suggestions.length > 0 && inputPosition && (
+        <LocationSuggestionsDropdown
+          suggestions={suggestions}
+          showSuggestions={showSuggestions}
+          onLocationSelect={handleLocationSelect}
+          inputPosition={inputPosition}
+        />
       )}
     </ThemedView>
   );
