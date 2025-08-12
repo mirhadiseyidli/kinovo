@@ -1,5 +1,5 @@
 import { View, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Alert, Dimensions } from 'react-native';
-import React, { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useEffect, useImperativeHandle, forwardRef, useRef } from 'react';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -18,8 +18,8 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   withSpring,
-  runOnJS
 } from 'react-native-reanimated';
+import { runOnJS } from 'react-native-worklets';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 interface Tag {
@@ -38,6 +38,7 @@ interface TagItemProps {
   onTagPress: (activityName: string) => void;
   onManageFriends: (tag: Tag) => void;
   onRemoveFriend: (friendId: string, friendName: string, tagName: string) => void;
+  onRefresh: () => void;
   themeColors: any;
 }
 
@@ -47,6 +48,12 @@ const useChevronRotation = (isExpanded: boolean) => {
   useEffect(() => {
     rotation.value = withTiming(isExpanded ? 1 : 0, { duration: 300 });
   }, [isExpanded]);
+
+  useEffect(() => {
+    return () => {
+      rotation.value = 0;
+    };
+  }, []);
 
   return useAnimatedStyle(() => ({
     transform: [
@@ -63,19 +70,25 @@ const TagItem: React.FC<TagItemProps> = ({
   onTagPress,
   onManageFriends,
   onRemoveFriend,
+  onRefresh,
   themeColors
 }) => {
   const width = Dimensions.get('window').width;
   const chevronStyle = useChevronRotation(isExpanded);
   const iconName = getCategoryIcon(tag.activity_name);
   const iconColor = getCategoryColor(tag.activity_name);
-  const contentHeight = useSharedValue(0);
-  const contentOpacity = useSharedValue(0);
-  const horizontalPadding = useSharedValue(0);
   const translateX = useSharedValue(0);
   const deleteWidth = 80; // Width of the delete area
   const deleteExtendedWidth = width * 0.9; // Increased width for full swipe
   const isDeleteVisible = useSharedValue(false);
+  const isSwipingRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    return () => {
+      translateX.value = 0;
+      isDeleteVisible.value = false;
+    };
+  }, []);
 
   const showDeleteAlert = () => {
     Alert.alert(
@@ -98,8 +111,7 @@ const TagItem: React.FC<TagItemProps> = ({
               await api.delete('/api/users/tags', {
                 data: { activity_name: tag.activity_name }
               });
-              Alert.alert('Success', 'Tag deleted successfully');
-              onTagPress(tag.activity_name); // This will trigger a refresh
+              onRefresh(); // Refresh the tags list immediately
             } catch (error) {
               console.error('Error deleting tag:', error);
               Alert.alert('Error', 'Failed to delete tag. Please try again.');
@@ -112,8 +124,36 @@ const TagItem: React.FC<TagItemProps> = ({
     );
   };
 
+  const markSwipingTrue = () => { 
+    'worklet';
+    isSwipingRef.current = true; 
+  };
+  
+  const markSwipingFalse = () => { 
+    'worklet';
+    isSwipingRef.current = false; 
+  };
+
+  const triggerTagPress = () => {
+    onTagPress(tag.activity_name);
+  };
+
+  const panTap = Gesture.Tap()
+    .onBegin(() => {
+      markSwipingFalse();
+    })
+    .onEnd(() => {
+      // Only trigger tap if we haven't been swiping
+      if (!isSwipingRef.current) {
+        runOnJS(triggerTagPress)();
+      }
+    })
+
   const panGesture = Gesture.Pan()
     .activeOffsetX([-10, 10])
+    .onBegin(() => {
+      markSwipingTrue();
+    })
     .onUpdate((event) => {
       // Always allow swiping back to the right
       if (event.translationX > 0) {
@@ -163,11 +203,15 @@ const TagItem: React.FC<TagItemProps> = ({
         }
         translateX.value = withSpring(-deleteWidth);
       }
-    });
+    })
 
   const animatedContainerStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
   }));
+
+  const handleTagPress = () => {
+    onTagPress(tag.activity_name);
+  };
 
   const deleteAreaStyle = useAnimatedStyle(() => {
     const progress = Math.min(1, -translateX.value / deleteWidth);
@@ -178,45 +222,8 @@ const TagItem: React.FC<TagItemProps> = ({
     };
   });
 
-  useEffect(() => {
-    if (isExpanded) {
-      contentHeight.value = withTiming(tag.friends.length > 0 ? tag.friends.length * 70 : 180, {
-        duration: 500,
-      });
-      contentOpacity.value = withTiming(1, {
-        duration: 300,
-      });
-      horizontalPadding.value = withTiming(16, {
-        duration: 300,
-      });
-    } else {
-      contentHeight.value = withTiming(0, {
-        duration: 500,
-      });
-      contentOpacity.value = withTiming(0, {
-        duration: 300,
-      });
-      horizontalPadding.value = withTiming(0, {
-        duration: 300,
-      });
-    }
-  }, [isExpanded, tag.friends.length]);
-
-  const animatedContentStyle = useAnimatedStyle(() => ({
-    height: contentHeight.value,
-    opacity: contentOpacity.value,
-    overflow: 'hidden',
-    paddingHorizontal: 32,
-    paddingTop: 8
-  }));
-
-  const animatedHeaderStyle = useAnimatedStyle(() => ({
-    paddingLeft: horizontalPadding.value,
-    paddingRight: horizontalPadding.value,
-  }));
-
   return (
-    <View key={tag.activity_name} style={{ gap: 8 }}>
+    <View key={tag.activity_name} style={{ gap: 16 }}>
       <View style={[
         {
           overflow: 'hidden',
@@ -234,6 +241,8 @@ const TagItem: React.FC<TagItemProps> = ({
             backgroundColor: '#FF3B30',
             justifyContent: 'center',
             alignItems: 'center',
+            borderTopRightRadius: 16,
+            borderBottomRightRadius: 16
           }}
         >
           <Animated.View style={[{ width: '100%', alignItems: 'center' }, deleteAreaStyle]}>
@@ -241,28 +250,23 @@ const TagItem: React.FC<TagItemProps> = ({
           </Animated.View>
         </TouchableOpacity>
 
-        <GestureDetector gesture={panGesture}>
-          <Animated.View style={[{ backgroundColor: themeColors.background }, animatedContainerStyle]}>
-            {isExpanded && (
+        <GestureDetector gesture={Gesture.Race(panTap, panGesture)}>
+          <Animated.View style={[{ 
+            backgroundColor: themeColors.background,
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: themeColors.border,
+            minWidth: width - 32,
+            width: '100%',
+            overflow: 'hidden'
+          }, animatedContainerStyle]}>
+            {/* Header - Always visible with natural height */}
+            <View style={{ padding: 16 }}>
               <View
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  zIndex: -1
-                }}
-              />
-            )}
-            <Animated.View style={animatedHeaderStyle}>
-              <TouchableOpacity
-                onPress={() => onTagPress(tag.activity_name)}
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  paddingHorizontal: 16,
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -292,68 +296,73 @@ const TagItem: React.FC<TagItemProps> = ({
                     />
                   </Animated.View>
                 </View>
-              </TouchableOpacity>
-            </Animated.View>
-
-            <Animated.View style={[animatedContentStyle]}>
-              <View style={{ gap: 8 }}>
-                {tag.friends.map((friend) => (
-                  <FriendListUserItem
-                    key={friend._id}
-                    _id={friend._id}
-                    name={friend.full_name}
-                    subtitle={`@${friend.username}`}
-                    avatarUri={friend.profile_picture}
-                    status="manageTagFriend"
-                    tagName={tag.activity_name}
-                    onRemove={() => onRemoveFriend(friend._id, friend.full_name, tag.activity_name)}
-                  />
-                ))}
-                {tag.friends.length === 0 && (
-                  <View style={{ 
-                    alignItems: 'center',
-                    backgroundColor: themeColors.background,
-                    borderRadius: 12,
-                    padding: 16,
-                    borderWidth: 2,
-                    borderStyle: 'dashed',
-                    borderColor: themeColors.border,
-                    width: '100%',
-                    minHeight: 120,
-                    justifyContent: 'center'
-                  }}>
-                    <View style={{ marginBottom: 12 }}>
-                      <Feather
-                        name="users"
-                        size={32}
-                        color={themeColors.placeholderTextColor}
-                      />
-                    </View>
-                    <ThemedText 
-                      style={{ 
-                        fontSize: 16, 
-                        color: themeColors.placeholderTextColor,
-                        textAlign: 'center',
-                        marginBottom: 4,
-                        fontWeight: '600'
-                      }}
-                    >
-                      No friends tagged
-                    </ThemedText>
-                    <ThemedText 
-                      style={{ 
-                        fontSize: 14, 
-                        color: themeColors.placeholderTextColor,
-                        textAlign: 'center',
-                        opacity: 0.8
-                      }}
-                    >
-                      Add friends to this activity tag
-                    </ThemedText>
-                  </View>
-                )}
               </View>
-            </Animated.View>
+            </View>
+
+            {/* Expandable Content - Only shown when expanded */}
+            {isExpanded && (
+              <View style={{ 
+                paddingHorizontal: 16,
+                paddingBottom: 16
+              }}>
+                <View style={{ gap: 8 }}>
+                  {tag.friends.map((friend) => (
+                    <FriendListUserItem
+                      key={friend._id}
+                      _id={friend._id}
+                      name={friend.full_name}
+                      subtitle={`@${friend.username}`}
+                      avatarUri={friend.profile_picture}
+                      status="manageTagFriend"
+                      tagName={tag.activity_name}
+                      onRemove={() => onRemoveFriend(friend._id, friend.full_name, tag.activity_name)}
+                    />
+                  ))}
+                  {tag.friends.length === 0 && (
+                    <View style={{ 
+                      alignItems: 'center',
+                      borderRadius: 12,
+                      padding: 16,
+                      borderWidth: 2,
+                      borderStyle: 'dashed',
+                      borderColor: themeColors.border,
+                      width: '100%',
+                      minHeight: 120,
+                      justifyContent: 'center'
+                    }}>
+                      <View style={{ marginBottom: 12 }}>
+                        <Feather
+                          name="users"
+                          size={32}
+                          color={themeColors.placeholderTextColor}
+                        />
+                      </View>
+                      <ThemedText 
+                        style={{ 
+                          fontSize: 16, 
+                          color: themeColors.placeholderTextColor,
+                          textAlign: 'center',
+                          marginBottom: 4,
+                          fontWeight: '600'
+                        }}
+                      >
+                        No friends tagged
+                      </ThemedText>
+                      <ThemedText 
+                        style={{ 
+                          fontSize: 14, 
+                          color: themeColors.placeholderTextColor,
+                          textAlign: 'center',
+                          opacity: 0.8
+                        }}
+                      >
+                        Add friends to this activity tag
+                      </ThemedText>
+                    </View>
+                  )}
+                </View>
+              </View>
+            )}
           </Animated.View>
         </GestureDetector>
       </View>
@@ -457,7 +466,7 @@ const Tags = forwardRef<TagsRef>((_, ref) => {
           />
         }
       >
-        <View>
+        <View style={{ gap: 16 }}>
           {tags.length > 0 ? (
             tags.map((tag) => (
               <TagItem
@@ -467,6 +476,7 @@ const Tags = forwardRef<TagsRef>((_, ref) => {
                 onTagPress={handleTagPress}
                 onManageFriends={handleManageFriends}
                 onRemoveFriend={handleRemoveFriend}
+                onRefresh={fetchTags}
                 themeColors={themeColors}
               />
             ))

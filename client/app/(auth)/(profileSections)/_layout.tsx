@@ -10,7 +10,6 @@ import { useState, useCallback, useMemo } from 'react';
 export default function NotificationsLayout() {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const [showPicker, setShowPicker] = useState(false);
 
   const goBack = useCallback(() => {
     if (router.canGoBack()) {
@@ -32,13 +31,6 @@ export default function NotificationsLayout() {
     <ProfilePreviewMenu /> 
   ), []);
 
-  const headerRightButtonPicker = useMemo(() => (
-    <TouchableOpacity
-      onPress={() => setShowPicker(true)}
-    >
-      <IconSymbol name="plus.circle" size={24} color={themeColors.text} />
-    </TouchableOpacity>
-  ), []);
 
   return (
     <Stack
@@ -259,10 +251,6 @@ export default function NotificationsLayout() {
       />
       <Stack.Screen 
         name="manageFavoriteActivities"
-        initialParams={{
-          showPicker,
-          setShowPicker,
-        }}
         options={{
           headerTitle: 'Favorite Activities',
           headerTintColor: themeColors.text,
@@ -273,7 +261,6 @@ export default function NotificationsLayout() {
           headerShown: true,
           headerBackButtonDisplayMode: 'minimal',
           headerLeft: () => headerLeftButton,
-          headerRight: () => headerRightButtonPicker,
         }} 
       />
     </Stack>

@@ -30,7 +30,7 @@ export interface RecurringEventModification {
   originalEventId: string;
   occurrenceDate: Date;
   modifiedEvent: Partial<Event> & { cancelled?: boolean };
-  modifyType: 'this_only' | 'this_and_future' | 'all_instances';
+  modifyType: 'this_only' | 'all_future';
 }
 
 /**
@@ -215,7 +215,7 @@ export function createEventModification(
   originalEventId: string,
   occurrenceDate: Date,
   modifiedEvent: Partial<Event>,
-  modifyType: 'this_only' | 'this_and_future' | 'all_instances'
+  modifyType: 'this_only' | 'all_future'
 ): RecurringEventModification {
   return {
     originalEventId,

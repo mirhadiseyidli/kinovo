@@ -177,14 +177,11 @@ const ManageTagFriendsModal: React.FC<ManageTagFriendsModalProps> = ({
             flexDirection: 'row',
             justifyContent: 'space-between',
             alignItems: 'center',
-            padding: 16,
-            borderBottomWidth: 1,
-            borderBottomColor: themeColors.border,
+            paddingTop: 16,
+            paddingHorizontal: 16
           }}>
-            <TouchableOpacity onPress={onClose}>
-              <Feather name="x" size={18} color={themeColors.text} />
-            </TouchableOpacity>
-            <ThemedText style={{ fontSize: 18, fontWeight: 'bold' }}>
+            <View style={{ width: 50 }} />
+            <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>
               Add Friends to {tagName}
             </ThemedText>
             <TouchableOpacity 
@@ -194,7 +191,8 @@ const ManageTagFriendsModal: React.FC<ManageTagFriendsModalProps> = ({
             >
               <ThemedText style={{ 
                 color: themeColors.mountainGreen,
-                fontWeight: 'bold'
+                fontWeight: 'bold',
+                fontSize: 16
               }}>
                 {loading ? 'Saving...' : 'Save'}
               </ThemedText>
@@ -335,7 +333,7 @@ const ManageTagFriendsModal: React.FC<ManageTagFriendsModalProps> = ({
                         opacity: 0.8
                       }}
                     >
-                      Try searching with a different name 🔍
+                      Try searching with a different name
                     </ThemedText>
                   </TouchableOpacity>
                 )}
@@ -383,7 +381,7 @@ const ManageTagFriendsModal: React.FC<ManageTagFriendsModalProps> = ({
                     opacity: 0.8
                   }}
                 >
-                  Use the search bar to add friends to this tag 🤝
+                  Use the search bar to add friends to this tag
                 </ThemedText>
               </TouchableOpacity>
             )}

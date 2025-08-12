@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { Dispatch, SetStateAction, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ActionSheetIOS, Platform, type ViewStyle, Alert, InteractionManager } from 'react-native';
 import { format, isSameDay, isTomorrow } from 'date-fns';
 import type { ReportEventButtonProps, Coordinates, EventProp } from '@/types/allTypes';
@@ -15,25 +15,43 @@ import EventTimeAndDate from './EventTimeAndDate';
 import EventRecurrence from './EventRecurrence';
 import EventLocationInfo from './EventLocationInfo';
 import EventVisibilityInfo from './EventVisibilityInfo';
-import { useEventMutations } from '@/hooks/useEventMutations';
+import { useRespondToInvitation, useJoinEvent } from '@/hooks/useNewEventMutations';
+import { useNotInterestedEvent, useCancelEvent } from '@/hooks/useSpecialMutations';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import AddAttendeesModal from './AddAttendeesModal';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
 import { jwtDecode } from 'jwt-decode';
 import { useEventReport } from '@/hooks/useEventReport';
 import { useViewEventModal } from '@/context/ViewEventModalContext';
 
-const EventDetailsSection: React.FC<EventProp & { isRecurringOccurrence: boolean | undefined, occurrence_start: Date | null }> = ({ event, isRecurringOccurrence, occurrence_start }) => {
+/**
+ * EventDetails - MIGRATED to New TanStack Query Architecture
+ * 
+ * Migration changes:
+ * - useEventMutations → individual mutation hooks from new architecture
+ * - Changed from async/await pattern to callback-based mutation pattern
+ * - Direct cache updates instead of invalidation
+ * - Added proper success/error handling with mutation callbacks
+ * - Supports recurring event modifications
+ */
+
+const EventDetailsSection: React.FC<EventProp & { 
+  isRecurringOccurrence: boolean | undefined, 
+  occurrence_start: Date | null,
+  setNewEventToView?: Dispatch<SetStateAction<string>>,
+}> = ({ event, isRecurringOccurrence, occurrence_start, setNewEventToView }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const [showAddAttendeesModal, setShowAddAttendeesModal] = useState(false);
   const { showModal } = useViewEventModal();
 
-  const { respondToInvitation, joinEvent, markNotInterested, cancelEvent: cancelEventApi } = useEventMutations();
-  const { accessToken, userId } = useAuthSession();
+  // New TanStack Query mutations
+  const respondToInvitationMutation = useRespondToInvitation();
+  const joinEventMutation = useJoinEvent();
+  const markNotInterestedMutation = useNotInterestedEvent();
+  const cancelEventMutation = useCancelEvent();
+  const { accessToken } = useAuthSession();
   const router = useRouter();
   const loggedInUserId = accessToken?.current ? (jwtDecode(accessToken.current) as any)?._id : null;
-  const { reportEvent: reportEventApi, loading: reportLoading } = useEventReport();
+  const { reportEvent: reportEventApi } = useEventReport();
 
   // Check if event is in the past
   const isEventInPast = useMemo(() => {
@@ -62,43 +80,63 @@ const EventDetailsSection: React.FC<EventProp & { isRecurringOccurrence: boolean
       : formatDateTime(event.end_time)
     : 'End time unknown';
 
-  const handleInvitationResponse = useCallback(async (status: 'accepted' | 'maybe' | 'rejected', options?: { modifyType: 'this_only' | 'all_future' }) => {
+  const handleInvitationResponse = useCallback((status: 'accepted' | 'maybe' | 'rejected', options?: { modifyType: 'this_only' | 'all_future' }) => {
     if (!event._id) return;
     
-    try {
-      const requestOptions: any = {
-        eventId: event._id,
-        status
-      };
-      
-      // If this is a recurring occurrence and we have options, include them
-      if (event.isRecurringOccurrence && options?.modifyType && event.start_time) {
-        requestOptions.occurrenceDate = event.start_time;
-        requestOptions.modifyType = options.modifyType;
+    const variables: any = {
+      eventId: event._id,
+      status
+    };
+    
+    // If this is a recurring occurrence and we have options, include them
+    if (event.isRecurringOccurrence && options?.modifyType && event.start_time) {
+      variables.occurrenceDate = event.start_time;
+      variables.modifyType = options.modifyType;
+    }
+    
+    respondToInvitationMutation.mutate(variables, {
+      onSuccess: () => {
+        // Direct cache update handled automatically by new architecture
+        
+        // Close the event view after successful response
+        if (router.canGoBack()) {
+          router.back();
+        } else {
+          router.replace('/');
+        }
+      },
+      onError: (error) => {
+        console.error('Failed to respond to invitation:', error);
+        Alert.alert('Error', 'Failed to update response. Please try again.');
       }
-      
-      await respondToInvitation(requestOptions);
-      
-      // Cache invalidation handled automatically by useEventMutations
-    } catch (error) {
-      console.error('Failed to respond to invitation:', error);
-    }
-  }, [event, respondToInvitation, isRecurringOccurrence, occurrence_start, userId]);
+    });
+  }, [event, respondToInvitationMutation]);
 
-  const handleJoinEvent = useCallback(async (status: 'accepted' | 'maybe') => {
+  const handleJoinEvent = useCallback((status: 'accepted' | 'maybe', options?: { modifyType: 'this_only' | 'all_future' }) => {
     if (!event._id) return;
-    
-    try {
-      await joinEvent({
-        eventId: event._id,
-        status
-      });
-      
-      // Cache invalidation handled automatically by useEventMutations
-    } catch (error) {
-      console.error('Failed to join event:', error);
+
+    const variables: any = {
+      eventId: event._id,
+      status
+    };
+
+    // If this is a recurring occurrence and we have options, include them
+    if (event.isRecurringOccurrence && options?.modifyType && event.start_time) {
+      variables.occurrenceDate = event.start_time;
+      variables.modifyType = options.modifyType;
     }
-  }, [event, joinEvent, userId]);
+    
+    joinEventMutation.mutate(variables, {
+      onSuccess: () => {
+        // Direct cache update handled automatically by new architecture
+        // Optional: Show success message
+      },
+      onError: (error) => {
+        console.error('Failed to join event:', error);
+        Alert.alert('Error', 'Failed to join event. Please try again.');
+      }
+    });
+  }, [event, joinEventMutation]);
 
   const handleStatusChange = useCallback((status: 'accepted' | 'maybe' | 'rejected') => {
     // Check if the user is invited to this event
@@ -120,21 +158,20 @@ const EventDetailsSection: React.FC<EventProp & { isRecurringOccurrence: boolean
     }
   }, [isRecurringOccurrence, handleInvitationResponse, event.attendees, loggedInUserId, handleJoinEvent, showModal]);
 
-  const handleNotInterested = useCallback(async () => {
+  const handleNotInterested = useCallback(() => {
     if (!event._id) return;
     
-    try {
-      await markNotInterested({
-        eventId: event._id
-      });
-      
-      // Cache invalidation handled automatically by useEventMutations
-      // Use the centralized navigation system instead of direct router.back()
-      showModal('not_interested_success', { message: 'Event marked as not interested.' });
-    } catch (error) {
-      console.error('Failed to mark event as not interested:', error);
-    }
-  }, [event, markNotInterested, showModal, userId]);
+    markNotInterestedMutation.mutate(event._id, {
+      onSuccess: () => {
+        // Direct cache update handled automatically by new architecture
+        showModal('not_interested_success', { message: 'Event marked as not interested.' });
+      },
+      onError: (error) => {
+        console.error('Failed to mark event as not interested:', error);
+        Alert.alert('Error', 'Failed to mark as not interested. Please try again.');
+      }
+    });
+  }, [event, markNotInterestedMutation, showModal]);
 
   const acceptInvitation = useCallback(() => {
     handleStatusChange('accepted');
@@ -174,13 +211,18 @@ const EventDetailsSection: React.FC<EventProp & { isRecurringOccurrence: boolean
   }, [event, router]);
 
   const inviteToEvent = useCallback(() => {
-    setShowAddAttendeesModal(true);
-  }, []);
+    // Navigate to AddAttendees screen with event data
+    router.push({
+      pathname: '/(auth)/viewEvent/addAttendees',
+      params: {
+        event: JSON.stringify(event),
+        occurrence_start: occurrence_start ? String(occurrence_start) : undefined,
+        is_occurrence: isRecurringOccurrence ? 'true' : 'false',
+        originalEventId: event._id
+      }
+    });
+  }, [event, occurrence_start, isRecurringOccurrence, router]);
 
-  const handleInviteSuccess = useCallback(() => {
-    // Event data will be updated automatically through cache invalidation
-    // No manual refresh needed with TanStack Query
-  }, []);
 
   const handleReportEvent = useCallback(async (reason: string, details?: string) => {
     if (!event._id) return;
@@ -202,39 +244,40 @@ const EventDetailsSection: React.FC<EventProp & { isRecurringOccurrence: boolean
     reportEvent();
   };
 
-  const handleCancelEvent = useCallback(async (
+  const handleCancelEvent = useCallback((
     options?: { modifyType?: 'this_only' | 'all_future' }
   ) => {
     if (!event._id) return;
     
-    try {
-      const requestOptions: any = {
-        eventId: event._id
-      };
-      
-      // If this is a recurring occurrence and we have options, include them
-      if (isRecurringOccurrence && options?.modifyType) {
-        const occurrenceDate = Array.isArray(occurrence_start) ? occurrence_start[0] : occurrence_start;
-        requestOptions.occurrenceDate = occurrenceDate;
-        requestOptions.modifyType = options.modifyType;
-      }
-      
-      await cancelEventApi(requestOptions);
-      
-      // Cache invalidation handled automatically by useEventMutations
-      
-      const message = options?.modifyType === 'this_only' 
-          ? 'This event occurrence has been cancelled successfully.'
-          : options?.modifyType === 'all_future'
-          ? 'All future occurrences have been cancelled successfully.'
-          : 'The event has been cancelled successfully.';
-
-      // Show success message and navigate back
-      showModal('cancel_success', { message });
-    } catch (error) {
-      console.error('Failed to cancel event:', error);
+    const variables: any = {
+      eventId: event._id
+    };
+    
+    // If this is a recurring occurrence and we have options, include them
+    if (isRecurringOccurrence && options?.modifyType) {
+      const occurrenceDate = Array.isArray(occurrence_start) ? occurrence_start[0] : occurrence_start;
+      variables.occurrenceDate = occurrenceDate;
+      variables.modifyType = options.modifyType;
     }
-  }, [event._id, cancelEventApi, isRecurringOccurrence, occurrence_start, showModal]);
+    
+    cancelEventMutation.mutate(variables, {
+      onSuccess: () => {
+        // Direct cache update handled automatically by new architecture
+        const message = options?.modifyType === 'this_only' 
+            ? 'This event occurrence has been cancelled successfully.'
+            : options?.modifyType === 'all_future'
+            ? 'All future occurrences have been cancelled successfully.'
+            : 'The event has been cancelled successfully.';
+
+        // Show success message and navigate back
+        showModal('cancel_success', { message });
+      },
+      onError: (error) => {
+        console.error('Failed to cancel event:', error);
+        Alert.alert('Error', 'Failed to cancel event. Please try again.');
+      }
+    });
+  }, [event._id, cancelEventMutation, isRecurringOccurrence, occurrence_start, showModal]);
 
   const cancelEvent = useCallback(() => {
     // If this is a recurring event occurrence, show the alert to choose modification type
@@ -266,7 +309,7 @@ const EventDetailsSection: React.FC<EventProp & { isRecurringOccurrence: boolean
         onEdit={editEvent}
         onInvite={inviteToEvent}
         isCreator={event.creator?._id === loggedInUserId}
-          loading={false}
+          loading={respondToInvitationMutation.isPending || joinEventMutation.isPending || markNotInterestedMutation.isPending || cancelEventMutation.isPending}
         isInvited={event.attendees?.some(att => att.user._id === loggedInUserId)}
         isEventInPast={isEventInPast}
       />
@@ -290,12 +333,6 @@ const EventDetailsSection: React.FC<EventProp & { isRecurringOccurrence: boolean
         </View>
       }
 
-      <AddAttendeesModal
-        visible={showAddAttendeesModal}
-        onClose={() => setShowAddAttendeesModal(false)}
-        event={event}
-        onInviteSuccess={handleInviteSuccess}
-      />
     </View>
   );
 };

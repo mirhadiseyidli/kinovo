@@ -20,12 +20,25 @@ const RULE_PREFIX_1HOUR = 'event-reminder-1hour-';
  * @param {Date} fireAt JS Date object when reminder should fire
  * @param {string} reminderType '10min' or '1hour'
  * @param {string} eventId MongoDB _id of the Event document
- * @param {string} userId User ID for the reminder
+ * @param {string} userId User ID for the reminder (null for new efficient system)
+ * @param {Date} occurrenceDate Date of the occurrence (for recurring events)
  */
-function buildScheduleInput(scheduleName, fireAt, reminderType = '1hour', eventId, userId) {
+function buildScheduleInput(scheduleName, fireAt, reminderType = '1hour', eventId, userId, occurrenceDate = null) {
   // EventBridge Scheduler requires format: YYYY-MM-DDTHH:mm:ss
   // Convert from ISO string (2025-07-12T15:12:00.000Z) to required format
   const scheduleDate = fireAt.toISOString().slice(0, 19); // Remove milliseconds and Z
+  
+  const inputPayload = { eventId, reminderType };
+  
+  // Include userId for backward compatibility
+  if (userId) {
+    inputPayload.userId = userId;
+  }
+  
+  // Include occurrenceDate for recurring events
+  if (occurrenceDate) {
+    inputPayload.occurrenceDate = occurrenceDate.toISOString();
+  }
   
   return {
     Name: scheduleName,
@@ -34,7 +47,7 @@ function buildScheduleInput(scheduleName, fireAt, reminderType = '1hour', eventI
     Target: {
       Arn: process.env.REMINDER_LAMBDA_ARN,
       RoleArn: process.env.SCHEDULER_INVOKE_ROLE_ARN,
-      Input: JSON.stringify({ eventId, userId, reminderType }),
+      Input: JSON.stringify(inputPayload),
     },
   };
 }
@@ -48,8 +61,9 @@ function buildScheduleInput(scheduleName, fireAt, reminderType = '1hour', eventI
  * @param {string} reminderType '10min' or '1hour'
  * @param {string} eventId  Event _id as string (optional for backward compatibility)
  * @param {string} userId   User ID (optional for backward compatibility)
+ * @param {Date} occurrenceDate Date of the occurrence (for recurring events)
  */
-async function putSchedule(scheduleName, fireAt, reminderType = '1hour', eventId = null, userId = null) {
+async function putSchedule(scheduleName, fireAt, reminderType = '1hour', eventId = null, userId = null, occurrenceDate = null) {
   
   // Handle backward compatibility - if scheduleName looks like an eventId
   if (!eventId && scheduleName && !scheduleName.includes('-')) {
@@ -71,7 +85,7 @@ async function putSchedule(scheduleName, fireAt, reminderType = '1hour', eventId
     }
   }
   
-  const input = buildScheduleInput(scheduleName, fireAt, reminderType, eventId, userId);
+  const input = buildScheduleInput(scheduleName, fireAt, reminderType, eventId, userId, occurrenceDate);
 
   try {
     // Attempt to create the schedule first (faster path)

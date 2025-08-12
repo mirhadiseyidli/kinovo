@@ -25,6 +25,10 @@ export const CategoryImages: CategoryImageType = {
     image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Badminton.png` },
     alt: 'Badminton'
   },
+  'Boxing': {
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Boxing.png` },
+    alt: 'Boxing'
+  },
   'Canoeing': {
     image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Canoeing.png` },
     alt: 'Canoeing'
@@ -76,6 +80,10 @@ export const CategoryImages: CategoryImageType = {
   'Kayaking': {
     image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Kayaking.png` },
     alt: 'Kayaking'
+  },
+  'Kickboxing': {
+    image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Kickboxing.png` },
+    alt: 'Kickboxing'
   },
   'Kitesurf': {
     image: { uri: `https://${CDN_DOMAIN}/${CATEGORY_PATH}/Kitesurf.png` },

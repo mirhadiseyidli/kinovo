@@ -8,8 +8,7 @@ import { Feather } from '@expo/vector-icons';
 import MapViewModal from '../MapViewModal';
 import OpenMapsAndNavigateButton from '../OpenMapsAndNavigateButton';
 import { WeatherDisplay } from './EventLocationWeather';
-import MapView, { Marker } from 'react-native-maps';
-import OptimizedMapView from '../OptimizedMapView';
+import StaticMapView from '../StaticMapView';
 
 const EventLocationInfo: React.FC<EventLocationInfoProps> = React.memo(({ location }) => {
   const colorScheme = useColorScheme();
@@ -44,12 +43,15 @@ const EventLocationInfo: React.FC<EventLocationInfoProps> = React.memo(({ locati
         </View>
       </View>
       {location?.coordinates?.lat != null && location?.coordinates?.lng != null && isMapReady && (
-        <OptimizedMapView
+        <StaticMapView
+          mapSnapshotUrl={location.mapSnapshotUrl}
           coordinates={{
             latitude: location.coordinates.lat,
             longitude: location.coordinates.lng,
           }}
           selectedLocation={location.text}
+          fallbackToInteractive={true}
+          height={150}
         />
       )}
       <View

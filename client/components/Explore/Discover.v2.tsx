@@ -16,7 +16,7 @@ import Event from '@/components/Event';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { EventCardSkeleton } from '../Skeleton';
 import useSearchEverythingDiscovery from '@/hooks/useSearchEverythingDiscovery';
-import { useInfiniteEventsQuery } from '@/hooks/useInfiniteEventsQuery';
+import { useInfiniteRecommendedEvents } from '@/hooks/useInfiniteEvents';
 import { User, Event as EventType } from '@/types/allTypes';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
@@ -27,10 +27,16 @@ import { DiscoverErrorMessage } from '@/components/Explore/DiscoverErrorMessage'
 import { queryClient } from '@/utils/queryClient';
 
 /**
- * Discover Screen v2 - Using FlashList for all content
+ * Discover Screen v2 - MIGRATED to New TanStack Query Architecture
  * 
  * This version uses a single FlashList to render all components as sections,
  * which enables proper virtualization and infinite scroll for recommended events.
+ * 
+ * Key improvements:
+ * - Uses new simplified TanStack Query architecture with useInfiniteRecommendedEvents
+ * - Direct cache updates instead of invalidations for better performance
+ * - Single event store with tagging system
+ * - Better performance through unified caching
  * 
  * Section Types:
  * - header: Search bar
@@ -142,20 +148,18 @@ const DiscoverScreenV2 = () => {
 
   // Use infinite query for recommended events
   const {
-    events: recommendedEvents,
+    data,
     isLoading: isLoadingRecommended,
     isError: isErrorRecommended,
     error: recommendedError,
-    hasMore: hasMoreRecommended,
-    loadMore: loadMoreRecommended,
+    hasNextPage: hasMoreRecommended,
+    fetchNextPage: loadMoreRecommended,
     isFetchingNextPage,
     refetch: refetchRecommended,
-  } = useInfiniteEventsQuery({
-    eventType: 'recommended',
-    pageSize: 5,
-    enabled: true,
-    staleTime: 1000 * 60 * 5,
-  });
+  } = useInfiniteRecommendedEvents(5);
+  
+  // Extract events from paginated response
+  const recommendedEvents = data?.pages?.flatMap(page => page?.events || []) ?? [];
 
   // Report recommended events errors to centralized error handling
   React.useEffect(() => {
@@ -174,7 +178,7 @@ const DiscoverScreenV2 = () => {
 
   useEffect(() => {
     const handler = setTimeout(() => {
-      if (searchQuery.trim().length > 0) {
+      if (searchQuery && searchQuery.trim().length > 0) {
         searchResults();
         setIsSearchActive(true);
       } else {
@@ -191,8 +195,14 @@ const DiscoverScreenV2 = () => {
 
   // Show suggestions when there are results and search is active
   useEffect(() => {
-    setShowSuggestions(isSearchActive && (suggestions.users.length > 0 || suggestions.events.length > 0));
-  }, [isSearchActive, suggestions.users.length, suggestions.events.length]);
+    setShowSuggestions(
+      isSearchActive && 
+      suggestions && 
+      suggestions.users && 
+      suggestions.events && 
+      (suggestions.users.length > 0 || suggestions.events.length > 0)
+    );
+  }, [isSearchActive, suggestions?.users?.length, suggestions?.events?.length]);
 
   // Refresh handlers
   const onRefresh = useCallback(async () => {
@@ -203,16 +213,13 @@ const DiscoverScreenV2 = () => {
     setRefreshingCities(true);
     
     try {
-      // Invalidate all event-related queries to force fresh data
+      // Refresh the unified event store - this will update most event-related data
       await queryClient.invalidateQueries({ queryKey: ['events'] });
-      await queryClient.invalidateQueries({ queryKey: ['nearbyEvents'] });
-      await queryClient.invalidateQueries({ queryKey: ['friendsEvents'] });
-      await queryClient.invalidateQueries({ queryKey: ['categories'] });
-      await queryClient.invalidateQueries({ queryKey: ['cities'] });
-      await queryClient.invalidateQueries({ queryKey: ['recommendedEvents'] });
       
       // Refresh recommended events
       await refetchRecommended();
+      
+      // Individual sections handle their own specific refresh logic via their callbacks
     } catch (error) {
       console.error('Discover refresh failed:', error);
     } finally {
@@ -291,16 +298,18 @@ const DiscoverScreenV2 = () => {
     sections.push({ id: 'recommendedHeader', type: 'recommendedHeader' });
 
     // Handle different states for recommended events
-    if (isLoadingRecommended && recommendedEvents.length === 0) {
+    const eventsLength = recommendedEvents?.length ?? 0;
+    
+    if (isLoadingRecommended && eventsLength === 0) {
       // Show skeleton
       sections.push({ id: 'recommendedLoading', type: 'recommendedEmpty', data: 'loading' });
-    } else if (isErrorRecommended && recommendedEvents.length === 0) {
+    } else if (isErrorRecommended && eventsLength === 0) {
       // Show error
       sections.push({ id: 'recommendedError', type: 'recommendedError' });
-    } else if (recommendedEvents.length === 0) {
+    } else if (eventsLength === 0) {
       // Show empty state
       sections.push({ id: 'recommendedEmpty', type: 'recommendedEmpty', data: 'empty' });
-    } else {
+    } else if (recommendedEvents && Array.isArray(recommendedEvents)) {
       // Add individual events
       recommendedEvents.forEach((event, index) => {
         sections.push({
@@ -406,7 +415,7 @@ const DiscoverScreenV2 = () => {
             <ThemedView style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>Events You Might Like</ThemedText>
               <ThemedText style={{ fontSize: 14, color: themeColors.textSecondary }}>
-                {recommendedEvents.length} events
+                {recommendedEvents?.length ?? 0} events
               </ThemedText>
             </ThemedView>
           </ThemedView>
@@ -454,7 +463,8 @@ const DiscoverScreenV2 = () => {
               style={{
                 fontSize: 16,
                 textAlign: 'center',
-                color: themeColors.textSecondary,
+                color: themeColors.placeholderTextColor,
+                fontWeight: '600'
               }}
             >
               No recommended events yet
@@ -464,7 +474,7 @@ const DiscoverScreenV2 = () => {
                 fontSize: 14,
                 textAlign: 'center',
                 marginTop: 8,
-                color: themeColors.textThird,
+                color: themeColors.placeholderTextColor,
               }}
             >
               Add more interests to get personalized suggestions
@@ -474,7 +484,7 @@ const DiscoverScreenV2 = () => {
                 fontSize: 14,
                 textAlign: 'center',
                 marginTop: 8,
-                color: themeColors.textThird,
+                color: themeColors.placeholderTextColor,
               }}
             >
               Tap to refresh
@@ -566,6 +576,7 @@ const DiscoverScreenV2 = () => {
     onFinishRefreshCities,
     errors,
   ]);
+
 
   // Get item type for FlashList optimization
   const getItemType = useCallback((item: SectionItem) => {

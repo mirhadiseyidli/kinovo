@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Text, Alert, TouchableOpacity, Dimensions, Animated, Platform } from 'react-native';
+import { Text, Alert, TouchableOpacity, Dimensions, Platform } from 'react-native';
 import Input from '@/components/Input';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
@@ -288,9 +288,10 @@ const EmailLogin: React.FC<EmailLoginProps> = ({ onLoginSuccess, onLoginStart, o
             onValueChange={(value) => setIsChecked(value)}
             onCheckColor={themeColors.mountainGreen}
             tintColors={{ true: themeColors.mountainGreen, false: themeColors.text }}
-            style={{ height: 18, width: 18 }}
-            label="Remember Me"
-            topContainerStyle={{ gap: 4 }}
+            style={{ flexDirection: 'row', alignItems: 'center' }}
+            checkBoxStyle={{ height: 18, width: 18, marginRight: 8 }}
+            label='Remember Me'
+            textStyle={{ fontSize: 16, color: themeColors.text }}
           />
         </ThemedView>
         {/* Forgot Password Link */}

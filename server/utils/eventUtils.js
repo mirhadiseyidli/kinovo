@@ -1,7 +1,13 @@
 const { RRule } = require('rrule');
 const User = require('../database/schemas/usersSchema');
 const Events = require('../database/schemas/eventsSchema');
-const { createEventUpdateNotification } = require('../controllers/notificationsController');
+const Notification = require('../database/schemas/notificationsSchema');
+const { 
+  createEventUpdateNotification, 
+  createEventInvitationNotification, 
+  createEventAttendanceNotification 
+} = require('../controllers/notificationsController');
+// Reminder scheduling is now handled directly in eventsController.js
 
 // Global helper: build a stable occurrence ID (baseId-yyyy-MM-dd)
 const buildOccurrenceId = (baseId, date) => {
@@ -293,111 +299,6 @@ const processEventsWithRecurrence = (events, startRange = null, endRange = null)
 };
 
 /**
- * Add user-specific fields to events
- * @param {Array} events - Array of events
- * @param {string} userId - Current user ID
- * @param {Array} friends - User's friends array
- * @returns {Array} Events with user-specific fields added
- */
-const enrichEventsWithUserData = (events, userId, friends = []) => {
-  return events.map(event => {
-    try {
-      // Defensive check for event structure
-      if (!event || !userId) {
-        console.warn('Invalid event or userId in enrichEventsWithUserData:', { eventId: event?._id, userId });
-        return {
-          ...event,
-          isUserAttending: false,
-          isUserInvited: false,
-          isUserCreator: false,
-          isFriendEvent: false,
-          userStatus: null
-        };
-      }
-
-      // Ensure we're working with a plain object (convert Mongoose doc if needed)
-      const eventObj = event.toObject ? event.toObject() : event;
-
-      // Safe attendee lookup with comprehensive null checks
-      const userAttendee = eventObj.attendees?.find(att => {
-        // Check if attendee and user exist
-        if (!att || !att.user) {
-          return false;
-        }
-        
-        try {
-          // Handle both populated and non-populated user references
-          const attendeeUserId = att.user._id?.toString() || att.user.toString?.();
-          return attendeeUserId === userId.toString();
-        } catch (err) {
-          console.warn('Error processing attendee in enrichEventsWithUserData:', { 
-            eventId: eventObj._id, 
-            attendeeUser: att.user,
-            error: err.message 
-          });
-          return false;
-        }
-      });
-      
-      // Safe creator lookup with null checks
-      let creatorId = '';
-      let isCreator = false;
-      
-      if (eventObj.creator) {
-        try {
-          creatorId = eventObj.creator._id?.toString() || eventObj.creator.toString?.() || '';
-          isCreator = creatorId === userId.toString();
-        } catch (err) {
-          console.warn('Error processing creator in enrichEventsWithUserData:', { 
-            eventId: eventObj._id, 
-            creator: eventObj.creator,
-            error: err.message 
-          });
-        }
-      }
-      
-      // Safe friends check
-      const isFriendEvent = friends.some(friendId => {
-        try {
-          return friendId.toString() === creatorId;
-        } catch (err) {
-          return false;
-        }
-      });
-
-      return {
-        ...eventObj,
-        isUserAttending: !!userAttendee,
-        isUserInvited: !!userAttendee,
-        isUserCreator: isCreator,
-        isFriendEvent: isFriendEvent,
-        userStatus: userAttendee?.status || null
-      };
-      
-    } catch (error) {
-      // Catch-all error handler to prevent crashes
-      console.error('Error in enrichEventsWithUserData:', {
-        error: error.message,
-        eventId: event?._id,
-        userId,
-        stack: error.stack
-      });
-      
-      // Convert to plain object for safety and return with defaults
-      const eventObj = event?.toObject ? event.toObject() : event || {};
-      return {
-        ...eventObj,
-        isUserAttending: false,
-        isUserInvited: false,
-        isUserCreator: false,
-        isFriendEvent: false,
-        userStatus: null
-      };
-    }
-  });
-};
-
-/**
  * Filter user events by status and exclusions
  * @param {Array} userEvents - User's events array
  * @param {Array} reportedEventIds - IDs of reported events
@@ -406,7 +307,8 @@ const enrichEventsWithUserData = (events, userId, friends = []) => {
  * @returns {Array} Filtered events with user status
  */
 const filterUserEvents = (userEvents, reportedEventIds, notInterestedEventIds, allowedStatuses = ['accepted', 'maybe']) => {
-  return (userEvents || [])
+  // First filter valid events
+  const filteredEvents = (userEvents || [])
     .filter(userEvent => {
       if (!userEvent.event) return false;
       
@@ -422,11 +324,32 @@ const filterUserEvents = (userEvents, reportedEventIds, notInterestedEventIds, a
       }
       
       return hasAllowedStatus && !isReported && !isNotInterested;
-    })
-    .map(userEvent => ({
-      ...userEvent.event.toObject(),
-      userStatus: userEvent.status
-    }));
+    });
+  
+  // Deduplicate by event ID, keeping the first occurrence (or prioritizing 'accepted' status)
+  const eventMap = new Map();
+  filteredEvents.forEach(userEvent => {
+    const eventId = userEvent.event._id.toString();
+    
+    // If we haven't seen this event yet, add it
+    if (!eventMap.has(eventId)) {
+      eventMap.set(eventId, {
+        ...userEvent.event.toObject(),
+        userStatus: userEvent.status
+      });
+    } else {
+      // If we have a duplicate, keep the one with 'accepted' status if available
+      const existing = eventMap.get(eventId);
+      if (userEvent.status === 'accepted' && existing.userStatus !== 'accepted') {
+        eventMap.set(eventId, {
+          ...userEvent.event.toObject(),
+          userStatus: userEvent.status
+        });
+      }
+    }
+  });
+  
+  return Array.from(eventMap.values());
 };
 
 /**
@@ -570,9 +493,11 @@ const addExcludedDate = async (event, dateToExclude) => {
  * @returns {number} Index of attendee or -1 if not found
  */
 const findAttendeeIndex = (event, userId) => {
-  return event.attendees.findIndex(
-    attendee => attendee.user.toString() === userId.toString()
-  );
+  return event.attendees.findIndex(attendee => {
+    // Handle both populated and non-populated user field
+    const attendeeUserId = attendee.user?._id || attendee.user;
+    return attendeeUserId?.toString() === userId?.toString();
+  });
 };
 
 /**
@@ -650,11 +575,20 @@ const updateEventAttendee = async (event, userId, status) => {
     // Update existing attendee
     event.attendees[attendeeIndex].status = status;
   } else {
-    // Add new attendee
-    event.attendees.push({
-      user: userId,
-      status
-    });
+    // Add new attendee with populated user object
+    const populatedUser = await User.findById(userId);
+    if (populatedUser) {
+      event.attendees.push({
+        user: populatedUser,
+        status
+      });
+    } else {
+      // Fallback to ObjectId if user not found
+      event.attendees.push({
+        user: userId,
+        status
+      });
+    }
   }
   
   await event.save();
@@ -809,6 +743,7 @@ const handleRecurringEventModification = async (event, occurrenceDate, modifyTyp
  * @returns {Object} Validation result
  */
 const validateInputParams = (params, required) => {
+  
   const missing = [];
   const invalid = [];
 
@@ -819,18 +754,25 @@ const validateInputParams = (params, required) => {
   }
 
   // Specific validations
-  if ('status' in params && !['accepted', 'maybe', 'rejected', 'pending'].includes(params.status)) {
-    invalid.push({ param: 'status', message: 'Invalid status value' });
+  // Only validate status if it's specifically required (for RSVP operations)
+  if (required.includes('status') && 'status' in params) {
+    if (!['accepted', 'maybe', 'rejected', 'pending'].includes(params.status)) {
+      invalid.push({ param: 'status', message: 'Invalid attendee status value' });
+    }
   }
 
-  if ('eventId' in params && typeof params.eventId !== 'string') {
-    invalid.push({ param: 'eventId', message: 'Event ID must be a string' });
+  if ('eventId' in params) {
+    if (typeof params.eventId !== 'string') {
+      invalid.push({ param: 'eventId', message: 'Event ID must be a string' });
+    }
   }
 
-  if ('attendeeId' in params && typeof params.attendeeId !== 'string') {
-    invalid.push({ param: 'attendeeId', message: 'Attendee ID must be a string' });
+  if ('attendeeId' in params) {
+    if (typeof params.attendeeId !== 'string') {
+      invalid.push({ param: 'attendeeId', message: 'Attendee ID must be a string' });
+    }
   }
-
+  
   return {
     isValid: missing.length === 0 && invalid.length === 0,
     missing,
@@ -1152,7 +1094,9 @@ const processEventsWithRecurrenceEnhanced = (events, startDate, endDate, include
  * @returns {boolean} True if user is the creator, false otherwise
  */
 const validateEventCreatorPermission = (event, userId) => {
-  return event?.creator?.toString?.() === userId?.toString?.();
+  // Handle both populated and non-populated creator field
+  const creatorId = event?.creator?._id || event?.creator;
+  return creatorId?.toString() === userId?.toString();
 };
 
 /**
@@ -1211,6 +1155,15 @@ const createSeparateOccurrenceEvent = async (originalEvent, occurrenceDate, modi
   const duration = originalEndDate.getTime() - originalStartDate.getTime();
   const occurrenceEndDate = new Date(occurrenceStartDate.getTime() + duration);
   
+  // Ensure attendees are in the correct format (just user IDs, not populated objects)
+  let attendeesData = modifications.attendees || originalEvent.attendees;
+  if (attendeesData && attendeesData.length > 0) {
+    attendeesData = attendeesData.map(att => ({
+      user: typeof att.user === 'object' && att.user._id ? att.user._id : att.user,
+      status: att.status
+    }));
+  }
+  
   // Merge original event data with modifications
   const eventData = {
     creator: originalEvent.creator,
@@ -1223,7 +1176,7 @@ const createSeparateOccurrenceEvent = async (originalEvent, occurrenceDate, modi
     end_time: modifications.end_time ? new Date(modifications.end_time) : occurrenceEndDate,
     capacity: modifications.capacity !== undefined ? modifications.capacity : originalEvent.capacity,
     recurrence: { checked: false, frequency: null, end_date: null }, // Make it non-recurring
-    attendees: modifications.attendees || originalEvent.attendees,
+    attendees: attendeesData,
     visibility: modifications.visibility || originalEvent.visibility,
     excludedDates: [], // Single events don't need excludedDates
     status: 'upcoming'
@@ -1234,7 +1187,11 @@ const createSeparateOccurrenceEvent = async (originalEvent, occurrenceDate, modi
   // Add this date to the original event's excludedDates
   await addExcludedDate(originalEvent, occurrenceStartDate);
   
-  return separateEvent;
+  // Populate the separate event before returning
+  const populatedSeparateEvent = await Events.findById(separateEvent._id)
+    .populate(getStandardEventPopulation());
+  
+  return populatedSeparateEvent;
 };
 
 /**
@@ -1333,9 +1290,14 @@ const splitRecurringEvent = async (originalEvent, splitDate, modifications = {})
     end_time: futureEndTime,
     capacity: modifications.capacity !== undefined ? modifications.capacity : originalEvent.capacity,
     recurrence: futureRecurrence,
-    attendees: modifications.attendees || originalEvent.attendees,
+    attendees: modifications.attendees || (originalEvent.attendees || []).map(att => ({
+      user: att.user._id || att.user, // Normalize to ObjectId
+      status: att.status
+    })),
     visibility: modifications.visibility || originalEvent.visibility,
-    excludedDates: originalEvent.excludedDates ? [...originalEvent.excludedDates] : [],
+    excludedDates: originalEvent.excludedDates 
+      ? originalEvent.excludedDates.filter(date => new Date(date) >= splitStartDate)
+      : [],
     status: 'upcoming'
   };
   
@@ -1358,9 +1320,20 @@ const synchronizeUserEventList = async (userId, originalEventId, newEventId = nu
   const user = await User.findById(userId);
   if (!user) return;
   
-  // Add new event if provided
+  // Add new event if provided (but check for duplicates first)
   if (newEventId) {
-    user.events.push({ event: newEventId, status });
+    // Check if the new event already exists in user's events
+    const existingIndex = user.events.findIndex(e => 
+      e.event && e.event.toString() === newEventId.toString()
+    );
+    
+    if (existingIndex !== -1) {
+      // Update existing event status
+      user.events[existingIndex].status = status;
+    } else {
+      // Add new event
+      user.events.push({ event: newEventId, status });
+    }
   }
   
   await user.save();
@@ -1420,9 +1393,10 @@ const sendEventUpdateNotifications = async (eventId, senderId, attendeeIds) => {
  * @returns {boolean} Whether attendee was found and removed
  */
 const removeAttendeeFromEventArray = async (event, attendeeId) => {
-  const attendeeIndex = event.attendees.findIndex(
-    attendee => attendee.user.toString() === attendeeId.toString()
-  );
+  const attendeeIndex = event.attendees.findIndex(attendee => {
+    const attendeeUserId = attendee.user?._id || attendee.user;
+    return attendeeUserId?.toString() === attendeeId?.toString();
+  });
   
   if (attendeeIndex === -1) {
     return false; // Attendee not found
@@ -1770,7 +1744,8 @@ const findNextRecurringOccurrence = (event, fromDate = new Date()) => {
  * @returns {Array} Updated attendees array with creator included
  */
 const ensureCreatorIsAttendee = (attendees, userId) => {
-  const processedAttendees = [...attendees];
+  // Handle case where attendees is undefined, null, or not an array
+  const processedAttendees = Array.isArray(attendees) ? [...attendees] : [];
   const creatorIncluded = processedAttendees.some(
     att => att.user && att.user._id && att.user._id.toString() === userId
   );
@@ -1993,6 +1968,630 @@ const buildFriendsEventsBaseQuery = async (userId, now, friends, filterData) => 
   }
 };
 
+/**
+ * Add user-specific fields to events
+ * @param {Array} events - Array of events
+ * @param {string} userId - Current user ID
+ * @param {Array} friends - User's friends array
+ * @returns {Array} Events with user-specific fields added
+ */
+// Enhanced version combining both approaches
+const enrichEventWithUserContext = async (event, currentUserId, options = {}) => {
+  const { includeFriends = true, userFriends = null, eventToView = null } = options;
+
+  try {
+    // Defensive check for event structure
+    if (!event || !currentUserId) {
+      console.warn('Invalid event or userId in enrichEventWithUserContext:', {
+        eventId: event?._id,
+        currentUserId
+      });
+      return {
+        ...event,
+        userStatus: null,
+        isUserAttending: false,
+        isUserInvited: false,
+        isUserCreator: false,
+        isFriendEvent: false
+      };
+    }
+
+    // Get user's friends if needed and not provided
+    let friends = userFriends;
+    if (includeFriends && !friends) {
+      const user = await User.findById(currentUserId).select('friends');
+      friends = user?.friends || [];
+    }
+
+    // Ensure we're working with a plain object
+    const eventObj = event.toObject ? event.toObject() : event;
+
+    // CRITICAL: Ensure attendees are populated objects, not strings
+    if (eventObj.attendees) {
+      const hasUnpopulatedAttendees = eventObj.attendees.some(att =>
+        typeof att.user === 'string'
+      );
+
+      if (hasUnpopulatedAttendees) {
+        console.error('❌ UNPOPULATED ATTENDEES DETECTED:', {
+          eventId: eventObj._id,
+          attendees: eventObj.attendees
+        });
+        // This is the bug you're experiencing - return error state
+        throw new Error(`Event ${eventObj._id} has unpopulated attendees - this causes user 
+relationship bugs`);
+      }
+    }
+
+    // Safe attendee lookup with comprehensive null checks
+    const userAttendee = eventObj.attendees?.find(att => {
+      if (!att || !att.user) return false;
+
+      try {
+        const attendeeUserId = att.user._id?.toString() || att.user.toString?.();
+        return attendeeUserId === currentUserId.toString();
+      } catch (err) {
+        console.warn('Error processing attendee:', {
+          eventId: eventObj._id,
+          attendeeUser: att.user,
+          error: err.message
+        });
+        return false;
+      }
+    });
+
+    // Safe creator lookup
+    let creatorId = '';
+    let isCreator = false;
+
+    if (eventObj.creator) {
+      try {
+        // CRITICAL: Ensure creator is populated, not string
+        if (typeof eventObj.creator === 'string') {
+          console.error('❌ UNPOPULATED CREATOR DETECTED:', {
+            eventId: eventObj._id,
+            creator: eventObj.creator
+          });
+          throw new Error(`Event ${eventObj._id} has unpopulated creator - this causes user 
+relationship bugs`);
+        }
+
+        creatorId = eventObj.creator._id?.toString() || '';
+        isCreator = creatorId === currentUserId.toString();
+      } catch (err) {
+        console.warn('Error processing creator:', {
+          eventId: eventObj._id,
+          creator: eventObj.creator,
+          error: err.message
+        });
+      }
+    }
+
+    // Safe friends check
+    const isFriendEvent = includeFriends && friends ?
+      friends.some(friendId => friendId.toString() === creatorId) : false;
+
+    // Check if this event is the one to view (compare IDs)
+    const isEventToView = eventToView && eventObj._id && eventObj._id.toString() === eventToView.toString();
+    
+    return {
+      ...eventObj,
+      // STANDARD USER RELATIONSHIP FIELDS
+      userStatus: userAttendee?.status || null,
+      isUserAttending: !!userAttendee,
+      isUserInvited: !!userAttendee,
+      isUserCreator: isCreator,
+      isFriendEvent: isFriendEvent,
+
+      // ENSURE ATTENDEES ARE ALWAYS POPULATED (validation)
+      attendees: eventObj.attendees?.map(att => {
+        if (typeof att.user === 'string') {
+          throw new Error(`Attendee user is not populated: ${att.user}`);
+        }
+        return {
+          _id: att._id,
+          status: att.status,
+          user: att.user // Validated to be object
+        };
+      }) || [],
+
+      // ENSURE CREATOR IS ALWAYS POPULATED (validation)
+      creator: eventObj.creator,
+      
+      // Include eventToView flag if this is the event to view
+      ...(isEventToView && { eventToView: true })
+    };
+
+  } catch (error) {
+    console.error('❌ ERROR in enrichEventWithUserContext:', {
+      error: error.message,
+      eventId: event?._id,
+      currentUserId,
+      stack: error.stack
+    });
+
+    // For unpopulated data errors, throw to surface the issue
+    if (error.message.includes('unpopulated')) {
+      throw error;
+    }
+
+    // For other errors, return safe defaults
+    const eventObj = event?.toObject ? event.toObject() : event || {};
+    return {
+      ...eventObj,
+      userStatus: null,
+      isUserAttending: false,
+      isUserInvited: false,
+      isUserCreator: false,
+      isFriendEvent: false
+    };
+  }
+};
+
+// Array processing wrapper (keeps your existing pattern)
+const enrichEventsWithUserData = async (events, userId, friends = []) => {
+  const results = [];
+
+  for (const event of events) {
+    try {
+      const enriched = await enrichEventWithUserContext(event, userId, {
+        includeFriends: true,
+        userFriends: friends
+      });
+      results.push(enriched);
+    } catch (error) {
+      // Log the error but continue processing other events
+      console.error('Failed to enrich event:', error.message);
+      // Return event with safe defaults rather than crashing
+      results.push({
+        ...event,
+        userStatus: null,
+        isUserAttending: false,
+        isUserInvited: false,
+        isUserCreator: false,
+        isFriendEvent: false
+      });
+    }
+  }
+
+  return results;
+};
+
+const getStandardEventPopulation = () => [
+  {
+    path: 'attendees.user',
+    select: '-password -__v'
+  },
+  {
+    path: 'creator',
+    select: '-password -__v'
+  }
+];
+
+/**
+ * Process event invitations (reusable utility)
+ */
+const processEventInvitations = async (invitees, targetEventId, targetEvent) => {
+  const { updateEventAttendee, updateUserEventStatus, createEventInvitationNotification } = require('../utils/eventUtils');
+  
+  for (const invitee of invitees) {
+    await updateEventAttendee(targetEvent, invitee, 'pending');
+    await updateUserEventStatus(invitee, targetEventId, 'pending');
+  }
+
+  // Send invitation notifications (don't fail on notification errors)
+  try {
+    await createEventInvitationNotification(targetEventId, invitees);
+  } catch (notificationError) {
+    console.error('Error sending event invitation notifications:', notificationError);
+  }
+};
+
+/**
+ * Build enriched event response (reusable utility)
+ * Handles both single events and recurring event modifications
+ */
+const buildEnrichedEventResponse = async (eventOrId, currentUserId, message, extraData = {}) => {
+  // Handle case where event object is passed directly (for recurring modifications)
+  let enrichedEvent;
+  // Prepare options for enrichEventWithUserContext, including eventToView if it exists
+  const enrichOptions = {};
+  if (extraData.eventToView) {
+    enrichOptions.eventToView = extraData.eventToView;
+  }
+  
+  if (typeof eventOrId === 'object' && eventOrId._id) {
+    // Event object passed directly - check if ALL attendees are fully populated
+    const isFullyPopulated = eventOrId.populated && 
+      eventOrId.populated('attendees.user') && 
+      eventOrId.populated('creator') &&
+      // Additional check: ensure all attendees.user are objects (not undefined)
+      eventOrId.attendees && 
+      eventOrId.attendees.every(att => att.user && typeof att.user === 'object' && att.user._id);
+    
+    if (isFullyPopulated) {
+      enrichedEvent = await enrichEventWithUserContext(eventOrId, currentUserId, enrichOptions);
+    } else {
+      // Re-fetch with population if needed (this is the case for newly created separate events or mixed population)
+      const populatedEvent = await Events.findById(eventOrId._id)
+        .populate(getStandardEventPopulation());
+      enrichedEvent = await enrichEventWithUserContext(populatedEvent, currentUserId, enrichOptions);
+    }
+  } else {
+    // Event ID passed - fetch and enrich
+    const updatedEvent = await Events.findById(eventOrId)
+      .populate(getStandardEventPopulation());
+    enrichedEvent = await enrichEventWithUserContext(updatedEvent, currentUserId, enrichOptions);
+  }
+
+  // Prepare events array for response
+  const eventsArray = [enrichedEvent];
+  
+  // For this_only: Include master event with updated excludedDates
+  if (extraData.recurringModificationType === 'this_only' && extraData.masterEventId) {
+    let masterEvent;
+    // Handle both event object and event ID
+    if (typeof extraData.masterEventId === 'object' && extraData.masterEventId._id) {
+      // Event object passed - check if populated
+      masterEvent = extraData.masterEventId.populated('attendees.user') && extraData.masterEventId.populated('creator')
+        ? extraData.masterEventId
+        : await Events.findById(extraData.masterEventId._id).populate(getStandardEventPopulation());
+    } else {
+      // Event ID passed - fetch and populate
+      masterEvent = await Events.findById(extraData.masterEventId)
+        .populate(getStandardEventPopulation());
+    }
+    const enrichedMasterEvent = await enrichEventWithUserContext(masterEvent, currentUserId);
+    eventsArray.push(enrichedMasterEvent);
+  }
+  
+  // For all_future: Include original event if it was split
+  if (extraData.recurringModificationType === 'all_future' && extraData.originalEventId) {
+    let originalEvent;
+    // Handle both event object and event ID
+    if (typeof extraData.originalEventId === 'object' && extraData.originalEventId._id) {
+      // Event object passed - check if populated
+      originalEvent = extraData.originalEventId.populated('attendees.user') && extraData.originalEventId.populated('creator')
+        ? extraData.originalEventId
+        : await Events.findById(extraData.originalEventId._id).populate(getStandardEventPopulation());
+    } else {
+      // Event ID passed - fetch and populate
+      originalEvent = await Events.findById(extraData.originalEventId)
+        .populate(getStandardEventPopulation());
+    }
+    const enrichedOriginalEvent = await enrichEventWithUserContext(originalEvent, currentUserId);
+    eventsArray.unshift(enrichedOriginalEvent); // Put original event first in array
+  }
+
+  // Return simplified response with just events array and essential metadata
+  return {
+    success: true,
+    message,
+    events: eventsArray,
+    ...(extraData.recurringModificationType && { 
+      modificationType: extraData.recurringModificationType,
+      status: extraData.status 
+    })
+  };
+};
+
+/**
+ * Event array response utility
+ */
+const buildEnrichedEventsResponse = async (events, currentUserId, message, extraData = {}) => {
+  // Use the error-resilient version
+  const enrichedEvents = await enrichEventsWithUserData(events, currentUserId);
+
+  return {
+    success: true,
+    message,
+    events: enrichedEvents,
+    ...extraData
+  };
+};
+
+/**
+ * Success response utility
+ */
+const buildSuccessResponse = (message, extraData = {}) => {
+  return {
+    success: true,
+    message,
+    ...extraData
+  };
+};
+
+const validateEventModificationRequest = async (req, requiredParams = []) => {
+  
+  const { occurrenceDate, modifyType } = req.body;
+  
+  // Merge params and body for validation (params take precedence for route params like eventId)
+  const allParams = { ...req.body, ...req.params };
+  
+  // Get eventId from either source
+  const eventId = req.params.eventId || req.body.eventId;
+  
+  // Validate required parameters (check both body and params)
+  const validation = validateInputParams(allParams, requiredParams);
+  
+  if (!validation.isValid) {
+    return {
+      isValid: false,
+      error: {
+        status: 400,
+        message: `Missing parameters: ${validation.missing.join(', ')}${validation.invalid.length ? `. Invalid: ${validation.invalid.map(i => i.message).join(', ')}` : ''}`
+      }
+    };
+  }
+  
+  // Find event
+  const event = await findEventById(eventId, {
+    populate: getStandardEventPopulation()
+  });
+  
+  if (!event) {
+    return {
+      isValid: false,
+      error: {
+        status: 404,
+        message: 'Event not found'
+      }
+    };
+  }
+  
+  return {
+    isValid: true,
+    event,
+    isRecurring: isRecurringEvent(event),
+    occurrenceDate,
+    modifyType
+  };
+};
+
+const validateEventPermissions = (event, userId, permissionType = 'creator') => {
+  if (permissionType === 'creator') {
+    const isCreator = validateEventCreatorPermission(event, userId);
+    
+    if (!isCreator) {
+      return {
+        isValid: false,
+        error: {
+          status: 400,
+          message: 'Only the event creator can perform this action'
+        }
+      };
+    }
+  } else if (permissionType === 'attendee') {
+    const attendeeIndex = findAttendeeIndex(event, userId);
+    
+    if (attendeeIndex === -1) {
+      return {
+        isValid: false,
+        error: {
+          status: 400,
+          message: 'You are not an attendee of this event'
+        }
+      };
+    }
+    return {
+      isValid: true,
+      attendeeIndex
+    };
+  }
+  
+  return { isValid: true };
+};
+
+const handleRecurringEventOperation = async (options) => {
+  const {
+    event,
+    occurrenceDate,
+    modifyType,
+    operation,
+    operationData,
+    userId
+  } = options;
+  
+  // Not a recurring event or no modification type specified
+  if (!isRecurringEvent(event) || !occurrenceDate || !modifyType) {
+    return {
+      type: 'default',
+      event,
+      shouldContinue: true
+    };
+  }
+  
+  let result = {
+    type: modifyType,
+    shouldContinue: false
+  };
+  
+  switch (modifyType) {
+    case 'this_only':
+      result = await handleThisOnlyOperation(event, occurrenceDate, operation, operationData, userId);
+      break;
+      
+    case 'all_future':
+      result = await handleAllFutureOperation(event, occurrenceDate, operation, operationData, userId);
+      break;
+      
+    default:
+      result.shouldContinue = true;
+  }
+  
+  return result;
+};
+
+const handleThisOnlyOperation = async (event, occurrenceDate, operation, operationData, userId) => {
+  let modificationData = {};
+  
+  switch (operation) {
+    case 'removeAttendee':
+      modificationData.attendees = createAttendeesListWithoutUser(event.attendees, operationData.attendeeId);
+      break;
+      
+    case 'updateEvent':
+      modificationData = operationData.eventData;
+      break;
+      
+    case 'joinEvent':
+      const existingIndex = findAttendeeIndex(event, userId);
+      if (existingIndex !== -1) {
+        modificationData.attendees = event.attendees.map((att, index) => 
+          index === existingIndex 
+            ? { ...att.toObject(), status: operationData.status } 
+            : att.toObject()
+        );
+      } else {
+        modificationData.attendees = [...event.attendees, { user: userId, status: operationData.status }];
+      }
+      break;
+      
+    case 'cancelEvent':
+      await addExcludedDate(event, new Date(occurrenceDate));
+      return {
+        type: 'this_only',
+        cancelled: true,
+        occurrenceDate
+      };
+      
+    case 'respondInvitation':
+      modificationData.attendees = event.attendees.map(att => 
+        att.user.toString() === userId.toString()
+          ? { ...att.toObject(), status: operationData.status }
+          : att.toObject()
+      );
+      break;
+      
+    case 'inviteAttendees':
+      const newInvitees = operationData.invitees.map(userId => ({ user: userId, status: 'pending' }));
+      modificationData.attendees = [...event.attendees, ...newInvitees];
+      break;
+  }
+  
+  const separateEvent = await createSeparateOccurrenceEvent(event, occurrenceDate, modificationData);
+  
+  return {
+    type: 'this_only',
+    separateEvent,
+    occurrenceDate
+  };
+};
+
+const handleAllFutureOperation = async (event, occurrenceDate, operation, operationData, userId) => {
+  const futureEvent = await splitRecurringEvent(event, new Date(occurrenceDate));
+  
+  switch (operation) {
+    case 'removeAttendee':
+      await removeAttendeeFromEventArray(futureEvent, operationData.attendeeId);
+      await removeUserFromEvent(operationData.attendeeId, futureEvent._id);
+      break;
+      
+    case 'updateEvent':
+      Object.assign(futureEvent, sanitizeEventUpdateData(operationData.eventData));
+      await futureEvent.save();
+      break;
+      
+    case 'joinEvent':
+      await updateEventAttendee(futureEvent, userId, operationData.status);
+      await updateUserEventStatus(userId, futureEvent._id, operationData.status);
+      break;
+      
+    case 'cancelEvent':
+      futureEvent.status = 'cancelled';
+      await futureEvent.save();
+      break;
+      
+    case 'respondInvitation':
+      await updateEventAttendee(futureEvent, userId, operationData.status);
+      await updateUserEventStatus(userId, futureEvent._id, operationData.status);
+      break;
+      
+    case 'inviteAttendees':
+      for (const invitee of operationData.invitees) {
+        await updateEventAttendee(futureEvent, invitee, 'pending');
+        await updateUserEventStatus(invitee, futureEvent._id, 'pending');
+      }
+      break;
+  }
+  
+  return {
+    type: 'all_future',
+    futureEvent,
+    occurrenceDate
+  };
+};
+
+// Reminder scheduling functions removed - now handled directly in eventsController.js
+
+const sendEventNotifications = async (options) => {
+  const {
+    operation,
+    eventId,
+    userId,
+    attendeeIds,
+    status
+  } = options;
+  
+  if (!attendeeIds || attendeeIds.length === 0) return;
+  
+  try {
+    switch (operation) {
+      case 'invite':
+        await createEventInvitationNotification(eventId, attendeeIds);
+        break;
+        
+      case 'update':
+        await createEventUpdateNotification(eventId, userId, attendeeIds);
+        break;
+        
+      case 'cancel':
+        await createEventUpdateNotification(eventId, userId, attendeeIds);
+        break;
+        
+      case 'attendance':
+        if (status === 'accepted') {
+          await createEventAttendanceNotification(eventId, userId, status);
+        }
+        break;
+    }
+  } catch (error) {
+    console.error(`Error sending ${operation} notifications:`, error);
+    // Don't throw - notifications shouldn't break the main operation
+  }
+};
+
+const updateNotificationStatus = async (userId, eventId, type, status) => {
+  try {
+    await Notification.findOneAndUpdate(
+      {
+        recipient: userId,
+        event: eventId,
+        type: type
+      },
+      {
+        status: status,
+        is_seen: true,
+        updated_at: new Date()
+      }
+    );
+  } catch (error) {
+    console.error('Failed to update notification status:', error);
+  }
+};
+
+/**
+ * Add eventToView field to an event object (mutates the event)
+ * Used for recurring event controllers to determine which event to display to user
+ * @param {Object} event - The event object to modify
+ * @param {boolean} shouldView - Whether this event should be viewed (default: true)
+ * @returns {Object} The same event object with eventToView field added
+ */
+const addEventToViewFlag = (event, shouldView = false) => {
+  event.eventToView = shouldView;
+  return event;
+};
+
 // =============================================================================
 // EXPORTS
 // =============================================================================
@@ -2058,5 +2657,20 @@ module.exports = {
   // scheduleEventReminders moved to reminderSchedulingUtils.js
   filterAttentionRequiredEvents, // reviewed
   recommendedEventsBaseQuery, // reviewed
-  buildFriendsEventsBaseQuery // reviewed
+  buildFriendsEventsBaseQuery, // reviewed
+  enrichEventWithUserContext,
+  getStandardEventPopulation,
+  processEventInvitations,
+  buildEnrichedEventResponse,
+  buildEnrichedEventsResponse,
+  buildSuccessResponse,
+  validateEventModificationRequest,
+  validateEventPermissions,
+  handleRecurringEventOperation,
+  handleThisOnlyOperation,
+  handleAllFutureOperation,
+  // Reminder functions removed - handled in eventsController.js
+  sendEventNotifications,
+  updateNotificationStatus,
+  addEventToViewFlag,
 }; 

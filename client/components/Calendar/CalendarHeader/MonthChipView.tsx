@@ -12,6 +12,7 @@ interface MonthChipViewProps {
   selectedKey: string;
   CHIP_WIDTH: number;
   handleMomentumScrollEnd: (event: any) => void;
+  handleScrollBeginDrag: () => void;
   renderItem: ({ item, index }: { item: any; index: number }) => React.ReactElement;
 }
 
@@ -21,6 +22,7 @@ const MonthChipView: React.FC<MonthChipViewProps> = ({
   selectedKey,
   CHIP_WIDTH,
   handleMomentumScrollEnd,
+  handleScrollBeginDrag,
   renderItem,
 }) => {
   const colorScheme = useColorScheme();
@@ -40,6 +42,7 @@ const MonthChipView: React.FC<MonthChipViewProps> = ({
       })}
       showsHorizontalScrollIndicator={false}
       onMomentumScrollEnd={handleMomentumScrollEnd}
+      onScrollBeginDrag={handleScrollBeginDrag}
       extraData={selectedKey}
       renderItem={renderItem}
     />

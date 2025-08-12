@@ -7,8 +7,8 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Event } from '@/types/allTypes';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useAttentionRequiredQuery } from '@/hooks/useAttentionRequiredQuery';
-import { useEventMutations } from '@/hooks/useEventMutations';
+import { useInfiniteAttentionRequiredEvents } from '@/hooks/useInfiniteEvents';
+import { useRespondToInvitation } from '@/hooks/useNewEventMutations';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { getCategoryImage } from '@/constants/CategoryImages';
@@ -19,9 +19,13 @@ import { useAuthSession } from '@/components/Auth/AuthProvider';
 import { useHomeError } from '@/context/HomeErrorContext';
 
 /**
- * TanStack React Query version of AttentionRequired component
+ * AttentionRequired.v2 - MIGRATED to New TanStack Query Architecture
  * 
  * Key improvements over the legacy version:
+ * - Uses new simplified TanStack Query architecture with useInfiniteAttentionRequiredEvents
+ * - Direct cache updates instead of invalidations for better performance
+ * - Single event store with tagging system
+ * - Better performance through unified caching
  * - Uses TanStack React Query for data management
  * - Automatic background refetching and cache management
  * - Better error handling with retry logic
@@ -30,6 +34,10 @@ import { useHomeError } from '@/context/HomeErrorContext';
  * - Cleaner code with fewer side effects
  * 
  * Migration changes:
+ * - Replaced useAttentionRequiredQuery with useInfiniteAttentionRequiredEvents hook
+ * - Replaced useEventMutations with useRespondToInvitation from new architecture
+ * - Updated to handle paginated response format
+ * - Updated mutation pattern to use callbacks
  * - Removed manual state management (useState, useEffect)
  * - Removed complex useFocusEffect logic
  * - Removed manual cache invalidation
@@ -56,7 +64,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
-  const { respondToInvitation, loading: respondToInvitationLoading } = useEventMutations();
+  const { mutate: respondToInvitation, isPending: respondToInvitationLoading } = useRespondToInvitation();
   // Removed contextRefreshing - TanStack Query handles refresh coordination automatically
   const { userId } = useAuthSession();
   const { setComponentError } = useHomeError();
@@ -65,32 +73,37 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
 
   // TanStack React Query hook - replaces useGetAttentionRequiredEvents and all manual state management
   const {
-    data: eventsData,
+    data,
     isLoading,
     isError,
     refetch,
-    isFirstFetch,
-  } = useAttentionRequiredQuery({
-    fromHomeScreen: !initialEvents, // Use fromHomeScreen when not provided with initialEvents
-    displayMode: 'homeScreen',
-    limit: initialEvents ? undefined : 3, // Limit to 3 events for home screen
-    onFinishRefresh,
-    // contextRefreshing removed - not needed with TanStack Query
-    enableSmoothTransitions: true,
-    usePlaceholderData: true,
-    enabled: !initialEvents // Only fetch if no initialEvents provided
-  });
+  } = useInfiniteAttentionRequiredEvents(initialEvents ? 999 : 3); // Limit to 3 for home screen, all for stack page
+  
+  // Extract events from paginated response
+  const eventsData = data?.pages.flatMap(page => page.events) ?? [];
+  
+  // Determine if this is first fetch (no cached data)
+  const isFirstFetch = isLoading && !data;
+  
+  // Handle finish refresh
+  React.useEffect(() => {
+    if (!isLoading && !isError) {
+      onFinishRefresh?.();
+    }
+  }, [isLoading, isError, onFinishRefresh]);
 
   // Use initialEvents if provided, otherwise use query data
   const events = (initialEvents || eventsData) as Event[];
 
   // Memoize expensive event filtering - filter out past events
   const futureEvents = React.useMemo(() => {
-    return events.filter((event) => {
+    const filtered = events.filter((event) => {
       const now = new Date();
       const eventStartDate = event.start_time ? new Date(event.start_time) : null;
       return eventStartDate && now < eventStartDate;
     });
+    
+    return filtered;
   }, [events]);
 
   // Memoize time calculation function
@@ -167,8 +180,11 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
         requestOptions.modifyType = options.modifyType;
       }
 
-      await respondToInvitation(requestOptions);
-      setSelectedResponses(prev => ({ ...prev, [eventId]: status }));
+      respondToInvitation(requestOptions, {
+        onSuccess: () => {
+          setSelectedResponses(prev => ({ ...prev, [eventId]: status }));
+        }
+      });
 
       // Cache invalidation and optimistic updates handled automatically by useEventMutations
 

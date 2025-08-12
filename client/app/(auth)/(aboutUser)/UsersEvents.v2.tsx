@@ -4,7 +4,8 @@ import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
-import { useUserEventsInfiniteQuery, useCanViewUserEvents } from '@/hooks/useUserEventsQuery';
+import { useInfiniteUserEvents } from '@/hooks/useInfiniteEvents';
+import { useCanViewUserEvents } from '@/hooks/useUserPrivacy';
 import SearchFriendsBar from '@/components/SearchFriendsBar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import EventView from '@/components/Event';
@@ -45,21 +46,21 @@ export default React.memo(function UserEvents({ userId, route, refreshing }: Use
   const [searchQuery, setSearchQuery] = useState('');
   const insets = useSafeAreaInsets();
 
-  // Use TanStack Query for user events with infinite scroll
-  const {
-    events: eventsList,
-    loading,
-    refreshing: queryRefreshing,
-    hasMore,
-    loadMore,
-    isLoadingMore,
-    refetch,
-    error
-  } = useUserEventsInfiniteQuery(userId, {
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnMount: false,
-    refetchOnWindowFocus: false
-  });
+  // Use new simplified TanStack Query for user events with infinite scroll
+  const userEventsQuery = useInfiniteUserEvents(userId, 10);
+
+  // Extract the data we need from the new hook
+  const eventsList = useMemo(() => {
+    return userEventsQuery.data?.pages.flatMap(page => page.events) || [];
+  }, [userEventsQuery.data]);
+
+  const loading = userEventsQuery.isLoading;
+  const queryRefreshing = userEventsQuery.isFetching && !userEventsQuery.isLoading;
+  const hasMore = userEventsQuery.hasNextPage || false;
+  const loadMore = userEventsQuery.fetchNextPage;
+  const isLoadingMore = userEventsQuery.isFetchingNextPage;
+  const refetch = userEventsQuery.refetch;
+  const error = userEventsQuery.isError;
 
   // Check privacy permissions
   const { canView, relationship, isOwner } = useCanViewUserEvents(userId);
@@ -71,24 +72,10 @@ export default React.memo(function UserEvents({ userId, route, refreshing }: Use
     }
   }, [refreshing, refetch]);
 
-  // Filter and sort events
-  const filteredEvents = useMemo(() => {
-    return eventsList
-      .filter(event => 
-        event.title.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-      .sort((a, b) => {
-        if (!a.start_time) return 1;
-        if (!b.start_time) return -1;
-        return new Date(b.start_time).getTime() - new Date(a.start_time).getTime();
-      });
-  }, [eventsList, searchQuery]);
-
   const renderItem = ({ item }: { item: Event }) => {
     return (
       <View style={{ marginBottom: 16 }}>
-        <PastEvent key={item._id} event={item} loading={false} /> 
-        {/* <EventView key={item._id} event={item} loading={false} /> */}
+        <PastEvent key={item._id} event={item} loading={false} />
       </View>
     );
   };
@@ -313,7 +300,7 @@ export default React.memo(function UserEvents({ userId, route, refreshing }: Use
     <ThemedView style={{ flex: 1, paddingHorizontal: 16 }}>
       <TabFlashList
         index={route?.index || 0}
-        data={filteredEvents}
+        data={eventsList}
         estimatedItemSize={200}
         renderItem={renderItem}
         ListEmptyComponent={ListEmptyComponent}
@@ -325,8 +312,6 @@ export default React.memo(function UserEvents({ userId, route, refreshing }: Use
         showsVerticalScrollIndicator={false}
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.5}
-        // refreshing={queryRefreshing}
-        // onRefresh={refetch}
       />
     </ThemedView>
   );

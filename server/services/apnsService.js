@@ -37,16 +37,6 @@ class APNsService {
         throw new Error('Missing APNs credentials. Please set APNS_PRIVATE_KEY, APNS_KEY_ID, and APPLE_TEAM_ID environment variables');
       }
 
-      // Debug credential info (without exposing the actual key)
-      logger.info('APNs credentials check:', {
-        keyId: apnsKeyId,
-        teamId: teamId,
-        keyLength: apnsKey.length,
-        keyStartsWith: apnsKey.substring(0, 30) + '...',
-        hasNewlines: apnsKey.includes('\n'),
-        production: process.env.NODE_ENV === 'production'
-      });
-
       // Ensure the private key is properly formatted
       let formattedKey = apnsKey;
       
@@ -71,11 +61,6 @@ class APNsService {
       };
 
       this.provider = new apn.Provider(options);
-      logger.info('APNs Provider initialized successfully', {
-        keyId: apnsKeyId,
-        teamId: teamId,
-        production: process.env.NODE_ENV === 'production'
-      });
     } catch (error) {
       logger.error('Failed to initialize APNs Provider:', error);
       throw error;
@@ -115,13 +100,6 @@ class APNsService {
       note.contentAvailable = 1; // Enable background processing for push-to-fetch
       note.mutableContent = 1;
       
-      logger.info('Sending APNs notification:', {
-        deviceToken: token.substring(0, 20) + '...',
-        topic: bundleId,
-        title: notification.title,
-        payload: data
-      });
-      
       // Custom payload with data
       note.payload = {
         ...data,
@@ -140,10 +118,6 @@ class APNsService {
       
       // Handle result
       if (result.sent.length > 0) {
-        logger.info('APNs message sent successfully:', {
-          deviceToken: token.substring(0, 20) + '...',
-          sent: result.sent.length
-        });
         return { success: true, messageId: result.sent[0].device };
       } else if (result.failed.length > 0) {
         const failure = result.failed[0];
@@ -196,8 +170,6 @@ class APNsService {
         invalidTokens.push(tokens[index]);
       }
     });
-
-    logger.info(`APNs multicast sent: ${successful} successful, ${failed.length} failed`);
 
     return {
       success: successful > 0,
@@ -353,7 +325,6 @@ class APNsService {
   async shutdown() {
     if (this.provider) {
       this.provider.shutdown();
-      logger.info('APNs Provider shut down');
     }
   }
 }

@@ -1,26 +1,41 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect, useMemo } from 'react';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
-import { useOptimalCalendarQuery } from '@/hooks/useOptimalCalendarQuery';
+import { useEventsStore } from '@/hooks/useEventsStore';
 import { Event } from '@/types/allTypes';
 import { EventOccurrence } from '@/utils/eventUtils';
 import { 
   addMonths, 
   subMonths, 
   addWeeks, 
-  subWeeks 
+  subWeeks,
+  startOfMonth, 
+  endOfMonth, 
+  startOfWeek, 
+  endOfWeek,
+  format,
+  isWithinInterval
 } from 'date-fns';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCalendarError } from './CalendarErrorContext';
+import api from '@/utils/api';
 
 /**
- * CalendarProvider.v2 - TanStack Query-based Calendar Provider
+ * CalendarProvider.v2 - MIGRATED to New TanStack Query Architecture
  * 
  * This provider replaces the EventContext for calendar-specific functionality.
  * It provides:
- * - TanStack Query-based event loading with superior caching
+ * - New simplified TanStack Query architecture with direct cache updates
+ * - Single event store with tagging system for better performance
+ * - Direct cache updates instead of invalidations
  * - Recurring event occurrence processing
  * - Date range management for calendar views
- * - Optimized memory usage with query-based caching
+ * - Optimized memory usage with unified caching
  * - Backward compatibility with existing calendar components
+ * 
+ * Migration changes:
+ * - Replaced useOptimalCalendarQuery with direct useCalendarEvents hooks
+ * - Uses new TanStack Query architecture for better performance
+ * - Direct integration with event store and cache management
  */
 
 interface CalendarContextType {
@@ -54,8 +69,9 @@ interface CalendarContextType {
   // Cache operations
   invalidateCalendarCache: () => void;
   
-  // TanStack Query specific
-  calendarQuery: ReturnType<typeof useOptimalCalendarQuery>;
+  // Error states
+  eventsError: boolean;
+  occurrencesError: boolean;
 }
 
 const CalendarContext = createContext<CalendarContextType | undefined>(undefined);
@@ -80,26 +96,132 @@ export const CalendarProvider: React.FC<CalendarProviderProps> = ({
   initialView = 'Month'
 }) => {
   const { userId } = useAuthSession();
+  const queryClient = useQueryClient();
   const [currentDate, setCurrentDate] = useState(initialDate);
   const [currentView, setCurrentView] = useState(initialView);
   const { setComponentError, clearAllErrors } = useCalendarError();
 
-  // Single optimal hook call
-  const calendarQuery = useOptimalCalendarQuery(currentDate, currentView, {
-    staleTime: currentView === 'Month' ? 10 * 60 * 1000 : currentView === 'Week' ? 3 * 60 * 1000 : 5 * 60 * 1000,
-  });
+  // Calculate date range based on view
+  const { startDate, endDate } = useMemo(() => {
+    switch (currentView) {
+      case 'Month': {
+        const start = startOfMonth(currentDate);
+        const end = endOfMonth(currentDate);
+        return { 
+          startDate: startOfWeek(subMonths(start, 1)), 
+          endDate: endOfWeek(addMonths(end, 1)) 
+        };
+      }
+      case 'Week': {
+        return { 
+          startDate: startOfWeek(subMonths(currentDate, 1)), 
+          endDate: endOfWeek(addMonths(currentDate, 1)) 
+        };
+      }
+      case 'Schedule': {
+        return { 
+          startDate: startOfMonth(subMonths(currentDate, 1)), 
+          endDate: endOfMonth(addMonths(currentDate, 1)) 
+        };
+      }
+      default:
+        return { startDate: currentDate, endDate: currentDate };
+    }
+  }, [currentDate, currentView]);
 
-  // Report errors to centralized error handling - unified approach
+  // Use unified event store
+  const eventsStoreQuery = useEventsStore();
+  const allEvents = eventsStoreQuery.data || [];
+  const [manualEvents, setManualEvents] = useState<Event[]>([]);
+  
+  // Filter events based on current date range and view
+  const eventsInInterval = useMemo(() => {
+    return allEvents.filter((event: Event) => {
+      if (!event.start_time) return false;
+      const eventDate = new Date(event.start_time);
+      return isWithinInterval(eventDate, { start: startDate, end: endDate });
+    });
+  }, [allEvents, startDate, endDate]);
+
+  const eventsOutOfRange = useMemo(() => {
+    const start = startOfMonth(addMonths(new Date(currentDate), 1));
+    const end = endOfMonth(start);
+
+    return eventsInInterval.filter((event: Event) => {
+      if (!event.start_time) return false;
+      const eventDate = new Date(event.start_time);
+      return isWithinInterval(eventDate, { start, end });
+    });
+  }, [eventsInInterval, currentDate]);
+
+  // Manual fetch function for out-of-range events
+  const fetchEventsManually = useCallback(async () => {
+    if (!userId) return [];
+    
+    try {
+      const response = await api.get('/api/manageevents/eventslist/get/my/events/range', {
+        params: { 
+          start: startDate.toISOString(),
+          end: endDate.toISOString(),
+          // includeRecurring: true
+        }
+      });
+      return response.data.events || [];
+    } catch (error) {
+      console.error('Failed to fetch manual events:', error);
+      return [];
+    }
+  }, [userId, startDate, endDate]);
+
+  // Fetch manual events when out-of-range events are empty
   useEffect(() => {
-    // If both queries are successful, clear all errors
-    if (!calendarQuery.eventsError && !calendarQuery.occurrencesError && !calendarQuery.loading) {
+    const fetchManualEvents = async () => {
+      if (eventsOutOfRange.length === 0) {
+        const manual = await fetchEventsManually();
+        setManualEvents(manual);
+      } else {
+        setManualEvents([]);
+      }
+    };
+    
+    fetchManualEvents();
+  }, [eventsOutOfRange.length, fetchEventsManually]);
+
+  // Merge events based on availability
+  const events = useMemo(() => {
+    return eventsOutOfRange.length === 0 && manualEvents.length > 0 
+      ? manualEvents 
+      : eventsInInterval;
+  }, [eventsOutOfRange.length, manualEvents, eventsInInterval]);
+
+
+  // Generate occurrences from events
+  // Backend already handles recurring event expansion, so we just convert to occurrence format
+  const occurrences = useMemo(() => {
+    if (!events.length) return [];
+
+    // Backend already expands recurring events into individual occurrences
+    // We just need to convert them to the EventOccurrence format
+    return events.map((event: Event) => ({
+      id: event._id || `${event._id}-${Date.now()}`,
+      originalEventId: event._id || '',
+      date: new Date(event.start_time || new Date()),
+      event: event,
+      isModified: false,
+      isCancelled: false,
+    })).sort((a, b) => a.date.getTime() - b.date.getTime());
+  }, [events]);
+
+  // Report errors to centralized error handling
+  useEffect(() => {
+    // If query is successful, clear all errors
+    if (!eventsStoreQuery.isError && !eventsStoreQuery.isLoading) {
       clearAllErrors();
     } else {
       // Otherwise, report current error states
-      setComponentError('calendarData', calendarQuery.eventsError);
-      setComponentError('occurrences', calendarQuery.occurrencesError);
+      setComponentError('calendarData', eventsStoreQuery.isError);
     }
-  }, [calendarQuery.eventsError, calendarQuery.occurrencesError, calendarQuery.loading, setComponentError, clearAllErrors]);
+  }, [eventsStoreQuery.isError, eventsStoreQuery.isLoading, setComponentError, clearAllErrors]);
 
   // Navigation functions
   const navigateToToday = useCallback(() => {
@@ -136,19 +258,40 @@ export const CalendarProvider: React.FC<CalendarProviderProps> = ({
     });
   }, [currentView]);
 
+  // Helper functions for occurrences
+  const getOccurrencesForDate = useCallback((date: Date): EventOccurrence[] => {
+    const targetDate = format(date, 'yyyy-MM-dd');
+    return occurrences.filter((occurrence: EventOccurrence) => 
+      format(occurrence.date, 'yyyy-MM-dd') === targetDate
+    );
+  }, [occurrences]);
+
+  const getOccurrencesForDateRange = useCallback((start: Date, end: Date): EventOccurrence[] => {
+    return occurrences.filter((occurrence: EventOccurrence) =>
+      isWithinInterval(occurrence.date, { start, end })
+    );
+  }, [occurrences]);
+
+  const groupedByDate = useMemo(() => {
+    return occurrences.reduce((acc: Record<string, EventOccurrence[]>, occurrence: EventOccurrence) => {
+      const dateKey = format(occurrence.date, 'yyyy-MM-dd');
+      if (!acc[dateKey]) acc[dateKey] = [];
+      acc[dateKey].push(occurrence);
+      return acc;
+    }, {} as Record<string, EventOccurrence[]>);
+  }, [occurrences]);
+
   // Refresh events
   const refreshEvents = useCallback(async () => {
-    await Promise.all([
-      calendarQuery.refetch(),
-      calendarQuery.refreshOccurrences()
-    ]);
-  }, [calendarQuery]);
+    await eventsStoreQuery.refetch();
+  }, [eventsStoreQuery]);
 
   // Cache invalidation
   const invalidateCalendarCache = useCallback(() => {
-    calendarQuery.invalidateCalendarQueries();
-    calendarQuery.invalidateOccurrences();
-  }, [calendarQuery]);
+    queryClient.invalidateQueries({ 
+      queryKey: ['events', 'store'] 
+    });
+  }, [queryClient]);
 
   const value: CalendarContextType = useMemo(() => ({
     // Current view state
@@ -156,12 +299,12 @@ export const CalendarProvider: React.FC<CalendarProviderProps> = ({
     currentView,
     
     // Event data
-    events: calendarQuery.events,
-    eventOccurrences: calendarQuery.occurrences,
+    events,
+    eventOccurrences: occurrences,
     
     // Loading states
-    loading: calendarQuery.loading,
-    refreshing: calendarQuery.refreshing,
+    loading: eventsStoreQuery.isLoading,
+    refreshing: eventsStoreQuery.isFetching,
     
     // Navigation
     setCurrentDate,
@@ -174,33 +317,34 @@ export const CalendarProvider: React.FC<CalendarProviderProps> = ({
     refreshEvents,
     
     // Occurrence operations (backward compatibility)
-    getOccurrencesForDate: calendarQuery.getOccurrencesForDate,
-    getOccurrencesForDateRange: calendarQuery.getOccurrencesForDateRange,
-    groupedByDate: calendarQuery.groupedByDate,
+    getOccurrencesForDate,
+    getOccurrencesForDateRange,
+    groupedByDate,
     
     // Cache operations
     invalidateCalendarCache,
     
-    // TanStack Query specific
-    calendarQuery,
+    // Error states
+    eventsError: eventsStoreQuery.isError,
+    occurrencesError: false, // No separate occurrences query in new architecture
   }), [
     currentDate,
     currentView,
-    calendarQuery.events,
-    calendarQuery.occurrences,
-    calendarQuery.loading,
-    calendarQuery.refreshing,
-    calendarQuery.getOccurrencesForDate,
-    calendarQuery.getOccurrencesForDateRange,
-    calendarQuery.groupedByDate,
+    events,
+    occurrences,
+    eventsStoreQuery.isLoading,
+    eventsStoreQuery.isFetching,
+    eventsStoreQuery.isError,
     setCurrentDate,
     setCurrentView,
     navigateToToday,
     navigateNext,
     navigatePrevious,
     refreshEvents,
+    getOccurrencesForDate,
+    getOccurrencesForDateRange,
+    groupedByDate,
     invalidateCalendarCache,
-    calendarQuery,
   ]);
 
   return (

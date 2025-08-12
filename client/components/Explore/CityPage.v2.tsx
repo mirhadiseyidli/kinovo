@@ -8,7 +8,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { InfiniteEventsList } from '@/components/InfiniteList/InfiniteEventsList';
-import { useInfiniteEventsQuery, InfiniteEvent } from '@/hooks/useInfiniteEventsQuery';
+import { useInfiniteCityEvents } from '@/hooks/useInfiniteEvents';
+import { Event } from '@/types/allTypes';
 import EventComponent from '@/components/Event';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { getCityByName, getStateByCity, getCityDescription } from '@/constants/Cities';
@@ -17,9 +18,13 @@ import { useCityError } from '@/context/CityErrorContext';
 import { CityErrorMessage } from '@/components/Explore/CityErrorMessage';
 
 /**
- * TanStack React Query version of CityPage with InfiniteEventsList
+ * CityPage.v2 - MIGRATED to New TanStack Query Architecture
  * 
  * Key improvements over the legacy version:
+ * - Uses new simplified TanStack Query architecture with useInfiniteCityEvents
+ * - Direct cache updates instead of invalidations for better performance
+ * - Single event store with tagging system
+ * - Better performance through unified caching
  * - Uses InfiniteEventsList component for consistent infinite scroll UX
  * - Automatic background refetching and cache management
  * - Better error handling with retry logic and cached data support
@@ -31,14 +36,11 @@ import { CityErrorMessage } from '@/components/Explore/CityErrorMessage';
  * - Scrollable header card that moves with content
  * 
  * Migration changes:
- * - Replaced manual ScrollView with InfiniteEventsList component
- * - Uses eventType: 'city' for proper API routing
- * - Custom renderItem function for event card integration
- * - Removed manual state management (useState, useEffect, loading states)
- * - Simplified refresh logic through InfiniteEventsList
- * - Added smooth UI transitions and better error handling
- * - Header card now scrolls with content via ListHeaderComponent
- * - Consistent infinite scroll experience across the app
+ * - Replaced useInfiniteEventsQuery with useInfiniteCityEvents hook
+ * - Updated to handle paginated response format
+ * - Uses Event type instead of InfiniteEvent
+ * - Direct integration with new event store
+ * - Improved performance through direct cache updates
  */
 
 const CityPageV2: React.FC = () => {
@@ -53,13 +55,17 @@ const CityPageV2: React.FC = () => {
   const stateName = getStateByCity(city as string);
   const cityDescription = getCityDescription(city as string);
 
-  // Get event count for the header - using the same query as InfiniteEventsList
-  const { events, totalCount, isFetchingNextPage, isError: isEventsError } = useInfiniteEventsQuery({
-    eventType: 'city',
-    city: city as string,
-    pageSize: 10,
-    enabled: Boolean(city),
-  });
+  // Get event count for the header - using the new TanStack Query hook
+  const {
+    data,
+    isLoading,
+    isError: isEventsError,
+    isFetchingNextPage,
+  } = useInfiniteCityEvents(city as string, 10);
+  
+  // Extract events from paginated response
+  const events = data?.pages.flatMap(page => page.events) ?? [];
+  const totalCount = data?.pages[0]?.totalCount ?? 0;
 
   // Report events errors to centralized error handling
   useEffect(() => {
@@ -133,7 +139,7 @@ const CityPageV2: React.FC = () => {
   ), [city, cityInfo, stateName, cityDescription, themeColors, events.length, hasAnyError, errors]);
 
   // Custom event item renderer
-  const renderEventItem = useCallback((event: InfiniteEvent, index: number) => {
+  const renderEventItem = useCallback((event: Event, index: number) => {
     return (
       <View style={{ paddingHorizontal: 16 }}>
         <EventComponent event={event} loading={false} />
@@ -205,7 +211,7 @@ const CityPageV2: React.FC = () => {
   }, []);
 
   // Custom error state
-  const renderErrorState = useCallback((error: any, retry: () => void) => {
+  const renderErrorState = useCallback((error: Error, retry: () => void) => {
     return (
       <View style={{ paddingHorizontal: 16 }}>
         {/* Error State */}
@@ -271,7 +277,7 @@ const CityPageV2: React.FC = () => {
         eventType="city"
         city={city as string}
         pageSize={10}
-        useFlashList={false} // Use regular FlatList for better compatibility
+        useFlashList={true} // Use regular FlatList for better compatibility
         renderItem={renderEventItem}
         renderEmptyState={renderEmptyState}
         renderLoadingState={renderLoadingState}
@@ -279,10 +285,6 @@ const CityPageV2: React.FC = () => {
         ListHeaderComponent={renderListHeader}
         estimatedItemSize={200}
         onEndReachedThreshold={0.5}
-        enableSmooth={true}
-        keepPreviousData={true}
-        staleTime={1000 * 60 * 5} // 5 minutes
-        gcTime={1000 * 60 * 30} // 30 minutes
         testID={`city-${city}-infinite-list`}
         containerStyle={{ flex: 1 }}
         contentContainerStyle={{ 

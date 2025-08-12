@@ -22,6 +22,7 @@ interface Props {
   tintColors?: TintColors;
   style?: ViewStyle;
   textStyle?: TextStyle;
+  checkBoxStyle?: ViewStyle; // ✅ New prop!
   topContainerStyle?: ViewStyle;
   label?: string;
 }
@@ -33,6 +34,7 @@ const AnimatedCheckBox = React.memo<Props>(({
   tintColors = { true: '#fff', false: '#fff' }, // Default border colors
   style = {},
   textStyle={},
+  checkBoxStyle={}, // ✅ New prop!
   topContainerStyle,
   label
 }) => {
@@ -46,29 +48,29 @@ const AnimatedCheckBox = React.memo<Props>(({
     progress.value = withTiming(value ? 1 : 0, { duration: 300 });
   }, [value]);
 
-  // Cleanup effect
+  // Cleanup effect - Reanimated 4.0 optimized
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
       cancelAnimation(progress);
     };
-  }, []);
+  }, [progress]);
 
-  // Memoized animated styles to prevent recreation
+  // Memoized animated styles to prevent recreation - Reanimated 4.0 optimized
   const checkBoxAnimationStyle = useAnimatedStyle(() => ({
     borderColor: interpolateColor(
       progress.value,
       [0, 1],
       [tintColors.false, tintColors.true]
     ),
-  }), [progress, tintColors.false, tintColors.true]);
+  }), [tintColors.false, tintColors.true]);
 
-  // Animated style for checkmark: fade in and scale in when checked
+  // Animated style for checkmark: fade in and scale in when checked - Reanimated 4.0 optimized
   const checkmarkAnimatedStyle = useAnimatedStyle(() => ({
     opacity: progress.value,
     transform: [{ scale: progress.value }],
-  }), [progress]);
+  }), []);
 
   const animatedTextStyle = useAnimatedStyle(() => ({
     color: interpolateColor(
@@ -76,7 +78,7 @@ const AnimatedCheckBox = React.memo<Props>(({
       [0, 1],
       [tintColors.false, tintColors.true] // from inactive to active text color
     )
-  }), [progress, tintColors.false, tintColors.true]);
+  }), [tintColors.false, tintColors.true]);
 
   const handlePress = useCallback(() => {
     onValueChange(!value);
@@ -112,16 +114,17 @@ const AnimatedCheckBox = React.memo<Props>(({
               aspectRatio: 1
             },
             checkBoxAnimationStyle,
+            checkBoxStyle,
           ]}
         >
           <Animated.View style={checkmarkAnimatedStyle}>
             <Ionicons name="checkmark" size={containerHeight ? containerHeight - 4 : 14} color={onCheckColor} />
           </Animated.View>
         </Animated.View>
+        <AnimatedThemedText style={[textStyle, animatedTextStyle]}>
+          {label}
+        </AnimatedThemedText>
       </Pressable>
-      <AnimatedThemedText style={[textStyle, animatedTextStyle]}>
-        {label}
-      </AnimatedThemedText>
     </View>
   );
 });

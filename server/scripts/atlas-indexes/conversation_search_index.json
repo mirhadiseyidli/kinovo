@@ -1,0 +1,33 @@
+{
+  "mappings": {
+    "dynamic": false,
+    "fields": {
+      "userId": {
+        "type": "objectId"
+      },
+      "title": {
+        "type": "string",
+        "analyzer": "lucene.standard"
+      },
+      "messages.content": {
+        "type": "string",
+        "analyzer": "lucene.standard"
+      },
+      "messages.role": {
+        "type": "string"
+      },
+      "messages.timestamp": {
+        "type": "date"
+      },
+      "createdAt": {
+        "type": "date"
+      },
+      "updatedAt": {
+        "type": "date"
+      },
+      "isActive": {
+        "type": "boolean"
+      }
+    }
+  }
+}

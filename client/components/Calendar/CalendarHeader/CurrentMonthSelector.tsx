@@ -12,12 +12,14 @@ interface CurrentMonthSelectorProps {
   currentDate: Date;
   today: Date;
   fromChipRef: React.RefObject<boolean>;
+  onNavigateToToday?: () => void;
 }
 
 const CurrentMonthSelector: React.FC<CurrentMonthSelectorProps> = ({
   currentDate,
   today,
-  fromChipRef
+  fromChipRef,
+  onNavigateToToday
 }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
@@ -65,7 +67,11 @@ const CurrentMonthSelector: React.FC<CurrentMonthSelectorProps> = ({
     fromChipRef.current = true;
     
     // All views should navigate to today, which is the purpose of this button
-    navigateToToday();
+    if (onNavigateToToday) {
+      onNavigateToToday();
+    } else {
+      navigateToToday();
+    }
   };
 
   return (

@@ -34,9 +34,6 @@ async function verifyIdentityToken(identityToken) {
     const email = decoded.email;
     const email_verified = decoded.email_verified === 'true';
     
-    // Log the verification success
-    logger.info(`Apple Token decoded for user ID: ${userId}`);
-    
     return { userId, email, email_verified, payload: decoded };
   } catch (error) {
     logger.error('Error verifying Apple identity token:', error);

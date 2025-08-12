@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation } from 'expo-router';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEventByIdQuery } from '@/hooks/useEventByIdQuery';
+import { useEventByIdQuery } from '@/hooks/useSingleEvent';
 import EventImage from '@/components/ViewEvent/EventImage';
 import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -14,8 +14,8 @@ import { ViewEventSkeleton } from '@/components/Skeleton';
 import Animated, {
   useAnimatedScrollHandler,
   useSharedValue,
-  runOnJS,
 } from 'react-native-reanimated';
+import { runOnJS } from 'react-native-worklets';
 import { shareContent } from '@/utils/shareUtils';
 import { Feather } from '@expo/vector-icons';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -60,7 +60,8 @@ const ShareEventButton = ({ event_id }: { event_id: string }) => {
 const ViewEvent = () => {
   const { event_id, occurrence_start, occurrence_end, is_occurrence } = useLocalSearchParams();
   const id = Array.isArray(event_id) ? event_id[0] : event_id;
-  const { event, loading, error, refetch } = useEventByIdQuery(id);
+  const [displayedEventId, setDisplayedEventId] = useState(id);
+  const { event, loading, error, refetch } = useEventByIdQuery(displayedEventId);
   const navigation = useNavigation();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
@@ -233,7 +234,12 @@ const ViewEvent = () => {
               </View>
             </View>
             <View style={{ paddingVertical: 16, paddingHorizontal: 16 }}>
-              <EventDetailsSection event={displayEvent} isRecurringOccurrence={displayEvent.isRecurringOccurrence} occurrence_start={displayEvent.start_time} />
+              <EventDetailsSection 
+                event={displayEvent} 
+                isRecurringOccurrence={displayEvent.isRecurringOccurrence} 
+                occurrence_start={displayEvent.start_time} 
+                setNewEventToView={setDisplayedEventId}
+              />
             </View>
           </Animated.ScrollView>
         </ThemedView>

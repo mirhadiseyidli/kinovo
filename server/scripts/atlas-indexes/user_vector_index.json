@@ -1,0 +1,46 @@
+{
+  "fields": [
+    {
+      "type": "vector",
+      "path": "profile_embedding",
+      "numDimensions": 1536,
+      "similarity": "cosine"
+    },
+    {
+      "type": "vector",
+      "path": "interests_embedding",
+      "numDimensions": 1536,
+      "similarity": "cosine"
+    },
+    {
+      "type": "vector",
+      "path": "event_preferences_embedding",
+      "numDimensions": 1536,
+      "similarity": "cosine"
+    },
+    {
+      "type": "vector",
+      "path": "social_pattern_embedding",
+      "numDimensions": 1536,
+      "similarity": "cosine"
+    },
+    {
+      "type": "vector",
+      "path": "location_preferences_embedding",
+      "numDimensions": 1536,
+      "similarity": "cosine"
+    },
+    {
+      "type": "filter",
+      "path": "metadata.favorite_activities"
+    },
+    {
+      "type": "filter",
+      "path": "metadata.social_activity_level"
+    },
+    {
+      "type": "filter",
+      "path": "needs_embedding_update"
+    }
+  ]
+}

@@ -1,232 +1,85 @@
-import { 
-  createStableQueryKeyWithParams, 
-  createStableLocationQueryKey, 
-  createStableTimeQueryKey,
-  warnIfUnstableQueryKey
-} from './stableQueryKey';
-
 /**
- * Query Keys Factory for TanStack React Query
+ * Query Keys for TanStack React Query
  * 
- * This factory provides a centralized way to manage query keys across the app.
- * It ensures consistency and helps with cache invalidation patterns.
- * Uses TanStack Query v5's built-in hashQueryKey for stable object parameters.
+ * Simplified query keys for the new architecture.
+ * No more complex stable key hashing - TanStack Query v5 handles this internally.
  */
 
-export const queryKeys = {
-  // Base keys
-  all: ['events'] as const,
+export const QUERY_KEYS = {
+  // Base key for all events
+  EVENTS: ['events'] as const,
   
-  // User-specific events
-  userEvents: (userId: string) => [...queryKeys.all, 'user', userId] as const,
+  // Single event by ID
+  SINGLE_EVENT: (eventId: string) => ['events', 'single', eventId] as const,
   
-  // Upcoming events with stable parameters
-  upcomingEvents: (userId: string, fromHomeScreen?: boolean) => {
-    const baseKey = [...queryKeys.userEvents(userId), 'upcoming'] as const;
-    const params = { fromHomeScreen: fromHomeScreen || false };
-    const stableKey = createStableQueryKeyWithParams(baseKey, params);
-    warnIfUnstableQueryKey(stableKey, 'upcomingEvents');
-    return stableKey;
-  },
+  // Calendar queries
+  CALENDAR: ['events', 'calendar'] as const,
+  CALENDAR_MONTH: (month: number, year: number) => ['events', 'calendar', month, year] as const,
+  CALENDAR_RANGE: (startDate: Date, endDate: Date) => ['events', 'calendar-range', startDate, endDate] as const,
+  CALENDAR_OPTIMAL: (view: string, startDate: Date, endDate: Date) => ['events', 'calendar-optimal', view, startDate, endDate] as const,
   
-  // Past events with stable date parameters
-  pastEvents: (userId: string, year?: number, month?: number) => {
-    const baseKey = [...queryKeys.userEvents(userId), 'past'] as const;
-    const params = { 
-      year: year || null, 
-      month: month || null 
-    };
-    const stableKey = createStableQueryKeyWithParams(baseKey, params);
-    warnIfUnstableQueryKey(stableKey, 'pastEvents');
-    return stableKey;
-  },
+  // User data
+  USER_ME: (userId: string) => ['user', 'me', userId] as const,
   
-  // Attention required events with stable parameters
-  attentionRequiredEvents: (userId: string, fromHomeScreen?: boolean) => {
-    const baseKey = [...queryKeys.userEvents(userId), 'attention-required'] as const;
-    const params = { fromHomeScreen: fromHomeScreen || false };
-    const stableKey = createStableQueryKeyWithParams(baseKey, params);
-    warnIfUnstableQueryKey(stableKey, 'attentionRequiredEvents');
-    return stableKey;
-  },
+  // AI insights
+  AI_INSIGHTS: (userId: string) => ['ai', 'insights', userId] as const,
+  AI_SUMMARY: (userId: string, eventId: string) => ['ai', 'summary', userId, eventId] as const,
   
-  // Location-based events with stable coordinates
-  locationEvents: (lat: number, lng: number, distance: number) => {
-    const baseKey = [...queryKeys.all, 'location'] as const;
-    const stableKey = createStableLocationQueryKey(baseKey, lat, lng, { distance });
-    warnIfUnstableQueryKey(stableKey, 'locationEvents');
-    return stableKey;
-  },
-  
-  nearbyEvents: (lat: number, lng: number, distance: number) => {
-    const baseKey = [...queryKeys.all, 'location'] as const;
-    const stableKey = createStableLocationQueryKey(baseKey, lat, lng, { distance, type: 'nearby' });
-    warnIfUnstableQueryKey(stableKey, 'nearbyEvents');
-    return stableKey;
-  },
-  
-  // Paginated nearby events with stable coordinates
-  paginatedNearbyEvents: (lat: number, lng: number, distance: number) => {
-    const baseKey = [...queryKeys.all, 'location'] as const;
-    const stableKey = createStableLocationQueryKey(baseKey, lat, lng, { distance, type: 'paginated' });
-    warnIfUnstableQueryKey(stableKey, 'paginatedNearbyEvents');
-    return stableKey;
-  },
-  
-  // Social events
-  friendsEvents: (userId: string) => 
-    [...queryKeys.userEvents(userId), 'friends'] as const,
-  
-  // Specific user's events (for profile viewing)
-  specificUserEvents: (viewerId: string, targetUserId: string) => 
-    [...queryKeys.all, 'user-profile', viewerId, targetUserId] as const,
-  
-  // User event count (for profile display)
-  userEventCount: (viewerId: string, targetUserId: string) => 
-    [...queryKeys.all, 'user-event-count', viewerId, targetUserId] as const,
-  
-  // Individual event
-  eventById: (eventId: string) => 
-    [...queryKeys.all, 'single', eventId] as const,
-  
-  // Calendar events for date range with stable date parameters
-  calendarEventsForDateRange: (startDate: Date, endDate: Date, forceRefresh?: boolean) => {
-    const baseKey = [...queryKeys.all, 'calendar-range'] as const;
-    const params = { 
-      start: startDate.toISOString().split('T')[0], 
-      end: endDate.toISOString().split('T')[0],
-      forceRefresh: forceRefresh || false
-    };
-    const stableKey = createStableQueryKeyWithParams(baseKey, params);
-    warnIfUnstableQueryKey(stableKey, 'calendarEventsForDateRange');
-    return stableKey;
-  },
-
-  // Calendar event occurrences for date range with stable date parameters
-  calendarOccurrences: (startDate: Date, endDate: Date) => {
-    const baseKey = [...queryKeys.all, 'calendar-occurrences'] as const;
-    const params = { 
-      start: startDate.toISOString().split('T')[0], 
-      end: endDate.toISOString().split('T')[0]
-    };
-    const stableKey = createStableQueryKeyWithParams(baseKey, params);
-    warnIfUnstableQueryKey(stableKey, 'calendarOccurrences');
-    return stableKey;
-  },
-
-  // Calendar events with stable date parameters
-  calendarEvents: (userId: string, month: number, year: number) => {
-    const baseKey = [...queryKeys.userEvents(userId), 'calendar'] as const;
-    const params = { month, year };
-    const stableKey = createStableQueryKeyWithParams(baseKey, params);
-    warnIfUnstableQueryKey(stableKey, 'calendarEvents');
-    return stableKey;
-  },
-  
-  // Recommended events
-  recommendedEvents: (userId: string) => 
-    [...queryKeys.userEvents(userId), 'recommended'] as const,
-  
-  // Search events
-  searchEvents: (query: string) => 
-    [...queryKeys.all, 'search', query] as const,
-  
-  // Search everything (users + events)
-  searchEverything: (query: string) => 
-    [...queryKeys.all, 'search-everything', query] as const,
-  
-  // Event count queries
-  eventCount: (userId: string) => 
-    [...queryKeys.userEvents(userId), 'count'] as const,
-  
-  friendsNewEventsCount: (userId: string) => 
-    [...queryKeys.userEvents(userId), 'friends-new-count'] as const,
-  
-  // AI Summary cache
-  aiSummary: (userId: string, eventId: string) => 
-    [...queryKeys.all, 'ai-summary', userId, eventId] as const,
-  
-  // Infinite query keys
-  infiniteEvents: (eventType: string, params: Record<string, any>) => {
-    const baseKey = [...queryKeys.all, 'infinite', eventType] as const;
-    const stableKey = createStableQueryKeyWithParams(baseKey, params);
-    warnIfUnstableQueryKey(stableKey, `infinite-${eventType}`);
-    return stableKey;
-  },
-  
-  infiniteUpcoming: (userId: string, params: Record<string, any> = {}) => 
-    queryKeys.infiniteEvents('upcoming', { userId, ...params }),
-  
-  infinitePast: (userId: string, params: Record<string, any> = {}) => 
-    queryKeys.infiniteEvents('past', { userId, ...params }),
-  
-  infiniteNearby: (lat: number, lng: number, distance: number, params: Record<string, any> = {}) => {
-    const locationParams = { lat, lng, distance };
-    const stableKey = createStableLocationQueryKey(
-      [...queryKeys.all, 'infinite', 'nearby'] as const, 
-      lat, 
-      lng, 
-      { distance, ...params }
-    );
-    warnIfUnstableQueryKey(stableKey, 'infinite-nearby');
-    return stableKey;
-  },
-  
-  infiniteFriends: (userId: string, params: Record<string, any> = {}) => 
-    queryKeys.infiniteEvents('friends', { userId, ...params }),
-  
-  infiniteRecommended: (userId: string, params: Record<string, any> = {}) => 
-    queryKeys.infiniteEvents('recommended', { userId, ...params }),
-  
-  infiniteSearch: (query: string, params: Record<string, any> = {}) => 
-    queryKeys.infiniteEvents('search', { query, ...params }),
-  
-  infiniteUser: (userId: string, targetUserId: string, params: Record<string, any> = {}) => 
-    queryKeys.infiniteEvents('user', { userId, targetUserId, ...params }),
-
-  // Helper methods for cache invalidation
-  invalidation: {
-    // Invalidate all user-related queries
-    allUserQueries: (userId: string) => queryKeys.userEvents(userId),
-    
-    // Invalidate all location-based queries
-    allLocationQueries: () => [...queryKeys.all, 'location'],
-    
-    // Invalidate all queries for a specific event
-    specificEventQueries: (eventId: string) => queryKeys.eventById(eventId),
-    
-    // Invalidate all search queries
-    allSearchQueries: () => [...queryKeys.all, 'search'],
-    
-    // Invalidate all infinite queries
-    allInfiniteQueries: () => [...queryKeys.all, 'infinite'],
-    
-    // Invalidate specific infinite query type
-    infiniteQueriesByType: (eventType: string) => [...queryKeys.all, 'infinite', eventType],
-    
-    // Invalidate all event queries (nuclear option)
-    allEventQueries: () => queryKeys.all,
-  },
+  // For infinite queries, we use a simpler pattern
+  INFINITE_EVENTS: (queryType: string, pageSize: number, params: Record<string, any>) => 
+    ['events', 'infinite', queryType, pageSize, params] as const,
 } as const;
 
-/**
- * Type-safe query key creation with stable hashing
- * This ensures all query keys are properly typed and consistent
- * Uses TanStack Query v5's hashQueryKey for stable object parameters
- */
-export type QueryKey = 
-  | ReturnType<typeof queryKeys.upcomingEvents>
-  | ReturnType<typeof queryKeys.pastEvents>
-  | ReturnType<typeof queryKeys.attentionRequiredEvents>
-  | ReturnType<typeof queryKeys.nearbyEvents>
-  | ReturnType<typeof queryKeys.paginatedNearbyEvents>
-  | ReturnType<typeof queryKeys.friendsEvents>
-  | ReturnType<typeof queryKeys.specificUserEvents>
-  | ReturnType<typeof queryKeys.eventById>
-  | ReturnType<typeof queryKeys.calendarEvents>
-  | ReturnType<typeof queryKeys.recommendedEvents>
-  | ReturnType<typeof queryKeys.searchEvents>
-  | ReturnType<typeof queryKeys.searchEverything>
-  | ReturnType<typeof queryKeys.eventCount>
-  | ReturnType<typeof queryKeys.friendsNewEventsCount>
-  | ReturnType<typeof queryKeys.aiSummary>;
+// Legacy support - map old queryKeys to new QUERY_KEYS
+export const queryKeys = {
+  all: QUERY_KEYS.EVENTS,
+  
+  userEvents: (userId: string) => QUERY_KEYS.USER_ME(userId),
+  
+  eventById: (eventId: string) => QUERY_KEYS.SINGLE_EVENT(eventId),
+  
+  calendarEvents: (_userId: string, month: number, year: number) => 
+    QUERY_KEYS.CALENDAR_MONTH(month, year),
+    
+  calendarEventsForDateRange: (startDate: Date, endDate: Date) => 
+    QUERY_KEYS.CALENDAR_RANGE(startDate, endDate),
+    
+  aiSummary: (userId: string, eventId: string) => 
+    QUERY_KEYS.AI_SUMMARY(userId, eventId),
+  
+  // Simplified infinite query keys without stable hashing
+  infiniteEvents: (eventType: string, params: Record<string, any>) => 
+    QUERY_KEYS.INFINITE_EVENTS(eventType, params.pageSize || 10, params),
+    
+  infiniteUpcoming: (userId: string, params: Record<string, any> = {}) => 
+    QUERY_KEYS.INFINITE_EVENTS('upcoming', params.pageSize || 10, { userId, ...params }),
+    
+  infinitePast: (userId: string, params: Record<string, any> = {}) => 
+    QUERY_KEYS.INFINITE_EVENTS('past', params.pageSize || 10, { userId, ...params }),
+    
+  infiniteNearby: (lat: number, lng: number, distance: number, params: Record<string, any> = {}) => 
+    QUERY_KEYS.INFINITE_EVENTS('nearby', params.pageSize || 10, { lat, lng, distance, ...params }),
+    
+  infiniteFriends: (userId: string, params: Record<string, any> = {}) => 
+    QUERY_KEYS.INFINITE_EVENTS('friends', params.pageSize || 10, { userId, ...params }),
+    
+  infiniteRecommended: (userId: string, params: Record<string, any> = {}) => 
+    QUERY_KEYS.INFINITE_EVENTS('recommended', params.pageSize || 10, { userId, ...params }),
+    
+  infiniteSearch: (query: string, params: Record<string, any> = {}) => 
+    QUERY_KEYS.INFINITE_EVENTS('search', params.pageSize || 10, { query, ...params }),
+    
+  infiniteUser: (userId: string, targetUserId: string, params: Record<string, any> = {}) => 
+    QUERY_KEYS.INFINITE_EVENTS('user', params.pageSize || 10, { userId, targetUserId, ...params }),
+    
+  userEventCount: (viewerId: string, targetUserId: string) => 
+    ['user', 'eventCount', viewerId, targetUserId] as const,
+  
+  // Helper methods for cache invalidation
+  invalidation: {
+    allEventQueries: () => QUERY_KEYS.EVENTS,
+    specificEventQueries: (eventId: string) => QUERY_KEYS.SINGLE_EVENT(eventId),
+    allInfiniteQueries: () => ['events', 'infinite'] as const,
+    infiniteQueriesByType: (eventType: string) => ['events', 'infinite', eventType] as const,
+  },
+} as const;
