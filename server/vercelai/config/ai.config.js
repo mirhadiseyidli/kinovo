@@ -14,7 +14,7 @@ export const embeddingModel = openai.embedding(EMBEDDINGS_MODEL);
 
 // Insight generation settings
 export const INSIGHT_CONFIG = {
-  maxTokens: 250, // Increased for event cards with weather/traffic data
+  maxTokens: 300, // Increased for event cards with weather/traffic data
   temperature: 0.7,
   cacheTime: 5 * 60 * 1000, // 5 minutes in milliseconds
 };

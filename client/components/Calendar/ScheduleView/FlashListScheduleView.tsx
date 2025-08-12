@@ -8,7 +8,8 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { EventOccurrence } from '@/utils/eventUtils';
 import { useCalendarViewContext } from '@/context/CalendarViewContext';
 import ReanimatedShimmerLine from '@/components/CustomLoadingIndicatingLine';
-import { useSharedValue, withTiming, runOnJS } from 'react-native-reanimated';
+import { useSharedValue, withTiming } from 'react-native-reanimated';
+import { runOnJS } from 'react-native-worklets';
 import { useCalendarContext } from '@/context/CalendarProvider.v2';
 import ScheduleEventView from './ScheduleEventView';
 
@@ -286,7 +287,7 @@ const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFini
           time={format(event.start_time ? new Date(event.start_time) : new Date(), 'h:mm a')}
           endTime={event.end_time ? new Date(event.end_time) : new Date()}
           location={event.location?.text || ''}
-          userStatus={event.userStatus}
+          userStatus={event.userStatus ?? undefined}
           eventOccurrence={occurrence}
         />
       </View>

@@ -28,68 +28,47 @@ const DateTime = ({ ref, onPickerOpen }: DateTimeProps) => {
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { startTime, endTime, settingEventStartTime, settingEventEndTime } = useCreateEventContext();
 
-  // Helper function to get default start time (30 mins from now) - memoized
-  const getDefaultStartTime = useCallback(() => {
+  // Simple initialization - calculate once on mount
+  const getInitialDates = () => {
     const now = new Date();
-    now.setMinutes(now.getMinutes() + 30);
-    return now;
-  }, []);
-
-  // Helper function to get default end time (1 hour from start time) - memoized
-  const getDefaultEndTime = useCallback((startTime: Date) => {
-    const endTime = new Date(startTime);
-    endTime.setHours(endTime.getHours() + 1);
-    return endTime;
-  }, []);
-
-  // Helper function to validate date (ensure it's not invalid like 1969) - memoized
-  const isValidDate = useCallback((date: Date | null | undefined): boolean => {
-    if (!date) return false;
-    const year = date.getFullYear();
-    return year >= 2020 && year <= 2100; // Reasonable range
-  }, []);
-
-  const getInitialStartDate = useMemo(() => {
-    if (startTime && isValidDate(startTime)) {
-      return startTime;
+    
+    // Check if context has valid dates
+    if (startTime && startTime instanceof Date && startTime.getFullYear() >= 2020) {
+      const start = new Date(startTime);
+      const end = endTime && endTime instanceof Date && endTime.getFullYear() >= 2020 
+        ? new Date(endTime) 
+        : new Date(start.getTime() + 60 * 60 * 1000); // 1 hour after start
+      return { start, end };
     }
-    return getDefaultStartTime();
-  }, [startTime, isValidDate, getDefaultStartTime]);
+    
+    // Default: start 30 mins from now, end 1 hour after that
+    const start = new Date(now.getTime() + 30 * 60 * 1000); // 30 mins from now
+    const end = new Date(start.getTime() + 60 * 60 * 1000); // 1 hour after start
+    return { start, end };
+  };
 
-  const getInitialEndDate = useMemo(() => {
-    if (endTime && isValidDate(endTime)) {
-      return endTime;
-    }
-    return getDefaultEndTime(getInitialStartDate);
-  }, [endTime, isValidDate, getDefaultEndTime, getInitialStartDate]);
-
-  const [startDate, setStartDate] = useState<Date>(getInitialStartDate);
-  const [endDate, setEndDate] = useState<Date>(getInitialEndDate);
+  const initialDates = useMemo(getInitialDates, []);
+  
+  const [startDate, setStartDate] = useState<Date>(initialDates.start);
+  const [endDate, setEndDate] = useState<Date>(initialDates.end);
   const [showStartPicker, setShowStartPicker] = useState<boolean>(false);
   const [showEndPicker, setShowEndPicker] = useState<boolean>(false);
+  const [startPickerKey, setStartPickerKey] = useState<number>(0);
+  const [endPickerKey, setEndPickerKey] = useState<number>(0);
   
   // Shared values for chevron rotation
   const startChevronRotation = useSharedValue(0);
   const endChevronRotation = useSharedValue(0);
 
-  // Update local state when context changes
+  // Initialize context if not already set
   useEffect(() => {
-    if (startTime && isValidDate(startTime)) {
-      const newStartDate = new Date(startTime);
-      setStartDate(newStartDate);
-      // Update end date to maintain 1 hour duration if no specific end time set
-      if (!endTime) {
-        const newEndDate = getDefaultEndTime(newStartDate);
-        setEndDate(newEndDate);
-      }
+    if (!startTime) {
+      settingEventStartTime(initialDates.start);
     }
-  }, [startTime]);
-
-  useEffect(() => {
-    if (endTime && isValidDate(endTime)) {
-      setEndDate(new Date(endTime));
+    if (!endTime) {
+      settingEventEndTime(initialDates.end);
     }
-  }, [endTime]);
+  }, []);
 
 
   const handleStartDateChange = useCallback((selectedDate: Date) => {
@@ -100,6 +79,9 @@ const DateTime = ({ ref, onPickerOpen }: DateTimeProps) => {
     // Update both start and end times
     setStartDate(selectedDate);
     setEndDate(newEndTime);
+    
+    // Force end picker to remount with new time when it opens next
+    setEndPickerKey(prev => prev + 1);
     
     // Update context with both times
     settingEventStartTime(selectedDate);
@@ -221,6 +203,7 @@ const DateTime = ({ ref, onPickerOpen }: DateTimeProps) => {
 
       {/* Start Date Picker Modal */}
       <DateTimePickerModal
+        key={`start-picker-${startPickerKey}`}
         visible={showStartPicker}
         onClose={() => setShowStartPicker(false)}
         initialDate={startDate.toISOString()}
@@ -255,6 +238,7 @@ const DateTime = ({ ref, onPickerOpen }: DateTimeProps) => {
 
       {/* End Time Picker Modal */}
       <DateTimePickerModal
+        key={`end-picker-${endPickerKey}`}
         visible={showEndPicker}
         onClose={() => setShowEndPicker(false)}
         initialDate={endDate.toISOString()}

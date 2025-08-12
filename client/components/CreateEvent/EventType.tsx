@@ -117,32 +117,7 @@ const Category: React.FC<CategoryProps> = React.memo(({ onCategorySelect }) => {
                 {loading ? 'Loading categories...' : truncateName(selectedCategory || 'Select Category', 16)}
               </ThemedText>
             </TouchableOpacity>
-            {/* <ThemedText
-              style={{
-                fontSize: 16,
-                color: themeColors.placeholderTextColor,
-              }}
-            >
-              {loading ? 'Loading categories...' : 'Select Category'}
-            </ThemedText> */}
           </View>
-          {/* <TouchableOpacity 
-            onPress={openCategoryOptions}
-            disabled={loading}
-            style={{
-              backgroundColor: Colors[colorScheme ?? 'dark'].background,
-              paddingVertical: 10,
-              paddingHorizontal: 16,
-              borderRadius: 8,
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: loading ? 0.5 : 1
-            }}
-          >
-            <ThemedText style={{ fontSize: 12, fontWeight: 'bold', color: themeColors.text }}>
-              {truncateName(selectedCategory || 'Select', 16)}
-            </ThemedText>
-          </TouchableOpacity> */}
         </View>
       </ThemedView>
 

@@ -12,7 +12,6 @@ async function generateRAGContext(userId, query, conversationHistory = []) {
   const { generateEmbedding } = await import('./embeddings.js');
   
   try {
-    console.log(`🔍 Generating RAG context for user ${userId}: "${query}"`);
     
     // Get user context and preferences
     const userContext = await getUserContext(userId, query, {

@@ -11,18 +11,26 @@ import { jwtDecode } from 'jwt-decode';
 import Feather from '@expo/vector-icons/Feather';
 import DefaultProfilePicture from '@/components/DefaultProfilePicture';
 import { InfiniteEventsList } from '@/components/InfiniteList';
-import { InfiniteEvent as Event, useInfiniteEventsQuery } from '@/hooks/useInfiniteEventsQuery';
+import { useInfiniteFriendsEvents } from '@/hooks/useInfiniteEvents';
+import type { Event } from '@/types/allTypes';
 import EventComponent from '@/components/Event';
 
 /**
- * Friends Events Page with Infinite Scrolling
+ * Friends Events Page with Infinite Scrolling - MIGRATED to New TanStack Query Architecture
  * 
- * This page replaces the original friends-events.tsx with:
+ * Key improvements over the old implementation:
+ * - Uses new useInfiniteFriendsEvents hook with simplified architecture
+ * - Direct cache updates instead of invalidations
+ * - Single event store with tagging system
+ * - Better performance through unified caching
+ * - Simplified query key management
+ * 
+ * This page provides:
  * - Infinite scrolling for better performance with large lists
  * - Automatic background refetching and cache management
  * - Smooth loading states and error handling
  * - Pull-to-refresh functionality
- * - Proper TypeScript typing
+ * - Proper TypeScript typing with new Event interface
  */
 
 const FriendsEventsInfinitePage = () => {
@@ -31,16 +39,27 @@ const FriendsEventsInfinitePage = () => {
   const router = useRouter();
   const { accessToken, userId } = useAuthSession();
 
-  // Get event count for the header - using the same query as InfiniteEventsList
-  const { events, totalCount, isFetchingNextPage } = useInfiniteEventsQuery({
-    eventType: 'friends',
-    userId,
-    pageSize: 10,
-    enabled: Boolean(userId),
-  });
+  // Get event count for the header - using the new simplified hook
+  const friendsEventsQuery = useInfiniteFriendsEvents(10);
+  
+  // Extract data from the new hook structure
+  const events = React.useMemo(() => {
+    return friendsEventsQuery.data?.pages.flatMap(page => page.events) || [];
+  }, [friendsEventsQuery.data]);
+  
+  const totalCount = friendsEventsQuery.data?.pages?.[0]?.totalCount || 0;
+  const isFetchingNextPage = friendsEventsQuery.isFetchingNextPage;
 
   // Custom event item renderer with friend info
   const renderEventItem = useCallback((event: Event, index: number) => {
+    // Ensure event has required user relationship properties for compatibility
+    const eventWithDefaults: Event = {
+      ...event,
+      isUserAttending: event.isUserAttending ?? false,
+      isUserInvited: event.isUserInvited ?? false,
+      isUserCreator: event.isUserCreator ?? false,
+      isFriendEvent: event.isFriendEvent ?? true, // This is a friends event
+    };
     // Ensure event and creator exist
     if (!event || !event.creator) {
       console.warn('Event or creator is missing:', event);
@@ -112,7 +131,7 @@ const FriendsEventsInfinitePage = () => {
         
         {/* Event Card */}
         <View>
-          <EventComponent event={event} loading={false} />
+          <EventComponent event={eventWithDefaults} loading={false} />
         </View>
       </ThemedView>
     );
@@ -376,6 +395,7 @@ const FriendsEventsInfinitePage = () => {
         eventType="friends"
         userId={userId}
         pageSize={10}
+        enabled={Boolean(userId)}
         useFlashList={true}
         renderItem={renderEventItem}
         renderEmptyState={renderEmptyState}
@@ -384,10 +404,6 @@ const FriendsEventsInfinitePage = () => {
         ListHeaderComponent={renderListHeader}
         estimatedItemSize={200}
         onEndReachedThreshold={0.5}
-        enableSmooth={true}
-        keepPreviousData={true}
-        staleTime={1000 * 60 * 5} // 5 minutes
-        gcTime={1000 * 60 * 30} // 30 minutes
         testID="friends-events-infinite-list"
         containerStyle={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 24 }}
@@ -397,3 +413,42 @@ const FriendsEventsInfinitePage = () => {
 };
 
 export default FriendsEventsInfinitePage;
+
+/**
+ * Migration Summary:
+ * 
+ * CHANGED (New Implementation):
+ * - useInfiniteEventsQuery → useInfiniteFriendsEvents (simplified)
+ * - InfiniteEvent type → Event type from allTypes.ts
+ * - Object-based query params → Direct function parameters  
+ * - Complex data extraction → Simple pages.flatMap pattern
+ * - Multiple query invalidations → Direct cache updates
+ * - Custom query keys → Standardized query keys
+ * - Removed obsolete props: enableSmooth, keepPreviousData, staleTime, gcTime
+ * 
+ * PRESERVED (Unchanged):
+ * - All UI components and styling
+ * - Custom renderItem with friend info logic
+ * - Header card design and event count display
+ * - Friend detection and display logic (creator vs attendee)
+ * - Custom empty, loading, and error states
+ * - All user interactions and navigation
+ * - Authentication checks and error handling
+ * 
+ * BENEFITS:
+ * - Single event store reduces memory usage
+ * - Direct cache updates improve performance
+ * - Simplified query key management  
+ * - Better consistency across the app
+ * - Reduced cache invalidation complexity
+ * - Unified event data handling
+ * 
+ * OLD INTERFACE:
+ * useInfiniteEventsQuery({
+ *   eventType: 'friends',
+ *   userId, pageSize: 10, enabled: Boolean(userId)
+ * })
+ * 
+ * NEW INTERFACE:
+ * useInfiniteFriendsEvents(10)
+ */

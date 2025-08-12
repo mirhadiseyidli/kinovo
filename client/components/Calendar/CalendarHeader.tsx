@@ -41,6 +41,8 @@ const CalendarHeaderMonthView: React.FC<CalendarHeaderProps> = ({ refreshing, on
   const CELL_HEIGHT = CELL_SIZE * 0.75; // Cell height smaller than width for a more compact grid
   const CHIP_WIDTH = 64; // chip width + horizontal margins. Constant for FlatList chip width and recycling buffer
   const fromChipRef = useRef(false);
+  const shouldAutoScroll = useRef(true);
+  const isRecycling = useRef(false);
   
   const opacity = useSharedValue(0);
   const height = useSharedValue(0);
@@ -66,6 +68,11 @@ const CalendarHeaderMonthView: React.FC<CalendarHeaderProps> = ({ refreshing, on
 
   // Update selectedKey when currentDate changes
   useEffect(() => {
+    // Don't run during recycling operations
+    if (isRecycling.current) {
+      return;
+    }
+
     const key = `${currentDate.getFullYear()}-${currentDate.getMonth()}`;
     setSelectedKey(key);
     
@@ -77,8 +84,8 @@ const CalendarHeaderMonthView: React.FC<CalendarHeaderProps> = ({ refreshing, on
       idx = newWindow.findIndex(i => i.key === key);
     }
 
-    // Scroll to current item
-    if (idx >= 0) {
+    // Only scroll to current item if we should auto-scroll (e.g., programmatic navigation, not user scrolling)
+    if (idx >= 0 && shouldAutoScroll.current) {
       requestAnimationFrame(() => {
         listRef.current?.scrollToOffset({
           offset: (idx + 1) * CHIP_WIDTH,
@@ -87,6 +94,11 @@ const CalendarHeaderMonthView: React.FC<CalendarHeaderProps> = ({ refreshing, on
       });
     }
   }, [currentDate, data]);
+
+  const handleScrollBeginDrag = () => {
+    // User started dragging, disable auto-scroll
+    shouldAutoScroll.current = false;
+  };
 
   const handleMomentumScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => { // Handle recycling months when scrolling reaches buffer zones
     const offsetX = e.nativeEvent.contentOffset.x;
@@ -97,23 +109,44 @@ const CalendarHeaderMonthView: React.FC<CalendarHeaderProps> = ({ refreshing, on
     const minYear = data[0].year;
     const maxYear = data[data.length - 1].year;
 
-    if (centerItem.year === minYear) {
+    // Trigger recycling when we're in the first 6 months (near beginning) or last 6 months (near end)
+    const isNearBeginning = centerIndex < 6; // First 6 months of the range
+    const isNearEnd = centerIndex >= data.length - 6; // Last 6 months of the range
+
+    if (isNearBeginning && centerItem.year === minYear) {
+      isRecycling.current = true; // Mark as recycling to prevent auto-scroll interference
        
       const prevMonths = buildYearMonths(minYear - 1); // prepend the year before the first
-      const newData = [...prevMonths, ...data].slice(0, 36);
+      const newData = [...prevMonths, ...data].slice(0, 36); // keep 3-year window, remove oldest year from end
       setData(newData);
       
       const newOffset = offsetX + 12 * CHIP_WIDTH; // adjust offset so chips stay in place
       listRef.current?.scrollToOffset({ offset: newOffset, animated: false });
-    } else if (centerItem.year === maxYear) {
+      
+      // Reset recycling flag after a brief delay
+      setTimeout(() => {
+        isRecycling.current = false;
+      }, 50);
+    } else if (isNearEnd && centerItem.year === maxYear) {
+      isRecycling.current = true; // Mark as recycling to prevent auto-scroll interference
       
       const nextMonths = buildYearMonths(maxYear + 1); // append the year after the last
-      const newData = [...data, ...nextMonths].slice(-36);
+      const newData = [...data, ...nextMonths].slice(-36); // keep 3-year window, remove oldest year from beginning
       setData(newData);
       
       const newOffset = offsetX - 12 * CHIP_WIDTH; // adjust offset so chips stay in place
       listRef.current?.scrollToOffset({ offset: newOffset, animated: false });
+      
+      // Reset recycling flag after a brief delay
+      setTimeout(() => {
+        isRecycling.current = false;
+      }, 50);
     }
+
+    // Re-enable auto-scroll after momentum scroll ends
+    setTimeout(() => {
+      shouldAutoScroll.current = true;
+    }, 100);
   };
 
   const [wrapperHeight, setWrapperHeight] = useState(() => {
@@ -131,6 +164,7 @@ const CalendarHeaderMonthView: React.FC<CalendarHeaderProps> = ({ refreshing, on
           isSelected={isSelected}
           onMonthYearChange={(month, year, day, fromDropdown) => {
             fromChipRef.current = fromDropdown;
+            shouldAutoScroll.current = true; // Enable auto-scroll for programmatic changes
             // Preserve current day when changing month/year, especially important for week view
             const currentDay = view === 'Week' ? currentDate.getDate() : 1;
             setCurrentDate(new Date(year, month, currentDay));
@@ -215,12 +249,17 @@ const CalendarHeaderMonthView: React.FC<CalendarHeaderProps> = ({ refreshing, on
     }
   }, [onRefresh, refreshing]);
 
+  const handleNavigateToToday = () => {
+    shouldAutoScroll.current = true; // Enable auto-scroll for programmatic changes
+    navigateToToday();
+  };
+
   const handleViewChange = (selectedView: string) => {
     if (selectedView !== view) {
       setView(selectedView, 'header_picker');
       // Navigate to today when explicitly switching to week view via picker
       if (selectedView === 'Week') {
-        navigateToToday();
+        handleNavigateToToday();
       }
     }
   };
@@ -255,6 +294,7 @@ const CalendarHeaderMonthView: React.FC<CalendarHeaderProps> = ({ refreshing, on
             currentDate={currentDate}
             today={today}
             fromChipRef={fromChipRef}
+            onNavigateToToday={handleNavigateToToday}
           />
           <ThemedView style={{ alignItems: 'center' }}>
             <NotificationsButton refreshing={refreshing} count={unseenNotificationCount} />
@@ -269,6 +309,7 @@ const CalendarHeaderMonthView: React.FC<CalendarHeaderProps> = ({ refreshing, on
             setWrapperHeight={setWrapperHeight}
             onMonthYearChange={(month, year, day, fromDropdown) => {
               fromChipRef.current = fromDropdown;
+              shouldAutoScroll.current = true; // Enable auto-scroll for programmatic changes
               // Preserve current day when changing month/year, especially important for week view
               const currentDay = view === 'Week' ? currentDate.getDate() : 1;
               setCurrentDate(new Date(year, month, currentDay));
@@ -283,6 +324,7 @@ const CalendarHeaderMonthView: React.FC<CalendarHeaderProps> = ({ refreshing, on
           renderItem={renderItem}
           CHIP_WIDTH={CHIP_WIDTH}
           handleMomentumScrollEnd={handleMomentumScrollEnd}
+          handleScrollBeginDrag={handleScrollBeginDrag}
         />
       </Animated.View>
       

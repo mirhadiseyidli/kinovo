@@ -9,19 +9,9 @@ interface UserPresence {
   lastActive: string;
 }
 
-// interface FriendPresence extends UserPresence {
-//   userId: {
-//     _id: string;
-//     full_name: string;
-//     username: string;
-//     profile_picture?: string;
-//   };
-// }
-
 export function useUserPresence() {
   const { userId } = useAuthSession();
   const [isOnline, setIsOnline] = useState<boolean>(false);
-  // const [friendsPresence, setFriendsPresence] = useState<FriendPresence[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
   
@@ -149,31 +139,10 @@ export function useUserPresence() {
     };
   }, [userId]);
 
-  // Manual refresh function - DISABLED (no longer needed)
-  const refreshPresence = useCallback(async () => {
-    // No-op: friends presence tracking disabled
-  }, []);
-
-  // Check if a specific friend is online
-  // const isFriendOnline = useCallback((friendId: string): boolean => {
-  //   const friend = friendsPresence.find(p => p.userId._id === friendId);
-  //   return friend?.online || false;
-  // }, [friendsPresence]);
-
-  // Get friend's last active time
-  // const getFriendLastActive = useCallback((friendId: string): Date | null => {
-  //   const friend = friendsPresence.find(p => p.userId._id === friendId);
-  //   return friend?.lastActive ? new Date(friend.lastActive) : null;
-  // }, [friendsPresence]);
-
   return {
     isOnline,
-    // friendsPresence,
     loading,
     error,
-    refreshPresence,
-    // isFriendOnline,
-    // getFriendLastActive,
     sendHeartbeat
   };
 }

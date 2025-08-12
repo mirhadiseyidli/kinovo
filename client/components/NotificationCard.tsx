@@ -6,7 +6,7 @@ import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import DefaultProfilePicture from './DefaultProfilePicture';
 import { NotificationCardProps } from '@/types/allTypes';
 import InvitationActionButtons from './InvitationActionButtons';
-import { useEventMutations } from '@/hooks/useEventMutations';
+import { useRespondToInvitation } from '@/hooks/useNewEventMutations';
 import { ThemedText } from '@/components/ThemedText';
 import { getCategoryImage } from '@/constants/CategoryImages';
 import { Image } from 'expo-image';
@@ -15,10 +15,21 @@ import { useAuthSession } from '@/components/Auth/AuthProvider';
 
 type EventResponseStatus = 'accepted' | 'maybe' | 'rejected';
 
+/**
+ * NotificationCard - MIGRATED to New TanStack Query Architecture
+ * 
+ * Migration changes:
+ * - useEventMutations → useRespondToInvitation from new architecture
+ * - Changed from async/await pattern to callback-based mutation pattern
+ * - Direct cache updates instead of invalidation
+ * - Added proper success/error handling with mutation callbacks
+ * - Supports recurring event modifications
+ */
+
 const NotificationCard: React.FC<NotificationCardProps> = React.memo(({ notification, onPress, isMarking = false }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  // Cache invalidation handled automatically by useEventMutations
+  // Direct cache updates handled automatically by new TanStack Query architecture
   const { userId } = useAuthSession();
 
   const isUserNotification = ['friend_request_accepted', 'someone_from_contacts_joined'].includes(notification.type);
@@ -66,32 +77,49 @@ const NotificationCard: React.FC<NotificationCardProps> = React.memo(({ notifica
     return `${Math.floor(diffInMinutes / 1440)}d ago`;
   }, [notification.time, notification.created_at]);
 
-  const { respondToInvitation, loading: respondToInvitationLoading } = useEventMutations();
+  const respondToInvitationMutation = useRespondToInvitation();
   const [selectedResponse, setSelectedResponse] = useState<EventResponseStatus | null>(null);
 
-  const handleInvitationResponse = React.useCallback(async (status: EventResponseStatus, options?: { modifyType: 'this_only' | 'all_future' }) => {
+  const handleInvitationResponse = React.useCallback((status: EventResponseStatus, options?: { modifyType: 'this_only' | 'all_future' }) => {
     if (!notification.event?._id) return;
-    try {
-      // Handle recurring events
-      const requestOptions: any = {
-        eventId: notification.event._id,
-        status
-      };
-      
-      if (notification.event.recurrence?.checked && notification.event.start_time && options?.modifyType) {
-        requestOptions.occurrenceDate = notification.event.start_time;
-        requestOptions.modifyType = options.modifyType;
-      }
-      setSelectedResponse(status);
-      await respondToInvitation(requestOptions);
-
-      // Cache invalidation and optimistic updates handled automatically by useEventMutations
-    } catch (err) {
-      // errors already handled in hook
+    
+    // Prepare mutation variables
+    const variables: {
+      eventId: string;
+      status: string;
+      occurrenceDate?: string;
+      modifyType?: string;
+    } = {
+      eventId: notification.event._id,
+      status
+    };
+    
+    // Handle recurring events
+    if (notification.event.recurrence?.checked && notification.event.start_time && options?.modifyType) {
+      variables.occurrenceDate = typeof notification.event.start_time === 'string' 
+        ? notification.event.start_time 
+        : notification.event.start_time.toISOString();
+      variables.modifyType = options.modifyType;
     }
-  }, [notification.event?._id, respondToInvitation]);
+    
+    setSelectedResponse(status);
+    
+    respondToInvitationMutation.mutate(variables, {
+      onSuccess: () => {
+        // Direct cache update handled automatically by new architecture
+        // Local state update for immediate UI feedback
+        setInvitationStatus(status as 'accepted' | 'maybe' | 'rejected');
+      },
+      onError: (error) => {
+        console.error('Failed to respond to invitation:', error);
+        // Reset selected response on error
+        setSelectedResponse(null);
+        Alert.alert('Error', 'Failed to respond to invitation. Please try again.');
+      }
+    });
+  }, [notification.event, respondToInvitationMutation]);
 
-  const handleInvitationAlerts = React.useCallback(async (status: EventResponseStatus) => {
+  const handleInvitationAlerts = React.useCallback((status: EventResponseStatus) => {
     if (notification.event?.recurrence?.checked && notification.event?.start_time) {
       const statusText = status === 'accepted' ? 'accept' : status === 'maybe' ? 'mark as maybe' : 'decline';
       Alert.alert(
@@ -106,7 +134,7 @@ const NotificationCard: React.FC<NotificationCardProps> = React.memo(({ notifica
     } else {
       handleInvitationResponse(status);
     }
-  }, [notification.event?._id, respondToInvitation]);
+  }, [notification.event, handleInvitationResponse]);
 
   const formatEventDateTime = React.useCallback((dateStr?: string) => {
     if (!dateStr) return null;
@@ -125,7 +153,7 @@ const NotificationCard: React.FC<NotificationCardProps> = React.memo(({ notifica
   const eventLocationText = notification.data?.eventLocation || notification.location || null;
   const eventCategory = notification.event?.category || notification.data?.eventCategory || null;
 
-  const [invitationStatus, setInvitationStatus] = React.useState< 'pending' | 'accepted' | 'maybe' | 'rejected' >(notification.status as any);
+  const [invitationStatus, setInvitationStatus] = React.useState< 'pending' | 'accepted' | 'maybe' | 'rejected' >(notification.status as 'pending' | 'accepted' | 'maybe' | 'rejected');
 
   const statusLabelMap: Record<string, string> = {
     accepted: 'Accepted',
@@ -135,17 +163,26 @@ const NotificationCard: React.FC<NotificationCardProps> = React.memo(({ notifica
 
   // update local status when respond success
   React.useEffect(() => {
-    setInvitationStatus(notification.status as any);
+    setInvitationStatus(notification.status as 'pending' | 'accepted' | 'maybe' | 'rejected');
   }, [notification.status]);
 
   const renderInvitationControls = () => {
     if (invitationStatus === 'pending') {
       return (
         <InvitationActionButtons
-          loading={respondToInvitationLoading}
-          onAccept={() => handleInvitationAlerts('accepted').finally(()=>setInvitationStatus('accepted'))}
-          onMaybe={() => handleInvitationAlerts('maybe').finally(()=>setInvitationStatus('maybe'))}
-          onDecline={() => handleInvitationAlerts('rejected').finally(()=>setInvitationStatus('rejected'))}
+          loading={respondToInvitationMutation.isPending}
+          onAccept={() => {
+            handleInvitationAlerts('accepted');
+            // Status will be updated in the mutation's onSuccess callback
+          }}
+          onMaybe={() => {
+            handleInvitationAlerts('maybe');
+            // Status will be updated in the mutation's onSuccess callback
+          }}
+          onDecline={() => {
+            handleInvitationAlerts('rejected');
+            // Status will be updated in the mutation's onSuccess callback
+          }}
         />
       );
     }

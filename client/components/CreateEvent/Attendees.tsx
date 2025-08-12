@@ -10,7 +10,7 @@ import type { AttendeeFriend } from '@/types/allTypes';
 import { ApiError } from '@/types/allTypes';
 import SearchUsersFriendsBar from '../SearchUsersFriendsBar';
 import { useCreateEventContext } from '@/context/CreateEventContext';
-import { useUserDataLegacy as useUserData } from '@/hooks/useUserData';
+import { useUserData } from '@/hooks/useUserData';
 import api from '@/utils/api';
 
 // Define EventAttendee type locally to match context usage
@@ -38,8 +38,19 @@ interface AttendeesProps {
   showSuggestions: boolean;
   setShowSuggestions: (show: boolean) => void;
   onSuggestionSelectRef: React.MutableRefObject<((item: any) => void) | null>;
+  onInputPositionChange?: (position: { x: number; y: number; width: number; height: number } | null) => void;
 }
 
+/**
+ * Attendees Component - MIGRATED to New TanStack Query Architecture
+ * 
+ * Key improvements over the old implementation:
+ * - Uses new useUserData hook with simplified TanStack Query architecture
+ * - Direct data access instead of async fetchUserData calls
+ * - Better performance through reactive data updates
+ * - Simplified initialization logic
+ * - Consistent with other migrated components
+ */
 const Attendees: React.FC<AttendeesProps> = ({ 
   limit, 
   suggestions, 
@@ -48,16 +59,16 @@ const Attendees: React.FC<AttendeesProps> = ({
   setSuggestionsData,
   showSuggestions, 
   setShowSuggestions,
-  onSuggestionSelectRef 
+  onSuggestionSelectRef,
+  onInputPositionChange
 }) => {
   const [inputValue, setInputValue] = useState('');
   const [showAllAttendees, setShowAllAttendees] = useState(false);
-  const [user, setUser] = useState<AttendeeFriend | null>(null);
   const [attendees, setAttendees] = useState<AttendeeFriend[]>([]);
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const { attendees: contextAttendees, settingEventAttendees, visibility } = useCreateEventContext();
-  const { fetchUserData } = useUserData();
+  const { user: currentUser, loading: userLoading } = useUserData();
   const maxVisibleFriends = 4;
   const [refreshing, setRefreshing] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -80,57 +91,48 @@ const Attendees: React.FC<AttendeesProps> = ({
   }, []);
   const lastAttendeesList = useRef<string>('');
   
-  // Initialize component once on mount
+  // Initialize component when user data is available
   useEffect(() => {
-    const initializeComponent = async () => {
-      // Only run once
-      if (isInitialized.current) return;
-      
-      try {
-        // Get current user
-        const currentUser = await fetchUserData();
-        if (!currentUser) return;
-        setUser(currentUser);
-        
-        // Create initial attendees list
-        let initialAttendees: AttendeeFriend[] = [];
-        
-        // If we have context attendees, use them as initial state
-        if (contextAttendees && contextAttendees.length > 0) {
-          initialAttendees = contextAttendees.map(a => a.user);
-          
-          // Make sure organizer is included and first
-          const hasOrganizer = initialAttendees.some(a => a._id === currentUser._id);
-          if (!hasOrganizer) {
-            initialAttendees = [currentUser, ...initialAttendees];
-          } else {
-            // Move organizer to first position
-            initialAttendees = [
-              ...initialAttendees.filter(a => a._id === currentUser._id),
-              ...initialAttendees.filter(a => a._id !== currentUser._id)
-            ];
-          }
-        } else {
-          // If no context attendees, just add the organizer
-          initialAttendees = [currentUser];
-        }
-        
-        // Set attendees state
-        setAttendees(initialAttendees);
-        
-        // Set the last attendees list to avoid updates
-        lastAttendeesList.current = JSON.stringify(initialAttendees.map(a => a._id));
-        
-        // Mark as initialized
-        isInitialized.current = true;
-        skipNextUpdate.current = true;
-      } catch (error) {
-        console.error('Error initializing attendees:', error);
-      }
-    };
+    // Only run once and when we have user data
+    if (isInitialized.current || !currentUser || userLoading) return;
     
-    initializeComponent();
-  }, []);
+    try {
+      // Create initial attendees list
+      let initialAttendees: AttendeeFriend[] = [];
+      
+      // If we have context attendees, use them as initial state
+      if (contextAttendees && contextAttendees.length > 0) {
+        initialAttendees = contextAttendees.map(a => a.user);
+        
+        // Make sure organizer is included and first
+        const hasOrganizer = initialAttendees.some(a => a._id === currentUser._id);
+        if (!hasOrganizer) {
+          initialAttendees = [currentUser, ...initialAttendees];
+        } else {
+          // Move organizer to first position
+          initialAttendees = [
+            ...initialAttendees.filter(a => a._id === currentUser._id),
+            ...initialAttendees.filter(a => a._id !== currentUser._id)
+          ];
+        }
+      } else {
+        // If no context attendees, just add the organizer
+        initialAttendees = [currentUser];
+      }
+      
+      // Set attendees state
+      setAttendees(initialAttendees);
+      
+      // Set the last attendees list to avoid updates
+      lastAttendeesList.current = JSON.stringify(initialAttendees.map(a => a._id));
+      
+      // Mark as initialized
+      isInitialized.current = true;
+      skipNextUpdate.current = true;
+    } catch (error) {
+      console.error('Error initializing attendees:', error);
+    }
+  }, [currentUser, userLoading, contextAttendees]);
 
   // Update context when attendees change
   useEffect(() => {
@@ -313,7 +315,7 @@ const Attendees: React.FC<AttendeesProps> = ({
     if (!mountedRef.current) return;
     
     // Don't allow removing the organizer
-    if (user && id === user._id) return;
+    if (currentUser && id === currentUser._id) return;
     
     setAttendees((prev) => prev.filter((friend) => friend._id !== id));
   };
@@ -323,7 +325,7 @@ const Attendees: React.FC<AttendeesProps> = ({
     return full_name.length > maxLength ? `${full_name.substring(0, maxLength)}...` : full_name;
   };
 
-  if (!user) return null;
+  if (!currentUser || userLoading) return null;
 
   return (
     <ThemedView style={{ marginBottom: 16 }}>
@@ -336,6 +338,7 @@ const Attendees: React.FC<AttendeesProps> = ({
         showSuggestions={showSuggestions}
         setShowSuggestions={setShowSuggestions}
         onSuggestionSelectRef={onSuggestionSelectRef}
+        onInputPositionChange={onInputPositionChange}
       />
 
       {/* Attendees List */}
@@ -350,9 +353,9 @@ const Attendees: React.FC<AttendeesProps> = ({
               size={52}
               showName={true}
               refreshing={refreshing}
-              displayName={friend._id === user._id ? 'Organizer' : undefined}
+              displayName={friend._id === currentUser._id ? 'Organizer' : undefined}
             />
-            {friend._id !== user._id && (
+            {friend._id !== currentUser._id && (
               <TouchableOpacity
                 style={{
                   position: 'absolute',
@@ -441,10 +444,10 @@ const Attendees: React.FC<AttendeesProps> = ({
                       size={40}
                       showName={true}
                       refreshing={refreshing}
-                      displayName={friend._id === user._id ? 'Organizer' : undefined}
+                      displayName={friend._id === currentUser._id ? 'Organizer' : undefined}
                     />
                   </View>
-                  {friend._id !== user._id && (
+                  {friend._id !== currentUser._id && (
                     <TouchableOpacity
                       style={{
                         padding: 8,

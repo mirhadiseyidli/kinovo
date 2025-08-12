@@ -16,8 +16,8 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  runOnJS,
 } from 'react-native-reanimated';
+import { runOnJS } from 'react-native-worklets';
 
 export type NativeDropdownProps = {
   options?: string[];

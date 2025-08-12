@@ -35,8 +35,14 @@ const CategoryPickerModal: React.FC<CategoryPickerModalProps> = ({
   
   // Keyboard animation
   const keyboard = useAnimatedKeyboard();
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   
   const animatedStyles = useAnimatedStyle(() => {
+    // Only apply keyboard offset when the search input inside the modal is focused
+    // This prevents the modal from being affected by keyboards from other inputs
+    if (!visible || !isSearchFocused) {
+      return {};
+    }
     return {
       transform: [
         { translateY: -keyboard.height.value },
@@ -54,6 +60,11 @@ const CategoryPickerModal: React.FC<CategoryPickerModalProps> = ({
     if (visible) {
       setTempCategory(selectedValue);
       setSearchQuery('');
+      // Dismiss any existing keyboard when modal opens
+      Keyboard.dismiss();
+    } else {
+      // Reset search focus when modal closes
+      setIsSearchFocused(false);
     }
   }, [visible, selectedValue]);
 
@@ -133,11 +144,16 @@ const CategoryPickerModal: React.FC<CategoryPickerModalProps> = ({
               borderTopRightRadius: 16,
               paddingVertical: 16,
               maxHeight: '80%',
-              transform: [{ translateY: visible ? 0 : 300 }],
+              minHeight: 400, // Ensure minimum height for the modal
+              transform: [{ translateY: visible ? 0 : 500 }],
               transitionProperty: ['transform'],
               transitionDuration: '200ms',
               transitionTimingFunction: 'ease-in-out',
               zIndex: 2,
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
             },
             animatedStyles
           ]}
@@ -179,6 +195,8 @@ const CategoryPickerModal: React.FC<CategoryPickerModalProps> = ({
                 placeholderTextColor={themeColors.placeholderTextColor}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
+                onFocus={() => setIsSearchFocused(true)}
+                onBlur={() => setIsSearchFocused(false)}
                 style={{
                   flex: 1,
                   fontSize: 16,
@@ -197,48 +215,48 @@ const CategoryPickerModal: React.FC<CategoryPickerModalProps> = ({
           </View>
 
           {/* Picker or No Results */}
-          <View style={{ height: 220, paddingHorizontal: 16 }}>
-            {loading ? (
-              <View style={{ 
-                paddingVertical: 40, 
-                paddingHorizontal: 16, 
-                alignItems: 'center',
-                height: 220
+          {loading ? (
+            <View style={{ 
+              paddingVertical: 40, 
+              paddingHorizontal: 16, 
+              alignItems: 'center',
+              height: 250
+            }}>
+              <ThemedText style={{ 
+                color: themeColors.placeholderTextColor, 
+                fontSize: 16 
               }}>
-                <ThemedText style={{ 
-                  color: themeColors.placeholderTextColor, 
-                  fontSize: 16 
-                }}>
-                  Loading categories...
-                </ThemedText>
-              </View>
-            ) : filteredCategories.length > 0 ? (
-                <Picker
-                  options={pickerOptions}
-                  selectedIndex={selectedIndex}
-                  onOptionSelected={handlePickerSelection}
-                  color={themeColors.mountainGreen}
-                  variant="wheel"
-                  style={{
-                    height: 220,
-                  }}
-                />
-            ) : (
-              <View style={{ 
-                paddingVertical: 40, 
-                paddingHorizontal: 16, 
-                alignItems: 'center',
-                height: 200
+                Loading categories...
+              </ThemedText>
+            </View>
+          ) : filteredCategories.length > 0 ? (
+              <Picker
+                options={pickerOptions}
+                selectedIndex={selectedIndex}
+                onOptionSelected={handlePickerSelection}
+                color={themeColors.mountainGreen}
+                variant="wheel"
+                style={{
+                  height: 250,
+                  flex: 1,
+                  zIndex: 999
+                }}
+              />
+          ) : (
+            <View style={{ 
+              paddingVertical: 40, 
+              paddingHorizontal: 16, 
+              alignItems: 'center',
+              height: 200
+            }}>
+              <ThemedText style={{ 
+                color: themeColors.placeholderTextColor, 
+                fontSize: 16 
               }}>
-                <ThemedText style={{ 
-                  color: themeColors.placeholderTextColor, 
-                  fontSize: 16 
-                }}>
-                  No categories found
-                </ThemedText>
-              </View>
-            )}
-          </View>
+                No categories found
+              </ThemedText>
+            </View>
+          )}
 
           {/* Bottom Buttons */}
           <View style={{ 

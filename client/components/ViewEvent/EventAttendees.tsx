@@ -10,15 +10,26 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   useAnimatedReaction,
-  runOnJS,
 } from 'react-native-reanimated';
+import { runOnJS } from 'react-native-worklets';
 import { Feather } from '@expo/vector-icons';
 import { useViewEventModal } from '@/context/ViewEventModalContext';
-import { useEventMutations } from '@/hooks/useEventMutations';
+import { useRemoveAttendee } from '@/hooks/useSpecialMutations';
 import { useLocalSearchParams } from 'expo-router';
 import AttendeeAvatar from './AttendeeAvatar';
 import AttendeeRow from './AttendeeRow';
 
+
+/**
+ * EventAttendees - MIGRATED to New TanStack Query Architecture
+ * 
+ * Migration changes:
+ * - useEventMutations → useRemoveAttendee from new architecture
+ * - Changed from async/await pattern to callback-based mutation pattern
+ * - Direct cache updates instead of invalidation
+ * - Added proper success/error handling with mutation callbacks
+ * - Supports recurring event modifications
+ */
 
 const EventAttendees = ({ userId, event }: { userId: string | null, event: Event }) => {
   const colorScheme = useColorScheme();
@@ -27,15 +38,15 @@ const EventAttendees = ({ userId, event }: { userId: string | null, event: Event
   const [isExpanded, setIsExpanded] = useState(false);
   const attendeeCount = (event?.attendees ?? []).length || 0;
   const { showModal } = useViewEventModal();
-  const { removeAttendee } = useEventMutations();
-  // Cache invalidation handled automatically by useEventMutations
+  const removeAttendeeMutation = useRemoveAttendee();
+  // Direct cache updates handled automatically by new TanStack Query architecture
   const { occurrence_start, is_occurrence } = useLocalSearchParams();
   const [attendees, setAttendees] = useState<Event['attendees']>(event.attendees ?? []);
   
   // Check if this is a recurring occurrence
   const isRecurringOccurrence = is_occurrence === 'true' && occurrence_start;
 
-  const handleRemoveAttendee = useCallback(async (
+  const handleRemoveAttendee = useCallback((
     id: string, 
     options?: { modifyType?: 'this_only' | 'all_future' }
   ) => {
@@ -46,37 +57,38 @@ const EventAttendees = ({ userId, event }: { userId: string | null, event: Event
       ? `${attendee.user.first_name} ${attendee.user.last_name}`
       : attendee.user.username || 'this attendee';
 
-    try {
-      const requestOptions: any = {};
-      
-      // If this is a recurring occurrence and we have options, include them
-      if (isRecurringOccurrence && options?.modifyType && occurrence_start) {
-        const occurrenceDate = Array.isArray(occurrence_start) ? occurrence_start[0] : occurrence_start;
-        requestOptions.occurrenceDate = occurrenceDate;
-        requestOptions.modifyType = options.modifyType;
-      }
-      
-      await removeAttendee({
-        eventId: event._id!,
-        attendeeId: id,
-        ...requestOptions
-      });
-      // Cache invalidation handled automatically by useEventMutations
-
-      // Update the attendees list
-      setAttendees(attendees?.filter(a => a.user._id !== id) ?? []);
-      
-      const message = options?.modifyType === 'this_only' 
-        ? `${attendeeName} has been removed from this specific event occurrence.`
-        : options?.modifyType === 'all_future'
-        ? `${attendeeName} has been removed from all future occurrences of this event.`
-        : `${attendeeName} has been removed from the event.`;
-        
-      Alert.alert('Success', message);
-    } catch (error) {
-      console.error('Failed to remove attendee:', error);
+    // Prepare mutation variables
+    const variables: any = {
+      eventId: event._id!,
+      attendeeId: id
+    };
+    
+    // If this is a recurring occurrence and we have options, include them
+    if (isRecurringOccurrence && options?.modifyType && occurrence_start) {
+      const occurrenceDate = Array.isArray(occurrence_start) ? occurrence_start[0] : occurrence_start;
+      variables.occurrenceDate = occurrenceDate;
+      variables.modifyType = options.modifyType;
     }
-  }, [event._id, event.attendees, removeAttendee, isRecurringOccurrence, occurrence_start]);
+    
+    removeAttendeeMutation.mutate(variables, {
+      onSuccess: () => {
+        // Update local attendees list for immediate UI feedback
+        setAttendees(attendees?.filter(a => a.user._id !== id) ?? []);
+        
+        const message = options?.modifyType === 'this_only' 
+          ? `${attendeeName} has been removed from this specific event occurrence.`
+          : options?.modifyType === 'all_future'
+          ? `${attendeeName} has been removed from all future occurrences of this event.`
+          : `${attendeeName} has been removed from the event.`;
+          
+        Alert.alert('Success', message);
+      },
+      onError: (error) => {
+        console.error('Failed to remove attendee:', error);
+        Alert.alert('Error', 'Failed to remove attendee. Please try again.');
+      }
+    });
+  }, [event._id, event.attendees, removeAttendeeMutation, isRecurringOccurrence, occurrence_start, attendees]);
 
   const handleRemove = useCallback(async (id: string) => {
     const attendee = event.attendees?.find(a => a.user._id === id);
@@ -199,7 +211,6 @@ const EventAttendees = ({ userId, event }: { userId: string | null, event: Event
             attendee={attendee} 
             isCreator={userId === event.creator?._id} 
             creatorId={event.creator?._id}
-            onRemove={(id) => confirmRemoveAttendee(id)} 
           />
         ))}
       </Animated.View>

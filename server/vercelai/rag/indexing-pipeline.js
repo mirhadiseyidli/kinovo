@@ -92,8 +92,6 @@ async function indexEvent(eventId) {
         setDefaultsOnInsert: true,
       }
     );
-
-    console.log(`✅ Indexed event: ${event.title} (${eventId})`);
     
     return {
       success: true,
@@ -219,8 +217,6 @@ async function indexUser(userId) {
         setDefaultsOnInsert: true,
       }
     );
-
-    console.log(`✅ Indexed user: ${user.first_name} ${user.last_name} (${userId})`);
     
     return {
       success: true,
@@ -255,8 +251,6 @@ async function batchIndexEvents(eventIds, options = {}) {
     results: [],
   };
 
-  console.log(`🚀 Starting batch indexing of ${eventIds.length} events...`);
-
   for (let i = 0; i < eventIds.length; i += batchSize) {
     const batch = eventIds.slice(i, i + batchSize);
     
@@ -271,8 +265,6 @@ async function batchIndexEvents(eventIds, options = {}) {
       }
       results.results.push(result.value || { success: false, eventId: batch[index] });
     });
-
-    console.log(`📊 Processed batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(eventIds.length / batchSize)}`);
     
     // Add delay between batches to avoid rate limiting
     if (delayMs > 0 && i + batchSize < eventIds.length) {
@@ -280,7 +272,6 @@ async function batchIndexEvents(eventIds, options = {}) {
     }
   }
 
-  console.log(`✨ Batch indexing complete: ${results.successful} successful, ${results.failed} failed`);
   return results;
 }
 
@@ -320,8 +311,6 @@ async function indexAllUsers(options = {}) {
       results: [],
     };
 
-    console.log(`🚀 Starting batch indexing of ${ids.length} users...`);
-
     for (let i = 0; i < ids.length; i += batchSize) {
       const batch = ids.slice(i, i + batchSize);
       
@@ -336,15 +325,12 @@ async function indexAllUsers(options = {}) {
         }
         results.results.push(result.value || { success: false, userId: batch[index] });
       });
-
-      console.log(`📊 Processed batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(ids.length / batchSize)}`);
       
       if (delayMs > 0 && i + batchSize < ids.length) {
         await new Promise(resolve => setTimeout(resolve, delayMs));
       }
     }
 
-    console.log(`✨ User indexing complete: ${results.successful} successful, ${results.failed} failed`);
     return results;
     
   } catch (error) {

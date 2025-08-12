@@ -23,8 +23,6 @@ export const knowledgeBase = tool({
       const { verifyUserToken } = await import('../lib/auth.js');
       const user = await verifyUserToken(token);
       
-      console.log(`🔍 Knowledge base query for ${user.userId}: "${query}" (${context_type})`);
-      
       let results = {};
       
       switch (context_type) {

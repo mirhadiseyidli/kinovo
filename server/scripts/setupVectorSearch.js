@@ -182,39 +182,6 @@ function generateAtlasCommands() {
     console.error('ATLAS_PROJECT_ID environment variable is required');
     process.exit(1);
   }
-
-  console.log('\n🚀 MongoDB Atlas Vector Search Index Setup Commands\n');
-  console.log('Run these commands using Atlas CLI (atlas auth login first):\n');
-
-  // Event Embeddings Index
-  console.log('1. Event Embeddings Vector Search Index:');
-  console.log(`atlas clusters search indexes create \\
-  --projectId ${projectId} \\
-  --clusterName ${clusterName} \\
-  --collection eventemebeddings \\
-  --database kinovo \\
-  --file event_vector_index.json`);
-  console.log('');
-
-  // User Embeddings Index
-  console.log('2. User Embeddings Vector Search Index:');
-  console.log(`atlas clusters search indexes create \\
-  --projectId ${projectId} \\
-  --clusterName ${clusterName} \\
-  --collection userembeddings \\
-  --database kinovo \\
-  --file user_vector_index.json`);
-  console.log('');
-
-  // AI Conversations Index
-  console.log('3. AI Conversations Search Index:');
-  console.log(`atlas clusters search indexes create \\
-  --projectId ${projectId} \\
-  --clusterName ${clusterName} \\
-  --collection aiconversations \\
-  --database kinovo \\
-  --file conversation_search_index.json`);
-  console.log('');
 }
 
 /**
@@ -246,8 +213,6 @@ function createIndexFiles() {
     path.join(indexDir, 'conversation_search_index.json'),
     JSON.stringify(vectorSearchIndexes.aiConversations.definition, null, 2)
   );
-
-  console.log('✅ Index definition files created in:', indexDir);
 }
 
 /**
@@ -259,15 +224,9 @@ async function testVectorSearch() {
     const EventEmbeddings = require('../database/schemas/eventEmbeddingsSchema');
     const UserEmbeddings = require('../database/schemas/userEmbeddingsSchema');
 
-    console.log('\n🧪 Testing Vector Search Setup...\n');
-
     // Check collections exist
     const eventCount = await EventEmbeddings.countDocuments();
     const userCount = await UserEmbeddings.countDocuments();
-
-    console.log(`📊 Collection Status:`);
-    console.log(`  - Event Embeddings: ${eventCount} documents`);
-    console.log(`  - User Embeddings: ${userCount} documents`);
 
     if (eventCount === 0) {
       console.log('⚠️  No event embeddings found. You may need to run the indexing script first.');

@@ -6,15 +6,20 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { useRouter } from 'expo-router';
-import { useInfiniteFriendsEventsQuery, Event } from '@/hooks/useInfiniteEventsQuery';
+import { useInfiniteFriendsEvents } from '@/hooks/useInfiniteEvents';
+import type { Event } from '@/types/allTypes';
 import EventComponent from '@/components/Event';
 import { SkeletonBox } from '../Skeleton';
 import { useDiscoverError } from '@/context/DiscoverErrorContext';
 
 /**
- * Friends Events Component with Infinite Query
+ * FriendsEventsInfinite - MIGRATED to New TanStack Query Architecture
  * 
  * This component replaces the original FriendsEvents component with:
+ * - New simplified TanStack Query architecture with useInfiniteFriendsEvents hook
+ * - Direct cache updates instead of invalidations for better performance
+ * - Single event store with tagging system
+ * - Better performance through unified caching
  * - Infinite query support for better performance
  * - Automatic cache invalidation and background refetching
  * - Smooth loading states and error handling
@@ -44,27 +49,30 @@ const FriendsEventsInfinite: React.FC<FriendsEventsInfiniteProps> = React.memo((
 
   // Use infinite query for friends events
   const {
-    events: friendsEvents,
+    data,
     isLoading,
     isFetching,
     error,
     refetch,
-    totalCount,
-  } = useInfiniteFriendsEventsQuery({
-    userId,
-    pageSize: maxItems,
-    enabled: true,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    gcTime: 1000 * 60 * 30, // 30 minutes
-    keepPreviousData: true,
-    onSuccess: () => {
+  } = useInfiniteFriendsEvents(maxItems);
+  
+  // Extract events and totalCount from paginated response
+  const friendsEvents = data?.pages.flatMap(page => page.events) ?? [];
+  const totalCount = data?.pages[0]?.totalCount ?? 0;
+  
+  // Handle success/error callbacks
+  React.useEffect(() => {
+    if (!isLoading && !error) {
       onFinishRefresh?.();
-    },
-    onError: (error) => {
+    }
+  }, [isLoading, error, onFinishRefresh]);
+  
+  React.useEffect(() => {
+    if (error) {
       console.error('Failed to fetch friends events:', error);
       onFinishRefresh?.();
-    },
-  });
+    }
+  }, [error, onFinishRefresh]);
 
   // Report errors to centralized error handling
   React.useEffect(() => {

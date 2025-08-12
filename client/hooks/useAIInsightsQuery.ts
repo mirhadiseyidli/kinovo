@@ -5,8 +5,15 @@ import { useLocation } from '@/context/LocationContext';
 import api from '@/utils/api';
 
 /**
- * TanStack React Query hook for fetching AI insights
- * Following the same pattern as useUpcomingEventsQuery
+ * useAIInsightsQuery - MIGRATED to New TanStack Query Architecture
+ * 
+ * Uses new simplified TanStack Query architecture for AI insights
+ * - Direct cache updates instead of invalidations where possible
+ * - Simplified query configuration
+ * - Better performance through unified caching approach
+ * 
+ * Note: AI Insights remain separate from main event store as they're 
+ * personalized user insights rather than event data.
  */
 
 // Define insight card type
@@ -79,9 +86,6 @@ export const useAIInsightsQuery = (options: UseAIInsightsOptions = {}) => {
         userLng: currentLocation.lng,
       } : {};
       
-      console.log('🗺️ Sending location to AI Insights:', params);
-      console.log('🗺️ Current location object:', currentLocation);
-      
       const response = await api.get('/api/ai/insights', { 
         signal,
         params 
@@ -111,19 +115,14 @@ export const useAIInsightsQuery = (options: UseAIInsightsOptions = {}) => {
     }
   }, [onFinishRefresh, currentLocation]);
 
-  // Cache invalidation function
-  const invalidateInsights = useCallback(async () => {
+  // Cache refresh function (aligned with new architecture)
+  const refreshInsights = useCallback(async () => {
     try {
-      // Clear server-side cache
-      await api.post('/api/ai/insights');
-      console.log('✅ Server-side insights cache cleared');
+      // Refetch fresh data and update cache directly
+      await queryClient.refetchQueries({ queryKey: ['aiInsights', userId] });
     } catch (error) {
-      console.error('Failed to clear server-side cache:', error);
+      console.error('Failed to refresh AI insights:', error);
     }
-    
-    // Clear client-side cache
-    await queryClient.invalidateQueries({ queryKey: ['aiInsights', userId] });
-    console.log('✅ Client-side insights cache cleared');
   }, [queryClient, userId]);
 
   const query = useQuery({
@@ -138,6 +137,6 @@ export const useAIInsightsQuery = (options: UseAIInsightsOptions = {}) => {
 
   return {
     ...query,
-    invalidateInsights,
+    refreshInsights,
   };
 };

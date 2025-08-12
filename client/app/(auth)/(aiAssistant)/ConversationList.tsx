@@ -55,7 +55,6 @@ const useConversationList = () => {
         }));
         
         setConversations(conversationsWithSummary);
-        console.log(`📋 Loaded ${conversationsWithSummary.length} conversations`);
       }
     } catch (error) {
       console.error('Failed to load conversations:', error);
@@ -76,8 +75,7 @@ const useConversationList = () => {
       if (savedConversationId === conversationId) {
         await AsyncStorage.removeItem(`ai_current_conversation_${userId}`);
       }
-      
-      console.log(`🗑️ Deleted conversation: ${conversationId}`);
+
     } catch (error) {
       console.error('Failed to delete conversation:', error);
       Alert.alert('Error', 'Failed to delete conversation. Please try again.');
@@ -94,7 +92,6 @@ const useConversationList = () => {
         await AsyncStorage.removeItem(`ai_current_conversation_${userId}`);
       }
       
-      console.log('🧹 Cleared all conversations');
     } catch (error) {
       console.error('Failed to clear conversations:', error);
       Alert.alert('Error', 'Failed to clear conversations. Please try again.');

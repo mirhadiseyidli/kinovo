@@ -36,7 +36,7 @@ const EventHostActionButtons: React.FC<Props> = ({ onInvite, onEdit, onCancel })
         <Button 
           systemImage={"person.badge.plus"} 
           onPress={onInvite}
-          children='Add Attendees'
+          children='Manage Attendees'
         />
         <Button 
           systemImage={"square.and.pencil"} 

@@ -15,6 +15,7 @@ interface SearchUsersFriendsBarModifiedProps {
   showSuggestions: boolean;
   setShowSuggestions: (show: boolean) => void;
   onSuggestionSelectRef: React.MutableRefObject<((item: any) => void) | null>;
+  onInputPositionChange?: (position: { x: number; y: number; width: number; height: number } | null) => void;
 }
 
 const SearchUsersFriendsBar = ({
@@ -26,11 +27,13 @@ const SearchUsersFriendsBar = ({
   showSuggestions,
   setShowSuggestions,
   onSuggestionSelectRef,
+  onInputPositionChange,
 }: SearchUsersFriendsBarModifiedProps) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<TextInput>(null);
+  const containerRef = useRef<View>(null);
 
   // Show suggestions when there are results and input is focused
   useEffect(() => {
@@ -38,6 +41,11 @@ const SearchUsersFriendsBar = ({
   }, [isFocused, suggestions.length]);
 
   const handleInputFocus = () => {
+    // Measure input position and pass to parent
+    containerRef.current?.measureInWindow((x, y, width, height) => {
+      onInputPositionChange?.({ x, y, width, height });
+    });
+    
     setIsFocused(true);
   };
 
@@ -58,6 +66,7 @@ const SearchUsersFriendsBar = ({
   return (
     <View>
       <View
+        ref={containerRef}
         style={{
           flexDirection: 'row',
           alignItems: 'center',

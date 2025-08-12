@@ -14,7 +14,6 @@ async function sleep(ms) {
 async function generateMapSnapshotsForEvents() {
   try {
     await connectToDatabase();
-    console.log('Connected to database');
 
     // Count events that need map snapshots
     const totalEvents = await Events.countDocuments({
@@ -26,10 +25,7 @@ async function generateMapSnapshotsForEvents() {
       ]
     });
 
-    console.log(`Found ${totalEvents} events without map snapshots`);
-
     if (totalEvents === 0) {
-      console.log('No events need map snapshots');
       return;
     }
 
@@ -54,12 +50,9 @@ async function generateMapSnapshotsForEvents() {
         break;
       }
 
-      console.log(`\nProcessing batch of ${events.length} events...`);
-
       // Process events in parallel within each batch
       const promises = events.map(async (event) => {
         try {
-          console.log(`Generating snapshot for event: ${event.title} (${event._id})`);
           
           const result = await mapKitService.getSnapshotAndUploadToS3({
             lat: event.location.coordinates.lat,
@@ -83,7 +76,6 @@ async function generateMapSnapshotsForEvents() {
             }
           );
 
-          console.log(`✓ Successfully generated snapshot for: ${event.title}`);
           return { success: true, eventId: event._id };
         } catch (error) {
           console.error(`✗ Failed to generate snapshot for event ${event._id}:`, error.message);
@@ -102,36 +94,24 @@ async function generateMapSnapshotsForEvents() {
         processed++;
       });
 
-      console.log(`Batch complete. Progress: ${processed}/${totalEvents} (${successful} successful, ${failed} failed)`);
-
       // Delay between batches to avoid rate limiting
       if (processed < totalEvents) {
-        console.log(`Waiting ${DELAY_BETWEEN_BATCHES}ms before next batch...`);
         await sleep(DELAY_BETWEEN_BATCHES);
       }
     }
-
-    console.log('\n=== Final Summary ===');
-    console.log(`Total events processed: ${processed}`);
-    console.log(`Successful: ${successful}`);
-    console.log(`Failed: ${failed}`);
-    console.log(`Success rate: ${(successful / processed * 100).toFixed(2)}%`);
 
   } catch (error) {
     console.error('Error in batch processing:', error);
   } finally {
     await mongoose.connection.close();
-    console.log('Database connection closed');
   }
 }
 
 // Handle script termination
 process.on('SIGINT', async () => {
-  console.log('\nScript interrupted. Closing database connection...');
   await mongoose.connection.close();
   process.exit(0);
 });
 
 // Run the script
-console.log('Starting map snapshot generation for existing events...');
 generateMapSnapshotsForEvents().catch(console.error);

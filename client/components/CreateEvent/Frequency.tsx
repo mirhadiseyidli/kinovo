@@ -36,7 +36,7 @@ const Frequency: React.FC<FrequencyProps> = ({ ref, onPickerOpen }) => {
   const { recurrence, settingEventRecurrence, startTime } = useCreateEventContext();
   
   const [isRecurring, setIsRecurring] = useState(recurrence?.checked || false);
-  const [unit, setUnit] = useState<string>(recurrence?.frequency ? capitalizeFirstLetter(recurrence.frequency) : 'Select');
+  const [unit, setUnit] = useState<string>(recurrence?.frequency ? capitalizeFirstLetter(recurrence.frequency) : 'Weekly');
   
   // Helper function to get default recurrence end date (1 month from start time) - memoized
   const getDefaultRecurrenceEndDate = useCallback((startTimeParam?: Date | null) => {
@@ -72,7 +72,7 @@ const Frequency: React.FC<FrequencyProps> = ({ ref, onPickerOpen }) => {
   
 
   // Picker options - memoized since they never change
-  const frequencyOptions = useMemo(() => ['Select', 'Daily', 'Weekly', 'Monthly', 'Yearly'], []);
+  const frequencyOptions = useMemo(() => ['Daily', 'Weekly', 'Monthly', 'Yearly'], []);
   
   // No longer needed with @react-native-picker/picker
 
@@ -103,13 +103,11 @@ const Frequency: React.FC<FrequencyProps> = ({ ref, onPickerOpen }) => {
       setEndDate(newEndDate);
       
       // Update context if recurrence is active
-      if (unit !== 'Select') {
-        settingEventRecurrence({
-          checked: true,
-          frequency: unit.toLowerCase() as 'daily' | 'weekly' | 'monthly' | 'yearly',
-          end_date: newEndDate
-        });
-      }
+      settingEventRecurrence({
+        checked: true,
+        frequency: unit.toLowerCase() as 'daily' | 'weekly' | 'monthly' | 'yearly',
+        end_date: newEndDate
+      });
     }
   }, [startTime]);
 
@@ -129,7 +127,7 @@ const Frequency: React.FC<FrequencyProps> = ({ ref, onPickerOpen }) => {
       if (showUnitPicker) {
         setShowUnitPicker(false);
       }
-    } else if (unit !== 'Select' && endDate) {
+    } else if (endDate) {
       settingEventRecurrence({
         checked: true,
         frequency: unit.toLowerCase() as 'daily' | 'weekly' | 'monthly' | 'yearly',
@@ -145,14 +143,7 @@ const Frequency: React.FC<FrequencyProps> = ({ ref, onPickerOpen }) => {
   const handleUnitSelection = useCallback((selectedValue: string) => {
     setUnit(selectedValue);
     
-    if (selectedValue === 'Select') {
-      // Clear the recurrence when "Select" is chosen
-      settingEventRecurrence({
-        checked: true,
-        frequency: null,
-        end_date: null
-      });
-    } else if (endDate) {
+    if (endDate) {
       settingEventRecurrence({
         checked: true,
         frequency: selectedValue.toLowerCase() as 'daily' | 'weekly' | 'monthly' | 'yearly',
@@ -176,7 +167,7 @@ const Frequency: React.FC<FrequencyProps> = ({ ref, onPickerOpen }) => {
 
   const handleDateChange = useCallback((selectedDate: Date) => {
     setEndDate(selectedDate);
-    if (isRecurring && unit !== 'Select') {
+    if (isRecurring) {
       settingEventRecurrence({
         checked: true,
         frequency: unit.toLowerCase() as 'daily' | 'weekly' | 'monthly' | 'yearly',

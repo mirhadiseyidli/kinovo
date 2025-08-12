@@ -14,6 +14,7 @@ import {
   checkEventStatusSchema,
   getUserEventsSchema,
   findEventByTitleSchema,
+  searchLocationSchema,
   joinEventSchema,
 } from './schemas.js';
 import { knowledgeBase } from './knowledge-base.js';
@@ -49,7 +50,6 @@ export const createEvent = tool({
         const { invalidateUserInsights } = await import('../api/insights.js');
         const userFromToken = await verifyUserToken(token);
         invalidateUserInsights(userFromToken.userId);
-        console.log(`🔄 Invalidated insights cache for user ${userFromToken.userId} after creating event`);
       } catch (error) {
         console.warn('Failed to invalidate insights cache:', error.message);
       }
@@ -86,7 +86,6 @@ export const updateEvent = tool({
       const compoundIdMatch = eventId.match(/^([0-9a-fA-F]{24})-(\d{4}-\d{2}-\d{2})$/);
       if (compoundIdMatch) {
         processedEventId = compoundIdMatch[1]; // Extract base event ID
-        console.log(`🔄 Parsed compound event ID for update: ${eventId} -> ${processedEventId}`);
       }
       
       const result = await client.updateEvent(processedEventId, patch);
@@ -123,7 +122,6 @@ export const cancelEvent = tool({
       const compoundIdMatch = eventId.match(/^([0-9a-fA-F]{24})-(\d{4}-\d{2}-\d{2})$/);
       if (compoundIdMatch) {
         processedEventId = compoundIdMatch[1]; // Extract base event ID
-        console.log(`🔄 Parsed compound event ID for cancel: ${eventId} -> ${processedEventId}`);
       }
       
       // First update event status to cancelled
@@ -137,7 +135,6 @@ export const cancelEvent = tool({
         const { invalidateUserInsights } = await import('../api/insights.js');
         const userFromToken = await verifyUserToken(token);
         invalidateUserInsights(userFromToken.userId);
-        console.log(`🔄 Invalidated insights cache for user ${userFromToken.userId} after cancelling event`);
       } catch (error) {
         console.warn('Failed to invalidate insights cache:', error.message);
       }
@@ -215,7 +212,7 @@ export const removeUser = tool({
 export const searchEvents = tool({
   description: 'Search for events by title, description, location, or other criteria. Use this to find both public events and events you may want to join. For finding your own events, use getUserEvents or findEventByTitle instead.',
   parameters: searchEventsSchema,
-  execute: async ({ query, categories, max, start_time, end_time, location, visibility, status }, { headers }) => {
+  execute: async ({ query, categories, max, start_time, end_time, location, visibility, status }, { headers, userLocation }) => {
     try {
       const token = headers?.authorization?.split(' ')[1];
       if (!token) throw new Error('No authorization token');
@@ -223,16 +220,22 @@ export const searchEvents = tool({
       await verifyUserToken(token);
       const client = new APIClient(token);
       
+      // Use provided location or fall back to user's current location for nearby searches
+      const searchLocation = location || (userLocation && !query ? {
+        coordinates: { lat: userLocation.lat, lng: userLocation.lng },
+        radius: 50 // Default 50 mile radius for "nearby" searches
+      } : null);
+      
       const params = {
         ...(query && { query }),
         ...(categories && { categories: categories.join(',') }),
         ...(max && { limit: max }),
         ...(start_time && { start_time }),
         ...(end_time && { end_time }),
-        ...(location && {
-          lat: location.coordinates.lat,
-          lng: location.coordinates.lng,
-          radius: location.radius,
+        ...(searchLocation && {
+          lat: searchLocation.coordinates.lat,
+          lng: searchLocation.coordinates.lng,
+          radius: searchLocation.radius,
         }),
         ...(visibility && { visibility: visibility.join(',') }),
         ...(status && { status: status.join(',') }),
@@ -326,7 +329,6 @@ export const checkEventStatus = tool({
       const compoundIdMatch = eventId.match(/^([0-9a-fA-F]{24})-(\d{4}-\d{2}-\d{2})$/);
       if (compoundIdMatch) {
         processedEventId = compoundIdMatch[1]; // Extract base event ID
-        console.log(`🔄 Parsed compound event ID for status check: ${eventId} -> ${processedEventId}`);
       }
       
       const result = await client.getEvent(processedEventId);
@@ -419,6 +421,56 @@ export const findEventByTitle = tool({
   },
 });
 
+// Search location tool
+export const searchLocation = tool({
+  description: 'Search for a location using Google Places API. Use this to validate and get complete location details before creating events.',
+  parameters: searchLocationSchema,
+  execute: async ({ query, userLat, userLng }, { headers, userLocation }) => {
+    try {
+      const token = headers?.authorization?.split(' ')[1];
+      if (!token) throw new Error('No authorization token');
+      
+      await verifyUserToken(token);
+      const client = new APIClient(token);
+      
+      // Use provided coordinates or fall back to user's current location
+      const lat = userLat || userLocation?.lat;
+      const lng = userLng || userLocation?.lng;
+      
+      // Call the Google Places search endpoint
+      const result = await client.searchLocation(query, lat, lng);
+      
+      // Format the results for easy confirmation
+      const formattedResults = result.places?.slice(0, 3).map(place => ({
+        name: place.displayName?.text || place.formattedAddress,
+        address: place.formattedAddress,
+        coordinates: {
+          lat: place.location?.latitude,
+          lng: place.location?.longitude
+        },
+        placeId: place.id,
+        types: place.types
+      })) || [];
+      
+      return {
+        success: true,
+        query,
+        results: formattedResults,
+        count: formattedResults.length,
+        message: formattedResults.length > 0 
+          ? `Found ${formattedResults.length} location${formattedResults.length > 1 ? 's' : ''} matching "${query}". Please confirm which one to use.`
+          : `No locations found matching "${query}". Please try a different search.`
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        query
+      };
+    }
+  },
+});
+
 // Join event tool
 export const joinEvent = tool({
   description: 'Join an event as the authenticated user. Use this when user wants to attend/join an event.',
@@ -442,7 +494,6 @@ export const joinEvent = tool({
         if (!extractedOccurrenceDate) {
           extractedOccurrenceDate = compoundIdMatch[2] + 'T00:00:00.000Z'; // Convert to ISO format
         }
-        console.log(`🔄 Parsed compound event ID: ${eventId} -> eventId: ${processedEventId}, occurrenceDate: ${extractedOccurrenceDate}`);
       }
       
       const result = await client.joinEvent(processedEventId, status, extractedOccurrenceDate, modifyType);
@@ -452,7 +503,6 @@ export const joinEvent = tool({
         const { invalidateUserInsights } = await import('../api/insights.js');
         const userFromToken = await verifyUserToken(token);
         invalidateUserInsights(userFromToken.userId);
-        console.log(`🔄 Invalidated insights cache for user ${userFromToken.userId} after joining event`);
       } catch (error) {
         console.warn('Failed to invalidate insights cache:', error.message);
       }
@@ -484,6 +534,7 @@ export const tools = {
   inviteUser,
   removeUser,
   searchEvents,
+  searchLocation,
   weather,
   traffic,
   checkEventStatus,

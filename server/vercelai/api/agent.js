@@ -37,6 +37,8 @@ Guidelines:
 - Use checkEventStatus tool to get detailed event information including user status
 - For queries about "my events", "upcoming events", "past events" use getUserEvents tool
 - Use searchEvents tool for finding new events, not for user's own events
+- When user asks for "nearby events" or "events near me", searchEvents will automatically use their location
+- When searching locations, the user's coordinates will be used for location bias automatically
 - IMPORTANT: Always use MongoDB ObjectIds for event operations, never use event titles
 - If user refers to "that event" or mentions an event by name, first use getUserEvents to find the correct event ID
 - For destructive actions (cancel, delete, update), always confirm the specific event details before proceeding
@@ -44,10 +46,20 @@ Guidelines:
 - Use inviteUser when user wants to invite someone else to an event
 
 When creating events:
+- IMPORTANT: Always use searchLocation tool when user provides a location for an event
+- After searching, show the user the top results and ask them to confirm which one
+- Use the confirmed location's coordinates and formatted address in the event
 - Ensure all required fields are provided (title, start_time, end_time, category)
 - Suggest appropriate categories based on the event description
 - Default to 'private' visibility unless specified
 - Validate date/time formats
+
+Location handling workflow:
+1. When user mentions a location (e.g., "at Central Park" or "Starbucks on 5th Avenue")
+2. Use searchLocation tool to find matching places
+3. Present the top results to the user with names and addresses
+4. Wait for user confirmation (e.g., "Is this the Central Park in New York you meant?")
+5. Use the confirmed location's details when creating the event
 
 When handling event references:
 - If user says "that event", "the event", or mentions an event by name, use getUserEvents to find it
@@ -101,7 +113,7 @@ export default async function handler(req) {
     };
     
     // Parse request body
-    const { messages, conversationId, saveConversation = true } = await req.json();
+    const { messages, conversationId, saveConversation = true, timezone, userLocation } = await req.json();
     
     if (!messages || !Array.isArray(messages)) {
       return new Response(JSON.stringify({ error: 'Invalid request format' }), {
@@ -117,14 +129,11 @@ export default async function handler(req) {
     // Generate RAG context for personalized responses
     let enhancedSystemPrompt = SYSTEM_PROMPT;
     try {
-      console.log(`🧠 Generating RAG context for user ${userContext.userId}`);
       
       const ragContext = await generateRAGContext(userContext.userId, userQuery, conversationHistory);
       const limitedContext = limitContextTokens(ragContext, 2000); // Limit to 2000 tokens
       
       enhancedSystemPrompt = buildEnhancedSystemPrompt(SYSTEM_PROMPT, limitedContext);
-      
-      console.log(`✨ RAG context generated with ${limitedContext.relevant_events?.length || 0} relevant events`);
     } catch (ragError) {
       console.warn('⚠️ RAG context generation failed, using base prompt:', ragError.message);
     }
@@ -133,7 +142,20 @@ export default async function handler(req) {
     const contextualSystemPrompt = `${enhancedSystemPrompt}
 
 Current user: ${userContext.email} (ID: ${userContext.userId})
-Timestamp: ${new Date().toISOString()}`;
+User timezone: ${timezone || 'UTC'}
+Current time (user's timezone): ${timezone ? new Date().toLocaleString('en-US', { timeZone: timezone }) : new Date().toISOString()}
+Current time (UTC): ${new Date().toISOString()}
+${userLocation ? `User location: ${userLocation.text || `${userLocation.city}, ${userLocation.state}`} (${userLocation.lat}, ${userLocation.lng})` : 'User location: Not available'}
+
+IMPORTANT: When the user provides times for events (like "create an event at 3pm tomorrow"), they are giving you times in their local timezone (${timezone || 'UTC'}). You must convert these to UTC before creating the event. Use the timezone information above to make accurate conversions.
+
+Location context:
+${userLocation ? `- User is currently in ${userLocation.city}, ${userLocation.state}
+- Use coordinates (${userLocation.lat}, ${userLocation.lng}) for location-biased searches
+- When searching for "nearby" events or places, use these coordinates
+- When user says "near me" or "nearby", use their current location` : 
+'- User location is not available, ask for a specific location when needed'}
+`;
 
     // Create tools with bound authentication context
     const authenticatedTools = {};
@@ -145,6 +167,8 @@ Timestamp: ${new Date().toISOString()}`;
           return tool.execute(params, { 
             headers: { authorization: `Bearer ${token}` },
             user: userContext,
+            timezone: timezone || 'UTC',
+            userLocation: userLocation || null,
           });
         },
       };

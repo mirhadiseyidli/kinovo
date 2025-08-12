@@ -366,28 +366,14 @@ const AISummary = React.memo<AISummaryProps>(({ refreshing, onFinishRefresh }) =
     }
 
     // Use full event data if available (includes attendees), otherwise create from insight data
-    const eventData = insight.fullEventData ? {
+    const eventData = {
       ...insight.fullEventData,
       // Ensure we have the required fields in case they're missing
-      status: insight.fullEventData.status || 'active',
-      visibility: insight.fullEventData.visibility || 'public',
+      _id: insight.fullEventData._id.split('-')[0],
+      status: insight.fullEventData.status,
+      visibility: insight.fullEventData.visibility,
       end_time: insight.fullEventData.end_time || new Date(new Date(insight.fullEventData.start_time).getTime() + 2 * 60 * 60 * 1000),
-    } : {
-      _id: insight.event.eventId,
-      title: insight.event.title,
-      start_time: new Date(eventDateTime),
-      end_time: new Date(new Date(eventDateTime).getTime() + 2 * 60 * 60 * 1000), // Default 2 hours duration
-      status: 'active', // Default status
-      category: insight.event.category,
-      location: {
-        text: insight.event.location,
-        city: null,
-        state: null,
-        coordinates: insight.event.coordinates || { lat: null, lng: null }
-      },
-      visibility: 'public', // Default visibility
-      attendees: [] // Fallback to empty array
-    };
+    }
 
     return (
       <View style={{ marginBottom: 8, width: '100%' }}>
@@ -436,7 +422,6 @@ const AISummary = React.memo<AISummaryProps>(({ refreshing, onFinishRefresh }) =
     const insightKey = insight ? `${insight.title}-${insight.subtitle}` : null;
     
     if (insight?.traffic && currentInsightRef.current === insightKey && !loggedTrafficRef.current) {
-      console.log('🚗 Traffic data:', insight.traffic);
       loggedTrafficRef.current = true;
     } else if (!insight?.traffic || currentInsightRef.current !== insightKey) {
       loggedTrafficRef.current = false; // Reset for next insight
@@ -634,7 +619,6 @@ const AISummary = React.memo<AISummaryProps>(({ refreshing, onFinishRefresh }) =
           borderRadius: 12,
           alignItems: 'flex-start',
           justifyContent: 'flex-start',
-          marginBottom: 8,
         }}
         disabled={!insight?.cta}
         activeOpacity={insight?.cta ? 0.7 : 1}

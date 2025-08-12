@@ -104,6 +104,21 @@ export class APIClient {
     return this.request('GET', `/api/weather/get/location/weather?${queryString}`);
   }
 
+  // Google Places endpoint for location search
+  async searchLocation(query, userLat, userLng) {
+    const data = {
+      textQuery: query,
+    };
+    
+    // Add location bias if user coordinates are provided
+    if (userLat && userLng) {
+      data.latitude = userLat;
+      data.longitude = userLng;
+    }
+    
+    return this.request('POST', '/api/google/places/search', data);
+  }
+
   // Google Maps endpoints for traffic
   async getDirections(origin, destination, departureTime, mode = 'driving') {
     const params = {

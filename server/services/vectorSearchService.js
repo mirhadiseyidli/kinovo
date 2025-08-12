@@ -45,7 +45,6 @@ async function searchSimilarEvents(query, userId, options = {}) {
     const isAtlasEnvironment = process.env.MONGODB_URI?.includes('mongodb+srv://');
     
     if (!isAtlasEnvironment) {
-      console.log('🔄 Local environment detected - using fallback search instead of vector search');
       return await fallbackEventSearch(query, userId, options);
     }
 
@@ -107,12 +106,10 @@ async function searchSimilarEvents(query, userId, options = {}) {
 
     const results = await EventEmbeddings.aggregate(pipeline);
     
-    console.log(`🔍 Found ${results.length} similar events for: "${query}"`);
     return results;
     
   } catch (error) {
     console.error('Vector search for events failed:', error);
-    console.log('🔄 Falling back to text-based search');
     return await fallbackEventSearch(query, userId, options);
   }
 }
@@ -167,7 +164,6 @@ async function fallbackEventSearch(query, userId, options = {}) {
       similarity_score: 0.8, // Mock similarity score
     }));
     
-    console.log(`🔄 Fallback search found ${results.length} events for: "${query}"`);
     return results;
     
   } catch (error) {
@@ -186,7 +182,6 @@ async function searchSimilarUsers(userId, options = {}) {
     // Get current user's profile embedding
     const userEmbedding = await UserEmbeddings.findOne({ user: userId });
     if (!userEmbedding || !userEmbedding.profile_embedding.length) {
-      console.log('No user embedding found for similarity search');
       return [];
     }
 
@@ -236,7 +231,6 @@ async function searchSimilarUsers(userId, options = {}) {
     ];
 
     const results = await UserEmbeddings.aggregate(pipeline);
-    console.log(`👥 Found ${results.length} similar users`);
     return results;
     
   } catch (error) {
@@ -256,7 +250,6 @@ async function getPersonalizedEventRecommendations(userId, query = '', options =
     const isAtlasEnvironment = process.env.MONGODB_URI?.includes('mongodb+srv://');
     
     if (!isAtlasEnvironment) {
-      console.log('🔄 Local environment - using simplified recommendations');
       return await searchSimilarEvents(query, userId, options);
     }
 
@@ -349,7 +342,6 @@ async function getPersonalizedEventRecommendations(userId, query = '', options =
       .sort((a, b) => b.similarity_score - a.similarity_score)
       .slice(0, limit);
 
-    console.log(`🎯 Generated ${finalResults.length} personalized recommendations for user ${userId}`);
     return finalResults;
     
   } catch (error) {
@@ -397,7 +389,6 @@ async function searchConversationHistory(userId, query, options = {}) {
       },
     ]);
 
-    console.log(`💬 Found ${searchResults.length} relevant conversations`);
     return searchResults;
     
   } catch (error) {
@@ -492,7 +483,6 @@ async function buildRAGContext(userId, query, options = {}) {
       }
     }
 
-    console.log(`🧠 Built RAG context with ${context.sources.length} source types`);
     return context;
     
   } catch (error) {

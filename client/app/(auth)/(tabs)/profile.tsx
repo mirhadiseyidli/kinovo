@@ -15,8 +15,6 @@ import AppInfoSettings from "@/components/ProfileAndSettings/Settings/AppInfoSet
 
 export default React.memo(function ProfileTab() {
   const { signOut } = useAuthSession()
-  const [ showScrollToTop, setShowScrollToTop ] = useState(false);
-  const scrollViewRef = useRef<ScrollView>(null);
   const tabBarHeight = useBottomTabBarHeight(); // Get tab bar height dynamically
   const insets = useSafeAreaInsets();
 
@@ -31,11 +29,6 @@ export default React.memo(function ProfileTab() {
       { cancelable: true }
     );
   }
-
-  const handleScroll = (event: any) => {
-    const offsetY = event.nativeEvent.contentOffset.y;
-    setShowScrollToTop(offsetY > 50); // Toggle button state after a small scroll
-  };
 
   return (
     <ThemedView style={{ flex: 1, paddingTop: insets.top, paddingBottom: tabBarHeight }}>

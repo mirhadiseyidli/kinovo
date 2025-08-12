@@ -158,7 +158,6 @@ const saveConversationToMongoDB = async (userId, aiResponse) => {
       aiResponse.conversationId = conversation.conversationId;
     }
 
-    console.log(`💾 Conversation saved: ${conversation.conversationId} (${conversation?.messageCount || 0} messages)`);
     return conversation;
   } catch (saveError) {
     console.error('Failed to save conversation:', saveError);

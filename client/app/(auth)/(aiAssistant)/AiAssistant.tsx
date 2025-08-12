@@ -21,6 +21,7 @@ import api from '@/utils/api';
 import { useNavigation, router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useLocation } from '@/context/LocationContext';
 
 type MessageRole = 'user' | 'assistant';
 
@@ -49,6 +50,7 @@ const useAIChat = () => {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const { userId } = useAuthSession();
   const navigation = useNavigation();
+  const { currentLocation } = useLocation();
 
   // Load conversation history on mount
   const loadConversationHistory = async () => {
@@ -72,7 +74,6 @@ const useAIChat = () => {
           }));
           
           setMessages(messagesWithDates);
-          console.log(`📱 Loaded conversation history: ${conversation.conversationId} (${messagesWithDates.length} messages)`);
         }
       }
     } catch (error) {
@@ -97,7 +98,6 @@ const useAIChat = () => {
   };
 
   const sendMessage = async (content: string) => {
-    console.log(content)
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -115,6 +115,14 @@ const useAIChat = () => {
           ...messages.map(msg => ({ role: msg.role, content: msg.content })),
           { role: 'user', content: content.trim() }
         ],
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        userLocation: currentLocation ? {
+          lat: currentLocation.lat,
+          lng: currentLocation.lng,
+          city: currentLocation.city,
+          state: currentLocation.state,
+          text: currentLocation.text
+        } : null,
       };
 
       // Include current conversation ID if available
@@ -134,7 +142,6 @@ const useAIChat = () => {
       if (responseConversationId && responseConversationId !== currentConversationId) {
         setCurrentConversationId(responseConversationId);
         await saveCurrentConversationId(responseConversationId);
-        console.log(`💾 Updated conversation ID: ${responseConversationId}`);
       }
       
       // Create the assistant message

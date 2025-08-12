@@ -20,11 +20,8 @@ import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
 import { BannerProvider } from '@/context/BannerContext';
 import { QueryClientProvider } from '@tanstack/react-query';
-// ReactQueryDevtools removed - now handled programmatically in devtools setup
-import { queryClient, setupOfflineQueue, setupGlobalErrorHandlers } from '@/utils/queryClient';
-import { PersistQueryClientProvider, asyncStoragePersister } from '@/utils/persistedQueryClient';
-import { initializeDevTools, getDevToolsConfig } from '@/utils/devtools';
-import { initializeAppTelemetry } from '@/utils/telemetrySetup';
+// Simplified TanStack Query setup - legacy DevTools and persistence removed
+import { queryClient } from '@/utils/queryClient';
 import { Host } from 'react-native-portalize';
 
 // Configure how notifications are handled when the app is in the foreground
@@ -44,10 +41,6 @@ export default function RootLayout(): ReactNode {
   return (
     <AuthProvider>
       <QueryClientProvider client={queryClient}>
-        <PersistQueryClientProvider
-          client={queryClient}
-          persistOptions={{ persister: asyncStoragePersister }}
-        >
           <GestureHandlerRootView style={{ flex: 1, backgroundColor: 'transparent' }}>
             <KeyboardProvider statusBarTranslucent={false}>
               <Host>
@@ -55,7 +48,6 @@ export default function RootLayout(): ReactNode {
               </Host>
             </KeyboardProvider>
           </GestureHandlerRootView>
-        </PersistQueryClientProvider>
       </QueryClientProvider>
     </AuthProvider>
   );
@@ -65,7 +57,7 @@ function InnerLayout() {
   const { isLoading, accessToken } = useAuthSession();
   const [appIsReady, setAppIsReady] = useState(false);
   const [isLogoLoaded, setIsLogoLoaded] = useState(false);
-  const [isNotificationSystemInitialized, setIsNotificationSystemInitialized] = useState(false);
+  // Notification system state removed - simplified initialization
   const [isFirebaseInitialized, setIsFirebaseInitialized] = useState(false);
   const [isFadingOut, setIsFadingOut] = useState(false);
   const colorScheme = useColorScheme();
@@ -90,54 +82,10 @@ function InnerLayout() {
     initializeFirebase();
   }, []);
 
-  useEffect(() => {
-    // APNs initialization is now handled in UserPresence component
-    setIsNotificationSystemInitialized(true);
-  }, []);
+  // Notification initialization simplified - handled in UserPresence component
 
-  // Initialize TanStack utilities after auth is ready, Firebase is initialized, and notification system is initialized
-  useEffect(() => {
-    if (isFirebaseInitialized && isNotificationSystemInitialized && !isLoading) {
-      const initializeTanStackUtilities = async () => {
-        try {
-          // Always initialize core production utilities
-          const initializeOfflineQueue = async () => {
-            await setupOfflineQueue();
-          };
-          
-          const initializeErrorHandlers = () => {
-            setupGlobalErrorHandlers();
-          };
-          
-          const initializeTelemetry = () => {
-            if (__DEV__) {
-              initializeAppTelemetry(queryClient);
-            }
-          };
-          
-          // Development-only utilities
-          const initializeDevToolsSetup = async () => {
-            if (__DEV__) {
-              await initializeDevTools(queryClient);
-            }
-          };
-          
-          // Initialize core utilities first
-          await initializeOfflineQueue();
-          initializeErrorHandlers();
-          initializeTelemetry();
-          
-          // Initialize development tools last (if in dev mode)
-          await initializeDevToolsSetup();
-          
-        } catch (error) {
-          console.error('Failed to initialize TanStack utilities:', error);
-        }
-      };
-      
-      initializeTanStackUtilities();
-    }
-  }, [isFirebaseInitialized, isNotificationSystemInitialized, isLoading]);
+  // TanStack Query is now initialized with the simplified queryClient
+  // No additional setup required - persistence and DevTools removed
 
   useEffect(() => {
     async function prepare() {

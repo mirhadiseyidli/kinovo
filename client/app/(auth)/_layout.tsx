@@ -77,6 +77,25 @@ export default function RootLayout(): ReactNode {
           }}
         />
         <Stack.Screen 
+          name="viewEvent/addAttendees"
+          options={{ 
+            title: 'Add Attendees',
+            gestureEnabled: true,
+            gestureDirection: 'vertical',
+            headerShown: true,
+            headerBackVisible: false,
+            headerStyle: { 
+              backgroundColor: themeColors.background
+            },
+            headerTintColor: themeColors.text,
+            headerTitleStyle: {
+              fontWeight: 'bold'
+            },
+            animation: 'fade_from_bottom',
+            animationTypeForReplace: 'pop',
+          }}
+        />
+        <Stack.Screen 
           name="profile/[_id]"
           options={{
             headerTitle: 'Profile',
