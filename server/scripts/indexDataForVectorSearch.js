@@ -173,9 +173,11 @@ async function generateUserEmbeddings(user) {
 
 /**
  * Index events in batches
+ * @param {Object} options - Indexing options
+ * @param {boolean} options.skipConnection - Skip database connection if already connected
  */
 async function indexEvents(options = {}) {
-  const { batchSize = 10, limit = null, skipExisting = true } = options;
+  const { batchSize = 10, limit = null, skipExisting = true, skipConnection = false } = options;
 
   try {
 
@@ -250,9 +252,11 @@ async function indexEvents(options = {}) {
 
 /**
  * Index users in batches
+ * @param {Object} options - Indexing options
+ * @param {boolean} options.skipConnection - Skip database connection if already connected
  */
 async function indexUsers(options = {}) {
-  const { batchSize = 10, limit = null, skipExisting = true } = options;
+  const { batchSize = 10, limit = null, skipExisting = true, skipConnection = false } = options;
 
   try {
 
@@ -327,10 +331,17 @@ async function indexUsers(options = {}) {
 
 /**
  * Show indexing status
+ * @param {boolean} skipConnection - Skip database connection if already connected
  */
-async function showStatus() {
+async function showStatus(skipConnection = false) {
   try {
-    await connectToDatabase();
+    // Only connect if not already connected and not skipping
+    if (!skipConnection) {
+      const mongoose = require('mongoose');
+      if (mongoose.connection.readyState !== 1) {
+        await connectToDatabase();
+      }
+    }
 
     const [totalEvents, totalUsers, eventEmbeddings, userEmbeddings] = await Promise.all([
       Events.countDocuments(),
@@ -352,8 +363,12 @@ async function showStatus() {
 
   } catch (error) {
     console.error('❌ Status check failed:', error);
+    throw error;
   } finally {
-    process.exit(0);
+    // Only exit if running as standalone script
+    if (require.main === module && !skipConnection) {
+      process.exit(0);
+    }
   }
 }
 
@@ -365,7 +380,10 @@ async function main() {
   const command = args[0];
 
   try {
-    await connectToDatabase();
+    // Only connect if running as standalone
+    if (require.main === module) {
+      await connectToDatabase();
+    }
 
     switch (command) {
       case 'events':
@@ -374,7 +392,7 @@ async function main() {
           limit: args[2] ? parseInt(args[2]) : null,
           skipExisting: args[3] !== 'force',
         };
-        await indexEvents(eventOptions);
+        await indexEvents({ ...eventOptions, skipConnection: false });
         break;
 
       case 'users':
@@ -383,12 +401,12 @@ async function main() {
           limit: args[2] ? parseInt(args[2]) : null,
           skipExisting: args[3] !== 'force',
         };
-        await indexUsers(userOptions);
+        await indexUsers({ ...userOptions, skipConnection: false });
         break;
 
       case 'all':
-        await indexEvents({ batchSize: 5, skipExisting: true });
-        await indexUsers({ batchSize: 5, skipExisting: true });
+        await indexEvents({ batchSize: 5, skipExisting: true, skipConnection: false });
+        await indexUsers({ batchSize: 5, skipExisting: true, skipConnection: false });
         break;
 
       case 'status':

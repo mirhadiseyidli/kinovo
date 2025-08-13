@@ -23,7 +23,7 @@ async function searchSimilarEvents(queryEmbedding, options = {}) {
     const pipeline = [
       {
         $vectorSearch: {
-          index: 'event_embeddings_index', // You'll need to create this index
+          index: 'event_vector_search', // Atlas Vector Search index name from setupVectorSearch.js
           path: 'combined_embedding',
           queryVector: queryEmbedding,
           numCandidates: limit * 10, // MongoDB recommends 10x the limit
@@ -107,7 +107,7 @@ async function searchSimilarUsers(queryEmbedding, options = {}) {
     const pipeline = [
       {
         $vectorSearch: {
-          index: 'user_embeddings_index', // You'll need to create this index
+          index: 'user_vector_search', // Atlas Vector Search index name from setupVectorSearch.js
           path: 'profile_embedding',
           queryVector: queryEmbedding,
           numCandidates: limit * 10,

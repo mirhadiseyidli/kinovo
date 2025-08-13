@@ -968,6 +968,7 @@ const getDateRanges = () => {
     tomorrow: new Date(now.getTime() + 24 * 60 * 60 * 1000),
     oneWeekFromNow: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
     oneMonthFromNow: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+    threeMonthsFromNow: new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000),
     oneYearFromNow: new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000),
     pastMonthStart: new Date(now.getFullYear(), now.getMonth() - 1, 1),
     nextMonthEnd: new Date(now.getFullYear(), now.getMonth() + 2, 0)

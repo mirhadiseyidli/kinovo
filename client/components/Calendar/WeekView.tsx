@@ -99,6 +99,28 @@ const WeekView: React.FC<WeekViewProps> = ({ refreshing, onFinishRefresh }) => {
     }
   };
 
+  // Memoized week item for better performance
+  const MemoizedWeekItem = React.memo(({ weekDates }: { weekDates: Date[] }) => (
+    <View style={{ width: screenWidth - 50 }}>
+      <WeekGrid
+        hours={HOURS}
+        weekDates={weekDates}
+        gridRef={gridListRef}
+        loading={loading}
+        refreshing={refreshing}
+      />
+    </View>
+  ), (prevProps, nextProps) => {
+    return prevProps.weekDates.length === nextProps.weekDates.length &&
+           prevProps.weekDates.every((date, index) => 
+             date.getTime() === nextProps.weekDates[index]?.getTime()
+           );
+  });
+
+  const renderWeekItem = React.useCallback(({ item: weekDates }: { item: Date[] }) => (
+    <MemoizedWeekItem weekDates={weekDates} />
+  ), []);
+
   return (
     <ScrollView 
       style={{ width: screenWidth }}
@@ -157,19 +179,7 @@ const WeekView: React.FC<WeekViewProps> = ({ refreshing, onFinishRefresh }) => {
             offset: (screenWidth - 50) * i,
             index: i,
           })}
-          renderItem={({ item: weekDates }) => {
-            return (
-            <View style={{ width: screenWidth - 50 }}>
-              <WeekGrid
-                hours={HOURS}
-                weekDates={weekDates}
-                gridRef={gridListRef}
-                loading={loading}
-                refreshing={refreshing}
-              />
-            </View>
-            )
-          }}
+          renderItem={renderWeekItem}
         />
       </View>
     </ScrollView>

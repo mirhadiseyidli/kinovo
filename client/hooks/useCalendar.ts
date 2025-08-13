@@ -45,15 +45,17 @@ export const useCalendarEventsForDateRange = (
     queryFn: async () => {
       const response = await api.get('/api/manageevents/eventslist/get/my/events/range', {
         params: { 
-          startDate: startDate.toISOString(),
-          endDate: endDate.toISOString(),
+          start: startDate.toISOString(),
+          end: endDate.toISOString(),
           includeRecurring 
         }
       });
       return response.data.events || [];
     },
     enabled: !!userId,
-    staleTime: 10 * 60 * 1000,
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
+    refetchOnWindowFocus: true,
+    networkMode: 'offlineFirst',
   });
 };
 

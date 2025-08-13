@@ -18,6 +18,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useCalendarError } from './CalendarErrorContext';
 import api from '@/utils/api';
+import { useCalendarCacheManager } from '@/hooks/useCalendarCacheManager';
 
 /**
  * CalendarProvider.v2 - MIGRATED to New TanStack Query Architecture
@@ -129,88 +130,69 @@ export const CalendarProvider: React.FC<CalendarProviderProps> = ({
     }
   }, [currentDate, currentView]);
 
-  // Use unified event store
+  // Use unified event store as single source of truth
   const eventsStoreQuery = useEventsStore();
   const allEvents = eventsStoreQuery.data || [];
-  const [manualEvents, setManualEvents] = useState<Event[]>([]);
   
-  // Filter events based on current date range and view
+  // Calendar cache manager for updating unified cache with range events
+  const { updateCacheWithRangeEvents } = useCalendarCacheManager();
+  
+  // Filter events based on current date range and view - optimize with stable keys
   const eventsInInterval = useMemo(() => {
+    if (!allEvents?.length) return [];
+    
     return allEvents.filter((event: Event) => {
       if (!event.start_time) return false;
       const eventDate = new Date(event.start_time);
       return isWithinInterval(eventDate, { start: startDate, end: endDate });
     });
-  }, [allEvents, startDate, endDate]);
+  }, [allEvents?.length, startDate.getTime(), endDate.getTime()]); // Use stable dependencies
 
-  const eventsOutOfRange = useMemo(() => {
-    const start = startOfMonth(addMonths(new Date(currentDate), 1));
-    const end = endOfMonth(start);
-
-    return eventsInInterval.filter((event: Event) => {
-      if (!event.start_time) return false;
-      const eventDate = new Date(event.start_time);
-      return isWithinInterval(eventDate, { start, end });
-    });
-  }, [eventsInInterval, currentDate]);
-
-  // Manual fetch function for out-of-range events
-  const fetchEventsManually = useCallback(async () => {
-    if (!userId) return [];
-    
-    try {
-      const response = await api.get('/api/manageevents/eventslist/get/my/events/range', {
-        params: { 
-          start: startDate.toISOString(),
-          end: endDate.toISOString(),
-          // includeRecurring: true
-        }
-      });
-      return response.data.events || [];
-    } catch (error) {
-      console.error('Failed to fetch manual events:', error);
-      return [];
-    }
-  }, [userId, startDate, endDate]);
-
-  // Fetch manual events when out-of-range events are empty
+  // Always fetch and update cache with range events when date range changes
   useEffect(() => {
-    const fetchManualEvents = async () => {
-      if (eventsOutOfRange.length === 0) {
-        const manual = await fetchEventsManually();
-        setManualEvents(manual);
-      } else {
-        setManualEvents([]);
-      }
-    };
-    
-    fetchManualEvents();
-  }, [eventsOutOfRange.length, fetchEventsManually]);
+    // Always fetch range events to ensure complete calendar coverage
+    // This ensures we see all events including past events that might be missing from store
+    if (!eventsStoreQuery.isLoading) {
+      updateCacheWithRangeEvents(startDate, endDate);
+    }
+  }, [eventsStoreQuery.isLoading, updateCacheWithRangeEvents, startDate, endDate]);
 
-  // Merge events based on availability
-  const events = useMemo(() => {
-    return eventsOutOfRange.length === 0 && manualEvents.length > 0 
-      ? manualEvents 
-      : eventsInInterval;
-  }, [eventsOutOfRange.length, manualEvents, eventsInInterval]);
+  // Use events from unified store (all events in interval are valid for calendar)
+  const events = eventsInInterval; // Remove unnecessary useMemo wrapping
 
 
-  // Generate occurrences from events
-  // Backend already handles recurring event expansion, so we just convert to occurrence format
+  // Backend already handles recurring event expansion, so we just use events directly
+  // Convert to occurrence format for backward compatibility with existing calendar components
   const occurrences = useMemo(() => {
-    if (!events.length) return [];
+    if (!events?.length) return [];
 
-    // Backend already expands recurring events into individual occurrences
-    // We just need to convert them to the EventOccurrence format
-    return events.map((event: Event) => ({
-      id: event._id || `${event._id}-${Date.now()}`,
-      originalEventId: event._id || '',
-      date: new Date(event.start_time || new Date()),
-      event: event,
-      isModified: false,
-      isCancelled: false,
-    })).sort((a, b) => a.date.getTime() - b.date.getTime());
-  }, [events]);
+    // Use reduce for better performance than filter + map + filter
+    const validOccurrences = events.reduce<EventOccurrence[]>((acc, event: Event) => {
+      if (!event.start_time) return acc;
+      
+      const startTime = new Date(event.start_time);
+      
+      // Skip events with invalid dates
+      if (isNaN(startTime.getTime())) return acc;
+      
+      // For recurring events, backend provides originalEventId and modified _id (e.g., originalId-2025-08-13)
+      const originalEventId = (event as any).originalEventId || event._id;
+      
+      acc.push({
+        id: event._id!, // Use backend-provided ID (unique for each occurrence)
+        originalEventId: originalEventId,
+        date: startTime,
+        event: event,
+        isModified: false,
+        isCancelled: false,
+      });
+      
+      return acc;
+    }, []);
+
+    // Sort once at the end
+    return validOccurrences.sort((a, b) => a.date.getTime() - b.date.getTime());
+  }, [events?.length, events]); // Optimize dependencies
 
   // Report errors to centralized error handling
   useEffect(() => {
@@ -281,10 +263,11 @@ export const CalendarProvider: React.FC<CalendarProviderProps> = ({
     }, {} as Record<string, EventOccurrence[]>);
   }, [occurrences]);
 
-  // Refresh events
+  // Refresh events - refetch unified store and update cache with range events
   const refreshEvents = useCallback(async () => {
     await eventsStoreQuery.refetch();
-  }, [eventsStoreQuery]);
+    await updateCacheWithRangeEvents(startDate, endDate);
+  }, [eventsStoreQuery, updateCacheWithRangeEvents, startDate, endDate]);
 
   // Cache invalidation
   const invalidateCalendarCache = useCallback(() => {
@@ -302,7 +285,7 @@ export const CalendarProvider: React.FC<CalendarProviderProps> = ({
     events,
     eventOccurrences: occurrences,
     
-    // Loading states
+    // Loading states (unified store only)
     loading: eventsStoreQuery.isLoading,
     refreshing: eventsStoreQuery.isFetching,
     
@@ -324,7 +307,7 @@ export const CalendarProvider: React.FC<CalendarProviderProps> = ({
     // Cache operations
     invalidateCalendarCache,
     
-    // Error states
+    // Error states (unified store only)
     eventsError: eventsStoreQuery.isError,
     occurrencesError: false, // No separate occurrences query in new architecture
   }), [

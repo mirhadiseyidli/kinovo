@@ -14,6 +14,10 @@
 
 require('dotenv').config();
 const { connectToDatabase } = require('../database/connection');
+const fs = require('fs');
+const path = require('path');
+const EventEmbeddings = require('../database/schemas/eventEmbeddingsSchema');
+const UserEmbeddings = require('../database/schemas/userEmbeddingsSchema');
 
 // Vector Search Index Configurations
 const vectorSearchIndexes = {
@@ -188,9 +192,6 @@ function generateAtlasCommands() {
  * Create index definition files
  */
 function createIndexFiles() {
-  const fs = require('fs');
-  const path = require('path');
-
   const indexDir = path.join(__dirname, 'atlas-indexes');
   if (!fs.existsSync(indexDir)) {
     fs.mkdirSync(indexDir, { recursive: true });
@@ -217,12 +218,17 @@ function createIndexFiles() {
 
 /**
  * Test vector search functionality
+ * @param {boolean} skipConnection - Skip database connection if already connected
  */
-async function testVectorSearch() {
+async function testVectorSearch(skipConnection = false) {
   try {
-    await connectToDatabase();
-    const EventEmbeddings = require('../database/schemas/eventEmbeddingsSchema');
-    const UserEmbeddings = require('../database/schemas/userEmbeddingsSchema');
+    // Only connect if not already connected and not skipping
+    if (!skipConnection) {
+      const mongoose = require('mongoose');
+      if (mongoose.connection.readyState !== 1) {
+        await connectToDatabase();
+      }
+    }
 
     // Check collections exist
     const eventCount = await EventEmbeddings.countDocuments();
@@ -277,8 +283,12 @@ const results = await EventEmbeddings.aggregate(pipeline);
     
   } catch (error) {
     console.error('❌ Vector search test failed:', error.message);
+    throw error; // Re-throw for proper error handling when used as module
   } finally {
-    process.exit(0);
+    // Only exit if running as standalone script
+    if (require.main === module && !skipConnection) {
+      process.exit(0);
+    }
   }
 }
 
