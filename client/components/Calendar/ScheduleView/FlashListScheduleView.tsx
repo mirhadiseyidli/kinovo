@@ -12,6 +12,7 @@ import { useSharedValue, withTiming } from 'react-native-reanimated';
 import { runOnJS } from 'react-native-worklets';
 import { useCalendarContext } from '@/context/CalendarProvider.v2';
 import ScheduleEventView from './ScheduleEventView';
+import { useRouter } from 'expo-router';
 
 // Helper type for our list items
 type ListItem = {
@@ -32,6 +33,7 @@ const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFini
   const { currentDate, eventOccurrences, loading, refreshEvents } = useCalendarContext();
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
+  const router = useRouter();
   const flashListRef = useRef<FlashList<ListItem>>(null);
   const height = Dimensions.get('window').height;
   const tabBarHeight = useBottomTabBarHeight();
@@ -148,6 +150,42 @@ const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFini
     });
     return indices;
   }, [listData]);
+
+  // Navigation handler for event clicks (similar to Event.tsx)
+  const handleViewEvent = useCallback((occurrence: EventOccurrence) => {
+    const event = occurrence.event;
+    
+    // Check if event is cancelled - this is a safety check since cancelled events 
+    // should already be filtered out from most lists
+    if (event.status === 'cancelled') {
+      return; // Don't navigate to cancelled events
+    }
+
+    // For recurring event occurrences, use the originalEventId, otherwise use the regular _id
+    const eventId = event.originalEventId || event._id;
+    if (!eventId) return;
+
+    // Prepare navigation parameters
+    const params: any = {
+      event_id: eventId,
+      timestamp: Date.now() // Add timestamp to force new navigation
+    };
+
+    // For recurring event occurrences, pass the occurrence date information
+    if (event.isRecurringOccurrence && event.start_time && event.end_time) {
+      params.occurrence_start = event.start_time;
+      params.occurrence_end = event.end_time;
+      params.is_occurrence = 'true';
+    }
+
+    // Add a small delay to prevent rapid transitions
+    setTimeout(() => {
+      router.push({
+        pathname: "/(auth)/viewEvent/[event_id]" as const,
+        params: params
+      });
+    }, 50);
+  }, [router]);
 
   // Function to scroll to a specific date
   const scrollToDate = useCallback((date: Date, animated = true) => {
@@ -302,10 +340,11 @@ const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFini
           location={event.location?.text || ''}
           userStatus={event.userStatus ?? undefined}
           eventOccurrence={occurrence}
+          onPress={() => handleViewEvent(occurrence)}
         />
       </View>
     );
-  }, [themeColors]);
+  }, [themeColors, handleViewEvent]);
 
   // Stable callbacks for FlashList props
   const getItemType = useCallback((item: ListItem) => item.type, []);
