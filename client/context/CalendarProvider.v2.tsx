@@ -148,14 +148,15 @@ export const CalendarProvider: React.FC<CalendarProviderProps> = ({
     });
   }, [allEvents?.length, startDate.getTime(), endDate.getTime()]); // Use stable dependencies
 
-  // Always fetch and update cache with range events when date range changes
+  // Fetch and update cache with range events when date range changes
+  // Implement cache-first strategy to prevent disappearing events on mount/refresh
   useEffect(() => {
-    // Always fetch range events to ensure complete calendar coverage
-    // This ensures we see all events including past events that might be missing from store
-    if (!eventsStoreQuery.isLoading) {
+    // Only fetch range events after initial store load completes
+    // This ensures we don't clear existing cache during mount
+    if (!eventsStoreQuery.isLoading && !eventsStoreQuery.isFetching) {
       updateCacheWithRangeEvents(startDate, endDate);
     }
-  }, [eventsStoreQuery.isLoading, updateCacheWithRangeEvents, startDate, endDate]);
+  }, [eventsStoreQuery.isLoading, eventsStoreQuery.isFetching, updateCacheWithRangeEvents, startDate, endDate]);
 
   // Use events from unified store (all events in interval are valid for calendar)
   const events = eventsInInterval; // Remove unnecessary useMemo wrapping

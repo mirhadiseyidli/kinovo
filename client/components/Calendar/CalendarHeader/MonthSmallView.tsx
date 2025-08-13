@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, FlatList, Dimensions } from 'react-native';
 import { getMonth, startOfMonth, startOfWeek, addDays, subMonths, addMonths, format } from 'date-fns';
 import { generateMonthGrid } from '../CalendarHeader/utils';
@@ -164,7 +164,7 @@ const InfiniteCalendar: React.FC<InfiniteCalendarProps> = ({
     listRef.current?.scrollToIndex({ index: 1, animated: false });
   }, [currentDate]);
 
-  const handleScrollEnd = ({ nativeEvent }: { nativeEvent: { contentOffset: { x: number } } }) => {
+  const handleScrollEnd = useCallback(({ nativeEvent }: { nativeEvent: { contentOffset: { x: number } } }) => {
     fromChipRef.current = false;
     const page = Math.round(nativeEvent.contentOffset.x / screenWidth);
     // Determine the new center month
@@ -180,7 +180,19 @@ const InfiniteCalendar: React.FC<InfiniteCalendarProps> = ({
     }
     // Update centerDate and reset scroll
     onMonthYearChange?.(newDate.getMonth(), newDate.getFullYear(), newDate.getDate(), true);
-  };
+  }, [currentDate, wrapperHeight, setWrapperHeight, onMonthYearChange, fromChipRef]);
+
+  const renderItem = useCallback(({ item }: { item: Date }) => (
+    <MonthPage monthDate={item} selectedDate={currentDate} />
+  ), [currentDate]);
+
+  const keyExtractor = useCallback((item: Date) => item.toString(), []);
+
+  const getItemLayout = useCallback((_: any, index: number) => ({
+    length: screenWidth,
+    offset: screenWidth * index,
+    index,
+  }), []);
 
   return (
     <View style={{ height: wrapperHeight, overflow: 'hidden' }}>
@@ -190,18 +202,12 @@ const InfiniteCalendar: React.FC<InfiniteCalendarProps> = ({
         horizontal
         pagingEnabled
         initialScrollIndex={1}
-        keyExtractor={(item) => item.toString()}
+        keyExtractor={keyExtractor}
         onMomentumScrollEnd={handleScrollEnd}
         showsHorizontalScrollIndicator={false}
         disableVirtualization={true} 
-        getItemLayout={(_, index) => ({
-          length: screenWidth,
-          offset: screenWidth * index,
-          index,
-        })}
-        renderItem={({ item }) => (
-            <MonthPage monthDate={item} selectedDate={currentDate} />
-        )}
+        getItemLayout={getItemLayout}
+        renderItem={renderItem}
       />
     </View>
   );

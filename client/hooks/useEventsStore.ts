@@ -59,7 +59,7 @@ export const useEventsStore = () => {
     staleTime: 5 * 60 * 1000, // 5 minutes - data is fresh for 5 min
     gcTime: 30 * 60 * 1000, // 30 minutes - keep in cache for 30 min after unused
     refetchOnWindowFocus: true, // Refresh when user focuses window/app
-    refetchOnMount: 'always', // Always try to refetch on mount, but serve cache first
+    refetchOnMount: true, // Cache-first: serve cache immediately, then refetch in background
     refetchInterval: 10 * 60 * 1000, // Background refresh every 10 minutes
     refetchIntervalInBackground: false, // Don't refetch when app is in background
     networkMode: 'offlineFirst', // Show cache first, then update from network

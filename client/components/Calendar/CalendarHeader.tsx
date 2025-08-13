@@ -225,9 +225,8 @@ const CalendarHeaderMonthView: React.FC<CalendarHeaderProps> = ({ refreshing, on
 
   const monthSmallViewStyle = useAnimatedStyle(() => {
     return {
-      height: withSpring(showSmallView.value * wrapperHeightValue.value, {
-        damping: 20,
-        stiffness: 300,
+      height: withTiming(showSmallView.value * wrapperHeightValue.value, {
+        duration: 200,
       }),
       opacity: showSmallView.value,
       overflow: 'hidden',
