@@ -7,11 +7,12 @@ import Reanimated, {
   withRepeat,
   withSequence,
   withDelay,
-  runOnJS,
   cancelAnimation,
   useDerivedValue,
-  Easing
+  Easing,
+  SharedValue
 } from 'react-native-reanimated';
+import { runOnJS } from 'react-native-worklets';
 import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
@@ -33,9 +34,9 @@ import { getWeatherGradient, getWeatherConditionFromDescription, getWeatherEmoji
 // AnimatedTypingText component using react-native-reanimated v4
 interface AnimatedTypingTextProps {
   text: string;
-  progress: Reanimated.SharedValue<number>;
-  showCursor: Reanimated.SharedValue<boolean>;
-  cursorOpacity: Reanimated.SharedValue<number>;
+  progress: SharedValue<number>;
+  showCursor: SharedValue<boolean>;
+  cursorOpacity: SharedValue<number>;
   style: any;
   cursorStyle: any;
 }

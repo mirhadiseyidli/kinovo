@@ -12,7 +12,11 @@ const Users = require('../database/schemas/usersSchema');
 const EventEmbeddings = require('../database/schemas/eventEmbeddingsSchema');
 const UserEmbeddings = require('../database/schemas/userEmbeddingsSchema');
 
-async function generateEventEmbeddings() {
+/**
+ * Generate embeddings for events
+ * @param {boolean} skipConnection - Skip database connection if already connected
+ */
+async function generateEventEmbeddings(skipConnection = false) {
   
   const events = await Events.find({}).lean();
   
@@ -92,7 +96,11 @@ async function generateEventEmbeddings() {
   
 }
 
-async function generateUserEmbeddings() {
+/**
+ * Generate embeddings for users
+ * @param {boolean} skipConnection - Skip database connection if already connected
+ */
+async function generateUserEmbeddings(skipConnection = false) {
   
   const users = await Users.find({}).lean();
   
@@ -164,21 +172,32 @@ async function generateUserEmbeddings() {
 
 async function main() {
   try {
-    await mongoose.connect(process.env.MONGODB_URI);
+    // Only connect if running as standalone script
+    const isStandalone = require.main === module;
+    if (isStandalone) {
+      // Check connection state before connecting
+      if (mongoose.connection.readyState !== 1) {
+        await mongoose.connect(process.env.MONGODB_URI);
+      }
+    }
     
     // Check if we have OpenAI API key
     if (!process.env.OPENAI_API_KEY) {
       throw new Error('OPENAI_API_KEY environment variable is required');
     }
     
-    // Generate embeddings
-    await generateEventEmbeddings();
-    await generateUserEmbeddings();
+    // Generate embeddings (skip connection if not standalone)
+    await generateEventEmbeddings(!isStandalone);
+    await generateUserEmbeddings(!isStandalone);
     
   } catch (error) {
     console.error('💥 Script failed:', error.message);
+    throw error; // Re-throw for proper error handling when used as module
   } finally {
-    await mongoose.connection.close();
+    // Only close connection if running as standalone script
+    if (require.main === module && mongoose.connection.readyState === 1) {
+      await mongoose.connection.close();
+    }
   }
 }
 
@@ -187,4 +206,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { generateEventEmbeddings, generateUserEmbeddings };
+module.exports = { generateEventEmbeddings, generateUserEmbeddings, main };

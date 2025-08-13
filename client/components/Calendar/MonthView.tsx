@@ -100,10 +100,9 @@ const MonthView: React.FC<MonthViewComponentProps> = ({
   useEffect(() => {
     const month = currentDate.getMonth();
     const year = currentDate.getFullYear();
-    const prevMonth = month === 0 ? { year: year - 1, month: 11 } : { year, month: month - 1 };
-    const nextMonth = month === 11 ? { year: year + 1, month: 0 } : { year, month: month + 1 };
-    setMonthArray([prevMonth, { year, month }, nextMonth]);
-  }, [currentDate]);
+    const newArray = setNewDates(year, month); // Use cached calculation
+    setMonthArray(newArray);
+  }, [currentDate.getTime()]); // Use timestamp for better comparison
 
   const getNextMonth = (year: number, month: number) => {
     return month === 11 ? { year: year + 1, month: 0 } : { year, month: month + 1 };
@@ -178,6 +177,34 @@ const MonthView: React.FC<MonthViewComponentProps> = ({
     }
   };
 
+  // Memoized render item for better performance
+  const MemoizedMonthItem = React.memo(({ item }: { item: { year: number, month: number } }) => (
+    <ScrollView 
+      style={{ width: screenWidth, height: 'auto', paddingBottom: tabBarHeight }}
+      showsVerticalScrollIndicator={false}
+      stickyHeaderHiddenOnScroll={false}
+      stickyHeaderIndices={[0]}
+      removeClippedSubviews={true} // Enable view recycling for better performance
+      maxToRenderPerBatch={10} // Optimize rendering batch size
+    >
+      <WeekDayNames 
+        refreshing={refreshing}
+      />
+      <MonthCalendar
+        monthDate={new Date(item.year, item.month, 1)}
+        refreshing={refreshing}
+        loading={loading}
+      />
+    </ScrollView>
+  ), (prevProps, nextProps) => {
+    return prevProps.item.year === nextProps.item.year && 
+           prevProps.item.month === nextProps.item.month;
+  });
+
+  const renderItem = React.useCallback(({ item }: { item: { year: number, month: number } }) => (
+    <MemoizedMonthItem item={item} />
+  ), []);
+
   return (
     <View style={{ flex: 1, width: screenWidth }}>
       <FlatList
@@ -187,23 +214,7 @@ const MonthView: React.FC<MonthViewComponentProps> = ({
         showsHorizontalScrollIndicator={false}
         data={monthArray}
         keyExtractor={(item) => `${item.year}-${item.month}`}
-        renderItem={({ item }) => (
-          <ScrollView 
-            style={{ width: screenWidth, height: 'auto', paddingBottom: tabBarHeight }}
-            showsVerticalScrollIndicator={false}
-            stickyHeaderHiddenOnScroll={false}
-            stickyHeaderIndices={[0]}
-          >
-            <WeekDayNames 
-              refreshing={refreshing}
-            />
-            <MonthCalendar
-              monthDate={new Date(item.year, item.month, 1)}
-              refreshing={refreshing}
-              loading={loading}
-            />
-          </ScrollView>
-        )}
+        renderItem={renderItem}
         initialScrollIndex={1}
         getItemLayout={(_, index) => ({
           length: screenWidth,
@@ -212,6 +223,11 @@ const MonthView: React.FC<MonthViewComponentProps> = ({
         })}
         onMomentumScrollEnd={handleMomentumScrollEnd}
         scrollEventThrottle={16}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={3} // Only render 3 months at a time
+        windowSize={3} // Keep small window size for better performance
+        initialNumToRender={1} // Only render the initial month
+        updateCellsBatchingPeriod={100} // Batch updates for better performance
       />
     </View>
   );

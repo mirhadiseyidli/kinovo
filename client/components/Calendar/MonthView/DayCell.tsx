@@ -32,50 +32,55 @@ const DayCell: React.FC<DayCellProps> = ({
   const isCurrentMonth = date.getMonth() === month;
   const isCurrentDay = isToday(date);
   
-  // Check if this entire day is in the past
+  // Check if this entire day is in the past - memoized with date key
   const isDayPast = useMemo(() => {
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
     return endOfDay < new Date();
-  }, [date]);
+  }, [date.getTime()]); // Use timestamp for better memoization
   
-  const dayOccurrences = useMemo(() => {
+  // Get occurrences once and derive both visible events and total count
+  const { dayOccurrences, totalEvents } = useMemo(() => {
     const occurrences = getOccurrencesForDate(date);
-    return occurrences.slice(0, MAX_VISIBLE_EVENTS);
+    return {
+      dayOccurrences: occurrences.slice(0, MAX_VISIBLE_EVENTS),
+      totalEvents: occurrences.length
+    };
   }, [date, getOccurrencesForDate]);
 
-  const totalEvents = getOccurrencesForDate(date).length;
-
-  const getEventStyle = (status?: string) => {
-    switch (status) {
-      case 'rejected':
-        return {
-          backgroundColor: themeColors.background,
-          borderColor: themeColors.border,
-          color: themeColors.text,
-          textDecoration: 'line-through',
-          opacity: 0.7
-        };
-      case 'maybe':
-        return {
-          backgroundColor: themeColors.maybeStatusColor + '50',
-          borderColor: themeColors.maybeStatusColor,
-          color: 'white'
-        };
-      case 'pending':
-        return {
-          backgroundColor: themeColors.background,
-          borderColor: themeColors.mountainGreen,
-          color: themeColors.text
-        };
-      default:
-        return {
-          backgroundColor: themeColors.mountainGreen,
-          borderColor: themeColors.mountainGreen,
-          color: 'white'
-        };
-    }
-  };
+  // Memoize event style calculations to prevent recalculation
+  const getEventStyle = useMemo(() => {
+    return (status?: string) => {
+      switch (status) {
+        case 'rejected':
+          return {
+            backgroundColor: themeColors.background,
+            borderColor: themeColors.border,
+            color: themeColors.text,
+            textDecoration: 'line-through',
+            opacity: 0.7
+          };
+        case 'maybe':
+          return {
+            backgroundColor: themeColors.maybeStatusColor + '50',
+            borderColor: themeColors.maybeStatusColor,
+            color: 'white'
+          };
+        case 'pending':
+          return {
+            backgroundColor: themeColors.background,
+            borderColor: themeColors.mountainGreen,
+            color: themeColors.text
+          };
+        default:
+          return {
+            backgroundColor: themeColors.mountainGreen,
+            borderColor: themeColors.mountainGreen,
+            color: 'white'
+          };
+      }
+    };
+  }, [themeColors]);
 
   const openSchedule = () => {
     setView('Schedule', 'day_cell');
@@ -119,7 +124,7 @@ const DayCell: React.FC<DayCellProps> = ({
       </View>
       
       <View style={{ width: '100%', paddingHorizontal: 2 }}>
-        {dayOccurrences.map((occurrence, index) => {
+        {dayOccurrences.map((occurrence) => {
           const eventStyle = getEventStyle(occurrence.event.userStatus ?? undefined);
           const isPast = new Date(occurrence.event.end_time!) < new Date();
           
@@ -178,4 +183,13 @@ const DayCell: React.FC<DayCellProps> = ({
   );
 };
 
-export default React.memo(DayCell);
+export default React.memo(DayCell, (prevProps, nextProps) => {
+  // Custom comparison for better performance
+  return (
+    prevProps.date.getTime() === nextProps.date.getTime() &&
+    prevProps.month === nextProps.month &&
+    prevProps.today.getTime() === nextProps.today.getTime() &&
+    prevProps.cellWidth === nextProps.cellWidth &&
+    prevProps.cellHeight === nextProps.cellHeight
+  );
+});

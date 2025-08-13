@@ -67,6 +67,8 @@ export const addEventToCache = (newEvent: Event, userId?: string) => {
   // Invalidate specific queries to trigger re-renders
   queryClient.invalidateQueries({ queryKey: ['events', 'upcoming'] });
   queryClient.invalidateQueries({ queryKey: ['events', 'infinite'] });
+  // CRITICAL: Invalidate the main events store that CalendarProvider uses
+  queryClient.invalidateQueries({ queryKey: QUERY_KEYS.EVENTS });
 };
 
 export const updateEventInCache = (updatedEvent: Event, userId?: string) => {
@@ -153,6 +155,8 @@ export const updateEventInCache = (updatedEvent: Event, userId?: string) => {
   queryClient.invalidateQueries({ queryKey: ['events', 'upcoming'] });
   queryClient.invalidateQueries({ queryKey: ['events', 'attention'] });
   queryClient.invalidateQueries({ queryKey: ['events', 'infinite'] });
+  // CRITICAL: Invalidate the main events store that CalendarProvider uses
+  queryClient.invalidateQueries({ queryKey: QUERY_KEYS.EVENTS });
 };
 
 export const removeEventFromCache = (eventId: string) => {
@@ -170,6 +174,8 @@ export const removeEventFromCache = (eventId: string) => {
   queryClient.invalidateQueries({ queryKey: ['events', 'upcoming'] });
   queryClient.invalidateQueries({ queryKey: ['events', 'attention'] });
   queryClient.invalidateQueries({ queryKey: ['events', 'infinite'] });
+  // CRITICAL: Invalidate the main events store that CalendarProvider uses
+  queryClient.invalidateQueries({ queryKey: QUERY_KEYS.EVENTS });
 };
 
 // Add new event to infinite query caches
@@ -179,11 +185,6 @@ const addToInfiniteQueryCaches = (newEvent: Event, userId?: string) => {
   
   // Add to upcoming infinite queries if it's an upcoming event
   if (eventDate > now) {
-    const queries = queryClient.getQueryCache().findAll({
-      queryKey: ['events', 'infinite', 'upcoming'],
-      exact: false,
-    });
-    
     queryClient.setQueriesData(
       { queryKey: ['events', 'infinite', 'upcoming'], exact: false },
       (oldData: any) => {

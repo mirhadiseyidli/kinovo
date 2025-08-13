@@ -441,9 +441,9 @@ const getMyUpcomingEvents = async (req, res) => {
     const filteredEvents = filterUserEvents(user.events, reportedEventIds, notInterestedEventIds, ['accepted', 'maybe'])
       .filter(event => event.status !== 'cancelled');
 
-    // Process events with recurrence using utility
-    const { now, oneYearFromNow } = getDateRanges();
-    const allUpcomingOccurrences = processEventsWithRecurrence(filteredEvents, now, oneYearFromNow);
+    // Process events with recurrence using utility (limit to 3 months for performance)
+    const { now, threeMonthsFromNow } = getDateRanges();
+    const allUpcomingOccurrences = processEventsWithRecurrence(filteredEvents, now, threeMonthsFromNow);
 
     // Apply home screen limits and get metadata
     const result = applyHomeScreenLimits(allUpcomingOccurrences, fromHomeScreen, 3);
@@ -1244,7 +1244,7 @@ const inviteEventAttendees = async (req, res) => {
               await updateUserEventStatus(invitee, eventId, 'pending');
             }
 
-            const [, , , response] = await Promise.all([
+            const [, , response] = await Promise.all([
               // Efficient scheduler: User responses don't require reminder updates
               Promise.resolve(),
               // Notification operations
@@ -1280,7 +1280,7 @@ const inviteEventAttendees = async (req, res) => {
       response: { message: 'Server error' }
     };
   }
-  
+  console.log('this shit', result.response)
   return res.status(result.statusCode).json(result.response);
 };
 

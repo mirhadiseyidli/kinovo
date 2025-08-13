@@ -34,6 +34,7 @@ const lambdaConnectOptions = {
 
 // Cache connection for Lambda reuse
 let cachedConnection = null;
+let listenersAttached = false;
 
 async function connectToDatabase() {
   // Check if we already have a good connection
@@ -52,6 +53,16 @@ async function connectToDatabase() {
     
     cachedConnection = await mongoose.connect(process.env.MONGODB_URI, options);
     console.log('Connected to MongoDB successfully');
+    
+    // Only attach listeners once
+    if (!listenersAttached) {
+      const db = mongoose.connection;
+      db.on('error', (error) => console.error('MongoDB connection error:', error));
+      db.on('disconnected', () => console.log('MongoDB disconnected'));
+      db.once('open', () => console.log('MongoDB connection established'));
+      listenersAttached = true;
+    }
+    
     return cachedConnection;
   } catch (error) {
     console.error('MongoDB connection failed:', error);
@@ -76,10 +87,5 @@ if (process.env.AWS_LAMBDA_FUNCTION_NAME) {
     }, 5000);
   });
 }
-
-const db = mongoose.connection;
-db.on('error', (error) => console.error('MongoDB connection error:', error));
-db.on('disconnected', () => console.log('MongoDB disconnected'));
-db.once('open', () => console.log('MongoDB connection established'));
 
 module.exports = { connectToDatabase };

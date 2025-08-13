@@ -20,6 +20,7 @@ const categoryRoutes = require('./routes/categoryRoutes');
 const googleApiRoutes = require('./routes/googleApiRoutes');
 const storageRoutes = require('./routes/storageRoutes');
 const pushFetchRoutes = require('./routes/pushFetchRoutes');
+const vectorSearchRoutes = require('./routes/vectorSearchRoutes');
 
 // Database change streams removed (was Firebase)
 
@@ -40,8 +41,15 @@ app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json()); // Parse JSON request bodies
 
 // Health Check Route
-app.get('/api/health', (req, res) => {
-  res.json({ success: true, message: 'Server is running.' });
+app.get('/api/health', async (req, res) => {
+  const { checkVectorSearchHealth } = require('./services/vectorSearchInitializer');
+  const vectorSearchStatus = await checkVectorSearchHealth();
+  
+  res.json({ 
+    success: true, 
+    message: 'Server is running.',
+    vectorSearch: vectorSearchStatus
+  });
 });
 
 // Initialize server with proper database connection
@@ -53,6 +61,11 @@ async function startServer() {
     // Initialize categories after database connection
     const { initializeCategories } = require('./controllers/categoryController');
     await initializeCategories();
+
+    // Initialize vector search capabilities
+    // Set autoIndex to true if you want automatic indexing of data on startup
+    const { initializeVectorSearch } = require('./services/vectorSearchInitializer');
+    await initializeVectorSearch({ autoIndex: process.env.AUTO_INDEX_EMBEDDINGS === 'true' });
 
     // Database change streams removed (was Firebase)
 
@@ -91,16 +104,19 @@ async function startServer() {
     app.use('/api/google', googleApiRoutes);
     app.use('/api/storage', storageRoutes);
     app.use('/api/push-fetch', pushFetchRoutes);
+    app.use('/api/vector-search', vectorSearchRoutes);
 
     // Start the cron jobs
     const accountDeletionCron = require('./cron/accountDeletionCron');
     const { startNearbyEventsCron, startFriendsEventsCron } = require('./cron/nearbyEventsCron');
     const { startMapSnapshotCron } = require('./cron/mapSnapshotCron');
+    const { startEmbeddingUpdateCron } = require('./cron/embeddingUpdateCron');
 
     accountDeletionCron.start();
     startNearbyEventsCron();
     startFriendsEventsCron();
     startMapSnapshotCron();
+    startEmbeddingUpdateCron(); // Process embedding updates every 30 minutes
 
     // Start Server
     const PORT = process.env.BACKEND_PORT || 5002;

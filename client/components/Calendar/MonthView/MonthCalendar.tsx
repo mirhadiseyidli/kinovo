@@ -27,13 +27,14 @@ const MonthCalendar: React.FC<MonthCalendarComponentProps> = ({ monthDate, refre
   const cellWidth = Math.floor(width / 7);
   const cellHeight = Math.floor(width / 4);
 
+  // Optimize weeks calculation with proper memoization
   const weeks = useMemo(() => {
     const result: Date[][] = [];
     for (let i = 0; i < calendarDays.length; i += 7) {
       result.push(calendarDays.slice(i, i + 7));
     }
     return result;
-  }, [calendarDays]);
+  }, [calendarDays.length, month, year]); // Use stable dependencies
 
   return (
     <ThemedView style={{ width: '100%', height: cellHeight * 6 }}>

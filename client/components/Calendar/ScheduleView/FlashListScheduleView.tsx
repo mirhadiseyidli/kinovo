@@ -92,15 +92,15 @@ const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFini
       return [];
     }
 
-    // Remove duplicate occurrences before grouping
-    const uniqueOccurrences = eventOccurrences.filter((occurrence, index, array) => {
+    // Remove duplicate occurrences before grouping - use Set for O(1) performance
+    const seen = new Set<string>();
+    const uniqueOccurrences = eventOccurrences.filter((occurrence) => {
       if (!occurrence || !occurrence.date) return false;
       
-      // Find first occurrence with same ID and date
-      return index === array.findIndex(occ => 
-        occ.id === occurrence.id && 
-        format(occ.date, 'yyyy-MM-dd') === format(occurrence.date, 'yyyy-MM-dd')
-      );
+      const key = `${occurrence.id}-${format(occurrence.date, 'yyyy-MM-dd')}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
     });
 
     // Group events by date
@@ -139,9 +139,15 @@ const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFini
       });
   }, [eventOccurrences]);
 
-  const stickyHeaderIndices = useMemo(() => 
-    listData.map((item, index) => item.type === 'header' ? index : -1).filter(index => index !== -1)
-  , [listData]);
+  const stickyHeaderIndices = useMemo(() => {
+    const indices: number[] = [];
+    listData.forEach((item, index) => {
+      if (item.type === 'header') {
+        indices.push(index);
+      }
+    });
+    return indices;
+  }, [listData]);
 
   // Function to scroll to a specific date
   const scrollToDate = useCallback((date: Date, animated = true) => {
@@ -193,7 +199,6 @@ const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFini
   useEffect(() => {
     if (view.toLowerCase() !== 'schedule' || listData.length === 0) return;
 
-    const wasScheduleView = previousView.current.toLowerCase() === 'schedule';
     const isViewChange = previousView.current !== view;
     
     // Update previous view
@@ -254,6 +259,9 @@ const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFini
 
   const renderItem = useCallback(({ item }: { item: ListItem }) => {
     if (item.type === 'header') {
+      // Check if this date is today (computed once per render)
+      const itemIsToday = item.date ? isToday(parseISO(item.date)) : false;
+      
       return (
         <View style={{ 
           paddingHorizontal: 16,
@@ -266,7 +274,7 @@ const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFini
             color: themeColors.text,
           }}>
             {item.title}
-            {isToday(parseISO(item.date!)) && (
+            {itemIsToday && (
               <Text style={{ 
                 color: themeColors.mountainGreen,
                 marginLeft: 8,
@@ -280,12 +288,17 @@ const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFini
     const occurrence = item.occurrence!;
     const event = occurrence.event;
     
+    // Pre-calculate time and endTime to avoid doing it in ScheduleEventView
+    const startTime = event.start_time ? new Date(event.start_time) : new Date();
+    const endTime = event.end_time ? new Date(event.end_time) : new Date();
+    const formattedTime = format(startTime, 'h:mm a');
+    
     return (
       <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
         <ScheduleEventView
           title={event.title}
-          time={format(event.start_time ? new Date(event.start_time) : new Date(), 'h:mm a')}
-          endTime={event.end_time ? new Date(event.end_time) : new Date()}
+          time={formattedTime}
+          endTime={endTime}
           location={event.location?.text || ''}
           userStatus={event.userStatus ?? undefined}
           eventOccurrence={occurrence}
@@ -293,6 +306,10 @@ const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFini
       </View>
     );
   }, [themeColors]);
+
+  // Stable callbacks for FlashList props
+  const getItemType = useCallback((item: ListItem) => item.type, []);
+  const keyExtractor = useCallback((item: ListItem) => item.key, []);
 
   return (
     <View style={{ flex: 1 }}>
@@ -314,8 +331,8 @@ const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFini
         estimatedItemSize={100}
         refreshing={refreshing || loading}
         contentContainerStyle={{ paddingBottom: tabBarHeight }}
-        getItemType={(item) => item.type}
-        keyExtractor={(item) => item.key}
+        getItemType={getItemType}
+        keyExtractor={keyExtractor}
         stickyHeaderIndices={stickyHeaderIndices}
       />
     </View>

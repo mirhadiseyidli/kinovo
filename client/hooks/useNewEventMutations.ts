@@ -128,8 +128,6 @@ export const useUpdateEvent = () => {
 
 // Delete Event Mutation (Uses cancel endpoint - Backend only returns success)
 export const useDeleteEvent = () => {
-  const queryClient = useQueryClient();
-  
   return useMutation({
     mutationFn: async (eventId: string) => {
       // Using cancel endpoint since delete doesn't exist - cancels the event
@@ -139,8 +137,6 @@ export const useDeleteEvent = () => {
     onSuccess: (_, eventId) => {
       // No event data returned - remove from cache
       removeEventFromCache(eventId);
-      // Also invalidate calendar queries since they might cache the event
-      queryClient.invalidateQueries({ queryKey: ['events', 'calendar'] });
     },
     networkMode: 'offlineFirst',
   });

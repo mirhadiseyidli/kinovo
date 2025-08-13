@@ -1,10 +1,9 @@
-import React from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
 import { EventOccurrence } from '@/utils/eventUtils';
 import { SkeletonBox } from '@/components/Skeleton';
 import { ImageBackground } from 'expo-image';
@@ -17,6 +16,7 @@ type ScheduleEventViewProps = {
   location?: string;
   userStatus?: 'pending' | 'maybe' | 'accepted' | 'rejected';
   eventOccurrence?: EventOccurrence;
+  onPress?: () => void;
 };
 
 const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({ 
@@ -25,140 +25,118 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
   endTime,
   location,
   userStatus = 'accepted',
-  eventOccurrence
+  eventOccurrence,
+  onPress
 }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const router = useRouter();
 
   // Don't subscribe to event updates in individual event components
   // This prevents excessive subscriptions and duplication issues
   // Event updates are handled at the context level
 
-  // Determine styling based on user status
-  let titleStyle: any = { 
-    color: themeColors.text, 
-    marginBottom: 10,
-    fontSize: 16, 
-    fontWeight: '600' 
-  };
-
-  if (userStatus === 'rejected') {
-    titleStyle = {
-      ...titleStyle,
+  // Memoize title style based on user status
+  const titleStyle = useMemo(() => {
+    const baseStyle = { 
+      color: themeColors.text, 
       marginBottom: 10,
-      textDecorationLine: 'line-through',
-      opacity: 0.7,
+      fontSize: 16, 
+      fontWeight: '600' as const
     };
-  }
 
-  const getStatusText = () => {
+    if (userStatus === 'rejected') {
+      return {
+        ...baseStyle,
+        textDecorationLine: 'line-through' as const,
+        opacity: 0.7,
+      };
+    }
+    return baseStyle;
+  }, [themeColors.text, userStatus]);
+
+  // Memoize all status-related values to prevent recalculation
+  const statusConfig = useMemo(() => {
     switch (userStatus) {
       case 'pending':
-        return 'Pending';
+        return {
+          text: 'Pending',
+          color: themeColors.text,
+          backgroundColor: themeColors.background,
+          borderColor: themeColors.mountainGreen
+        };
       case 'maybe':
-        return 'Maybe';
+        return {
+          text: 'Maybe',
+          color: 'white',
+          backgroundColor: themeColors.maybeStatusColor + '50',
+          borderColor: themeColors.maybeStatusColor
+        };
       case 'accepted':
-        return 'Accepted';
+        return {
+          text: 'Accepted',
+          color: 'white',
+          backgroundColor: themeColors.mountainGreen,
+          borderColor: themeColors.mountainGreen
+        };
       case 'rejected':
-        return 'Declined';
+        return {
+          text: 'Declined',
+          color: themeColors.text,
+          backgroundColor: themeColors.background,
+          borderColor: themeColors.border
+        };
       default:
-        return '';
+        return {
+          text: '',
+          color: themeColors.textThird,
+          backgroundColor: themeColors.inputBackgroundColor,
+          borderColor: themeColors.textThird
+        };
     }
-  };
+  }, [userStatus, themeColors]);
 
-  const getStatusColor = () => {
-    switch (userStatus) {
-      case 'pending':
-        return themeColors.text;
-      case 'maybe':
-        return 'white';
-      case 'accepted':
-        return 'white';
-      case 'rejected':
-        return themeColors.text;
-      default:
-        return themeColors.textThird;
+  const handleEventPress = useCallback(() => {
+    if (onPress) {
+      onPress();
     }
-  };
+  }, [onPress]);
 
-  const getStatusBackgroundColor = () => {
-    switch (userStatus) {
-      case 'pending':
-        return themeColors.background;
-      case 'maybe':
-        return themeColors.maybeStatusColor + '50';
-      case 'accepted':
-        return themeColors.mountainGreen;
-      case 'rejected':
-        return themeColors.background;
-      default:
-        return themeColors.inputBackgroundColor;
-    }
-  };
+  // Memoize truncated location to prevent recalculation
+  const truncatedLocation = useMemo(() => {
+    if (!location) return null;
+    return location.length > 22 ? location.slice(0, 22) + '...' : location;
+  }, [location]);
 
-  const getStatusBorderColor = () => {
-    switch (userStatus) {
-      case 'pending':
-        return themeColors.mountainGreen;
-      case 'maybe':
-        return themeColors.maybeStatusColor;
-      case 'accepted':
-        return themeColors.mountainGreen;
-      case 'rejected':
-        return themeColors.border;
-      default:
-        return themeColors.textThird;
-    }
-  };
+  const isPast = useMemo(() => endTime < new Date(), [endTime]);
 
-  const handleEventPress = () => {
-    if (!eventOccurrence?.event) return;
+  // Memoize image source to prevent unnecessary recalculations
+  const imageSource = useMemo(() => {
+    return getCategoryImage(eventOccurrence?.event?.category);
+  }, [eventOccurrence?.event?.category]);
 
-    // For recurring event occurrences, use the originalEventId, otherwise use the regular _id
-    const eventId = eventOccurrence.event.originalEventId || eventOccurrence.event._id;
-    if (!eventId) return;
+  // Memoize container styles
+  const containerStyle = useMemo(() => ({
+    padding: 16,
+    borderRadius: 12,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+    overflow: 'hidden' as const,
+    opacity: isPast ? 0.5 : 1,
+    backgroundColor: themeColors.eventCardBackgroundColor,
+  }), [isPast, themeColors.eventCardBackgroundColor]);
 
-    // Prepare navigation parameters
-    const params: any = { event_id: eventId };
-
-    // For recurring event occurrences, pass the occurrence date information
-    const isRecurring = eventOccurrence.event.recurrence?.checked && 
-                       eventOccurrence.event.recurrence?.frequency && 
-                       eventOccurrence.event.recurrence?.frequency !== 'none';
-    
-    if (isRecurring && eventOccurrence.event.start_time && eventOccurrence.event.end_time) {
-      params.occurrence_start = new Date(eventOccurrence.event.start_time).toISOString();
-      params.occurrence_end = new Date(eventOccurrence.event.end_time).toISOString();
-      params.is_occurrence = 'true';
-    }
-
-    router.push({
-      pathname: "/(auth)/viewEvent/[event_id]" as const,
-      params: params
-    });
-  };
-
-  const truncateName = (name: string, maxLength: number) => {
-    return name.length > maxLength ? name.slice(0, maxLength) + '...' : name;
-  };
-
-  const isPast = endTime < new Date();
+  // Memoize gradient colors
+  const gradientColors = useMemo(() => [
+    'rgba(0,0,0,0.1)', 
+    'rgba(0,0,0,0.6)'
+  ] as const, []);
 
   return (
-    <TouchableOpacity onPress={handleEventPress}>
+    <TouchableOpacity onPress={onPress ? handleEventPress : undefined}>
       <ImageBackground
-        source={getCategoryImage(eventOccurrence?.event?.category)}
-        style={{
-          padding: 16,
-          borderRadius: 12,
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          overflow: 'hidden',
-          opacity: isPast ? 0.5 : 1,
-          backgroundColor: themeColors.eventCardBackgroundColor,
-        }}
+        source={imageSource}
+        style={containerStyle}
         contentFit="cover"
         onError={() => {
           return <SkeletonBox width={400} height={120} borderRadius={12} />;
@@ -174,7 +152,7 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
       >
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
           <LinearGradient
-            colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.6)']}
+            colors={gradientColors}
             style={{ flex: 1 }}
           />
         </View>
@@ -200,30 +178,30 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
                 marginLeft: 6,
                 opacity: userStatus === 'rejected' ? 0.7 : 1
               }}>
-                {truncateName(location, 22)}
+                {truncatedLocation}
               </Text>
             </View>
           )}
         </View>
         <View style={{
-          backgroundColor: getStatusBackgroundColor(),
+          backgroundColor: statusConfig.backgroundColor,
           paddingHorizontal: 12,
           paddingVertical: 6,
           borderRadius: 6,
           borderWidth: 1,
-          borderColor: getStatusBorderColor(),
+          borderColor: statusConfig.borderColor,
           position: 'relative',
           overflow: 'hidden',
         }}>
           <Text style={{
             fontSize: 12,
             fontWeight: '600',
-            color: getStatusColor(),
+            color: statusConfig.color,
             opacity: userStatus === 'rejected' ? 0.7 : 1,
             zIndex: 2,
             position: 'relative',
           }}>
-            {getStatusText()}
+            {statusConfig.text}
           </Text>
         </View>
       </ImageBackground>
@@ -231,4 +209,44 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
   );
 };
 
-export default React.memo(ScheduleEventView);
+export default React.memo(ScheduleEventView, (prevProps, nextProps) => {
+  // Check primitive props
+  if (
+    prevProps.title !== nextProps.title ||
+    prevProps.time !== nextProps.time ||
+    prevProps.location !== nextProps.location ||
+    prevProps.userStatus !== nextProps.userStatus
+  ) {
+    return false;
+  }
+
+  // Check endTime
+  if (prevProps.endTime.getTime() !== nextProps.endTime.getTime()) {
+    return false;
+  }
+
+  // Check eventOccurrence deeply
+  const prevOccurrence = prevProps.eventOccurrence;
+  const nextOccurrence = nextProps.eventOccurrence;
+  
+  if (!prevOccurrence && !nextOccurrence) return true;
+  if (!prevOccurrence || !nextOccurrence) return false;
+  
+  if (prevOccurrence.id !== nextOccurrence.id) return false;
+  
+  const prevEvent = prevOccurrence.event;
+  const nextEvent = nextOccurrence.event;
+  
+  if (!prevEvent && !nextEvent) return true;
+  if (!prevEvent || !nextEvent) return false;
+  
+  return (
+    prevEvent._id === nextEvent._id &&
+    prevEvent.title === nextEvent.title &&
+    prevEvent.start_time === nextEvent.start_time &&
+    prevEvent.end_time === nextEvent.end_time &&
+    prevEvent.category === nextEvent.category &&
+    prevEvent.userStatus === nextEvent.userStatus &&
+    prevEvent.location?.text === nextEvent.location?.text
+  );
+});

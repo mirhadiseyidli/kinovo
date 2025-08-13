@@ -135,10 +135,67 @@ const WeekGrid: React.FC<WeekGridProps> = ({ hours, weekDates, gridRef, loading,
     return { backgroundColor, borderColor, borderWidth, opacity, textStyle };
   }, [themeColors, colorScheme]);
 
-  const renderEventChip = React.useCallback((occurrence: any, dayIndex: number, eventIndex: number) => {
-    const { top, height } = getEventPosition(occurrence.event.start_time, occurrence.event.end_time);
+  // Calculate overlapping events layout for better UX
+  const calculateEventLayout = React.useCallback((dayOccurrences: any[], dayIndex: number) => {
     const dayWidth = (screenWidth - 50) / weekDates.length;
     
+    // Sort events by start time
+    const sortedEvents = dayOccurrences
+      .map((occurrence, index) => ({
+        occurrence,
+        originalIndex: index,
+        ...getEventPosition(occurrence.event.start_time, occurrence.event.end_time)
+      }))
+      .sort((a, b) => a.top - b.top);
+
+    // Group overlapping events
+    const eventGroups: any[][] = [];
+    
+    sortedEvents.forEach(event => {
+      let placed = false;
+      
+      // Try to place in existing group
+      for (const group of eventGroups) {
+        const hasOverlap = group.some(groupEvent => 
+          !(event.top >= groupEvent.top + groupEvent.height || 
+            groupEvent.top >= event.top + event.height)
+        );
+        
+        if (hasOverlap) {
+          group.push(event);
+          placed = true;
+          break;
+        }
+      }
+      
+      // Create new group if no overlap found
+      if (!placed) {
+        eventGroups.push([event]);
+      }
+    });
+
+    // Calculate layout for each event
+    const layouts: any[] = [];
+    
+    eventGroups.forEach(group => {
+      const groupSize = group.length;
+      const eventWidth = (dayWidth - 4) / groupSize;
+      
+      group.forEach((event, index) => {
+        layouts[event.originalIndex] = {
+          left: dayIndex * dayWidth + 2 + (index * eventWidth),
+          top: event.top,
+          width: eventWidth - 1, // Small gap between overlapping events
+          height: event.height,
+          zIndex: 10 + index // Stagger z-index
+        };
+      });
+    });
+
+    return layouts;
+  }, [getEventPosition, weekDates.length]);
+
+  const renderEventChip = React.useCallback((occurrence: any, dayIndex: number, eventIndex: number, layout: any) => {
     // Get memoized styles
     const { backgroundColor, borderColor, borderWidth, opacity, textStyle } = getEventStyles(occurrence.event.userStatus);
     
@@ -150,22 +207,22 @@ const WeekGrid: React.FC<WeekGridProps> = ({ hours, weekDates, gridRef, loading,
         onPress={() => handleEventPress(occurrence)}
         style={{
           position: 'absolute',
-          left: dayIndex * dayWidth + 2,
-          top: top,
-          width: dayWidth - 4,
-          height: height,
+          left: layout.left,
+          top: layout.top,
+          width: layout.width,
+          height: layout.height,
           backgroundColor: backgroundColor,
           borderColor: borderColor,
           borderWidth: borderWidth,
           borderRadius: 4,
-          padding: 4,
-          zIndex: 10,
+          padding: 2,
+          zIndex: layout.zIndex,
           opacity: isPast ? 0.4 : opacity,
           overflow: 'hidden',
         }}
       >
         <Text
-          style={{...textStyle, zIndex: 2, position: 'relative'}}
+          style={{...textStyle, zIndex: 2, position: 'relative', fontSize: layout.width < 40 ? 8 : 9}}
           numberOfLines={1}
           ellipsizeMode="tail"
         >
@@ -173,7 +230,7 @@ const WeekGrid: React.FC<WeekGridProps> = ({ hours, weekDates, gridRef, loading,
         </Text>
       </TouchableOpacity>
     );
-  }, [getEventPosition, weekDates.length, getEventStyles, handleEventPress]);
+  }, [getEventStyles, handleEventPress]);
 
   // Memoized grid row renderer for better performance
   const renderGridRow = React.useCallback(() => (
@@ -214,8 +271,9 @@ const WeekGrid: React.FC<WeekGridProps> = ({ hours, weekDates, gridRef, loading,
       }}>
         {weekDates.map((date, dayIndex) => {
           const dayOccurrences = getOccurrencesForDate(date);
+          const layouts = calculateEventLayout(dayOccurrences, dayIndex);
           return dayOccurrences.map((occurrence, eventIndex) => 
-            renderEventChip(occurrence, dayIndex, eventIndex)
+            renderEventChip(occurrence, dayIndex, eventIndex, layouts[eventIndex])
           );
         })}
       </View>
