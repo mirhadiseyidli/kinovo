@@ -31,11 +31,13 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
     city: string | null;
     state: string | null;
     coordinates: { lat: number | null; lng: number | null };
+    mapSnapshotUrl?: { light: string | null; dark: string | null } | null;
   }>({
     text: null,
     city: null,
     state: null,
     coordinates: { lat: null, lng: null },
+    mapSnapshotUrl: null,
   });
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [endTime, setEndTime] = useState<Date | null>(null);
@@ -51,6 +53,7 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
   });
   const [attendees, setAttendees] = useState<EventAttendee[]>([]);
   const [visibility, setVisibility] = useState<string>('private');
+  const [calendarSyncEnabled, setCalendarSyncEnabled] = useState<boolean>(false);
 
   // Add state for original recurrence status
   const [originalRecurrenceChecked, setOriginalRecurrenceChecked] = useState<boolean>(false);
@@ -87,6 +90,7 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
     });
     setAttendees(eventToEdit.attendees || []);
     setVisibility(eventToEdit.visibility || 'private');
+    setCalendarSyncEnabled(eventToEdit.calendarSyncEnabled ?? false);
     // Track original recurrence status
     setOriginalRecurrenceChecked(eventToEdit.recurrence?.checked ?? false);
     setIsEditMode(true);
@@ -143,6 +147,7 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
     city: string | null;
     state: string | null;
     coordinates: { lat: number | null; lng: number | null };
+    mapSnapshotUrl?: { light: string | null; dark: string | null } | null;
   }) => {
     setLocation(location);
     if (location.text && validationErrors.location) {
@@ -196,6 +201,8 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setVisibility(lowerValue);
     }
   };
+
+  const settingCalendarSyncEnabled = (value: boolean) => setCalendarSyncEnabled(value);
 
   // Validation function
   const validateEvent = (): boolean => {
@@ -270,6 +277,7 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
       recurrence,
       attendees,
       visibility,
+      calendarSyncEnabled,
     } as Partial<Event>;
 
     return compiledEvent;
@@ -328,6 +336,7 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
     recurrence,
     attendees,
     visibility,
+    calendarSyncEnabled,
     isEditMode,
     eventId,
     originalRecurrenceChecked,
@@ -350,6 +359,7 @@ export const CreateEventProvider: React.FC<{ children: React.ReactNode }> = ({ c
     settingEventStartTime,
     settingEventVisibility,
     settingEventCategory,
+    settingCalendarSyncEnabled,
     
     // Actions
     compileEventData,

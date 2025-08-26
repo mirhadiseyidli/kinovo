@@ -7,7 +7,7 @@ import { Event } from '@/types/allTypes';
 export const useEventsStore = () => {
   const { userId } = useAuthSession();
   
-  return useQuery({
+  const query = useQuery({
     queryKey: QUERY_KEYS.EVENTS,
     queryFn: async () => {
       if (!userId) return [];
@@ -68,4 +68,6 @@ export const useEventsStore = () => {
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
+  
+  return query;
 };

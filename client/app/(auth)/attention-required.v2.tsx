@@ -42,7 +42,7 @@ export default function AttentionRequiredScreen() {
   const { userId } = useAuthSession();
 
   // Get event count for the header - using the new simplified hook
-  const attentionEventsQuery = useInfiniteAttentionRequiredEvents(10);
+  const attentionEventsQuery = useInfiniteAttentionRequiredEvents(10, false);
 
   // Extract data from the new hook structure
   const events = React.useMemo(() => {
@@ -87,6 +87,7 @@ export default function AttentionRequiredScreen() {
         onFinishRefresh={() => {}}
         initialEvents={[eventWithDefaults]}
         showHeader={false}
+        isHomeScreen={false}
       />
     );
   }, []);

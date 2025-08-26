@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useCallback, useRef } from 'react';
 import { View, Text, Dimensions, ActivityIndicator } from 'react-native';
-import { FlashList } from '@shopify/flash-list';
+import { FlashList, FlashListRef } from '@shopify/flash-list';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { format, isToday, parseISO, addMonths, startOfMonth, endOfMonth, isSameDay } from 'date-fns';
@@ -34,7 +34,7 @@ const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFini
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
-  const flashListRef = useRef<FlashList<ListItem>>(null);
+  const flashListRef = useRef<FlashListRef<ListItem>>(null);
   const height = Dimensions.get('window').height;
   const tabBarHeight = useBottomTabBarHeight();
   const lastScrolledDate = useRef<Date | null>(null);
@@ -367,7 +367,6 @@ const FlashListScheduleView: React.FC<ScheduleViewProps> = ({ refreshing, onFini
         ref={flashListRef}
         data={listData}
         renderItem={renderItem}
-        estimatedItemSize={100}
         refreshing={refreshing || loading}
         contentContainerStyle={{ paddingBottom: tabBarHeight }}
         getItemType={getItemType}

@@ -17,7 +17,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { runOnJS } from 'react-native-worklets';
 import { shareContent } from '@/utils/shareUtils';
-import { Feather } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { ViewEventModalProvider } from '@/context/ViewEventModalContext';
 
@@ -132,14 +132,22 @@ const ViewEvent = () => {
     return event;
   }, [event, is_occurrence, occurrence_start, occurrence_end]);
 
-  // Set up the share button in the header
+  // Set up the header buttons
   useEffect(() => {
     if (id) {
       navigation.setOptions({
+        headerLeft: () => (
+          <TouchableOpacity
+            onPress={handleDismiss}
+            style={{ alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Ionicons name="close" size={24} color={themeColors.text} />
+          </TouchableOpacity>
+        ),
         headerRight: () => <ShareEventButton event_id={id} />
       });
     }
-  }, [navigation, id]);
+  }, [navigation, id, handleDismiss, themeColors.text]);
 
 
   // Show skeleton during loading

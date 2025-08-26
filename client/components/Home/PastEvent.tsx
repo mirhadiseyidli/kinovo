@@ -10,21 +10,46 @@ import DefaultProfilePicture from '../DefaultProfilePicture';
 import { getCategoryImage } from '@/constants/CategoryImages';
 import { SkeletonBox } from '../Skeleton';
 import { ImageBackground } from 'expo-image';
+import { truncateName } from '@/utils/truncateName';
 
 const PastEvent: React.FC<{ event: Event; loading: boolean }> = React.memo(({ event, loading }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
   
-  const handleViewEvent = () => {
-    router.push(`/(auth)/viewEvent/${event?._id}`);
+  // Early return if event is empty or missing required fields
+  if (!event || !event._id || !event.title || !event.start_time || !event.location) {
+    console.log('PastEvent: Invalid event data, skipping render', event);
+    return null;
   }
-
-  // Helper function to truncate text
-  const truncateText = (text: string, maxLength: number) => {
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + '...';
-  };
+  
+  const handleViewEvent = () => {
+    // Check if this is a compound ID with date suffix (e.g., "id-2025-09-01")
+    const idParts = event?._id?.split('-');
+    const hasDateSuffix = idParts && idParts.length >= 4 && 
+                          idParts[idParts.length - 3].length === 4 && // year
+                          idParts[idParts.length - 2].length === 2 && // month
+                          idParts[idParts.length - 1].length === 2;   // day
+    
+    if (hasDateSuffix) {
+      // Extract base event ID
+      const baseEventId = idParts.slice(0, -3).join('-');
+      
+      // Use the start_time and end_time from the event data for the occurrence
+      router.push({
+        pathname: "/(auth)/viewEvent/[event_id]" as const,
+        params: {
+          event_id: baseEventId,
+          occurrence_start: event.start_time?.toString() || '',
+          occurrence_end: event.end_time?.toString() || '',
+          is_occurrence: 'true'
+        }
+      });
+    } else {
+      // Regular event without occurrence
+      router.push(`/(auth)/viewEvent/${event?._id}`);
+    }
+  }
 
   return (
     <TouchableOpacity onPress={handleViewEvent}>
@@ -62,7 +87,7 @@ const PastEvent: React.FC<{ event: Event; loading: boolean }> = React.memo(({ ev
         <View style={{ flexDirection: 'column' }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16, textShadowColor: 'rgba(0, 0, 0, 0.75)', textShadowOffset: {width: -1, height: 1}, textShadowRadius: 10 }}>
-              {event.title}
+              {truncateName(event.title || 'Title Error', 20)}
             </Text>
             {/* Category pill */}
             <View
@@ -98,7 +123,7 @@ const PastEvent: React.FC<{ event: Event; loading: boolean }> = React.memo(({ ev
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Feather name="map-pin" size={16} color={'white'} />
               <Text style={{ color: 'white', fontSize: 14 }}>
-                {truncateText(event?.location.text || 'Location TBD', 25)}
+                {truncateName(event?.location.text || 'Location TBD', 25)}
               </Text>
             </View>
           </View>

@@ -18,10 +18,12 @@ import {
   joinEventSchema,
 } from './schemas.js';
 import { knowledgeBase } from './knowledge-base.js';
+import mapKitService from '../../services/appleMapKitService.js';
+import { calculateSmartEventRanking, isRecommendationQuery } from '../../utils/smartEventRanking.js';
 
 // Create event tool
 export const createEvent = tool({
-  description: 'Create a new event with specified details',
+  description: 'Create a new event with specified details. When using location data from searchLocation results, map the data correctly: text=name (location name only), coordinates=coordinates, parse city and state from address',
   parameters: createEventSchema,
   execute: async ({ title, start_time, end_time, location, visibility, description, category, capacity, recurrence }, { headers }) => {
     try {
@@ -56,9 +58,9 @@ export const createEvent = tool({
       
       return {
         success: true,
-        eventId: result.event._id,
+        eventId: result.events[0]._id,
         message: `Event "${title}" created successfully`,
-        event: JSON.parse(JSON.stringify(result.event)), // Ensure serializable
+        event: JSON.parse(JSON.stringify(result.events[0])), // Ensure serializable
       };
     } catch (error) {
       return {
@@ -210,14 +212,14 @@ export const removeUser = tool({
 
 // Search events tool
 export const searchEvents = tool({
-  description: 'Search for events by title, description, location, or other criteria. Use this to find both public events and events you may want to join. For finding your own events, use getUserEvents or findEventByTitle instead.',
+  description: 'Search for events by title, description, location, or other criteria. Use this to find both public events and events you may want to join. When users ask for nearby events, recommendations, or suggestions without specific categories, this will intelligently rank events based on their preferences, friends, location, and past behavior.',
   parameters: searchEventsSchema,
-  execute: async ({ query, categories, max, start_time, end_time, location, visibility, status }, { headers, userLocation }) => {
+  execute: async ({ query, categories, max, start_time, end_time, location, visibility, status }, { headers, userLocation, user }) => {
     try {
       const token = headers?.authorization?.split(' ')[1];
       if (!token) throw new Error('No authorization token');
       
-      await verifyUserToken(token);
+      const userFromToken = await verifyUserToken(token);
       const client = new APIClient(token);
       
       // Use provided location or fall back to user's current location for nearby searches
@@ -226,10 +228,13 @@ export const searchEvents = tool({
         radius: 50 // Default 50 mile radius for "nearby" searches
       } : null);
       
+      // Determine if this is a recommendation-type query
+      const isRecommendation = isRecommendationQuery(query, { categories, location: searchLocation });
+      
       const params = {
         ...(query && { query }),
         ...(categories && { categories: categories.join(',') }),
-        ...(max && { limit: max }),
+        ...(max && { limit: isRecommendation ? Math.max(max || 10, 20) : max }), // Get more results for smart ranking
         ...(start_time && { start_time }),
         ...(end_time && { end_time }),
         ...(searchLocation && {
@@ -242,11 +247,60 @@ export const searchEvents = tool({
       };
       
       const result = await client.searchEvents(params);
-      const events = result.events || result;
+      let events = result.events || result;
+      
+      // Filter out invalid events with missing required fields
+      events = events.filter(event => 
+        event && 
+        event._id && 
+        event.title && 
+        event.start_time && 
+        event.location &&
+        event.category
+      );
+      
+      // Apply smart ranking for recommendation queries
+      if (isRecommendation && events.length > 0) {
+        try {
+          const userId = userFromToken.userId || user?.userId;
+          const userLoc = searchLocation?.coordinates || userLocation;
+          
+          // Apply smart ranking
+          const rankedEvents = await calculateSmartEventRanking(
+            events, 
+            userId, 
+            userLoc, 
+            { 
+              isRecommendationQuery: true,
+              originalQuery: query,
+              searchType: 'recommendation'
+            }
+          );
+          
+          // Limit to requested number after ranking
+          events = rankedEvents.slice(0, max || 10);
+          
+          return {
+            success: true,
+            events: JSON.parse(JSON.stringify(events)), // Ensure serializable
+            count: events.length,
+            totalFound: rankedEvents.length,
+            isSmartRanked: true,
+            searchType: 'recommendation',
+            message: `Found ${events.length} events ranked by your preferences, friends, and location`
+          };
+        } catch (rankingError) {
+          console.warn('Smart ranking failed, falling back to basic results:', rankingError.message);
+          // Fall back to original results if ranking fails
+        }
+      }
+      
       return {
         success: true,
         events: JSON.parse(JSON.stringify(events)), // Ensure serializable
         count: events?.length || 0,
+        isSmartRanked: false,
+        searchType: isRecommendation ? 'recommendation_fallback' : 'search'
       };
     } catch (error) {
       return {
@@ -270,9 +324,16 @@ export const weather = tool({
       const client = new APIClient(token);
       
       const result = await client.getWeather(lat, lng, date);
+      
+      // Round temperature values to whole numbers
+      if (result && result.currentWeather && result.currentWeather.temperature !== undefined) {
+        result.currentWeather.temperature = Math.round(result.currentWeather.temperature);
+      }
+      
       return {
         success: true,
         weather: JSON.parse(JSON.stringify(result)), // Ensure serializable
+        coordinates: { lat, lng }, // Include coordinates for iOS Weather app
       };
     } catch (error) {
       return {
@@ -287,7 +348,7 @@ export const weather = tool({
 export const traffic = tool({
   description: 'Get traffic and direction information between two locations',
   parameters: trafficSchema,
-  execute: async ({ from, to, departure_time }, { headers }) => {
+  execute: async ({ from, to, departure_time }, { headers, user }) => {
     try {
       const token = headers?.authorization?.split(' ')[1];
       if (!token) throw new Error('No authorization token');
@@ -295,13 +356,73 @@ export const traffic = tool({
       await verifyUserToken(token);
       const client = new APIClient(token);
       
+      // Get directions
       const result = await client.getDirections(from, to, departure_time);
+      
+      // Log the complete Google Maps API response to see what emoji/icon data is available
+      console.log('🗺️ Google Maps API Response:', JSON.stringify(result, null, 2));
+      
+      // Generate map snapshot for destination only (matching event schema)
+      let mapSnapshotUrl = null;
+      if (to?.lat && to?.lng) {
+        try {
+          // Use the imported mapKitService directly
+          const mapSnapshotResult = await mapKitService.getSnapshotAndUploadToS3({
+            lat: to.lat,
+            lon: to.lng,  // Note: using 'lon' not 'lng' as per the service API
+            eventId: `traffic-${Date.now()}`,
+            userId: user?.userId || 'ai-agent',
+            width: 640,
+            height: 265,
+            zoom: 15,
+            scale: 2
+          });
+          
+          // Update with both light and dark map snapshot URLs
+          mapSnapshotUrl = {
+            light: mapSnapshotResult.light.cdnUrl,  // Using cdnUrl not url
+            dark: mapSnapshotResult.dark.cdnUrl    // Using cdnUrl not url
+          };
+          console.log("SDKJHFKJSDHKJGHHJ", mapSnapshotUrl)
+        } catch (snapshotError) {
+          console.error('Error generating map snapshot for traffic:', snapshotError);
+          // Don't fail traffic response if snapshot generation fails
+        }
+      }
+      
+      // Determine traffic emoji based on traffic conditions
+      const normalDuration = result.routes?.[0]?.legs?.[0]?.duration?.value || 0;
+      const trafficDuration = result.routes?.[0]?.legs?.[0]?.duration_in_traffic?.value || normalDuration;
+      
+      let trafficEmoji = '🟢'; // Default: light traffic
+      let trafficCondition = 'Light traffic';
+      
+      if (trafficDuration > normalDuration) {
+        const trafficRatio = trafficDuration / normalDuration;
+        if (trafficRatio > 1.5) {
+          trafficEmoji = '🔴'; // Heavy traffic (50%+ longer)
+          trafficCondition = 'Heavy traffic';
+        } else if (trafficRatio > 1.2) {
+          trafficEmoji = '🟡'; // Moderate traffic (20%+ longer)
+          trafficCondition = 'Moderate traffic';
+        }
+      }
+
       return {
         success: true,
         directions: JSON.parse(JSON.stringify(result)), // Ensure serializable
         duration: result.routes?.[0]?.legs?.[0]?.duration?.text,
         distance: result.routes?.[0]?.legs?.[0]?.distance?.text,
         traffic: result.routes?.[0]?.legs?.[0]?.duration_in_traffic?.text,
+        emoji: trafficEmoji,
+        condition: trafficCondition,
+        // Include the complete result so we can see what emoji/icon data Google provides
+        rawResult: result,
+        coordinates: {
+          from: { lat: from.lat, lng: from.lng }, // Origin coordinates for iOS Maps
+          to: { lat: to.lat, lng: to.lng }, // Destination coordinates for iOS Maps
+        },
+        mapSnapshotUrl // Map snapshot for destination (matches event schema format)
       };
     } catch (error) {
       return {

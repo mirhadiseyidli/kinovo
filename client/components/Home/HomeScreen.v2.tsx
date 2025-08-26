@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { RefreshControl, TouchableOpacity, View } from 'react-native';
-import { FlashList, ListRenderItemInfo } from '@shopify/flash-list';
+import { FlashList, FlashListRef, ListRenderItemInfo } from '@shopify/flash-list';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import Header from '@/components/Header';
 import { ThemedView } from '@/components/ThemedView';
@@ -19,7 +19,7 @@ import Animated, { useSharedValue, withTiming, useAnimatedStyle } from 'react-na
 import { useHomeError } from '@/context/HomeErrorContext';
 import { HomeErrorMessage } from '@/components/Home/HomeErrorMessage';
 import { queryClient } from '@/utils/queryClient';
-import AISummary from './AISummary.v2';
+import AISummary from './AISummary.v5';
 
 /**
  * HomeScreen.v2 - MIGRATED to New TanStack Query Architecture
@@ -66,7 +66,7 @@ interface SectionItem {
 const HomeScreenV2 = () => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const flashListRef = useRef<FlashList<SectionItem>>(null);
+  const flashListRef = useRef<FlashListRef<SectionItem>>(null);
   const tabBarHeight = useBottomTabBarHeight();
   const [refreshing, setRefreshing] = useState(false);
   const { errors, hasAnyError, clearAllErrors, setComponentError } = useHomeError();
@@ -339,6 +339,7 @@ const HomeScreenV2 = () => {
             <AttentionRequiredV2
               refreshing={refreshingAttentionRequired}
               onFinishRefresh={onFinishRefreshAttentionRequired}
+              isHomeScreen={true}
             />
           </ThemedView>
         );
@@ -513,6 +514,7 @@ const HomeScreenV2 = () => {
 
   const sections = buildSections();
 
+
   return (
     <ThemedView style={{ flex: 1 }}>
       {/* FlashList with header as first item */}
@@ -537,7 +539,6 @@ const HomeScreenV2 = () => {
         contentContainerStyle={{
           paddingBottom: tabBarHeight,
         }}
-        estimatedItemSize={200}
         removeClippedSubviews={true}
         drawDistance={200}
         onScroll={handleScroll}

@@ -37,10 +37,11 @@ export const useGetWeather = (lat: number | null, lon: number | null) => {
         params: { lat, lon },
         signal: abortControllerRef.current.signal
       });
-      const temp = Math.round(response.data?.currentWeather?.temperature);
+      const tempCelsius = response.data?.currentWeather?.temperature;
+      const tempFahrenheit = tempCelsius ? Math.round((tempCelsius * 9/5) + 32) : null;
       
       if (mountedRef.current) {
-        setTemperature(temp);
+        setTemperature(tempFahrenheit);
       }
     } catch (error) {
       const err = error as ApiError;

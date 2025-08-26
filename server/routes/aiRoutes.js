@@ -1,7 +1,9 @@
 const express = require('express');
 const { 
   getAIInsights,
+  getAIInsightsStream,
   chatWithAgent,
+  chatWithAgentStream,
 } = require('../controllers/aiController');
 const {
   getConversations,
@@ -12,13 +14,15 @@ const {
   deleteConversation,
   clearAllConversations,
 } = require('../controllers/aiConversationController');
-const { authMiddleware, checkRole } = require('../utils/authMiddleware');
+const { authMiddleware } = require('../utils/authMiddleware');
 
 const router = express.Router();
 
 // Vercel AI SDK endpoints
 router.get('/insights', authMiddleware, getAIInsights);
+router.get('/insights/stream', authMiddleware, getAIInsightsStream);
 router.post('/agent', authMiddleware, chatWithAgent);
+router.post('/agent/stream', authMiddleware, chatWithAgentStream);
 
 // Conversation management endpoints
 router.get('/conversations', authMiddleware, getConversations);

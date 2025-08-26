@@ -134,7 +134,6 @@ export default React.memo(function UserActivities({ userId, route, refreshing }:
       <TabFlashList
         index={route?.index || 0}
         data={isFirstFetch ? [] : activities}
-        estimatedItemSize={70}
         renderItem={renderItem}
         ListEmptyComponent={!isFirstFetch ? ListEmptyComponent : null}
         ListHeaderComponent={ListHeaderComponent}

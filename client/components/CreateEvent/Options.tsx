@@ -99,6 +99,7 @@ const Options: React.FC<{ setLimit: (value: number | null) => void }> = ({ setLi
     return 'Friends';
   };
 
+
   return (
       <ThemedView
         style={{

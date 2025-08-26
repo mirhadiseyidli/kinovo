@@ -256,7 +256,6 @@ export default React.memo(function UserFriends({ userId, route, refreshing }: Us
       <TabFlashList
         index={route?.index || 0}
         data={getDataToShow()}
-        estimatedItemSize={80}
         renderItem={renderItem}
         ListEmptyComponent={getEmptyComponent()}
         ListHeaderComponent={ListHeaderComponent}

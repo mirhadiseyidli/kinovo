@@ -51,7 +51,9 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
       ? { latitude: location.coordinates.lat, longitude: location.coordinates.lng } 
       : null
   );
-  const [mapSnapshotUrl, setMapSnapshotUrl] = useState<{light: string | null, dark: string | null} | null>(null);
+  const [mapSnapshotUrl, setMapSnapshotUrl] = useState<{light: string | null, dark: string | null} | null>(
+    location?.mapSnapshotUrl || null
+  );
   const inputRef = useRef<View>(null);
 
   const getUserLocation = async () => {
@@ -89,11 +91,13 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
           dark: response.data.dark
         };
         setMapSnapshotUrl(snapshotUrls);
+        return snapshotUrls;
       }
     } catch (error) {
       console.error('[CreateEvent] Failed to generate map snapshot URLs:', error);
       // Don't block the UI, just let it fallback to interactive map
     }
+    return null;
   };
 
   useEffect(() => {
@@ -126,7 +130,10 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
           longitude: location.coordinates.lng 
         });
         
-        // Map will animate automatically via MapViewModal
+        // If we have a mapSnapshotUrl from the context (e.g., when editing), use it
+        if (location.mapSnapshotUrl) {
+          setMapSnapshotUrl(location.mapSnapshotUrl);
+        }
       }
     }
   }, [location]);
@@ -190,9 +197,13 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
     setSuggestions([]);
     setShowSuggestions(false);
 
+    let newMapSnapshotUrl = mapSnapshotUrl;
     if (!isNaN(location.latitude) && !isNaN(location.longitude)) {
       // Generate map snapshot first, then set coordinates
-      await generateMapSnapshot(location.latitude, location.longitude);
+      const generatedSnapshot = await generateMapSnapshot(location.latitude, location.longitude);
+      if (generatedSnapshot) {
+        newMapSnapshotUrl = generatedSnapshot;
+      }
       setCoordinates({ latitude: location.latitude, longitude: location.longitude });
     } else {
       console.error("Invalid coordinates received:", location);
@@ -205,7 +216,8 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
       coordinates: { 
         lat: location.latitude, 
         lng: location.longitude 
-      }
+      },
+      mapSnapshotUrl: newMapSnapshotUrl
     });
 
     // Map will animate automatically via MapViewModal
@@ -233,8 +245,10 @@ const LocationComponent: React.FC<LocationComponentProps> = ({
           coordinates: { 
             lat: null, 
             lng: null 
-          }
+          },
+          mapSnapshotUrl: null
         });
+        setMapSnapshotUrl(null);
       }
     }
     

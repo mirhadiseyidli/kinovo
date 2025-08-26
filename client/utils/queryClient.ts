@@ -19,7 +19,7 @@ export const queryClient = new QueryClient({
   },
 });
 
-// Simple persistence
+// Simple persistence with dehydration options
 const persister = createAsyncStoragePersister({
   storage: AsyncStorage,
   key: 'kinovo-query-cache',
@@ -29,6 +29,18 @@ persistQueryClient({
   queryClient,
   persister,
   maxAge: 24 * 60 * 60 * 1000, // 24 hours
+  dehydrateOptions: {
+    shouldDehydrateQuery: (query) => {
+      // Don't persist infinite queries as they can't be properly restored
+      // Infinite queries have their queryFn which can't be serialized
+      const queryKey = query.queryKey;
+      if (Array.isArray(queryKey) && queryKey.includes('infinite')) {
+        return false;
+      }
+      // Only persist successful queries
+      return query.state.status === 'success';
+    },
+  },
 });
 
 // Legacy exports for backward compatibility
