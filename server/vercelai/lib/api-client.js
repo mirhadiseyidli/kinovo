@@ -127,12 +127,18 @@ export class APIClient {
       mode,
       traffic_model: 'best_guess'
     };
+    
+    // Always provide departure_time for traffic information
     if (departureTime) {
       // Convert to Unix timestamp if it's a Date object or ISO string
       params.departure_time = typeof departureTime === 'string' 
         ? Math.floor(new Date(departureTime).getTime() / 1000)
         : Math.floor(departureTime / 1000);
+    } else {
+      // Default to 'now' for current traffic conditions
+      params.departure_time = 'now';
     }
+    
     const queryString = new URLSearchParams(params).toString();
     return this.request('GET', `/api/google/directions?${queryString}`);
   }

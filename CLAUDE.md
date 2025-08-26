@@ -117,3 +117,7 @@ The project uses Firebase services for authentication, real-time database, and p
 ## 🚫 Git & GitHub Restrictions (DO NOT TOUCH)
 
 - Claude Code **must never** interact with or modify any Git/GitHub-related files or commands.
+
+## 🚫 TypeScript Type Restrictions (DO NOT TOUCH)
+
+- Claude Code **must never** use 'any' as a type in the code.

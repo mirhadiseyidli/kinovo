@@ -277,41 +277,45 @@ export const CalendarProvider: React.FC<CalendarProviderProps> = ({
     });
   }, [queryClient]);
 
-  const value: CalendarContextType = useMemo(() => ({
-    // Current view state
-    currentDate,
-    currentView,
+  const value: CalendarContextType = useMemo(() => {
+    const contextValue = {
+      // Current view state
+      currentDate,
+      currentView,
+      
+      // Event data
+      events,
+      eventOccurrences: occurrences,
+      
+      // Loading states (unified store only)
+      loading: eventsStoreQuery.isLoading,
+      refreshing: eventsStoreQuery.isFetching,
+      
+      // Navigation
+      setCurrentDate,
+      setCurrentView,
+      navigateToToday,
+      navigateNext,
+      navigatePrevious,
+      
+      // Event operations
+      refreshEvents,
+      
+      // Occurrence operations (backward compatibility)
+      getOccurrencesForDate,
+      getOccurrencesForDateRange,
+      groupedByDate,
+      
+      // Cache operations
+      invalidateCalendarCache,
+      
+      // Error states (unified store only)
+      eventsError: eventsStoreQuery.isError,
+      occurrencesError: false, // No separate occurrences query in new architecture
+    };
     
-    // Event data
-    events,
-    eventOccurrences: occurrences,
-    
-    // Loading states (unified store only)
-    loading: eventsStoreQuery.isLoading,
-    refreshing: eventsStoreQuery.isFetching,
-    
-    // Navigation
-    setCurrentDate,
-    setCurrentView,
-    navigateToToday,
-    navigateNext,
-    navigatePrevious,
-    
-    // Event operations
-    refreshEvents,
-    
-    // Occurrence operations (backward compatibility)
-    getOccurrencesForDate,
-    getOccurrencesForDateRange,
-    groupedByDate,
-    
-    // Cache operations
-    invalidateCalendarCache,
-    
-    // Error states (unified store only)
-    eventsError: eventsStoreQuery.isError,
-    occurrencesError: false, // No separate occurrences query in new architecture
-  }), [
+    return contextValue;
+  }, [
     currentDate,
     currentView,
     events,

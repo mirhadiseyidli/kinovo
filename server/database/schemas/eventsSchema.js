@@ -33,7 +33,18 @@ const eventsSchema = new mongoose.Schema({
     validate: {
       validator: async function(value) {
         const Category = mongoose.model('Category');
-        const category = await Category.findOne({ name: value, active: true });
+        // Try exact match first, then case-insensitive match
+        let category = await Category.findOne({ name: value, active: true });
+        if (!category) {
+          category = await Category.findOne({ 
+            name: { $regex: new RegExp(`^${value}$`, 'i') }, 
+            active: true 
+          });
+          // If found with case-insensitive match, update the value to the correct case
+          if (category) {
+            this.category = category.name;
+          }
+        }
         return category !== null;
       },
       message: props => `${props.value} is not a valid category`
@@ -106,6 +117,19 @@ const eventsSchema = new mongoose.Schema({
     type: Date,
     default: []
   }], // Dates to exclude from recurring event generation
+  // iOS Calendar Sync Fields
+  iosCalendarEventId: {
+    type: String,
+    default: null, // iOS Calendar event ID for synced events
+  },
+  calendarSyncEnabled: {
+    type: Boolean,
+    default: false, // Whether this event should sync to iOS Calendar
+  },
+  lastSyncedAt: {
+    type: Date,
+    default: null, // When this event was last synced to calendar
+  }
 });
 
 module.exports = mongoose.model('Events', eventsSchema);

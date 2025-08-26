@@ -18,9 +18,6 @@ export const useCalendarCacheManager = () => {
       
       // If we have cached data, use it immediately and fetch in background
       // This prevents the calendar from showing empty state on mount/refresh
-      if (currentData.length > 0) {
-        console.log('Using cached calendar events while fetching updates in background');
-      }
 
       // Fetch events for the date range (in background if cache exists)
       const response = await api.get('/api/manageevents/eventslist/get/my/events/range', {

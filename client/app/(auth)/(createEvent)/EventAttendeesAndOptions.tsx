@@ -5,7 +5,7 @@ import { ButtonWithLabel } from '@/components/ButtonWithLabel';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
-import React, { useState, useRef, useContext } from 'react';
+import React, { useState, useRef, useContext, useEffect } from 'react';
 import { ScrollView, View, Text, ActivityIndicator, Alert, TouchableOpacity, Image, Pressable } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -20,6 +20,8 @@ import { CreateEventScrollContext } from '@/context/CreateEventScrollContext';
 import Animated, { useAnimatedScrollHandler } from 'react-native-reanimated';
 import { runOnJS } from 'react-native-worklets';
 import { useRouter } from 'expo-router';
+import { CalendarSyncToggle } from '@/components/Calendar/CalendarSyncToggle';
+import { useCalendarSync } from '@/hooks/useCalendarSync';
 
 interface SuggestionsData {
   friends: AttendeeFriend[];
@@ -45,6 +47,7 @@ export default React.memo(function EventAttendeesAndOptions() {
   const updateEventMutation = useUpdateEvent();
   const router = useRouter();
   const { bounceCompleted, wasDraggingAtTop, isDismissing, handleDismiss } = useContext(CreateEventScrollContext);
+  const { syncEnabled } = useCalendarSync();
   const { 
     validationErrors, 
     loading,
@@ -59,8 +62,31 @@ export default React.memo(function EventAttendeesAndOptions() {
     originalRecurrenceChecked,
     compileEventData,
     resetEventForm,
-    startTime
+    startTime,
+    calendarSyncEnabled,
+    settingCalendarSyncEnabled
   } = useCreateEventContext();
+  
+  const [enableCalendarSync, setEnableCalendarSync] = useState(calendarSyncEnabled ?? syncEnabled);
+
+  useEffect(() => {
+    if (calendarSyncEnabled !== undefined) {
+      // If we're editing an existing event, use its sync setting
+      setEnableCalendarSync(calendarSyncEnabled);
+    } else if (syncEnabled !== undefined) {
+      // For new events, default to the user's global sync preference
+      setEnableCalendarSync(syncEnabled);
+      if (syncEnabled) {
+        // Automatically enable sync for new events when global sync is on
+        settingCalendarSyncEnabled(syncEnabled);
+      }
+    }
+  }, [calendarSyncEnabled, syncEnabled, settingCalendarSyncEnabled]);
+
+  const handleCalendarSyncToggle = (value: boolean) => {
+    setEnableCalendarSync(value);
+    settingCalendarSyncEnabled(value);
+  };
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -223,6 +249,22 @@ export default React.memo(function EventAttendeesAndOptions() {
       >
         {/* Step 3: Attendees & Options */}
         <Options setLimit={setLimit}/>
+        
+        {/* Calendar Sync Toggle - Only show if sync is available */}
+        {syncEnabled && (
+          <ThemedView style={{
+            backgroundColor: themeColors.inputBackgroundColor,
+            borderRadius: 8,
+            paddingHorizontal: 20,
+            paddingVertical: 8
+          }}>
+            <CalendarSyncToggle
+              value={enableCalendarSync}
+              onValueChange={handleCalendarSyncToggle}
+            />
+          </ThemedView>
+        )}
+        
         <Attendees 
           limit={limit}
           suggestions={suggestions}

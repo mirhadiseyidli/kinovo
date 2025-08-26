@@ -45,6 +45,7 @@ const getWeather = async (req, res) => {
         },
         params: {
           dataSets: 'currentWeather',
+          temperatureUnit: 'fahrenheit'
         },
       }
     );

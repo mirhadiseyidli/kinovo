@@ -380,6 +380,9 @@ export const getWeatherGradient = (code: string, colorScheme: 'light' | 'dark' =
 
 // Legacy support - map common weather descriptions to codes
 export const getWeatherConditionFromDescription = (description: string): WeatherCondition | null => {
+  if (!description || typeof description !== 'string') {
+    return null;
+  }
   const lowerDescription = description.toLowerCase();
   
   // Map common descriptions to weather codes

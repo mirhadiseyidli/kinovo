@@ -21,6 +21,7 @@ import * as Calendar from 'expo-calendar';
 import SettingComponent from '@/components/ProfileAndSettings/Settings/SettingComponent';
 import api from '@/utils/api';
 import TwoFactorAuth from '@/components/Auth/TwoFactorAuth';
+import { useCalendarSync } from '@/hooks/useCalendarSync';
 
 const accountSettings = () => {
   const colorScheme = useColorScheme();
@@ -36,9 +37,25 @@ const accountSettings = () => {
   const [contactsPermission, setContactsPermission] = useState<string>('Not determined');
   const [photoPermission, setPhotoPermission] = useState<string>('Not determined');
   const [calendarPermission, setCalendarPermission] = useState<string>('Not determined');
+  const { syncEnabled, lastSyncError } = useCalendarSync();
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
   const [show2FA, setShow2FA] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Get calendar status including sync state
+  const getCalendarStatus = () => {
+    if (calendarPermission === 'Disabled') {
+      return 'Disabled';
+    }
+    if (calendarPermission === 'Enabled') {
+      if (syncEnabled) {
+        return lastSyncError ? 'Enabled, Sync Error' : 'Enabled, Synced';
+      } else {
+        return 'Enabled, Not Synced';
+      }
+    }
+    return 'Not determined';
+  };
 
   const loadData = useCallback(async (fromPullToRefresh = false) => {
     try {
@@ -359,7 +376,7 @@ const accountSettings = () => {
               <SettingComponent 
                 icon="calendar" 
                 title="Calendar Permissions"
-                subtitle={calendarPermission}
+                subtitle={getCalendarStatus()}
                 onPress={() => router.push('/(auth)/(profileSections)/calendarPermissions')} 
               />
             </ThemedView>

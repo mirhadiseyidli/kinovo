@@ -73,14 +73,9 @@ const useInfiniteEvents = (
         };
       } catch (error) {
         console.error(`Error fetching ${queryType} events:`, error);
-        // Return empty result on error
-        return {
-          events: [],
-          totalCount: 0,
-          hasMore: false,
-          currentPage: 1,
-          totalPages: 1,
-        };
+        // Always throw the error to let React Query handle it
+        // This ensures cached data is shown and error context is triggered
+        throw error;
       }
     },
     initialPageParam: 1,
@@ -239,10 +234,10 @@ export const useInfiniteRecommendedEvents = (pageSize: number = 10) => {
   );
 };
 
-export const useInfiniteAttentionRequiredEvents = (pageSize: number = 10) => {
+export const useInfiniteAttentionRequiredEvents = (pageSize: number = 10, fromHomeScreen: boolean = false) => {
   return useInfiniteEvents(
     'attention-required',
     '/api/manageevents/eventslist/get/attention/required',
-    { pageSize }
+    { pageSize, from_home_screen: fromHomeScreen }
   );
 };

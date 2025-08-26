@@ -209,7 +209,6 @@ const CategoryPageV2: React.FC = () => {
         renderEmptyState={renderEmptyState}
         renderLoadingState={renderLoadingState}
         ListHeaderComponent={renderListHeader}
-        estimatedItemSize={200}
         onEndReachedThreshold={0.5}
         // Remove deprecated props - these are handled by the new architecture
         // enableSmooth={true}

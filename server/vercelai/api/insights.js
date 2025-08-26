@@ -50,7 +50,7 @@ const weatherCardSchema = z.object({
 
 // Traffic sub-card schema  
 const trafficCardSchema = z.object({
-  duration: z.string().describe('Travel time (e.g., "15 min", "30 min")'),
+  duration: z.string().describe('Travel time using h and m format (e.g., "15m", "1h 30m", "2h")'),
   condition: z.string().describe('Traffic condition (e.g., "Light traffic", "Heavy traffic")'),
   emoji: z.string().describe('Traffic emoji (🟢, 🟡, 🔴)'),
   recommendation: z.string().describe('Brief traffic advice (e.g., "Good time to go!", "Leave 10 min early")'),
@@ -72,9 +72,8 @@ const insightCardSchema = z.object({
   fullEventData: z.any().optional().describe('Complete event object with attendees from backend'),
   
   cta: z.object({
-    text: z.string().describe('Call to action text (e.g., "View Event", "Add Friends")'),
-    action: z.enum(['navigate', 'create', 'explore']).describe('Type of action'),
-    target: z.string().optional().describe('Navigation target (e.g., eventId, screen name)'),
+    text: z.string().describe('Call to action text (e.g., "Create Event", "Explore Events")'),
+    action: z.enum(['create', 'explore']).describe('Type of action - only create or explore allowed'),
   }).optional(),
   priority: z.number().min(1).max(10).default(6).describe('Priority score for sorting multiple insights (1-10, defaults to 6)'),
 });
@@ -134,28 +133,36 @@ async function getUserContext(token, userId, userLat = null, userLng = null) {
     insightType = 'event';
     priorityEvent = urgentEvents[0]; // Closest event
   } else if (todaysEvents.length > 0) {
-    // Case 2: Events today but not urgent - show today's plans
-    insightType = 'social';
+    // Case 2: Events today but not urgent - show brief event info without weather/traffic
+    insightType = 'event';
     priorityEvent = todaysEvents[0]; // Next event today
   } else {
-    // Case 3: No events today - show suggestions
+    // Case 3: No events today - show suggestions to explore discover page
     insightType = 'suggestion';
     priorityEvent = upcomingEvents[0] || null; // Next upcoming event if any
   }
   
-  // Fetch weather and traffic data for urgent events (Case 1)
-  if (insightType === 'event' && priorityEvent?.location?.coordinates) {
+  // Fetch weather and traffic data ONLY for urgent events (Case 1)
+  if (urgentEvents.length > 0 && priorityEvent?.location?.coordinates) {
     const { lat, lng } = priorityEvent.location.coordinates;
     
     try {
       // For traffic, we need user's current location. Using event location as both origin and destination for now
       // In production, origin should be user's current location
       const eventTime = new Date(priorityEvent.start_time);
-      const departureTimeUnix = Math.floor(eventTime.getTime() / 1000); // Convert to Unix timestamp
+      const currentTime = new Date();
+      
+      // Use current time if event time is in the past, otherwise use event time
+      const departureTime = eventTime > currentTime ? eventTime : currentTime;
+      const departureTimeUnix = Math.floor(departureTime.getTime() / 1000); // Convert to Unix timestamp
       
       // Prepare traffic request - use user's location as origin if available
       let trafficPromise = null;
       if (userLat && userLng) {
+        // Log which location is being used for traffic
+        const isDefaultLocation = userLat == 37.7749 && userLng == -122.4194;
+        console.log(`🚗 Traffic origin: ${isDefaultLocation ? 'DEFAULT (San Francisco)' : 'USER LOCATION'} - ${userLat}, ${userLng}`);
+        
         // Use user's current location as origin, event location as destination
         trafficPromise = client.request('GET', `/api/google/directions?origin=${userLat},${userLng}&destination=${lat},${lng}&departure_time=${departureTimeUnix}&mode=driving&traffic_model=best_guess`).catch((error) => {
           console.error('🚗 Traffic API error:', error.message);
@@ -169,9 +176,10 @@ async function getUserContext(token, userId, userLat = null, userLng = null) {
         trafficPromise,
       ]);
       
-      // Extract only essential weather data
+      // Extract only essential weather data and convert to Fahrenheit
       weatherData = weather.status === 'fulfilled' && weather.value?.currentWeather ? {
-        temperature: weather.value.currentWeather.temperature,
+        temperatureCelsius: weather.value.currentWeather.temperature,
+        temperatureFahrenheit: weather.value.currentWeather.temperature ? Math.round((weather.value.currentWeather.temperature * 9/5) + 32) : null,
         conditionCode: weather.value.currentWeather.conditionCode,
         humidity: weather.value.currentWeather.humidity,
         windSpeed: weather.value.currentWeather.windSpeed
@@ -247,14 +255,16 @@ export default async function handler(req) {
     const user = await verifyUserToken(token);
     const method = req.method;
     
-    // Extract user location from query parameters
+    // Extract user location and cache control from query parameters
     let userLat = null;
     let userLng = null;
+    let skipCache = false;
     
     try {
       const url = new URL(req.url);
       userLat = url.searchParams.get('userLat');
       userLng = url.searchParams.get('userLng');
+      skipCache = url.searchParams.get('pull-to-refresh') === 'true';
     } catch (error) {
       console.warn('Failed to parse URL for location parameters:', error);
     }
@@ -282,16 +292,21 @@ export default async function handler(req) {
 
     const cacheKey = `insight_${user.userId}`;
 
-    // Check cache first
-    const cached = insightCache.get(cacheKey);
-    if (cached && cached.expires > Date.now()) {
-      return new Response(JSON.stringify(cached.data), {
-        status: 200,
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-Cache': 'HIT',
-        },
-      });
+    // Check cache first (skip if pull-to-refresh is true)
+    if (!skipCache) {
+      const cached = insightCache.get(cacheKey);
+      if (cached && cached.expires > Date.now()) {
+        return new Response(JSON.stringify(cached.data), {
+          status: 200,
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-Cache': 'HIT',
+          },
+        });
+      }
+    } else {
+      // If pull-to-refresh, invalidate existing cache
+      insightCache.delete(cacheKey);
     }
 
     // Get user context with RAG-enhanced recommendations
@@ -314,8 +329,8 @@ Context:
 - Insight type to generate: ${context.insightType}`;
 
     // Add case-specific context
-    if (context.insightType === 'event' && context.priorityEvent) {
-      // Case 1: Urgent event within 3 hours
+    if (context.urgentEvents.length > 0 && context.priorityEvent) {
+      // Case 1: Urgent event within 3 hours - show detailed event info with weather/traffic
       const timeUntilEvent = new Date(context.priorityEvent.start_time).getTime() - now.getTime();
       const hoursUntilEvent = Math.round(timeUntilEvent / (1000 * 60 * 60 * 10)) / 100; // Round to 2 decimals
       
@@ -331,34 +346,38 @@ Context:
       if (context.priorityEvent.location?.coordinates) {
         prompt += `\n- Coordinates: ${context.priorityEvent.location.coordinates.lat}, ${context.priorityEvent.location.coordinates.lng}`;
       }
-    } else if (context.insightType === 'social' && context.todaysEvents.length > 0) {
-      // Case 2: Events today but not urgent
-      prompt += `\n\nTODAY'S EVENTS:`;
-      context.todaysEvents.forEach((event, index) => {
-        prompt += `\n${index + 1}. "${event.title}" at ${new Date(event.start_time).toLocaleTimeString()} - ${event.location?.text || 'TBD'}`;
-      });
-      
-      if (context.priorityEvent) {
-        prompt += `\n\nNext Event Today:
+    } else if (context.todaysEvents.length > 0 && context.priorityEvent) {
+      // Case 2: Events today but not urgent - show brief event info only
+      prompt += `\n\nTODAY'S EVENT (brief info only):
 - Title: ${context.priorityEvent.title}
 - Time: ${new Date(context.priorityEvent.start_time).toLocaleTimeString()}
 - Location: ${context.priorityEvent.location?.text || 'TBD'}
 - Event ID: ${context.priorityEvent._id}`;
+      
+      if (context.todaysEvents.length > 1) {
+        prompt += `\n\nAdditional events today: ${context.todaysEvents.length - 1} more`;
       }
     } else if (context.priorityEvent) {
-      // Case 3: Future events but none today
-      prompt += `\n\nNext Upcoming Event:
+      // Case 3: Future events but none today - encourage discover page exploration
+      const eventDate = new Date(context.priorityEvent.start_time);
+      const daysUntilEvent = Math.ceil((eventDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      
+      prompt += `\n\nYou're free today! Next event in ${daysUntilEvent} day${daysUntilEvent === 1 ? '' : 's'}:
 - Title: ${context.priorityEvent.title}
-- Date: ${new Date(context.priorityEvent.start_time).toLocaleDateString()}
-- Time: ${new Date(context.priorityEvent.start_time).toLocaleTimeString()}
+- Date: ${eventDate.toLocaleDateString()}
+- Time: ${eventDate.toLocaleTimeString()}
 - Location: ${context.priorityEvent.location?.text || 'TBD'}
-- Event ID: ${context.priorityEvent._id}`;
+
+Since you have no events today, this is a perfect time to explore new activities and discover interesting events happening around you!`;
+    } else {
+      // Case 3b: No events at all - encourage discover page exploration
+      prompt += `\n\nNo upcoming events found. Perfect time to explore new activities and discover what's happening around you!`;
     }
 
     // Add weather data if available
     if (context.weatherData) {
       prompt += `\n\nWeather Data:
-- Temperature: ${Math.round(context.weatherData.temperature) || 'N/A'}°C
+- Temperature: ${context.weatherData.temperatureFahrenheit || 'N/A'}°F
 - Condition: ${context.weatherData.conditionCode || 'N/A'}`;
     }
 
@@ -382,9 +401,9 @@ Context:
 
     prompt += `\n\nGenerate insight for type: ${context.insightType}
 
-${context.insightType === 'event' ? 'EVENT TYPE - Include event card with weather/traffic data. Use gentle, helpful language like "Your event starts in 1 hour" or "Time to head out soon".' : ''}
-${context.insightType === 'social' ? 'SOCIAL TYPE - Focus on today\'s schedule with friendly, organized language.' : ''}
-${context.insightType === 'suggestion' ? 'SUGGESTION TYPE - Encourage discovery with warm, inviting language.' : ''}
+${context.urgentEvents.length > 0 ? 'URGENT EVENT TYPE - Include event card with weather/traffic data. Use gentle, helpful language like "Your event starts in 1 hour" or "Time to head out soon".' : ''}
+${context.todaysEvents.length > 0 && context.urgentEvents.length === 0 ? 'TODAY EVENT TYPE - Include event card with brief info only (NO weather or traffic). Use warm, encouraging language about today\'s plans.' : ''}
+${context.insightType === 'suggestion' ? 'SUGGESTION TYPE - Encourage users to explore the discover page to find new events. Use warm, inviting language that motivates discovery. ALWAYS include a CTA with action "explore" to direct users to the discover page.' : ''}
 
 Language Guidelines:
 - Use calm, helpful tone (avoid "urgent", "emergency", "alert")
@@ -395,7 +414,7 @@ Language Guidelines:
 Requirements:
 - title/subtitle: Keep concise (<50/80 chars)  
 - priority: 1-10 (required)
-- Weather: Convert °C to °F, use friendly condition names
+- Weather: Temperature is already in °F, use friendly condition names
 - Traffic: Use duration_in_traffic for travel time`;
 
     const result = await generateObject({
@@ -408,7 +427,7 @@ Requirements:
 
     const insight = result.object;
 
-    // Add full event data for urgent events (for attendee information)
+    // Add full event data for any event (for attendee information)
     if (context.insightType === 'event' && context.priorityEventFull) {
       insight.fullEventData = context.priorityEventFull;
     }

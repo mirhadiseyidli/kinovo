@@ -23,6 +23,16 @@ const messageSchema = new mongoose.Schema({
     parameters: mongoose.Schema.Types.Mixed,
     result: mongoose.Schema.Types.Mixed,
   }],
+  // Rich data fields for UI components
+  event: mongoose.Schema.Types.Mixed,
+  events: [mongoose.Schema.Types.Mixed],
+  weather: mongoose.Schema.Types.Mixed,
+  traffic: mongoose.Schema.Types.Mixed,
+  followUpSuggestions: [String],
+  isStreaming: {
+    type: Boolean,
+    default: false,
+  },
 }, { _id: false });
 
 const aiConversationSchema = new mongoose.Schema({
@@ -101,6 +111,13 @@ aiConversationSchema.methods.addMessage = function(messageData) {
     content: messageData.content,
     timestamp: messageData.timestamp || new Date(),
     toolCalls: messageData.toolCalls || [],
+    // Include rich data fields
+    event: messageData.event,
+    events: messageData.events,
+    weather: messageData.weather,
+    traffic: messageData.traffic,
+    followUpSuggestions: messageData.followUpSuggestions,
+    isStreaming: messageData.isStreaming || false,
   });
   return this;
 };

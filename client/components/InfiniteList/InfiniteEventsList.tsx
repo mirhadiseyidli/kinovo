@@ -66,7 +66,6 @@ interface InfiniteEventsListProps {
   
   // List configuration
   useFlashList?: boolean;
-  estimatedItemSize?: number;
   
   // Rendering
   renderItem?: (item: Event, index: number) => React.ReactElement | null | undefined;
@@ -363,7 +362,6 @@ export const InfiniteEventsList: React.FC<InfiniteEventsListProps> = ({
   
   // List configuration
   useFlashList = true,
-  estimatedItemSize = 100,
   
   // Rendering
   renderItem,
@@ -599,7 +597,6 @@ export const InfiniteEventsList: React.FC<InfiniteEventsListProps> = ({
         <FlashList<Event>
           {...updatedCommonProps}
           renderItem={renderEventItem as FlashListRenderItem<Event>}
-          estimatedItemSize={estimatedItemSize}
           removeClippedSubviews={true}
           showsVerticalScrollIndicator={false}
           viewabilityConfig={{

@@ -178,7 +178,15 @@ const MonthView: React.FC<MonthViewComponentProps> = ({
   };
 
   // Memoized render item for better performance
-  const MemoizedMonthItem = React.memo(({ item }: { item: { year: number, month: number } }) => (
+  const MemoizedMonthItem = React.memo(({ 
+    item, 
+    loading: itemLoading, 
+    refreshing: itemRefreshing 
+  }: { 
+    item: { year: number, month: number },
+    loading: boolean,
+    refreshing: boolean
+  }) => (
     <ScrollView 
       style={{ width: screenWidth, height: 'auto', paddingBottom: tabBarHeight }}
       showsVerticalScrollIndicator={false}
@@ -188,22 +196,24 @@ const MonthView: React.FC<MonthViewComponentProps> = ({
       maxToRenderPerBatch={10} // Optimize rendering batch size
     >
       <WeekDayNames 
-        refreshing={refreshing}
+        refreshing={itemRefreshing}
       />
       <MonthCalendar
         monthDate={new Date(item.year, item.month, 1)}
-        refreshing={refreshing}
-        loading={loading}
+        refreshing={itemRefreshing}
+        loading={itemLoading}
       />
     </ScrollView>
   ), (prevProps, nextProps) => {
     return prevProps.item.year === nextProps.item.year && 
-           prevProps.item.month === nextProps.item.month;
+           prevProps.item.month === nextProps.item.month &&
+           prevProps.loading === nextProps.loading &&
+           prevProps.refreshing === nextProps.refreshing;
   });
 
   const renderItem = React.useCallback(({ item }: { item: { year: number, month: number } }) => (
-    <MemoizedMonthItem item={item} />
-  ), []);
+    <MemoizedMonthItem item={item} loading={loading} refreshing={refreshing} />
+  ), [loading, refreshing]);
 
   return (
     <View style={{ flex: 1, width: screenWidth }}>

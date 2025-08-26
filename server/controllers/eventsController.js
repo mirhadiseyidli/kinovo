@@ -141,7 +141,8 @@ const createEvent = async (req, res) => {
       capacity,
       recurrence,
       attendees,
-      visibility
+      visibility,
+      calendarSyncEnabled
     } = req.body;
 
     // Validate required fields
@@ -179,7 +180,8 @@ const createEvent = async (req, res) => {
       capacity,
       recurrence,
       attendees: attendeesWithStatus,
-      visibility
+      visibility,
+      calendarSyncEnabled: calendarSyncEnabled || false
     });
 
     // Generate map snapshot if location coordinates are provided

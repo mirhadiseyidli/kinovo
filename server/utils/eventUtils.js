@@ -1196,6 +1196,37 @@ const createSeparateOccurrenceEvent = async (originalEvent, occurrenceDate, modi
 };
 
 /**
+ * Check if a recurring event has any valid (non-excluded) occurrences before a given date
+ * @param {Object} event - Event object with recurrence and excludedDates
+ * @param {Date} beforeDate - Check occurrences before this date
+ * @returns {boolean} True if there are valid occurrences before the date
+ */
+const hasValidOccurrencesBefore = (event, beforeDate) => {
+  if (!event.recurrence?.checked) return false;
+  
+  try {
+    const rrule = new RRule({
+      freq: getFrequencyMapping(event.recurrence.frequency),
+      dtstart: new Date(event.start_time),
+      until: new Date(beforeDate.getTime() - 1) // Day before
+    });
+    
+    const allOccurrences = rrule.all();
+    const excludedDateStrings = (event.excludedDates || []).map(date => 
+      new Date(date).toDateString()
+    );
+    
+    // Check if any occurrence is not in excludedDates
+    return allOccurrences.some(occurrence => 
+      !excludedDateStrings.includes(occurrence.toDateString())
+    );
+  } catch (err) {
+    console.warn('hasValidOccurrencesBefore: failed to check occurrences', err);
+    return true; // Default to true to maintain existing behavior
+  }
+};
+
+/**
  * Split recurring event for "this and future" modifications
  * @param {Object} originalEvent - Original recurring event
  * @param {Date} splitDate - Date to split from
@@ -1209,6 +1240,40 @@ const splitRecurringEvent = async (originalEvent, splitDate, modifications = {})
   const firstOccurrence = new Date(originalEvent.start_time);
   if (splitStartDate.getTime() <= firstOccurrence.getTime()) {
     // Cannot split at or before the first occurrence — just return the original event
+    return originalEvent;
+  }
+  
+  // Check if the past portion (before split) has any valid occurrences
+  // If all past occurrences are excluded, we should just modify the original event
+  if (!hasValidOccurrencesBefore(originalEvent, splitStartDate)) {
+    // All past occurrences are excluded, so just modify the original event
+    // Apply modifications directly to the original event
+    if (modifications.title) originalEvent.title = modifications.title;
+    if (modifications.description) originalEvent.description = modifications.description;
+    if (modifications.location) originalEvent.location = modifications.location;
+    if (modifications.capacity !== undefined) originalEvent.capacity = modifications.capacity;
+    if (modifications.visibility) originalEvent.visibility = modifications.visibility;
+    if (modifications.attendees) originalEvent.attendees = modifications.attendees;
+    if (modifications.status) originalEvent.status = modifications.status;
+    
+    // Update start time to the split date and adjust end time accordingly
+    const originalDuration = new Date(originalEvent.end_time) - new Date(originalEvent.start_time);
+    originalEvent.start_time = splitStartDate;
+    originalEvent.end_time = modifications.end_time 
+      ? new Date(modifications.end_time)
+      : new Date(splitStartDate.getTime() + originalDuration);
+    
+    // Update recurrence if provided
+    if (modifications.recurrence) {
+      originalEvent.recurrence = modifications.recurrence;
+    }
+    
+    // Clear excluded dates that are before the new start time
+    originalEvent.excludedDates = (originalEvent.excludedDates || []).filter(date => 
+      new Date(date) >= splitStartDate
+    );
+    
+    await originalEvent.save();
     return originalEvent;
   }
   
@@ -2635,6 +2700,7 @@ module.exports = {
   getUserAttendanceStatus, // reviewed
   createSeparateOccurrenceEvent, // reviewed
   splitRecurringEvent, // reviewed
+  hasValidOccurrencesBefore,
   synchronizeUserEventList, // reviewed
   removeUserFromEvent, // reviewed
   synchronizeAttendeesWithNewEvent, // reviewed

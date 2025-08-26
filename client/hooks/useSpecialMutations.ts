@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { removeEventFromCache, updateEventInCache } from '@/utils/eventCache';
 import { Event } from '@/types/allTypes';
 import api from '@/utils/api';
+import { useCalendarSync } from './useCalendarSync';
 
 // Helper function to handle event response data consistently
 const handleEventResponse = (responseData: any, userId?: string) => {
@@ -80,6 +81,7 @@ export const useNotInterestedEvent = () => {
 // Cancel Event Mutation (Backend only returns success)
 export const useCancelEvent = () => {
   const queryClient = useQueryClient();
+  const { deleteEventFromCalendar } = useCalendarSync();
   
   return useMutation({
     mutationFn: async ({ eventId, occurrenceDate, modifyType }: {
@@ -87,12 +89,31 @@ export const useCancelEvent = () => {
       occurrenceDate?: string;
       modifyType?: string;
     }) => {
+      // Get event data first to check if it's synced to calendar
+      let eventToCancel: Event | null = null;
+      try {
+        const eventResponse = await api.get(`/api/manageevents/eventslist/event/get/event/by/id?_id=${eventId}`);
+        // Handle both response formats: {event: ...} or {events: [...]}
+        eventToCancel = eventResponse.data.event || eventResponse.data.events?.[0];
+      } catch (error) {
+        console.log('Could not fetch event before cancellation:', error);
+      }
+      
       const response = await api.post(`/api/manageevents/eventslist/cancel/event`, {
         eventId, occurrenceDate, modifyType
       });
-      return response.data; // Returns { success: true, message: "..." } ONLY
+      return { ...response.data, originalEvent: eventToCancel }; // Include event data for calendar sync
     },
-    onSuccess: (_, { eventId }) => {
+    onSuccess: async (responseData, { eventId }) => {
+      // Remove from calendar if it was synced
+      if (responseData.originalEvent && responseData.originalEvent.iosCalendarEventId) {
+        try {
+          await deleteEventFromCalendar(responseData.originalEvent);
+        } catch (error) {
+          console.error('Failed to delete event from calendar:', error);
+        }
+      }
+      
       // No event data returned - must remove/invalidate
       removeEventFromCache(eventId);
       // Also invalidate calendar queries

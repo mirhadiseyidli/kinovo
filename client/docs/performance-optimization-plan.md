@@ -235,7 +235,6 @@ const getItemType = useCallback((item: Event) => {
   data={events}
   renderItem={renderEvent}
   getItemType={getItemType}
-  estimatedItemSize={120}
   removeClippedSubviews={true}
   maxToRenderPerBatch={5}
   windowSize={10}
@@ -444,7 +443,6 @@ const OptimizedList = ({ data }) => {
       data={data}
       renderItem={renderItem}
       getItemType={getItemType}
-      estimatedItemSize={100}
       removeClippedSubviews={true}
     />
   );

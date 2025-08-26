@@ -26,7 +26,8 @@ const MapViewModal = ({
           { translateY: isVisible ? 0 : -150 },
           { scaleY: isVisible ? 1 : 0 }
         ],
-        transitionProperty: ['opacity', 'transform', 'height'],
+        marginTop: isVisible ? 16 : 0,
+        transitionProperty: ['opacity', 'transform', 'height', 'marginTop'],
         transitionDuration: '300ms',
         transitionTimingFunction: 'ease-in-out',
         pointerEvents: isVisible ? 'auto' : 'none',
@@ -46,7 +47,7 @@ const MapViewModal = ({
           lazy={true}
           loadDelay={300}
           fallbackToInteractive={true}
-          style={{ borderRadius: 8, marginTop: 16 }}
+          style={{ borderRadius: 8 }}
         />
       ) : (
         <View

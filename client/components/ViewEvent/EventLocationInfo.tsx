@@ -9,6 +9,7 @@ import MapViewModal from '../MapViewModal';
 import OpenMapsAndNavigateButton from '../OpenMapsAndNavigateButton';
 import { WeatherDisplay } from './EventLocationWeather';
 import StaticMapView from '../StaticMapView';
+import { truncateName } from '@/utils/truncateName';
 
 const EventLocationInfo: React.FC<EventLocationInfoProps> = React.memo(({ location }) => {
   const colorScheme = useColorScheme();
@@ -30,7 +31,7 @@ const EventLocationInfo: React.FC<EventLocationInfoProps> = React.memo(({ locati
         <View style={{ flex: 1, flexDirection: 'row', gap: 12 }} >
           <Feather name="map-pin" size={16} color={themeColors.mountainGreen} />
           <View style={{ flexDirection: 'column', gap: 4 }}>
-            <ThemedText>{location?.text || 'Location TBD'}</ThemedText>
+            <ThemedText>{(location.text && truncateName(location?.text, 36)) || 'Location TBD'}</ThemedText>
             <ThemedText style={{ color: themeColors.placeholderTextColor }}>
               {(location?.city && location?.state)
                 ? `${location.city}, ${location.state}`

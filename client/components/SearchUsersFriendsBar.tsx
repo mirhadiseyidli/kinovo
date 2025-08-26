@@ -73,13 +73,13 @@ const SearchUsersFriendsBar = ({
           backgroundColor: themeColors.inputBackgroundColor,
           borderRadius: 8,
           height: 44,
-          paddingHorizontal: 16,
+          paddingHorizontal: 20,
           paddingVertical: 12,
           position: 'relative',
           overflow: 'visible',
         }}
       >
-        <Feather name="user-plus" size={16} color={themeColors.placeholderTextColor} style={{ marginRight: 10 }} />
+        <Feather name="user-plus" size={18} color={themeColors.placeholderTextColor} style={{ marginRight: 10 }} />
         <TextInput
           ref={inputRef}
           placeholder={placeholder}

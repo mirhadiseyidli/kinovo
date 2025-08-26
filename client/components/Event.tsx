@@ -16,6 +16,7 @@ import DefaultProfilePicture from './DefaultProfilePicture';
 import { useFocusEffect } from '@react-navigation/native';
 import { SkeletonBox } from './Skeleton';
 import { Image } from 'expo-image';
+import { truncateName } from '@/utils/truncateName';
 
 const EventView: React.FC<{ event: Event, loading: boolean }> = React.memo(({ event, loading }) => {
   
@@ -325,7 +326,7 @@ const EventView: React.FC<{ event: Event, loading: boolean }> = React.memo(({ ev
           {/* Event Title */}
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <ThemedText style={titleStyle}>
-              {event?.title}
+              {truncateName(event?.title, 20)}
             </ThemedText>
             {event?.isRecurringOccurrence && (
               <Feather 

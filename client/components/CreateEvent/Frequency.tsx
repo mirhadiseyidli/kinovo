@@ -244,7 +244,7 @@ const Frequency: React.FC<FrequencyProps> = ({ ref, onPickerOpen }) => {
       }}>
         <View>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 16, justifyContent: 'space-between' }}>
-            <Text style={{ fontSize: 16, color: Colors[colorScheme ?? 'dark'].text, marginRight: 8 }}>Repeat</Text>
+            <Text style={{ fontSize: 16, color: themeColors.text, marginRight: 8 }}>Repeat</Text>
             <TouchableOpacity 
               onPress={toggleUnitPicker}
               style={{
@@ -252,7 +252,7 @@ const Frequency: React.FC<FrequencyProps> = ({ ref, onPickerOpen }) => {
                 alignItems: 'center',
               }}
             >
-              <ThemedText style={{ fontSize: 12, fontWeight: 'bold', color: Colors[colorScheme ?? 'dark'].text, marginRight: 8 }}>
+              <ThemedText style={{ fontSize: 12, fontWeight: 'bold', color: themeColors.text, marginRight: 8 }}>
                 {unit}
               </ThemedText>
             </TouchableOpacity>
@@ -270,7 +270,7 @@ const Frequency: React.FC<FrequencyProps> = ({ ref, onPickerOpen }) => {
 
           {/* End Date Picker */}
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-            <Text style={{ fontSize: 16, color: Colors[colorScheme ?? 'dark'].text, marginRight: 8 }}>End on</Text>
+            <Text style={{ fontSize: 16, color: themeColors.text, marginRight: 8 }}>End on</Text>
             <TouchableOpacity 
               onPress={toggleDatePicker}
               style={{
@@ -278,7 +278,7 @@ const Frequency: React.FC<FrequencyProps> = ({ ref, onPickerOpen }) => {
                 alignItems: 'center',
               }}
             >
-              <ThemedText style={{ fontSize: 12, fontWeight: 'bold', color: Colors[colorScheme ?? 'dark'].text, marginRight: 8 }}>
+              <ThemedText style={{ fontSize: 12, fontWeight: 'bold', color: themeColors.text, marginRight: 8 }}>
                 {endDate?.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
               </ThemedText>
             </TouchableOpacity>

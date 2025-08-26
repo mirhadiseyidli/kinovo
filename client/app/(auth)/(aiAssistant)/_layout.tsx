@@ -50,7 +50,7 @@ export default function RootLayout(): ReactNode {
             headerLeft: () => headerLeftComponent,
           }}
         >
-          <Stack.Screen name="AiAssistant"/>
+          <Stack.Screen name="AiAssistant.v2"/>
           <Stack.Screen name="ConversationList" />
         </Stack>
   );

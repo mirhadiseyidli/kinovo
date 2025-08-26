@@ -120,6 +120,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     plugins: [
       'expo-router',
+       "expo-font",
       'react-native-maps',
       'expo-secure-store',
       '@react-native-firebase/app',
