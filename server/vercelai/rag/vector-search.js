@@ -206,25 +206,32 @@ async function getUserContext(userId, query = '', options = {}) {
 
     // Get recent event history if requested
     if (includeEventHistory) {
-      const recentEvents = await searchSimilarEvents(
-        userEmbedding.event_preferences_embedding,
-        {
-          limit: maxEvents,
-          userId,
-          visibility: ['public', 'private', 'selected'],
-          timeRange: {
-            start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
-            end: new Date(),
-          },
-        }
-      );
-      
-      context.recent_events = recentEvents.map(result => ({
-        title: result.event.title,
-        category: result.event.category,
-        date: result.event.start_time,
-        relevance: result.similarity_score,
-      }));
+      // Check if user has valid event preferences embedding
+      if (userEmbedding.event_preferences_embedding && userEmbedding.event_preferences_embedding.length > 0) {
+        const recentEvents = await searchSimilarEvents(
+          userEmbedding.event_preferences_embedding,
+          {
+            limit: maxEvents,
+            userId,
+            visibility: ['public', 'private', 'selected'],
+            timeRange: {
+              start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
+              end: new Date(),
+            },
+          }
+        );
+        
+        context.recent_events = recentEvents.map(result => ({
+          title: result.event.title,
+          category: result.event.category,
+          date: result.event.start_time,
+          relevance: result.similarity_score,
+        }));
+      } else {
+        // If no valid embedding, provide empty recent events
+        console.log(`No valid event_preferences_embedding found for user ${userId}`);
+        context.recent_events = [];
+      }
     }
 
     // Get social context if requested

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { RefreshControl, TouchableOpacity, View } from 'react-native';
-import { FlashList, ListRenderItemInfo } from '@shopify/flash-list';
+import { FlashList, FlashListRef, ListRenderItemInfo } from '@shopify/flash-list';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Header from '@/components/Header';
@@ -74,7 +74,7 @@ const DiscoverScreenV2 = () => {
   const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
-  const flashListRef = useRef<FlashList<SectionItem>>(null);
+  const flashListRef = useRef<FlashListRef<SectionItem>>(null);
   const tabBarHeight = useBottomTabBarHeight();
   const [refreshing, setRefreshing] = useState(false);
   const { fetchDiscoverySearchResults, loading } = useSearchEverythingDiscovery();
@@ -616,7 +616,6 @@ const DiscoverScreenV2 = () => {
         contentContainerStyle={{
           paddingBottom: tabBarHeight + 20,
         }}
-        estimatedItemSize={300}
         removeClippedSubviews={true}
         drawDistance={200}
         onScroll={handleScroll}

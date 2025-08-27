@@ -283,7 +283,6 @@ const CityPageV2: React.FC = () => {
         renderLoadingState={renderLoadingState}
         renderErrorState={renderErrorState}
         ListHeaderComponent={renderListHeader}
-        estimatedItemSize={200}
         onEndReachedThreshold={0.5}
         testID={`city-${city}-infinite-list`}
         containerStyle={{ flex: 1 }}

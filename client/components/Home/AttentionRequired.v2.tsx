@@ -51,6 +51,7 @@ interface AttentionRequiredProps {
   onFinishRefresh: () => void;
   initialEvents?: Event[];
   showHeader?: boolean;
+  isHomeScreen?: boolean;
 }
 
 type EventResponseStatus = 'accepted' | 'maybe' | 'rejected';
@@ -59,7 +60,8 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
   refreshing, 
   onFinishRefresh, 
   initialEvents,
-  showHeader = true 
+  showHeader = true,
+  isHomeScreen = false
 }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
@@ -77,7 +79,7 @@ const AttentionRequired: React.FC<AttentionRequiredProps> = React.memo(({
     isLoading,
     isError,
     refetch,
-  } = useInfiniteAttentionRequiredEvents(initialEvents ? 999 : 3); // Limit to 3 for home screen, all for stack page
+  } = useInfiniteAttentionRequiredEvents(isHomeScreen ? 3 : 999, isHomeScreen); // Limit to 3 for home screen, all for stack page
   
   // Extract events from paginated response
   const eventsData = data?.pages.flatMap(page => page.events) ?? [];

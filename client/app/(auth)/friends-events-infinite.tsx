@@ -402,7 +402,6 @@ const FriendsEventsInfinitePage = () => {
         renderLoadingState={renderLoadingState}
         renderErrorState={renderErrorState}
         ListHeaderComponent={renderListHeader}
-        estimatedItemSize={200}
         onEndReachedThreshold={0.5}
         testID="friends-events-infinite-list"
         containerStyle={{ flex: 1 }}

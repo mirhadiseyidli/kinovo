@@ -6,6 +6,7 @@ export interface HomeErrorState {
   upcomingEvents: boolean;
   attentionRequired: boolean;
   pastEvents: boolean;
+  aiInsights: boolean;
 }
 
 interface HomeErrorMessageProps {
@@ -23,12 +24,15 @@ export const HomeErrorMessage: React.FC<HomeErrorMessageProps> = ({ errors, show
   const getErrorMessage = () => {
     const failedComponents: string[] = [];
     
-    if (errors.upcomingEvents) failedComponents.push('upcoming events');
-    if (errors.attentionRequired) failedComponents.push('attention required');
-    if (errors.pastEvents) failedComponents.push('past events');
+    if (errors.upcomingEvents) failedComponents.push('Upcoming Events');
+    if (errors.attentionRequired) failedComponents.push('Attention Required');
+    if (errors.pastEvents) failedComponents.push('Past Events');
+    if (errors.aiInsights) failedComponents.push('AI Insights');
 
-    if (errorCount === 3) {
+    if (errorCount === 4) {
       return 'Unable to load all data';
+    } else if (errorCount === 3) {
+      return `Unable to load ${failedComponents.slice(0, -1).join(', ')} and ${failedComponents[failedComponents.length - 1]}`;
     } else if (errorCount === 2) {
       return `Unable to load ${failedComponents.join(' and ')}`;
     } else {

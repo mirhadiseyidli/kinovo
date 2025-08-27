@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback } from 'react';
-import { Dimensions, Alert } from 'react-native';
+import { Dimensions, Alert, TouchableOpacity } from 'react-native';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -11,6 +11,7 @@ import { CreateEventProvider, useCreateEventContext } from '@/context/CreateEven
 import { useNavigation, useRouter } from 'expo-router';
 import { useSharedValue } from 'react-native-reanimated';
 import { CreateEventScrollContext } from '@/context/CreateEventScrollContext';
+import { Ionicons } from '@expo/vector-icons';
 
 const Tab = createMaterialTopTabNavigator();
 
@@ -82,8 +83,16 @@ function TabsNavigator() {
   useEffect(() => {
     navigation.setOptions({
       title: isEditMode ? 'Edit Event' : 'Create Event',
+      headerLeft: () => (
+        <TouchableOpacity
+          onPress={handleDismiss}
+          style={{ alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Ionicons name="close" size={24} color={themeColors.text} />
+        </TouchableOpacity>
+      ),
     });
-  }, [isEditMode, navigation]);
+  }, [isEditMode, navigation, handleDismiss, themeColors.text]);
 
   return (
     <CreateEventScrollContext.Provider value={{

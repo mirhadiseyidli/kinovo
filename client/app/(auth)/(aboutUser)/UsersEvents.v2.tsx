@@ -301,7 +301,6 @@ export default React.memo(function UserEvents({ userId, route, refreshing }: Use
       <TabFlashList
         index={route?.index || 0}
         data={eventsList}
-        estimatedItemSize={200}
         renderItem={renderItem}
         ListEmptyComponent={ListEmptyComponent}
         ListHeaderComponent={ListHeaderComponent}

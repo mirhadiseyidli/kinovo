@@ -23,6 +23,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 // Simplified TanStack Query setup - legacy DevTools and persistence removed
 import { queryClient } from '@/utils/queryClient';
 import { Host } from 'react-native-portalize';
+import '@/utils/polyfills';
 
 // Configure how notifications are handled when the app is in the foreground
 Notifications.setNotificationHandler({

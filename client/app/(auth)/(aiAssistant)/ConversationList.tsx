@@ -167,7 +167,7 @@ export default function ConversationList() {
       }
       
       // Navigate to AI assistant
-      router.replace('/(auth)/(aiAssistant)/AiAssistant');
+      router.replace('/(auth)/(aiAssistant)/AiAssistant.v2');
     } catch (error) {
       console.error('Failed to open conversation:', error);
     }
@@ -315,7 +315,7 @@ export default function ConversationList() {
                     flexDirection: 'row',
                     alignItems: 'center',
                   }}
-                  onPress={() => router.push('/(auth)/(aiAssistant)/AiAssistant')}
+                  onPress={() => router.replace('/(auth)/(aiAssistant)/AiAssistant.v2')}
                 >
                   <Feather 
                     name="message-circle" 

@@ -28,7 +28,7 @@ export const requestLocationPermission = async () => {
 
 export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [locationPermission, setLocationPermission] = useState<boolean | null>(null);
-  const [currentLocation, setCurrentLocation] = useState<LocationContextProps['currentLocation']>(null);
+  const [currentLocation, setCurrentLocation] = useState<LocationContextProps['currentLocation']>(DEFAULT_LOCATION);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const locationWatcherRef = useRef<Location.LocationSubscription | null>(null);
@@ -161,7 +161,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   return (
     <LocationContext.Provider value={{ 
       locationPermission,
-      currentLocation: currentLocation || DEFAULT_LOCATION,
+      currentLocation,
       isLoadingLocation,
       locationError,
       refreshLocation,

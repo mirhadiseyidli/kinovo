@@ -823,6 +823,16 @@ export interface Event {
   isFriendEvent: boolean;
   // Flag for recurring event modifications - indicates which event to display
   eventToView?: boolean;
+  // iOS Calendar Sync Fields
+  iosCalendarEventId?: string | null;
+  calendarSyncEnabled?: boolean;
+  lastSyncedAt?: Date | null;
+}
+
+export interface UserCalendarPreferences {
+  calendarSyncEnabled: boolean;
+  defaultCalendarId?: string | null;
+  syncNewEventsByDefault: boolean;
 }
 
 export type EventProp = {
@@ -906,6 +916,7 @@ export interface CreateEventContextType {
     status?: 'pending' | 'maybe' | 'accepted' | 'rejected';
   }[];
   visibility: string;
+  calendarSyncEnabled: boolean;
   isEditMode: boolean;
   eventId: string | null;
   originalRecurrenceChecked: boolean;
@@ -923,11 +934,12 @@ export interface CreateEventContextType {
   settingEventCapacity: (value: number | null) => void;
   settingEventDescription: (description: string | null) => void;
   settingEventEndTime: (date: Date | null) => void;
-  settingEventLocation: (location: { text: string | null; city: string | null; state: string | null; coordinates: { lat: number | null; lng: number | null }; mapSnapshotUrl?: string | null }) => void;
+  settingEventLocation: (location: { text: string | null; city: string | null; state: string | null; coordinates: { lat: number | null; lng: number | null }; mapSnapshotUrl?: { light: string | null; dark: string | null } | null }) => void;
   settingEventRecurrence: (data: { checked: boolean; frequency: string | null; end_date: Date | null }) => void;
   settingEventStartTime: (date: Date | null) => void;
   settingEventVisibility: (value: string) => void;
   settingEventCategory: (category: string | null) => void;
+  settingCalendarSyncEnabled: (value: boolean) => void;
   
   // Actions
   compileEventData: () => Partial<Event>;
@@ -1146,4 +1158,39 @@ export interface CustomJwtPayload extends JwtPayload {
   _id: string;
   email: string;
   username: string;
+}
+
+export interface AiMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+  // Structured data attachments
+  event?: any;
+  events?: any[]; // Support multiple events
+  weather?: any;
+  traffic?: any;
+  followUpSuggestions?: string[];
+  isStreaming?: boolean;
+}
+
+export interface AiConversation {
+  _id: string;
+  conversationId: string;
+  title: string;
+  messages: AiMessage[];
+  messageCount: number;
+  lastMessageAt: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AiMessageBubbleProps {
+  message: AiMessage;
+  colorScheme: 'light' | 'dark';
+  isLoading?: boolean;
+  aiResponse?: any;
+  lastUserMessage?: string;
+  onLayout?: (event: any) => void;
 }

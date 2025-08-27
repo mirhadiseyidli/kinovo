@@ -3,6 +3,7 @@ import { updateEventInCache, removeEventFromCache, addEventToCache } from '@/uti
 import { Event } from '@/types/allTypes';
 import api from '@/utils/api';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
+import { useCalendarSync } from './useCalendarSync';
 
 // Helper function to handle event response data consistently
 const handleEventResponse = (responseData: any, userId?: string) => {
@@ -54,6 +55,7 @@ interface UpdateEventData extends Partial<Event> {
 // Create Event Mutation (Backend returns created event)
 export const useCreateEvent = () => {
   const { userId } = useAuthSession();
+  const { syncEventToCalendar } = useCalendarSync();
   
   return useMutation({
     mutationFn: async (eventData: CreateEventData) => {
@@ -74,15 +76,25 @@ export const useCreateEvent = () => {
       const response = await api.post('/api/manageevents/eventslist/create/new/event', cleanedData);
       return response.data; // Returns { event: Event, success: true, message: "..." }
     },
-    onSuccess: (responseData) => {
+    onSuccess: async (responseData) => {
       // Handle new events array format
       if (responseData.events && Array.isArray(responseData.events) && responseData.events.length > 0) {
-        responseData.events.forEach((event: Event) => {
+        for (const event of responseData.events) {
           addEventToCache(event, userId);
-        });
+          
+          // Sync to calendar if enabled
+          if (event.calendarSyncEnabled) {
+            await syncEventToCalendar(event);
+          }
+        }
       } else if (responseData.event) {
         // Legacy single event format
         addEventToCache(responseData.event, userId);
+        
+        // Sync to calendar if enabled
+        if (responseData.event.calendarSyncEnabled) {
+          await syncEventToCalendar(responseData.event);
+        }
       }
     },
     networkMode: 'offlineFirst',
@@ -92,6 +104,7 @@ export const useCreateEvent = () => {
 // Update Event Mutation (Backend returns updated event)
 export const useUpdateEvent = () => {
   const { userId } = useAuthSession();
+  const { syncEventToCalendar } = useCalendarSync();
   
   return useMutation({
     mutationFn: async ({ eventId, occurrenceDate, modifyType, ...updates }: UpdateEventData) => {
@@ -118,9 +131,20 @@ export const useUpdateEvent = () => {
       const response = await api.put(`/api/manageevents/eventslist/update/${eventId}`, cleanedData);
       return response.data; // Returns { event: Event, success: true, message: "..." }
     },
-    onSuccess: (responseData) => {
+    onSuccess: async (responseData) => {
       // Handle both new events array format and legacy single event format
       handleEventResponse(responseData, userId);
+      
+      // Sync updated events to calendar
+      if (responseData.events && Array.isArray(responseData.events)) {
+        for (const event of responseData.events) {
+          if (event.calendarSyncEnabled) {
+            await syncEventToCalendar(event);
+          }
+        }
+      } else if (responseData.event && responseData.event.calendarSyncEnabled) {
+        await syncEventToCalendar(responseData.event);
+      }
     },
     networkMode: 'offlineFirst',
   });
@@ -128,13 +152,33 @@ export const useUpdateEvent = () => {
 
 // Delete Event Mutation (Uses cancel endpoint - Backend only returns success)
 export const useDeleteEvent = () => {
+  const { deleteEventFromCalendar } = useCalendarSync();
+  
   return useMutation({
     mutationFn: async (eventId: string) => {
+      // Get event data first to check if it's synced to calendar
+      let eventToDelete: Event | null = null;
+      try {
+        const eventResponse = await api.get(`/api/manageevents/eventslist/event/get/event/by/id?_id=${eventId}`);
+        eventToDelete = eventResponse.data.event;
+      } catch (error) {
+        console.log('Could not fetch event before deletion:', error);
+      }
+      
       // Using cancel endpoint since delete doesn't exist - cancels the event
       const response = await api.post(`/api/manageevents/eventslist/cancel/event`, { eventId });
-      return { ...response.data, deletedEventId: eventId };
+      return { ...response.data, deletedEventId: eventId, originalEvent: eventToDelete };
     },
-    onSuccess: (_, eventId) => {
+    onSuccess: async (responseData, eventId) => {
+      // Remove from calendar if it was synced
+      if (responseData.originalEvent && responseData.originalEvent.iosCalendarEventId) {
+        try {
+          await deleteEventFromCalendar(responseData.originalEvent);
+        } catch (error) {
+          console.error('Failed to delete event from calendar:', error);
+        }
+      }
+      
       // No event data returned - remove from cache
       removeEventFromCache(eventId);
     },

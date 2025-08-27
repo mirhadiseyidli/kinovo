@@ -22,6 +22,8 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { Feather } from '@expo/vector-icons';
 import { useCalendarError } from '@/context/CalendarErrorContext';
 import { CalendarErrorMessage } from './CalendarErrorMessage';
+import { SyncStatusIndicator } from './SyncStatusIndicator';
+import { useCalendarSync } from '@/hooks/useCalendarSync';
 
 interface CalendarHeaderProps {
   refreshing: boolean;
@@ -34,6 +36,7 @@ const CalendarHeaderMonthView: React.FC<CalendarHeaderProps> = ({ refreshing, on
   const { view, setView } = useCalendarViewContext();
   const { currentDate, setCurrentDate, navigateToToday } = useCalendarContext();
   const { errors, hasAnyError } = useCalendarError();
+  const { syncEnabled, syncing, lastSyncError } = useCalendarSync();
   const [monthListOpen, setMonthListOpen] = useState(false);
   const screenWidth = Dimensions.get('window').width;
   const CELL_SIZE = screenWidth / 7;
@@ -225,9 +228,8 @@ const CalendarHeaderMonthView: React.FC<CalendarHeaderProps> = ({ refreshing, on
 
   const monthSmallViewStyle = useAnimatedStyle(() => {
     return {
-      height: withSpring(showSmallView.value * wrapperHeightValue.value, {
-        damping: 20,
-        stiffness: 300,
+      height: withTiming(showSmallView.value * wrapperHeightValue.value, {
+        duration: 200,
       }),
       opacity: showSmallView.value,
       overflow: 'hidden',
@@ -280,6 +282,16 @@ const CalendarHeaderMonthView: React.FC<CalendarHeaderProps> = ({ refreshing, on
           setMonthListOpen={setMonthListOpen}
         />
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {/* Calendar Sync Status - Only show if sync is enabled */}
+          {syncEnabled && (
+            <SyncStatusIndicator
+              syncing={syncing}
+              synced={syncEnabled && !lastSyncError}
+              error={lastSyncError}
+              compact={true}
+            />
+          )}
+          
           <TouchableOpacity 
             onPress={handleRefresh}
             disabled={refreshing}

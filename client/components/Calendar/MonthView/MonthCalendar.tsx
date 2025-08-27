@@ -35,6 +35,7 @@ const MonthCalendar: React.FC<MonthCalendarComponentProps> = ({ monthDate, refre
     }
     return result;
   }, [calendarDays.length, month, year]); // Use stable dependencies
+  
 
   return (
     <ThemedView style={{ width: '100%', height: cellHeight * 6 }}>
@@ -53,6 +54,7 @@ const MonthCalendar: React.FC<MonthCalendarComponentProps> = ({ monthDate, refre
           <ReanimatedShimmerLine />
         </View>
       )}
+      
       
       {/* Days Overlay */}
       <View style={{ position: 'relative', width: '100%', height: '100%' }}>
