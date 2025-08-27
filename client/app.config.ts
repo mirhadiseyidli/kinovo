@@ -45,7 +45,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       },
       bundleIdentifier: 'com.kinovoapp.kinovo',
       googleServicesFile: plistPath,
+      supportsTablet: false,
       infoPlist: {
+        UISupportedDevices: ['iPhone'],
         UIApplicationSupportsIndirectInputEvents: false,
         CFBundleURLTypes: [
           {
