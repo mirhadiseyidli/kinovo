@@ -209,10 +209,10 @@ const EmailLogin: React.FC<EmailLoginProps> = ({ onLoginSuccess, onLoginStart, o
   return (
     <ThemedView style={{ width: '100%', paddingHorizontal: 16 }}>
       <ThemedView style={{ flex: Platform.OS === 'ios' ? 0.8 : 1, width: '100%', alignItems: 'center', justifyContent: 'center' }}>
-        <ThemedText style={{ fontSize: 24, marginBottom: 8, textAlign: 'center' }}>
+        <ThemedText style={{ fontSize: 18, marginBottom: 8, textAlign: 'center' }} allowFontScaling={false}>
           Welcome Back!
         </ThemedText>
-        <ThemedText style={{ fontSize: 14, color: themeColors.textThird, textAlign: 'center', marginBottom: 32 }}>
+        <ThemedText style={{ fontSize: 14, color: themeColors.textThird, textAlign: 'center', marginBottom: 32 }} allowFontScaling={false}>
           Log into your account
         </ThemedText>
       </ThemedView>
@@ -321,7 +321,7 @@ const EmailLogin: React.FC<EmailLoginProps> = ({ onLoginSuccess, onLoginStart, o
           marginBottom: 8,
         }}
       >
-        <ThemedText style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>
+        <ThemedText style={{ color: 'white', fontSize: 16, fontWeight: '600' }} allowFontScaling={false}>
           {loading ? 'Processing...' : 'Login'}
         </ThemedText>
       </TouchableOpacity>

@@ -710,7 +710,7 @@ const SignUpContent: React.FC = () => {
         keyboardShouldPersistTaps="handled"
         style={{ flex: 1 }}
         contentContainerStyle={{ 
-          flexGrow: 1,
+          flexShrink: 1,
           paddingBottom: insets.bottom,
           paddingHorizontal: 16,
           justifyContent: 'space-between'
@@ -738,18 +738,18 @@ const SignUpContent: React.FC = () => {
                 bottom: 0,
               }}
             />
-            <ThemedText style={{ fontSize: 40, fontFamily: 'Helvetica Neue Bold', fontWeight: 'bold', letterSpacing: -1, alignSelf: 'center' }}>Kinovo</ThemedText>
+            <ThemedText style={{ fontSize: 40, fontFamily: 'Helvetica Neue Bold', fontWeight: 'bold', letterSpacing: -1, alignSelf: 'center' }} allowFontScaling={false}>Kinovo</ThemedText>
           </ThemedView>
 
           {/* Step Indicator */}
           {renderStepIndicator()}
 
           {/* Welcome Text Section */}
-          <ThemedView style={{ marginBottom: 32, alignItems: 'center' }}>
-            <ThemedText style={{ fontSize: 24, marginBottom: 8, textAlign: 'center' }}>
+          <ThemedView style={{ marginBottom: 32, alignItems: 'center', flexShrink: 1, flexWrap: 'nowrap' }}>
+            <ThemedText style={{ fontSize: 24, marginBottom: 8, textAlign: 'center' }} allowFontScaling={false}>
               {getStepTitle()}
             </ThemedText>
-            <ThemedText style={{ fontSize: 14, color: themeColors.textSecondary, textAlign: 'center' }}>
+            <ThemedText style={{ flexShrink: 1, fontSize: 14, color: themeColors.textSecondary, textAlign: 'center' }} adjustsFontSizeToFit={true} numberOfLines={1}>
               {getStepDescription()}
             </ThemedText>
           </ThemedView>
@@ -777,7 +777,7 @@ const SignUpContent: React.FC = () => {
               opacity: loading ? 0.7 : 1,
             }}
           >
-            <ThemedText style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>
+            <ThemedText style={{ color: 'white', fontSize: 16, fontWeight: '600' }} allowFontScaling={false}>
               {loading ? 'Creating Account...' : currentStep === 3 ? 'Create Account' : 'Next'}
             </ThemedText>
           </TouchableOpacity>

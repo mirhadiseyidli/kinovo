@@ -289,7 +289,7 @@ const EventDetailsSection: React.FC<EventProp & {
   }, [isRecurringOccurrence, handleCancelEvent, showModal]);
 
   return (
-    <View style={{ flexDirection: 'column', gap: 16 }}>
+    <View style={{ flex: 1, flexDirection: 'column', gap: 16, flexShrink: 1 }}>
       <EventTitleAndCategory title={event.title} category={event.category}/>
 
       <EventTimeAndDate startLabel={startLabel} endLabel={endLabel} />

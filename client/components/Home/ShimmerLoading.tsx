@@ -169,7 +169,7 @@ export const LoadingState = React.memo<LoadingStateProps>(({
     });
 
     return (
-      <AnimatedText style={[{ fontSize: 16, color: themeColors.text }, charStyle]}>
+      <AnimatedText style={[{ fontSize: 16, color: themeColors.text, flexShrink: 1 }, charStyle]} adjustsFontSizeToFit={true} numberOfLines={1}>
         {char}
       </AnimatedText>
     );
@@ -195,7 +195,7 @@ export const LoadingState = React.memo<LoadingStateProps>(({
         )}
       </Animated.View>
       
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+      <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'nowrap' }}>
         {text.split('').map((char, index) => (
           <CharacterShimmer key={index} char={char} index={index} />
         ))}

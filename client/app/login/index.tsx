@@ -3,7 +3,6 @@ import { View, Image, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollVi
 import EmailLogin from '@/components/Auth/emailPasswordLogin';
 import GoogleOAuth from '@/components/Auth/googleOAuth';
 import AppleOAuth from '@/components/Auth/appleOAuth';
-import FacebookOAuth from '@/components/Auth/facebookOAuth';
 import LoginLoadingOverlay from '@/components/Auth/LoginLoadingOverlay';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { ThemedView } from '@/components/ThemedView';
@@ -66,13 +65,13 @@ export default function Auth() {
     }, [])
   );
 
-  const handleLogin: TokenTypes = async (accessToken, refreshToken, userId, firebaseToken) => {
+  const handleLogin: TokenTypes = async (accessToken, refreshToken, userId) => {
     try {
       handleLoginSuccess();
       // Small delay to show success animation before navigation
       timeoutRef.current = setTimeout(() => {
         if (mountedRef.current) {
-          signIn(accessToken, refreshToken, userId, firebaseToken);
+          signIn(accessToken, refreshToken, userId);
         }
       }, 300);
     } catch (error) {
@@ -84,13 +83,13 @@ export default function Auth() {
   return (
     <KeyboardAvoidingView 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{ flex: 1, paddingTop: insets.top, backgroundColor: themeColors.background }}
+      style={{ flex: 1, paddingTop: insets.top, backgroundColor: themeColors.background, flexShrink: 1 }}
     >
       <ScrollView 
         bounces={false}
         keyboardShouldPersistTaps="handled"
-        style={{ flex: 1 }}
-        contentContainerStyle={{ flexGrow: 1, justifyContent: 'space-between', paddingBottom: insets.bottom }}
+        style={{ flex: 1, flexShrink: 1 }}
+        contentContainerStyle={{ justifyContent: 'space-between', paddingBottom: insets.bottom, flexShrink: 1 }}
         showsVerticalScrollIndicator={false}
         scrollEnabled={true}
       >
@@ -112,7 +111,7 @@ export default function Auth() {
                 bottom: 0,
               }}
             />
-            <ThemedText style={{ fontSize: 40, fontFamily: 'Helvetica Neue Bold', fontWeight: 'bold', letterSpacing: -1, alignSelf: 'center' }}>Kinovo</ThemedText>
+            <ThemedText style={{ fontSize: 40, fontFamily: 'Helvetica Neue Bold', fontWeight: 'bold', letterSpacing: -1, alignSelf: 'center' }} allowFontScaling={false}>Kinovo</ThemedText>
           </ThemedView>
 
           {/* Login Section - Aligned to bottom */}
@@ -130,12 +129,14 @@ export default function Auth() {
             </ThemedView>
 
             {/* Separator */}
-            <ThemedView style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+            <ThemedView style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 16, flexShrink: 1, flexWrap: 'nowrap' }}>
               <ThemedView
                 style={{
                   flex: 1,
                   height: 1,
                   backgroundColor: themeColors.textThird,
+                  flexShrink: 1,
+                  flexWrap: 'nowrap'
                 }}
               />
               <ThemedText
@@ -143,11 +144,14 @@ export default function Auth() {
                   marginHorizontal: 16,
                   color: themeColors.textThird,
                   textAlign: 'center',
+                  flexShrink: 1,
                 }}
+                adjustsFontSizeToFit={true}
+                numberOfLines={1}
               >
                 or continue with
               </ThemedText>
-              <ThemedView style={{ flex: 1, height: 1, backgroundColor: themeColors.textThird }} />
+              <ThemedView style={{ flex: 1, height: 1, backgroundColor: themeColors.textThird, flexShrink: 1, flexWrap: 'nowrap' }} />
             </ThemedView>
 
             {/* OAuth Buttons */}

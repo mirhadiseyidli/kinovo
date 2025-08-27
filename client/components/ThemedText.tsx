@@ -13,9 +13,11 @@ export function ThemedText({
   return (
     <Text
       style={[
-        { color }, // Apply the color dynamically
+        { color, flexShrink: 1 }, // Apply the color dynamically
         style,     // Allow additional custom styles
       ]}
+      minimumFontScale={0.75}
+      adjustsFontSizeToFit={true}
       {...rest}
     />
   );

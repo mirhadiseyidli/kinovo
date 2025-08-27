@@ -13,9 +13,9 @@ const EventTimeAndDate: React.FC<EventTimeAndDateProps> = React.memo(({ startLab
   return (
     <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
       <Feather name="clock" size={16} color={themeColors.mountainGreen} style={{ marginTop: 1 }} />
-      <View style={{ flexDirection: 'column', gap: 4 }}>
-        <ThemedText>Start time: {startLabel}</ThemedText>
-        <ThemedText style={{ color: themeColors.placeholderTextColor }}>End time: {endLabel}</ThemedText>
+      <View style={{ flex: 1, flexDirection: 'column', gap: 4, flexShrink: 1, flexWrap: 'nowrap' }}>
+        <ThemedText adjustsFontSizeToFit={true} numberOfLines={1}>Start time: {startLabel}</ThemedText>
+        <ThemedText style={{ color: themeColors.placeholderTextColor }} adjustsFontSizeToFit={true} numberOfLines={1}>End time: {endLabel}</ThemedText>
       </View>
     </View>
 )});
