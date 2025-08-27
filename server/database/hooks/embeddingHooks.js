@@ -31,7 +31,7 @@ function setupEventEmbeddingHooks(EventsSchema) {
               embeddingData,
               { upsert: true, new: true }
             );
-            console.log(`✅ Event embedding created for ${doc._id}`);
+            // console.log(`✅ Event embedding created for ${doc._id}`);
           }
         } catch (error) {
           console.error(`Failed to generate event embedding for ${doc._id}:`, error.message);
@@ -92,7 +92,7 @@ function setupUserEmbeddingHooks(UsersSchema) {
               embeddingData,
               { upsert: true, new: true }
             );
-            console.log(`✅ User embedding created for ${doc._id}`);
+            // console.log(`✅ User embedding created for ${doc._id}`);
           }
         } catch (error) {
           console.error(`Failed to generate user embedding for ${doc._id}:`, error.message);

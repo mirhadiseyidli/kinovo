@@ -51,7 +51,6 @@ export default function RootLayout(): ReactNode {
           }}
         >
           <Stack.Screen name="AiAssistant.v2"/>
-          <Stack.Screen name="ConversationList" />
         </Stack>
   );
 }

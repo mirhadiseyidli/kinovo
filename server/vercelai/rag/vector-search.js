@@ -229,7 +229,7 @@ async function getUserContext(userId, query = '', options = {}) {
         }));
       } else {
         // If no valid embedding, provide empty recent events
-        console.log(`No valid event_preferences_embedding found for user ${userId}`);
+        // console.log(`No valid event_preferences_embedding found for user ${userId}`);
         context.recent_events = [];
       }
     }

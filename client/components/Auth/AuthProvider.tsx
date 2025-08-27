@@ -2,7 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { router } from "expo-router";
 import { createContext, RefObject, ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import axios, { AxiosError } from 'axios';
+import axios from 'axios';
+import api from '@/utils/api';
 import { View } from 'react-native';
 import { ApiError, AuthContextType, TokenTypes } from '@/types/allTypes';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
@@ -125,21 +126,17 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
 
   const signOut = useCallback(async () => {
     fadeTransition(async () => {
-      // Send offline request BEFORE clearing tokens (if user is logged in)
+      // Send offline request and invalidate APNs token BEFORE clearing tokens (if user is logged in)
       try {
         if (accessTokenRef.current && userId) {
-          await axios.post(
-            `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/push-fetch/presence/offline`,
-            {},
-            {
-              headers: { Authorization: `Bearer ${accessTokenRef.current}` },
-              timeout: 3000 // 3 second timeout for logout
-            }
-          );
+          // Set user offline
+          await api.post('/api/push-fetch/presence/offline', {});
+          
+          // Invalidate APNs token to ensure clean state for next login
+          await api.delete('/api/push-fetch/token');
         }
       } catch (error) {
-        console.warn('Failed to set user offline during logout:', error);
-        // Don't block logout if offline request fails
+        // Don't block logout if requests fail
       }
       
       // Clear all TanStack Query cache (both in-memory and persisted)
@@ -157,6 +154,15 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
       await SecureStore.deleteItemAsync('accessToken');
       await AsyncStorage.removeItem('userId');
       await SecureStore.deleteItemAsync('refreshToken');
+      
+      // Clear APNs token data
+      try {
+        await AsyncStorage.removeItem('@apns_token');
+        await AsyncStorage.removeItem('@apns_token_sent');
+      } catch (error) {
+        // Silent fail
+      }
+      
       accessTokenRef.current = null;
       refreshTokenRef.current = null;
       setUserId(undefined);

@@ -38,7 +38,7 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
   // Memoize title style based on user status
   const titleStyle = useMemo(() => {
     const baseStyle = { 
-      color: themeColors.text, 
+      color: 'white', 
       marginBottom: 10,
       fontSize: 16, 
       fontWeight: '600' as const
@@ -128,8 +128,8 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
 
   // Memoize gradient colors
   const gradientColors = useMemo(() => [
-    'rgba(0,0,0,0.1)', 
-    'rgba(0,0,0,0.6)'
+    themeColors.pastEventGradientOne, 
+    themeColors.pastEventGradientTwo
   ] as const, []);
 
   return (
@@ -159,9 +159,9 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
         <View style={{ flex: 1 }}>
           <Text style={titleStyle}>{title}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-            <Feather name="clock" size={12} color={themeColors.textSecondary} />
+            <Feather name="clock" size={12} color={'white'} />
             <Text style={{ 
-              color: themeColors.textSecondary, 
+              color: 'white', 
               fontSize: 14, 
               marginLeft: 6,
               opacity: userStatus === 'rejected' ? 0.7 : 1
@@ -171,9 +171,9 @@ const ScheduleEventView: React.FC<ScheduleEventViewProps> = ({
           </View>
           {location && (
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-              <Feather name="map-pin" size={12} color={themeColors.textSecondary} />
+              <Feather name="map-pin" size={12} color={'white'} />
               <Text style={{ 
-                color: themeColors.textThird, 
+                color: 'white', 
                 fontSize: 14, 
                 marginLeft: 6,
                 opacity: userStatus === 'rejected' ? 0.7 : 1

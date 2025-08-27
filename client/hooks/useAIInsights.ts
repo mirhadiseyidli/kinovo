@@ -127,7 +127,12 @@ export const useAIInsights = (options: UseAIInsightsOptions = {}) => {
   // Function to refresh with cache invalidation
   const refreshWithCacheInvalidation = useCallback(async () => {
     try {
-      // Manually fetch with cache invalidation and update the query cache
+      // Invalidate the existing cache first to ensure fresh data
+      await queryClient.invalidateQueries({
+        queryKey: ['ai-insights', userId, currentLocation?.lat, currentLocation?.lng],
+      });
+      
+      // Manually fetch with cache invalidation
       const freshData = await fetchAIInsights(currentLocation, true);
       
       // Update the query cache with the fresh data

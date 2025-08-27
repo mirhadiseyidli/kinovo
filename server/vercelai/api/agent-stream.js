@@ -204,7 +204,6 @@ Conversation ID: ${conversationId || 'N/A'}`;
     );
 
     // ── Stream text (token by token) + structured object + tool deltas ────────
-    console.log('🚀 Starting streamText...');
     const result = streamText({
       model: chatModel,
       system: contextualSystemPrompt,

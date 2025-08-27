@@ -2,6 +2,7 @@ const express = require('express');
 const { authMiddleware } = require('../utils/authMiddleware');
 const {
     registerDeviceToken,
+    invalidateDeviceToken,
     fetchNotifications,
     fetchFriendRequests,
     // fetchPresence, // DISABLED: Friend presence tracking
@@ -14,6 +15,9 @@ const router = express.Router();
 
 // Register/update APNs device token
 router.post('/token', authMiddleware, registerDeviceToken);
+
+// Invalidate device token on logout
+router.delete('/token', authMiddleware, invalidateDeviceToken);
 
 // Fetch endpoints (triggered by push notifications)
 router.get('/notifications', authMiddleware, fetchNotifications);

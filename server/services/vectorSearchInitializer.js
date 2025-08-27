@@ -19,13 +19,13 @@ async function initializeVectorSearch(options = {}) {
   const { autoIndex = false } = options;
   
   try {
-    console.log('🔍 Initializing Vector Search capabilities...');
+    // console.log('🔍 Initializing Vector Search capabilities...');
     
     // Check if we're in Atlas environment
     const isAtlasEnvironment = process.env.MONGODB_URI?.includes('mongodb+srv://');
     
     if (!isAtlasEnvironment) {
-      console.log('ℹ️  Running in non-Atlas environment. Vector search will use fallback methods.');
+      // console.log('ℹ️  Running in non-Atlas environment. Vector search will use fallback methods.');
       return { 
         initialized: false, 
         reason: 'Non-Atlas environment',
@@ -40,7 +40,7 @@ async function initializeVectorSearch(options = {}) {
     if (autoIndex) {
       const needsIndexing = await needsInitialIndexing();
       if (needsIndexing) {
-        console.log('📊 Initial data indexing needed. Starting background indexing...');
+        // console.log('📊 Initial data indexing needed. Starting background indexing...');
         // Run indexing in background to not block server startup
         indexData({ 
           type: 'all', 
@@ -53,7 +53,7 @@ async function initializeVectorSearch(options = {}) {
       }
     }
     
-    console.log('✅ Vector Search initialized successfully');
+    // console.log('✅ Vector Search initialized successfully');
     return { 
       initialized: true,
       indexes: Object.keys(vectorSearchIndexes)
@@ -61,7 +61,7 @@ async function initializeVectorSearch(options = {}) {
     
   } catch (error) {
     console.error('⚠️  Vector Search initialization warning:', error.message);
-    console.log('ℹ️  Server will continue with fallback search methods');
+    // console.log('ℹ️  Server will continue with fallback search methods');
     
     // Don't throw - allow server to start with fallback search
     return { 
@@ -130,13 +130,13 @@ async function indexData(options = {}) {
     // Choose which indexing method to use
     if (useInitialScript) {
       // Use the simpler generateInitialEmbeddings script
-      if (showProgress) console.log('📚 Using initial embeddings generator...');
+      // if (showProgress) console.log('📚 Using initial embeddings generator...');
       await generateInitialEmbeddings();
     } else {
       // Use the more robust indexDataForVectorSearch script
       // Index with skipConnection=true since we're already connected
       if (type === 'events' || type === 'all') {
-        if (showProgress) console.log('📚 Indexing events...');
+        // if (showProgress) console.log('📚 Indexing events...');
         await indexEvents({ 
           batchSize, 
           skipExisting, 
@@ -145,7 +145,7 @@ async function indexData(options = {}) {
       }
       
       if (type === 'users' || type === 'all') {
-        if (showProgress) console.log('👥 Indexing users...');
+        // if (showProgress) console.log('👥 Indexing users...');
         await indexUsers({ 
           batchSize, 
           skipExisting, 

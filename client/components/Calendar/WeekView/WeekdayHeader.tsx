@@ -25,7 +25,7 @@ const WeekdayHeader: React.FC<WeekdayHeaderProps> = ({ weekDates, themeColors })
         renderItem={({ item: date }) => (
           <TouchableOpacity style={{ width: (screenWidth - 50) / weekDates.length, alignItems: 'center', justifyContent: 'center', backgroundColor: themeColors.background, gap: 4 }}>
             <Text style={{ color: themeColors.text, fontWeight: '600' }}>{format(date, 'EEEEE')}</Text>
-            <Text style={{ color: themeColors.text, fontWeight: '600', backgroundColor: isToday(date) ? themeColors.mountainGreen : themeColors.background, padding: 6, borderRadius: 999 }}>{format(date, 'd')}</Text>
+            <Text style={{ color: isToday(date) ? 'white' : themeColors.text, fontWeight: '600', backgroundColor: isToday(date) ? themeColors.mountainGreen : themeColors.background, padding: 6, borderRadius: 999 }}>{format(date, 'd')}</Text>
           </TouchableOpacity>
         )}
       />

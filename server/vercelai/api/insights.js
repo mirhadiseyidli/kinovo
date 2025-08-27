@@ -161,7 +161,6 @@ async function getUserContext(token, userId, userLat = null, userLng = null) {
       if (userLat && userLng) {
         // Log which location is being used for traffic
         const isDefaultLocation = userLat == 37.7749 && userLng == -122.4194;
-        console.log(`🚗 Traffic origin: ${isDefaultLocation ? 'DEFAULT (San Francisco)' : 'USER LOCATION'} - ${userLat}, ${userLng}`);
         
         // Use user's current location as origin, event location as destination
         trafficPromise = client.request('GET', `/api/google/directions?origin=${userLat},${userLng}&destination=${lat},${lng}&departure_time=${departureTimeUnix}&mode=driving&traffic_model=best_guess`).catch((error) => {

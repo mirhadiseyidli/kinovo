@@ -1,5 +1,5 @@
-import { useEffect, useCallback, useState } from 'react';
-import { Platform, Alert } from 'react-native';
+import { useEffect, useCallback, useState, useRef } from 'react';
+import { Platform, Alert, AppState, AppStateStatus } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import api from '@/utils/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -12,7 +12,10 @@ export const useAPNsTokenManager = () => {
   const [apnsToken, setApnsToken] = useState<string | null>(null);
   const [permissionGranted, setPermissionGranted] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const { userId } = useAuthSession();
+  const { userId, refreshToken } = useAuthSession();
+  const appState = useRef(AppState.currentState);
+  const lastTokenCheck = useRef<Date>(new Date());
+  const isRegistering = useRef<boolean>(false); // Prevent multiple simultaneous registrations
 
   // Request notification permissions
   const requestNotificationPermission = useCallback(async (): Promise<boolean> => {
@@ -65,11 +68,13 @@ export const useAPNsTokenManager = () => {
   }, [getAPNsToken]);
 
   // Send token to server
-  const sendTokenToServer = useCallback(async (token: string, isRetry: boolean = false): Promise<boolean> => {
-    if (!userId || !token) {
+  const sendTokenToServer = useCallback(async (token: string, isRetry: boolean = false, source: string = 'unknown'): Promise<boolean> => {
+    if (!userId || !token || isRegistering.current) {
       return false;
     }
 
+    isRegistering.current = true;
+    
     try {
       await api.post('/api/push-fetch/token', {
         token
@@ -84,12 +89,15 @@ export const useAPNsTokenManager = () => {
         // Get a fresh token
         const newToken = await forceRefreshToken();
         if (newToken && newToken !== token) {
-          // Retry with the new token
+          // Retry with the new token (reset flag first)
+          isRegistering.current = false;
           return sendTokenToServer(newToken, true);
         }
       }
       
       return false;
+    } finally {
+      isRegistering.current = false;
     }
   }, [userId, forceRefreshToken]);
 
@@ -120,9 +128,9 @@ export const useAPNsTokenManager = () => {
         const lastSentToken = await AsyncStorage.getItem(APNS_TOKEN_SENT_KEY);
         
         if (lastSentToken !== token) {
-          await sendTokenToServer(token);
+          await sendTokenToServer(token, false, 'initializeAPNs-new-token');
         } else {
-          await sendTokenToServer(token);
+          await sendTokenToServer(token, false, 'initializeAPNs-existing-token');
         }
       } else {
         console.warn('🔴 APNs: No token received');
@@ -162,7 +170,7 @@ export const useAPNsTokenManager = () => {
     const backgroundSubscription = Notifications.addPushTokenListener((token) => {
       if (token.data) {
         setApnsToken(token.data);
-        sendTokenToServer(token.data);
+        sendTokenToServer(token.data, false, 'push-token-listener');
       }
     });
 
@@ -173,16 +181,131 @@ export const useAPNsTokenManager = () => {
     };
   }, [sendTokenToServer]);
 
-  // Initialize when user is available
+  // Validate and refresh token if needed
+  const validateAndRefreshToken = useCallback(async () => {
+    if (!userId) return;
+    
+    try {
+      // Check if we have a token stored
+      const storedToken = await AsyncStorage.getItem(APNS_TOKEN_KEY);
+      
+      if (!storedToken || !permissionGranted) {
+        // No token or no permission, reinitialize
+        await initializeAPNs();
+        return;
+      }
+      
+      // Check if token is still valid by getting current token
+      const currentToken = await getAPNsToken();
+      
+      if (currentToken && currentToken !== storedToken) {
+        // Token has changed, update it
+        setApnsToken(currentToken);
+        await AsyncStorage.setItem(APNS_TOKEN_KEY, currentToken);
+        await sendTokenToServer(currentToken);
+      } else if (!currentToken && storedToken) {
+        // Lost token somehow, reinitialize
+        await initializeAPNs();
+      }
+    } catch (error) {
+      // Silent fail, will retry on next check
+    }
+  }, [userId, permissionGranted, getAPNsToken]); // Remove dependencies that cause loops
+
+  // Handle app state changes (foreground/background)
   useEffect(() => {
+    if (!userId) return;
+
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+        // App has come to foreground
+        const now = new Date();
+        const timeSinceLastCheck = now.getTime() - lastTokenCheck.current.getTime();
+        
+        // Check token if it's been more than 30 minutes
+        if (timeSinceLastCheck > 30 * 60 * 1000) {
+          validateAndRefreshToken();
+          lastTokenCheck.current = now;
+        }
+      }
+      appState.current = nextAppState;
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    
+    return () => {
+      subscription.remove();
+    };
+  }, [userId, validateAndRefreshToken]);
+
+  // Initialize when user is available or changes (login/logout)
+  useEffect(() => {
+    if (!userId) {
+      // User logged out, reset state
+      setApnsToken(null);
+      setPermissionGranted(false);
+      setIsLoading(false);
+      return;
+    }
+
+    // User logged in or changed, initialize APNs
     initializeAPNs();
-  }, [initializeAPNs]);
+  }, [userId, initializeAPNs]);
+
+  // Handle login token refresh - only when refresh token changes (actual login/logout)
+  useEffect(() => {
+    if (!userId || !refreshToken?.current) {
+      return;
+    }
+    
+    // Only do login refresh when we actually have a refresh token (user just logged in)
+    const timer = setTimeout(async () => {
+      try {
+        const storedToken = await AsyncStorage.getItem(APNS_TOKEN_KEY);
+        
+        if (storedToken) {
+          // Check permission dynamically instead of relying on state
+          const { status } = await Notifications.getPermissionsAsync();
+          const hasPermission = status === 'granted';
+          
+          if (hasPermission) {
+            // Force re-registration of existing token with new user
+            await sendTokenToServer(storedToken, false, 'login-refresh-existing');
+          } else {
+            // Request permission and then register token
+            const hasNewPermission = await requestNotificationPermission();
+            if (hasNewPermission) {
+              await sendTokenToServer(storedToken, false, 'login-refresh-after-permission');
+            }
+          }
+        }
+      } catch (error) {
+        console.error('❌ APNs: Error during login token refresh:', error);
+        // Silent fail, normal initialization will handle it
+      }
+    }, 15000); // 15 second delay to let everything settle
+
+    return () => clearTimeout(timer);
+  }, [refreshToken?.current]); // Depend on refresh token value, not userId
 
   // Setup listeners
   useEffect(() => {
     if (!userId) return;
     return setupNotificationListeners();
   }, [userId, setupNotificationListeners]);
+
+  // Periodic token health check (every hour when app is active)
+  useEffect(() => {
+    if (!userId || !permissionGranted) return;
+
+    const interval = setInterval(() => {
+      if (AppState.currentState === 'active') {
+        validateAndRefreshToken();
+      }
+    }, 60 * 60 * 1000); // Every hour
+
+    return () => clearInterval(interval);
+  }, [userId, permissionGranted, validateAndRefreshToken]);
 
   // Re-request permission if denied
   const requestPermission = useCallback(async () => {
@@ -194,18 +317,39 @@ export const useAPNsTokenManager = () => {
       if (token) {
         setApnsToken(token);
         await AsyncStorage.setItem(APNS_TOKEN_KEY, token);
-        await sendTokenToServer(token);
+        await sendTokenToServer(token, false, 'request-permission');
       }
     }
     
     return hasPermission;
   }, [apnsToken, sendTokenToServer, requestNotificationPermission, getAPNsToken]);
 
+  // Invalidate token on logout
+  const invalidateToken = useCallback(async () => {
+    try {
+      // Call server endpoint to invalidate token
+      await api.delete('/api/push-fetch/token');
+      
+      // Clear local storage
+      await AsyncStorage.removeItem(APNS_TOKEN_KEY);
+      await AsyncStorage.removeItem(APNS_TOKEN_SENT_KEY);
+      
+      // Clear state
+      setApnsToken(null);
+      
+      return true;
+    } catch (error) {
+      // Silent fail - user is logging out anyway
+      return false;
+    }
+  }, []);
+
   return {
     apnsToken,
     permissionGranted,
     isLoading,
     requestPermission,
-    sendTokenToServer
+    sendTokenToServer,
+    invalidateToken
   };
 };

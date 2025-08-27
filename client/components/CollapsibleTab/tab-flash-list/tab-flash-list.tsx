@@ -1,8 +1,6 @@
 import React from "react";
 
-import { FlashList, FlashListProps } from "@shopify/flash-list";
-
-import { useHeaderTabContext } from "../context";
+import { FlashList, FlashListProps, FlashListRef } from "@shopify/flash-list";
 
 import { TabFlashListScrollView } from "./tab-flash-list-scroll-view";
 
@@ -15,14 +13,12 @@ export type TabFlashListProps<T> = Omit<
 
 function TabFlashListComponent<T>(
   props: TabFlashListProps<T>,
-  ref: React.Ref<FlashList<T>>
+  ref: React.Ref<FlashListRef<T>>
 ) {
-  const { scrollViewPaddingTop } = useHeaderTabContext();
   return (
     <FlashList
       {...props}
       renderScrollComponent={TabFlashListScrollView as any}
-      contentContainerStyle={{ paddingTop: scrollViewPaddingTop }}
       ref={ref}
     />
   );
@@ -30,6 +26,6 @@ function TabFlashListComponent<T>(
 
 export const TabFlashList = React.forwardRef(TabFlashListComponent) as <T>(
   props: TabFlashListProps<T> & {
-    ref?: React.Ref<FlashList<T>>;
+    ref?: React.Ref<FlashListRef<T>>;
   }
 ) => React.ReactElement;

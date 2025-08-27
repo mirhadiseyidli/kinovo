@@ -22,7 +22,7 @@ async function processPendingEventEmbeddings() {
       return;
     }
 
-    console.log(`📝 Processing ${pendingUpdates.length} pending event embeddings...`);
+    // console.log(`📝 Processing ${pendingUpdates.length} pending event embeddings...`);
 
     for (const embedding of pendingUpdates) {
       try {
@@ -55,7 +55,7 @@ async function processPendingEventEmbeddings() {
       }
     }
 
-    console.log('✅ Event embeddings update complete');
+    // console.log('✅ Event embeddings update complete');
   } catch (error) {
     console.error('Error processing pending event embeddings:', error);
   }
@@ -75,7 +75,7 @@ async function processPendingUserEmbeddings() {
       return;
     }
 
-    console.log(`📝 Processing ${pendingUpdates.length} pending user embeddings...`);
+    // console.log(`📝 Processing ${pendingUpdates.length} pending user embeddings...`);
 
     for (const embedding of pendingUpdates) {
       try {
@@ -108,7 +108,7 @@ async function processPendingUserEmbeddings() {
       }
     }
 
-    console.log('✅ User embeddings update complete');
+    // console.log('✅ User embeddings update complete');
   } catch (error) {
     console.error('Error processing pending user embeddings:', error);
   }
@@ -121,7 +121,7 @@ async function processPendingUserEmbeddings() {
 function startEmbeddingUpdateCron() {
   // Skip if disabled
   if (process.env.DISABLE_EMBEDDING_CRON === 'true') {
-    console.log('ℹ️  Embedding update cron is disabled');
+    // console.log('ℹ️  Embedding update cron is disabled');
     return;
   }
 
@@ -129,7 +129,7 @@ function startEmbeddingUpdateCron() {
   const schedule = process.env.EMBEDDING_UPDATE_SCHEDULE || '*/30 * * * *';
   
   const task = cron.schedule(schedule, async () => {
-    console.log('🔄 Running embedding update job...');
+    // console.log('🔄 Running embedding update job...');
     
     // Process both events and users in parallel
     await Promise.all([
@@ -139,7 +139,7 @@ function startEmbeddingUpdateCron() {
   });
 
   task.start();
-  console.log(`✅ Embedding update cron started (schedule: ${schedule})`);
+  // console.log(`✅ Embedding update cron started (schedule: ${schedule})`);
   
   return task;
 }

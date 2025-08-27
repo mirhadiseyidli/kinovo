@@ -359,9 +359,6 @@ export const traffic = tool({
       // Get directions
       const result = await client.getDirections(from, to, departure_time);
       
-      // Log the complete Google Maps API response to see what emoji/icon data is available
-      console.log('🗺️ Google Maps API Response:', JSON.stringify(result, null, 2));
-      
       // Generate map snapshot for destination only (matching event schema)
       let mapSnapshotUrl = null;
       if (to?.lat && to?.lng) {
@@ -383,7 +380,6 @@ export const traffic = tool({
             light: mapSnapshotResult.light.cdnUrl,  // Using cdnUrl not url
             dark: mapSnapshotResult.dark.cdnUrl    // Using cdnUrl not url
           };
-          console.log("SDKJHFKJSDHKJGHHJ", mapSnapshotUrl)
         } catch (snapshotError) {
           console.error('Error generating map snapshot for traffic:', snapshotError);
           // Don't fail traffic response if snapshot generation fails

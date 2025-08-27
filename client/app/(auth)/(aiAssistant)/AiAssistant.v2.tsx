@@ -63,17 +63,14 @@ export default function AIAssistant() {
     api: `${process.env.EXPO_PUBLIC_SERVER_BASE_URL}/api/ai/agent/stream`,
     schema: agentResponseSchema,
     fetch: authFetch as unknown as typeof globalThis.fetch,
-    onError: (error) => {
-      console.error('=== useObject ERROR ===');
-      console.error('useObject error:', error);
-    },
+    // onError: (error) => {
+    //   console.error('=== useObject ERROR ===');
+    //   console.error('useObject error:', error);
+    // },
     onFinish: ({ object, error }) => {
-      console.log('=== useObject FINISH ===');
-      console.log('isProcessing during finish:', object);
       if (error) {
         console.error('Type validation failed:', error);
       } else {
-        console.log('Final extracted object:', object);
 
         if (object) {
           setMessages((prev) => {
@@ -129,19 +126,12 @@ export default function AIAssistant() {
         
         setIsWaitingForResponse(false);
         setShouldPushToTop(false);
-        // // Gradually reset dynamic padding after response completes
-        // setTimeout(() => {
-        //   setDynamicPadding(0);
-        // }, 1000);
       }
     },
   });
 
   const handleSubmit = () => {
     if (!input.trim()) return;
-    
-    console.log('🚀 Starting AI request with input:', input);
-    console.log('📊 isProcessing before submit:', isLoading);
     
     const requestData = {
       messages: [{ role: 'user', content: input }],
@@ -151,7 +141,6 @@ export default function AIAssistant() {
     };
     
     submit(requestData);
-    console.log('✅ Submit function called');
   };
 
 //   // Update the streaming message in real-time
@@ -188,7 +177,6 @@ export default function AIAssistant() {
   }, [aiResponse?.message, aiResponse?.events, aiResponse?.weather, aiResponse?.traffic, aiResponse?.followUpSuggestions, isLoading]);
 
   const handleStop = async () => {
-    console.log('🛑 Stopping stream');
     stop();
     setIsWaitingForResponse(false);
     setShouldPushToTop(false);
@@ -312,7 +300,6 @@ export default function AIAssistant() {
   };
 
   const sendMessage = async (text: string) => {
-    console.log('Sending message:', text);
     
     const userMsg: AiMessage = { 
       id: Date.now().toString(), 
@@ -372,7 +359,6 @@ export default function AIAssistant() {
       // Use the AI SDK's submit function
       submit(requestData);
       
-      console.log('✅ Submit initiated successfully');
     } catch (error: any) {
       console.error('Streaming request failed:', error);
       
@@ -491,7 +477,7 @@ export default function AIAssistant() {
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: 'black' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: themeColors.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
         <View style={{ flex: 1 }} {...swipePanResponder.panHandlers}>
           <FlashList
         ref={flatListRef}
@@ -533,7 +519,7 @@ export default function AIAssistant() {
             <Text style={{
               fontSize: 48,
               fontWeight: 'bold',
-              color: 'rgba(255, 255, 255, 0.1)',
+              color: themeColors.kinovoAIText,
               textAlign: 'center',
               letterSpacing: 2,
             }}>
@@ -558,11 +544,11 @@ export default function AIAssistant() {
         paddingHorizontal: 12, 
         paddingTop: 4,
         paddingBottom: !keyboardVisible ? insets.bottom : 16, 
-        backgroundColor: 'black' 
+        backgroundColor: themeColors.background
       }}>
         <View style={{ 
           flex: 1, 
-          backgroundColor: '#1c1c1e', 
+          backgroundColor: themeColors.kinovoAIInput, 
           borderRadius: 24, 
           flexDirection: 'row', 
           alignItems: 'center', 
@@ -570,9 +556,9 @@ export default function AIAssistant() {
           paddingRight: 8 
         }}>
           <TextInput
-            style={{ flex: 1, color: 'white', fontSize: 16, paddingVertical: 12 }}
+            style={{ flex: 1, color: themeColors.text, fontSize: 16, paddingVertical: 12 }}
             placeholder="Ask anything"
-            placeholderTextColor="#8e8e93"
+            placeholderTextColor={themeColors.kinovoAIInputPlaceholder}
             value={input}
             onChangeText={setInput}
             onSubmitEditing={handleSend}

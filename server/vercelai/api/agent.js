@@ -197,13 +197,13 @@ ${userLocation ? `- User is currently in ${userLocation.city}, ${userLocation.st
       temperature: AGENT_CONFIG.temperature,
       maxTokens: AGENT_CONFIG.maxTokens,
       toolChoice: 'auto', // Let the model decide when to use tools
-      onStepFinish: (step) => {
-        // Log tool usage for monitoring
-        if (step.toolCalls && step.toolCalls.length > 0) {
-          console.log(`User ${userContext.userId} called tools:`, 
-            step.toolCalls.map(tc => tc.toolName).join(', '));
-        }
-      },
+      // onStepFinish: (step) => {
+      //   // Log tool usage for monitoring
+      //   if (step.toolCalls && step.toolCalls.length > 0) {
+      //     console.log(`User ${userContext.userId} called tools:`, 
+      //       step.toolCalls.map(tc => tc.toolName).join(', '));
+      //   }
+      // },
     });
 
     // Return the complete response with conversation metadata

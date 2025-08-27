@@ -64,7 +64,7 @@ const DayCell: React.FC<DayCellProps> = ({
           return {
             backgroundColor: themeColors.maybeStatusColor + '50',
             borderColor: themeColors.maybeStatusColor,
-            color: 'white'
+            color: themeColors.text
           };
         case 'pending':
           return {

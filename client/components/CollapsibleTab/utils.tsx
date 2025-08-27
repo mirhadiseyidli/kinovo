@@ -5,13 +5,15 @@ import {
   runOnJS,
   scrollTo,
   withTiming,
-  runOnUI,
+  type AnimatedRef,
 } from "react-native-reanimated";
+import type React from "react";
+import type Animated from "react-native-reanimated";
 
-export function _ScrollTo(ref: never, x: number, y: number, animated: boolean) {
+export function _ScrollTo(ref: AnimatedRef<Animated.ScrollView> | React.RefObject<Animated.ScrollView>, x: number, y: number, animated: boolean) {
   "worklet";
-  if (!ref) return;
-  scrollTo(ref, x, y, animated);
+  if (!ref?.current) return;
+  scrollTo(ref as AnimatedRef<Animated.ScrollView>, x, y, animated);
 }
 
 export const isIOS = Platform.OS === "ios";

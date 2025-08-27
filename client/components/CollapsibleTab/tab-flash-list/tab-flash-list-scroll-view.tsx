@@ -11,7 +11,7 @@ function TabFlashListScrollViewComponent(props: TabScrollViewProps, ref: any) {
   return (
     <SceneComponent
       {...props}
-      useExternalScrollView
+      useExternalScrollView={false}
       forwardedRef={ref}
       ContainerView={Animated.ScrollView}
     />

@@ -26,7 +26,6 @@ export const createAuthFetch = () => {
       // If token expired, try to refresh
       if (response.status === 401) {
         try {
-          console.log('🔄 Token expired, refreshing...');
           
           // Get refresh token
           const refreshToken = await SecureStore.getItemAsync('refreshToken');
@@ -68,8 +67,6 @@ export const createAuthFetch = () => {
             body: body || undefined,
             signal: signal || undefined,
           });
-          
-          console.log('✅ Token refreshed and request retried');
           
         } catch (error: any) {
           console.error('❌ Token refresh error:', error);

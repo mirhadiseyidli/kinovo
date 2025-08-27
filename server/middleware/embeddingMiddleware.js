@@ -32,7 +32,7 @@ async function generateEventEmbeddingAsync(event, isUpdate = false) {
             { upsert: true, new: true }
           );
           
-          console.log(`✅ Event embedding ${isUpdate ? 'updated' : 'created'} for ${event._id}`);
+          // console.log(`✅ Event embedding ${isUpdate ? 'updated' : 'created'} for ${event._id}`);
         }
       } catch (error) {
         console.error(`Failed to generate event embedding:`, error.message);
@@ -68,7 +68,7 @@ async function generateUserEmbeddingAsync(user, isUpdate = false) {
             { upsert: true, new: true }
           );
           
-          console.log(`✅ User embedding ${isUpdate ? 'updated' : 'created'} for ${user._id}`);
+          // console.log(`✅ User embedding ${isUpdate ? 'updated' : 'created'} for ${user._id}`);
         }
       } catch (error) {
         console.error(`Failed to generate user embedding:`, error.message);

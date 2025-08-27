@@ -51,7 +51,7 @@ const TabsLayout = React.memo(() => {
       borderTopColor: themeColors.border,
       paddingTop: 10,
     },
-  }), []);
+  }), [themeColors]);
 
   return (
     <CalendarViewProvider>

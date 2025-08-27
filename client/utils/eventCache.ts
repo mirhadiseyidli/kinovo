@@ -122,7 +122,7 @@ export const updateEventInCache = (updatedEvent: Event, userId?: string) => {
       });
     } else {
       // If event doesn't exist, add it as new
-      console.warn(`Event ${updatedEvent._id} not found in cache, adding as new`);
+      // console.warn(`Event ${updatedEvent._id} not found in cache, adding as new`);
       isNewEvent = true;
       const newEventWithTags: EventWithTags = {
         ...updatedEvent,

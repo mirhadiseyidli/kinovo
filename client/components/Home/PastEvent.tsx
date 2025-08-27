@@ -19,7 +19,6 @@ const PastEvent: React.FC<{ event: Event; loading: boolean }> = React.memo(({ ev
   
   // Early return if event is empty or missing required fields
   if (!event || !event._id || !event.title || !event.start_time || !event.location) {
-    console.log('PastEvent: Invalid event data, skipping render', event);
     return null;
   }
   
@@ -78,7 +77,7 @@ const PastEvent: React.FC<{ event: Event; loading: boolean }> = React.memo(({ ev
       >
         <View style={StyleSheet.absoluteFillObject}>
           <LinearGradient
-            colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.6)']}
+            colors={[themeColors.pastEventGradientOne, themeColors.pastEventGradientTwo]}
             style={{ flex: 1 }}
           />
         </View>
@@ -86,7 +85,7 @@ const PastEvent: React.FC<{ event: Event; loading: boolean }> = React.memo(({ ev
         {/* Title */}
         <View style={{ flexDirection: 'column' }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16, textShadowColor: 'rgba(0, 0, 0, 0.75)', textShadowOffset: {width: -1, height: 1}, textShadowRadius: 10 }}>
+            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>
               {truncateName(event.title || 'Title Error', 20)}
             </Text>
             {/* Category pill */}

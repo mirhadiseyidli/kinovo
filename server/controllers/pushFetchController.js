@@ -17,41 +17,40 @@ const registerDeviceToken = async (req, res) => {
       return res.status(400).json({ error: 'Device token is required' });
     }
 
-    // Check if this exact token exists and is marked as inactive (bad token)
-    const existingInactiveToken = await APNsToken.findOne({ 
-      token, 
-      isActive: false 
-    });
-    
-    if (existingInactiveToken) {
-      // This token was previously marked as bad/invalid
-      // Return 410 to trigger client-side token refresh
-      return res.status(410).json({ 
-        error: 'Token is invalid', 
-        code: 'INVALID_APN_TOKEN',
-        message: 'This token has been marked as invalid. Client should refresh.' 
-      });
-    }
+    // Deactivate any existing entries for this token (from other users)
+    // This handles the case where user switches accounts on same device
+    await APNsToken.updateMany(
+      { token, userId: { $ne: userId } },
+      { isActive: false, updatedAt: new Date() }
+    );
 
-    // Deactivate old tokens for this user (but not the current one)
+    // Deactivate old tokens for this user on other devices
     await APNsToken.updateMany(
       { userId, token: { $ne: token } },
       { isActive: false, updatedAt: new Date() }
     );
 
-    // Create or update the token
-    await APNsToken.findOneAndUpdate(
-      { token },
-      {
-        userId,
-        isActive: true,
-        lastUsed: new Date(),
-        updatedAt: new Date()
-      },
-      { upsert: true, new: true }
-    );
-
-    res.json({ success: true, message: 'Device token registered' });
+    // Create or update the token for this specific user
+    // The compound unique index ensures one entry per user-token pair
+    
+    try {
+      const result = await APNsToken.findOneAndUpdate(
+        { userId, token },  // Match on BOTH userId and token
+        {
+          userId,
+          token,
+          isActive: true,
+          lastUsed: new Date(),
+          updatedAt: new Date()
+        },
+        { upsert: true, new: true }
+      );
+      
+      res.json({ success: true, message: 'Device token registered' });
+    } catch (dbError) {
+      console.error(`❌ APNs: Database operation failed:`, dbError);
+      res.status(500).json({ error: 'Database operation failed', details: dbError.message });
+    }
   } catch (error) {
     console.error('Error registering device token:', error);
     res.status(500).json({ error: 'Failed to register device token' });
@@ -240,6 +239,34 @@ const fetchData = async (req, res) => {
   }
 };
 
+/**
+ * Invalidate device token on logout
+ * This ensures clean token state between user sessions
+ */
+const invalidateDeviceToken = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    
+    // Deactivate all active tokens for this user
+    const result = await APNsToken.updateMany(
+      { userId, isActive: true },
+      { 
+        isActive: false,
+        updatedAt: new Date()
+      }
+    );
+    
+    res.json({ 
+      success: true, 
+      message: 'Device tokens invalidated',
+      count: result.modifiedCount 
+    });
+  } catch (error) {
+    console.error('Error invalidating device tokens:', error);
+    res.status(500).json({ error: 'Failed to invalidate device tokens' });
+  }
+};
+
 module.exports = {
   registerDeviceToken,
   fetchNotifications,
@@ -247,5 +274,6 @@ module.exports = {
   fetchPresence,
   updatePresenceHeartbeat,
   setUserOffline,
-  fetchData
+  fetchData,
+  invalidateDeviceToken
 };

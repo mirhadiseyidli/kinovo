@@ -58,8 +58,6 @@ const runAIHandler = async (handlerPath, req, res, isStreaming = false) => {
         }
       });
       
-      console.log('📤 Starting to stream response to client...');
-      
       // Stream the response body directly
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -69,7 +67,6 @@ const runAIHandler = async (handlerPath, req, res, isStreaming = false) => {
         while (true) {
           const { done, value } = await reader.read();
           if (done) {
-            console.log(`✅ Streaming complete. Total chunks: ${totalChunks}`);
             break;
           }
           
@@ -450,7 +447,6 @@ IMPORTANT: Always include the conversationId "${conversationId || ''}" in your r
     );
 
     // ── Stream text (token by token) + structured object + tool deltas ────────
-    console.log('🚀 Starting streamText...');
     const partialObjectStream = streamText({
       model: chatModel,
       system: contextualSystemPrompt,
@@ -475,10 +471,10 @@ IMPORTANT: Always include the conversationId "${conversationId || ''}" in your r
       // onChunk(chunk) {
       //   console.log('📝 Stream started - first token should appear soon', chunk);
       // },
-      onAbort(shit) {
-        console.log('🔤 Token:', shit);
-        console.log('--------------------------------------')
-      },
+      // onAbort(shit) {
+      //   console.log('🔤 Token:', shit);
+      //   console.log('--------------------------------------')
+      // },
       onFinish(result) {
         // Save conversation if requested
         try {
@@ -502,7 +498,6 @@ IMPORTANT: Always include the conversationId "${conversationId || ''}" in your r
           }
         } catch (error) {
           console.error('Failed to parse result.text:', error);
-          console.log('Raw result.text:', result.text);
         }
       }
     });
@@ -520,13 +515,11 @@ IMPORTANT: Always include the conversationId "${conversationId || ''}" in your r
       for await (const textPart of partialObjectStream.textStream) {
         // Check if the abort signal has been triggered
         if (abortController.signal.aborted) {
-          console.log('🛑 Abort signal detected - stopping stream');
           break;
         }
         
         // Check if the response is still writable
         if (res.writableEnded || res.destroyed) {
-          console.log('🛑 Response no longer writable - stopping stream');
           break;
         }
         

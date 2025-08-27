@@ -10,7 +10,7 @@ const apnsTokenSchema = new mongoose.Schema({
   token: {
     type: String,
     required: true,
-    unique: true
+    index: true  // Changed from unique to regular index
   },
   isActive: {
     type: Boolean,
@@ -30,8 +30,11 @@ const apnsTokenSchema = new mongoose.Schema({
   }
 });
 
+// Compound unique index: each user-token pair must be unique
+apnsTokenSchema.index({ userId: 1, token: 1 }, { unique: true });
 // Index for efficient queries
 apnsTokenSchema.index({ userId: 1, isActive: 1 });
+apnsTokenSchema.index({ token: 1, isActive: 1 });
 apnsTokenSchema.index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 90 }); // Auto-delete after 90 days
 
 // Update the updatedAt field on save
@@ -56,7 +59,9 @@ apnsTokenSchema.statics.findActiveTokensByUserIds = function(userIds) {
 };
 
 apnsTokenSchema.statics.deactivateToken = function(token) {
-  return this.updateOne({ token }, { isActive: false, updatedAt: new Date() });
+  // Deactivate ALL entries for this token (across all users)
+  // This is called when APNs reports a token as invalid
+  return this.updateMany({ token }, { isActive: false, updatedAt: new Date() });
 };
 
 apnsTokenSchema.statics.cleanupOldTokens = function() {

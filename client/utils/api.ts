@@ -389,7 +389,8 @@ api.interceptors.response.use(
       '/api/auth/signup',
       '/api/auth/verify-login',
       '/api/auth/get-phone',
-      '/api/users/user/bypass-two-factor-auth'
+      '/api/users/user/bypass-two-factor-auth',
+      '/api/push-fetch/token'  // Don't retry APNs token registration
     ];
     
     if (skipRetryUrls.some(url => originalRequest.url?.includes(url))) {
@@ -452,6 +453,13 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
+        // Quick check if refresh token still exists before attempting refresh
+        const refreshTokenCheck = await SecureStore.getItemAsync('refreshToken');
+        if (!refreshTokenCheck) {
+          // User has been logged out, don't attempt refresh
+          throw createTypedError('auth', 'User logged out', 401);
+        }
+        
         const newAccessToken = await refreshAccessToken();
         
         // Update the original request with new token

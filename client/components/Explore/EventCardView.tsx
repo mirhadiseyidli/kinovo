@@ -18,6 +18,7 @@ const EventCardView: React.FC<SuggestedEventProps> = ({
 }) => {
   const screenWidth = Dimensions.get('window').width;
   const colorScheme = useColorScheme();
+  const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
 
   const backgroundColor =
@@ -96,7 +97,7 @@ const EventCardView: React.FC<SuggestedEventProps> = ({
       >
         <View style={StyleSheet.absoluteFillObject}>
           <LinearGradient
-            colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.6)']}
+            colors={[themeColors.pastEventGradientOne, themeColors.pastEventGradientTwo]}
             style={{ flex: 1 }}
           />
         </View>

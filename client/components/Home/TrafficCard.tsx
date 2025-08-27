@@ -106,7 +106,7 @@ export const TrafficCard: React.FC<TrafficCardProps> = ({ traffic, mapImage, coo
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.3)',
+        backgroundColor: 'rgba(0,0,0,0.2)',
         borderRadius: 16,
       }} />
       
@@ -117,7 +117,7 @@ export const TrafficCard: React.FC<TrafficCardProps> = ({ traffic, mapImage, coo
             fontSize: 18, 
             fontWeight: '700', 
             color: '#ffffff',
-            textShadowColor: 'rgba(0,0,0,0.8)',
+            textShadowColor: 'rgba(0,0,0,0.5)',
             textShadowOffset: { width: 0, height: 1 },
             textShadowRadius: 3,
           }}>
@@ -128,15 +128,16 @@ export const TrafficCard: React.FC<TrafficCardProps> = ({ traffic, mapImage, coo
           <ThemedText style={{ 
             fontSize: 13, 
             fontWeight: '600',
-            textShadowColor: 'rgba(0,0,0,0.8)',
+            textShadowColor: 'rgba(0,0,0,0.5)',
             textShadowOffset: { width: 0, height: 1 },
             textShadowRadius: 3,
+            color: '#ffffff'
           }}>
             {traffic.condition}
           </ThemedText>
           <ThemedText style={{ 
             fontSize: 11, 
-            color: themeColors.textSecondary,
+            color: 'rgba(255,255,255,0.9)',
             marginTop: 2,
             textShadowColor: 'rgba(0,0,0,0.8)',
             textShadowOffset: { width: 0, height: 1 },

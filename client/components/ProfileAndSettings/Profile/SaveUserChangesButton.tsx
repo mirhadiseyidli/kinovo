@@ -31,8 +31,8 @@ const SaveUserChangesButton = ({ isLoading, onPress }: SaveUserChangesButtonProp
           <ActivityIndicator size={24} color={themeColors.text} />
         ) : (
           <>
-            <Feather name='save' size={24} style={{ color: themeColors.text, marginRight: 8 }} />
-            <ThemedText style={{ fontSize: 16, color: themeColors.text, fontWeight: 'bold' }}>Save</ThemedText>
+            <Feather name='save' size={24} style={{ color: 'white', marginRight: 8 }} />
+            <ThemedText style={{ fontSize: 16, color: 'white', fontWeight: 'bold' }}>Save</ThemedText>
           </>
         )}
       </TouchableOpacity>

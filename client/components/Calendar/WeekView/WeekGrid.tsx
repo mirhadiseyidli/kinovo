@@ -120,7 +120,7 @@ const WeekGrid: React.FC<WeekGridProps> = ({ hours, weekDates, gridRef, loading,
       borderWidth = 1;
       textStyle = {
         ...textStyle,
-        color: 'white',
+        color: themeColors.text,
       };
     } else if (userStatus === 'pending') {
       backgroundColor = themeColors.background;

@@ -1282,7 +1282,7 @@ const inviteEventAttendees = async (req, res) => {
       response: { message: 'Server error' }
     };
   }
-  console.log('this shit', result.response)
+  
   return res.status(result.statusCode).json(result.response);
 };
 

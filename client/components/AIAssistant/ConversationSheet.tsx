@@ -144,7 +144,7 @@ export const ConversationSheet: React.FC<ConversationSheetProps> = ({
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'black',
+            backgroundColor: themeColors.eventCardBackgroundColor,
             zIndex: 999,
           },
           backdropStyle,
@@ -204,8 +204,8 @@ export const ConversationSheet: React.FC<ConversationSheetProps> = ({
                   key={conversation.conversationId}
                   style={{
                     backgroundColor: currentConversationId === conversation.conversationId 
-                      ? 'rgba(255, 255, 255, 0.1)' 
-                      : 'rgba(255, 255, 255, 0.05)',
+                      ? themeColors.kinovoConversationActive 
+                      : themeColors.kinovoConversationInactive,
                     borderRadius: 12,
                     padding: 16,
                     marginBottom: 8,

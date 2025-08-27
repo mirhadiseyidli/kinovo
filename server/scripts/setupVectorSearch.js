@@ -234,52 +234,52 @@ async function testVectorSearch(skipConnection = false) {
     const eventCount = await EventEmbeddings.countDocuments();
     const userCount = await UserEmbeddings.countDocuments();
 
-    if (eventCount === 0) {
-      console.log('⚠️  No event embeddings found. You may need to run the indexing script first.');
-    }
+//     if (eventCount === 0) {
+//       console.log('⚠️  No event embeddings found. You may need to run the indexing script first.');
+//     }
 
-    if (userCount === 0) {
-      console.log('⚠️  No user embeddings found. You may need to run the indexing script first.');
-    }
+//     if (userCount === 0) {
+//       console.log('⚠️  No user embeddings found. You may need to run the indexing script first.');
+//     }
 
-    // Test basic aggregation (will work once indexes are created)
-    console.log('\\n📝 Example Vector Search Query:');
-    console.log(`
-const pipeline = [
-  {
-    $vectorSearch: {
-      index: 'event_vector_search',
-      path: 'combined_embedding',
-      queryVector: [/* your query embedding array */],
-      numCandidates: 150,
-      limit: 10,
-      filter: {
-        'metadata.visibility': 'public',
-        'metadata.start_time': { $gte: new Date() }
-      }
-    }
-  },
-  {
-    $lookup: {
-      from: 'events',
-      localField: 'event',
-      foreignField: '_id',
-      as: 'event_details'
-    }
-  },
-  {
-    $project: {
-      event_details: 1,
-      searchable_content: 1,
-      score: { $meta: 'vectorSearchScore' }
-    }
-  }
-];
+//     // Test basic aggregation (will work once indexes are created)
+//     console.log('\\n📝 Example Vector Search Query:');
+//     console.log(`
+// const pipeline = [
+//   {
+//     $vectorSearch: {
+//       index: 'event_vector_search',
+//       path: 'combined_embedding',
+//       queryVector: [/* your query embedding array */],
+//       numCandidates: 150,
+//       limit: 10,
+//       filter: {
+//         'metadata.visibility': 'public',
+//         'metadata.start_time': { $gte: new Date() }
+//       }
+//     }
+//   },
+//   {
+//     $lookup: {
+//       from: 'events',
+//       localField: 'event',
+//       foreignField: '_id',
+//       as: 'event_details'
+//     }
+//   },
+//   {
+//     $project: {
+//       event_details: 1,
+//       searchable_content: 1,
+//       score: { $meta: 'vectorSearchScore' }
+//     }
+//   }
+// ];
 
-const results = await EventEmbeddings.aggregate(pipeline);
-    `);
+// const results = await EventEmbeddings.aggregate(pipeline);
+//     `);
 
-    console.log('✅ Vector search setup verification complete!');
+//     console.log('✅ Vector search setup verification complete!');
     
   } catch (error) {
     console.error('❌ Vector search test failed:', error.message);
