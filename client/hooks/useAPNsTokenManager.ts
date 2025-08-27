@@ -48,25 +48,50 @@ export const useAPNsTokenManager = () => {
     }
   }, []);
 
+  // Force refresh token
+  const forceRefreshToken = useCallback(async (): Promise<string | null> => {
+    try {
+      // Request new token from iOS
+      const newToken = await getAPNsToken();
+      if (newToken) {
+        setApnsToken(newToken);
+        await AsyncStorage.setItem(APNS_TOKEN_KEY, newToken);
+        return newToken;
+      }
+      return null;
+    } catch (error) {
+      return null;
+    }
+  }, [getAPNsToken]);
+
   // Send token to server
-  const sendTokenToServer = useCallback(async (token: string) => {
+  const sendTokenToServer = useCallback(async (token: string, isRetry: boolean = false): Promise<boolean> => {
     if (!userId || !token) {
       return false;
     }
 
     try {
-      const response = await api.post('/api/push-fetch/token', {
+      await api.post('/api/push-fetch/token', {
         token
       });
       
       // Mark token as sent
       await AsyncStorage.setItem(APNS_TOKEN_SENT_KEY, token);
       return true;
-    } catch (error) {
-      console.error('❌ APNs: Failed to send token to server:', error);
+    } catch (error: any) {
+      // Check if token is marked as invalid (410 Gone or specific error code)
+      if (!isRetry && (error?.status === 410 || error?.response?.data?.code === 'INVALID_APN_TOKEN')) {
+        // Get a fresh token
+        const newToken = await forceRefreshToken();
+        if (newToken && newToken !== token) {
+          // Retry with the new token
+          return sendTokenToServer(newToken, true);
+        }
+      }
+      
       return false;
     }
-  }, [userId]);
+  }, [userId, forceRefreshToken]);
 
   // Initialize APNs
   const initializeAPNs = useCallback(async () => {
