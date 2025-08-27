@@ -163,12 +163,19 @@ const AISummaryV5 = React.memo<AISummaryV5Props>(({ refreshing, onFinishRefresh 
     }
   }, [uiState, loadingStartTime]);
 
-  // Stabilize insights - once we have data, keep it stable
+  // Stabilize insights - update when we get more complete data
   useEffect(() => {
-    if (insights && !stableInsights) {
-      setStableInsights(insights);
-      // Clear any previous error state when insights load successfully
-      setComponentError('aiInsights', false);
+    if (insights) {
+      // Only update if we have no data yet, or if new data has fullEventData when old didn't
+      const shouldUpdate = !stableInsights || 
+        (insights.fullEventData && !stableInsights.fullEventData) ||
+        (insights.event && !stableInsights.event);
+      
+      if (shouldUpdate) {
+        setStableInsights(insights);
+        // Clear any previous error state when insights load successfully
+        setComponentError('aiInsights', false);
+      }
     }
   }, [insights, stableInsights, setComponentError]);
 

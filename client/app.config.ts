@@ -20,7 +20,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     name: 'Kinovo',
     slug: 'eventsapp',
     scheme: 'kinovo',
-    version: '1.1.0',
+    version: '1.1.1',
     orientation: 'portrait',
     icon: './assets/ios-icon-tinted.png',
     userInterfaceStyle: 'automatic',
