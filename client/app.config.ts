@@ -17,6 +17,7 @@ const plistPath = './GoogleService-Info.plist';
 export default ({ config }: ConfigContext): ExpoConfig => {
 
   return {
+    ...config,
     name: 'Kinovo',
     slug: 'eventsapp',
     scheme: 'kinovo',
@@ -47,7 +48,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       googleServicesFile: plistPath,
       supportsTablet: false,
       infoPlist: {
-        UISupportedDevices: ['iPhone'],
         UIApplicationSupportsIndirectInputEvents: false,
         CFBundleURLTypes: [
           {
