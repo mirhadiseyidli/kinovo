@@ -17,13 +17,29 @@ const registerDeviceToken = async (req, res) => {
       return res.status(400).json({ error: 'Device token is required' });
     }
 
-    // Deactivate old tokens for this user
+    // Check if this exact token exists and is marked as inactive (bad token)
+    const existingInactiveToken = await APNsToken.findOne({ 
+      token, 
+      isActive: false 
+    });
+    
+    if (existingInactiveToken) {
+      // This token was previously marked as bad/invalid
+      // Return 410 to trigger client-side token refresh
+      return res.status(410).json({ 
+        error: 'Token is invalid', 
+        code: 'INVALID_APN_TOKEN',
+        message: 'This token has been marked as invalid. Client should refresh.' 
+      });
+    }
+
+    // Deactivate old tokens for this user (but not the current one)
     await APNsToken.updateMany(
-      { userId },
+      { userId, token: { $ne: token } },
       { isActive: false, updatedAt: new Date() }
     );
 
-    // Create or update the new token
+    // Create or update the token
     await APNsToken.findOneAndUpdate(
       { token },
       {
