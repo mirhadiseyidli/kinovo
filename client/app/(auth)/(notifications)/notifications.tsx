@@ -101,7 +101,7 @@ export default function NotificationsPage() {
       const currentContextLoading = contextLoading;
       const currentFriendRequestsLength = friendRequests.length;
       
-      // Mark friend requests as viewed when user views this screen (for Firebase cleanup)
+      // Mark friend requests as viewed when user views this screen
       // Only do this once per screen visit to avoid loops
       if (!currentContextLoading && currentFriendRequestsLength > 0 && !hasMarkedFriendRequestsRef.current) {
         hasMarkedFriendRequestsRef.current = true;
@@ -160,7 +160,7 @@ export default function NotificationsPage() {
       
       try {
         // Mark as viewed in both systems
-        // Just use the API approach - it handles both MongoDB update and Firebase cleanup
+        // Just use the API approach - it handles both MongoDB update
         await markNotificationAsRead(notification._id);
       } finally {
         // Clear loading state
@@ -198,7 +198,7 @@ export default function NotificationsPage() {
     // Refresh both notification sources for complete sync
     await Promise.all([
       refreshNotifications(), // Paginated notifications (backend + cache)
-      refreshData() // NotificationContext (backend + Firebase merge)
+      refreshData() // NotificationContext (backend)
     ]);
   }, [refreshNotifications, refreshData]);
 

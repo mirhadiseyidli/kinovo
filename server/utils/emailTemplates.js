@@ -466,6 +466,33 @@ const contactJoinedEmailTemplate = (contactName, contactUsername) => {
   return getBaseEmailTemplate(content);
 };
 
+const twoFactorAuthEmailTemplate = (userName, verificationCode) => {
+  const content = `
+    <div class="content">
+      <h2 class="title">Your Verification Code</h2>
+      <p class="subtitle">Hi ${userName}, here's your verification code for Kinovo.</p>
+      
+      <p>Use the code below to complete your authentication:</p>
+      
+      <div class="details" style="text-align: center; background-color: #f0f7ff; border: 2px solid #2E8B57; margin: 30px 0;">
+        <div style="font-size: 36px; font-weight: bold; color: #2E8B57; letter-spacing: 6px; padding: 25px;">
+          ${verificationCode}
+        </div>
+      </div>
+      
+      <p><strong>This code will expire in 1 minute.</strong></p>
+      
+      <p>If you didn't request this code, please ignore this email and consider changing your password for security.</p>
+      
+      <p style="margin-top: 30px; color: #666; font-size: 14px;">
+        For security reasons, never share this code with anyone. Kinovo staff will never ask for your verification code.
+      </p>
+    </div>
+  `;
+
+  return getBaseEmailTemplate(content);
+};
+
 module.exports = {
   friendRequestEmailTemplate,
   friendRequestAcceptedEmailTemplate,
@@ -476,5 +503,6 @@ module.exports = {
   nearbyEventEmailTemplate,
   passwordResetEmailTemplate,
   eventInvitationEmailTemplate,
-  contactJoinedEmailTemplate
+  contactJoinedEmailTemplate,
+  twoFactorAuthEmailTemplate
 }; 

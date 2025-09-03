@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect, useMemo } from 'react';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
-import { useEventsStore } from '@/hooks/useEventsStore';
+import { useUserEventsStore } from '@/hooks/useUserEventsStore';
 import { Event } from '@/types/allTypes';
 import { EventOccurrence } from '@/utils/eventUtils';
 import { 
@@ -130,8 +130,8 @@ export const CalendarProvider: React.FC<CalendarProviderProps> = ({
     }
   }, [currentDate, currentView]);
 
-  // Use unified event store as single source of truth
-  const eventsStoreQuery = useEventsStore();
+  // Use user events store - only events where user is an attendee
+  const eventsStoreQuery = useUserEventsStore();
   const allEvents = eventsStoreQuery.data || [];
   
   // Calendar cache manager for updating unified cache with range events

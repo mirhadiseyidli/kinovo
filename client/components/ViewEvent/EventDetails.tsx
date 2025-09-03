@@ -18,6 +18,7 @@ import EventVisibilityInfo from './EventVisibilityInfo';
 import { useRespondToInvitation, useJoinEvent } from '@/hooks/useNewEventMutations';
 import { useNotInterestedEvent, useCancelEvent } from '@/hooks/useSpecialMutations';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { moveEventToUserCache, handleRSVPChange, handleUserLeavesEvent } from '@/utils/eventCache';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
 import { jwtDecode } from 'jwt-decode';
 import { useEventReport } from '@/hooks/useEventReport';
@@ -96,7 +97,10 @@ const EventDetailsSection: React.FC<EventProp & {
     
     respondToInvitationMutation.mutate(variables, {
       onSuccess: () => {
-        // Direct cache update handled automatically by new architecture
+        // Update cache with new RSVP status
+        if (loggedInUserId) {
+          handleRSVPChange(event, loggedInUserId, status);
+        }
         
         // Close the event view after successful response
         if (router.canGoBack()) {
@@ -128,8 +132,30 @@ const EventDetailsSection: React.FC<EventProp & {
     
     joinEventMutation.mutate(variables, {
       onSuccess: () => {
-        // Direct cache update handled automatically by new architecture
-        // Optional: Show success message
+        // Move event from discovery to user cache since user joined
+        if (loggedInUserId) {
+          // Update event with user's new status
+          const updatedEvent = { ...event };
+          if (updatedEvent.attendees) {
+            // Add user to attendees if not already there
+            const userExists = updatedEvent.attendees.some(a => 
+              (typeof a.user === 'string' ? a.user : a.user._id) === loggedInUserId
+            );
+            if (!userExists) {
+              updatedEvent.attendees.push({ user: loggedInUserId, status });
+            } else {
+              // Update existing attendee status
+              updatedEvent.attendees = updatedEvent.attendees.map(a => {
+                const attendeeId = typeof a.user === 'string' ? a.user : a.user._id;
+                if (attendeeId === loggedInUserId) {
+                  return { ...a, status };
+                }
+                return a;
+              });
+            }
+          }
+          moveEventToUserCache(updatedEvent, loggedInUserId);
+        }
       },
       onError: (error) => {
         console.error('Failed to join event:', error);
@@ -163,7 +189,10 @@ const EventDetailsSection: React.FC<EventProp & {
     
     markNotInterestedMutation.mutate(event._id, {
       onSuccess: () => {
-        // Direct cache update handled automatically by new architecture
+        // Remove event from both caches since user marked as not interested
+        if (event._id) {
+          handleUserLeavesEvent(event._id);
+        }
         showModal('not_interested_success', { message: 'Event marked as not interested.' });
       },
       onError: (error) => {

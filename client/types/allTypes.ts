@@ -279,6 +279,7 @@ export interface AuthButtonProps {
   onPress: () => void; // Function to handle button press
   logo: keyof typeof FontAwesome.glyphMap; // Path to the logo image
   backgroundColor?: string; // Optional background color
+  oauth_type?: string;
 }
 
 export interface AuthContextType {

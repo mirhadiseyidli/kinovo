@@ -44,7 +44,9 @@ export const EVENT_TAGS = {
 } as const;
 
 export const QUERY_KEYS = {
-  EVENTS: ['events', 'store'] as const,
+  EVENTS: ['events', 'store'] as const, // Deprecated - will be removed
+  USER_EVENTS: ['user-events', 'store'] as const, // Events where user is attendee
+  DISCOVERY_EVENTS: ['discovery-events', 'store'] as const, // Friends & recommended events
   USER_DATA: ['user', 'data'] as const,
   USER_PRESENCE: ['user', 'presence'] as const,
   EVENT_OCCURRENCES: ['events', 'occurrences'] as const,

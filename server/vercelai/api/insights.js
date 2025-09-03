@@ -83,7 +83,7 @@ export const config = {
   runtime: 'edge',
 };
 
-async function getUserContext(token, userId, userLat = null, userLng = null) {
+async function getUserContext(token, userId, userLat = null, userLng = null, userTimezone = 'UTC') {
   const client = new APIClient(token);
   
   // Fetch minimal data for quick insights
@@ -254,16 +254,16 @@ export default async function handler(req) {
     const user = await verifyUserToken(token);
     const method = req.method;
     
-    // Extract user location and cache control from query parameters
+    // Extract user location and timezone from query parameters
     let userLat = null;
     let userLng = null;
-    let skipCache = false;
+    let userTimezone = 'UTC';
     
     try {
       const url = new URL(req.url);
       userLat = url.searchParams.get('userLat');
       userLng = url.searchParams.get('userLng');
-      skipCache = url.searchParams.get('pull-to-refresh') === 'true';
+      userTimezone = url.searchParams.get('timezone') || 'UTC';
     } catch (error) {
       console.warn('Failed to parse URL for location parameters:', error);
     }
@@ -289,32 +289,17 @@ export default async function handler(req) {
       });
     }
 
-    const cacheKey = `insight_${user.userId}`;
-
-    // Check cache first (skip if pull-to-refresh is true)
-    if (!skipCache) {
-      const cached = insightCache.get(cacheKey);
-      if (cached && cached.expires > Date.now()) {
-        return new Response(JSON.stringify(cached.data), {
-          status: 200,
-          headers: { 
-            'Content-Type': 'application/json',
-            'X-Cache': 'HIT',
-          },
-        });
-      }
-    } else {
-      // If pull-to-refresh, invalidate existing cache
-      insightCache.delete(cacheKey);
-    }
+    // Skip caching for AI insights to ensure real-time accuracy
+    // Weather, traffic, and "time until event" data require fresh calculations
+    // Frontend (React Query) provides sufficient caching with proper invalidation
 
     // Get user context with RAG-enhanced recommendations
-    const context = await getUserContext(token, user.userId, userLat, userLng);
+    const context = await getUserContext(token, user.userId, userLat, userLng, userTimezone);
 
     // Build enhanced prompt based on timing logic
     const now = new Date();
-    const currentTime = now.toLocaleTimeString();
-    const currentDate = now.toLocaleDateString();
+    const currentTime = now.toLocaleTimeString('en-US', { timeZone: userTimezone });
+    const currentDate = now.toLocaleDateString('en-US', { timeZone: userTimezone });
     
     let prompt = `Generate a personalized insight card for ${context.userName}'s app launch.
 
@@ -331,13 +316,13 @@ Context:
     if (context.urgentEvents.length > 0 && context.priorityEvent) {
       // Case 1: Urgent event within 3 hours - show detailed event info with weather/traffic
       const timeUntilEvent = new Date(context.priorityEvent.start_time).getTime() - now.getTime();
-      const hoursUntilEvent = Math.round(timeUntilEvent / (1000 * 60 * 60 * 10)) / 100; // Round to 2 decimals
+      const hoursUntilEvent = Math.round(timeUntilEvent / (1000 * 60 * 60) * 100) / 100; // Convert to hours and round to 2 decimals
       
       prompt += `\n\nURGENT EVENT (within 3 hours):
 - Title: ${context.priorityEvent.title}
 - Starts in: ${hoursUntilEvent} hours
-- Date: ${new Date(context.priorityEvent.start_time).toLocaleDateString()}
-- Time: ${new Date(context.priorityEvent.start_time).toLocaleTimeString()}
+- Date: ${new Date(context.priorityEvent.start_time).toLocaleDateString('en-US', { timeZone: userTimezone })}
+- Time: ${new Date(context.priorityEvent.start_time).toLocaleTimeString('en-US', { timeZone: userTimezone })}
 - Location: ${context.priorityEvent.location?.text || 'TBD'}
 - Category: ${context.priorityEvent.category || 'General'}
 - Event ID: ${context.priorityEvent._id}`;
@@ -349,7 +334,7 @@ Context:
       // Case 2: Events today but not urgent - show brief event info only
       prompt += `\n\nTODAY'S EVENT (brief info only):
 - Title: ${context.priorityEvent.title}
-- Time: ${new Date(context.priorityEvent.start_time).toLocaleTimeString()}
+- Time: ${new Date(context.priorityEvent.start_time).toLocaleTimeString('en-US', { timeZone: userTimezone })}
 - Location: ${context.priorityEvent.location?.text || 'TBD'}
 - Event ID: ${context.priorityEvent._id}`;
       
@@ -363,8 +348,8 @@ Context:
       
       prompt += `\n\nYou're free today! Next event in ${daysUntilEvent} day${daysUntilEvent === 1 ? '' : 's'}:
 - Title: ${context.priorityEvent.title}
-- Date: ${eventDate.toLocaleDateString()}
-- Time: ${eventDate.toLocaleTimeString()}
+- Date: ${eventDate.toLocaleDateString('en-US', { timeZone: userTimezone })}
+- Time: ${eventDate.toLocaleTimeString('en-US', { timeZone: userTimezone })}
 - Location: ${context.priorityEvent.location?.text || 'TBD'}
 
 Since you have no events today, this is a perfect time to explore new activities and discover interesting events happening around you!`;
@@ -409,6 +394,7 @@ Language Guidelines:
 - Be informative but not overwhelming
 - Examples: "Your event starts soon", "Time to get ready", "Perfect timing"
 - Focus on being helpful rather than alarming
+- Time should be in user's timezone
 
 Requirements:
 - title/subtitle: Keep concise (<50/80 chars)  
@@ -431,17 +417,13 @@ Requirements:
       insight.fullEventData = context.priorityEventFull;
     }
 
-    // Cache the result
-    insightCache.set(cacheKey, {
-      data: insight,
-      expires: Date.now() + INSIGHT_CONFIG.cacheTime,
-    });
+    // Skip caching - insights need real-time accuracy for time-sensitive data
 
     return new Response(JSON.stringify(insight), {
       status: 200,
       headers: { 
         'Content-Type': 'application/json',
-        'X-Cache': 'MISS',
+        'X-Cache': 'DISABLED',
       },
     });
 

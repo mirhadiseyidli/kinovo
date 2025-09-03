@@ -77,7 +77,7 @@ const GoogleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess, onLoginStart, o
   };
 
   return (
-    <AuthButton onPress={handleGoogleSignIn} logo='google' disabled={!request} backgroundColor={themeColors.inputBackgroundColor} />
+    <AuthButton onPress={handleGoogleSignIn} logo='google' disabled={!request} backgroundColor={colorScheme === 'dark' ? '#333333' : '#DEDDD0'} oauth_type='Google'/>
   );
 };
 

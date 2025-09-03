@@ -13,7 +13,6 @@ import { ThemedView } from "@/components/ThemedView";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { UserPresence } from "@/components/UserPresence";
-import { initializeAppCheckIfNeeded } from "@/config/firebase";
 import { useAutomaticCacheManagement } from "@/hooks/useImageCache";
 import Animated from 'react-native-reanimated';
 import * as Notifications from 'expo-notifications';
@@ -59,7 +58,6 @@ function InnerLayout() {
   const [appIsReady, setAppIsReady] = useState(false);
   const [isLogoLoaded, setIsLogoLoaded] = useState(false);
   // Notification system state removed - simplified initialization
-  const [isFirebaseInitialized, setIsFirebaseInitialized] = useState(false);
   const [isFadingOut, setIsFadingOut] = useState(false);
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
@@ -67,23 +65,6 @@ function InnerLayout() {
   
   // Initialize automatic image cache management
   useAutomaticCacheManagement();
-
-  useEffect(() => {
-    const initializeFirebase = async () => {
-      try {
-        await initializeAppCheckIfNeeded();
-        setIsFirebaseInitialized(true);
-      } catch (error) {
-        console.error('Failed to initialize Firebase:', error);
-        // Don't block app loading on Firebase error
-        setIsFirebaseInitialized(true);
-      }
-    };
-    
-    initializeFirebase();
-  }, []);
-
-  // Notification initialization simplified - handled in UserPresence component
 
   // TanStack Query is now initialized with the simplified queryClient
   // No additional setup required - persistence and DevTools removed
@@ -137,8 +118,7 @@ function InnerLayout() {
     </ThemedView>
   ) : (
     <ThemedView style={{ flex: 1 }}>
-        {/* Only show UserPresence when Firebase is initialized */}
-        {!isLoading && accessToken?.current && isFirebaseInitialized && <UserPresence />}
+        {!isLoading && accessToken?.current && <UserPresence />}
         <Slot />
     </ThemedView>
   );

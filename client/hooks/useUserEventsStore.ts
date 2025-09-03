@@ -4,29 +4,37 @@ import { useAuthSession } from '@/components/Auth/AuthProvider';
 import api from '@/utils/api';
 import { Event } from '@/types/allTypes';
 
-export const useEventsStore = () => {
-  console.warn('useEventsStore is deprecated. Use useUserEventsStore for user events or useDiscoveryEventsStore for discovery events.');
-  
+/**
+ * User Events Store - Contains only events where the user is an attendee
+ * This store is used for:
+ * - Calendar views (Month, Week, Schedule)
+ * - My Events lists
+ * - User's personal event management
+ * 
+ * Does NOT include:
+ * - Friends' events (unless user is invited)
+ * - Recommended events (unless user has joined)
+ * - Nearby events (unless user has joined)
+ */
+export const useUserEventsStore = () => {
   const { userId } = useAuthSession();
   
   const query = useQuery({
-    queryKey: QUERY_KEYS.EVENTS,
+    queryKey: QUERY_KEYS.USER_EVENTS,
     queryFn: async () => {
       if (!userId) return [];
       
-      // Fetch all user-relevant events in parallel
-      const [upcoming, past, friends, recommended] = await Promise.all([
+      // Fetch only user's own events (where they are attendees)
+      const [upcoming, past, attentionRequired] = await Promise.all([
         api.get('/api/manageevents/eventslist/get/my/upcoming/events'),
         api.get('/api/manageevents/eventslist/get/my/past/events'),
-        api.get('/api/manageevents/eventslist/friends'),
-        api.get('/api/manageevents/eventslist/get/recommended'),
+        api.get('/api/manageevents/eventslist/get/attention/required'),
       ]);
       
       const eventSources = [
         { events: upcoming.data.events || [], source: 'upcoming' as const },
         { events: past.data.events || [], source: 'past' as const },
-        { events: friends.data.events || [], source: 'friends' as const },
-        { events: recommended.data.events || [], source: 'recommended' as const },
+        { events: attentionRequired.data.events || [], source: 'upcoming' as const }, // attention required are upcoming events
       ];
       
       // Deduplicate and tag events
@@ -57,7 +65,7 @@ export const useEventsStore = () => {
       
       return Array.from(eventMap.values());
     },
-    // Cache-first with background refresh configuration
+    // Cache configuration optimized for calendar usage
     staleTime: 5 * 60 * 1000, // 5 minutes - data is fresh for 5 min
     gcTime: 30 * 60 * 1000, // 30 minutes - keep in cache for 30 min after unused
     refetchOnWindowFocus: true, // Refresh when user focuses window/app
@@ -72,4 +80,43 @@ export const useEventsStore = () => {
   });
   
   return query;
+};
+
+/**
+ * Fetch user events for a specific date range
+ * Used by calendar views to get events within visible date range
+ */
+export const useUserEventsForDateRange = (startDate: Date, endDate: Date) => {
+  const { userId } = useAuthSession();
+  
+  return useQuery({
+    queryKey: ['user-events', 'date-range', startDate.toISOString(), endDate.toISOString()],
+    queryFn: async () => {
+      if (!userId) return [];
+      
+      const response = await api.get('/api/manageevents/eventslist/get/my/events/range', {
+        params: { 
+          start: startDate.toISOString(),
+          end: endDate.toISOString(),
+        }
+      });
+      
+      const events: Event[] = response.data.events || [];
+      
+      // Tag events appropriately
+      return events.map(event => ({
+        ...event,
+        _tags: new Set(getTagsForEvent(event, userId, 'calendar')),
+        _metadata: {
+          addedAt: new Date(),
+          lastUpdated: new Date(),
+          source: 'calendar' as const,
+          userStatus: event.userStatus,
+        },
+      })) as EventWithTags[];
+    },
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    enabled: !!userId,
+  });
 };

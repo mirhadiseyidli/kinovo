@@ -79,12 +79,6 @@ const usersSchema = new mongoose.Schema({
     type: String,
     required: false,
   },
-  firebase_uid: {
-    type: String,
-    required: false,
-    unique: true,
-    sparse: true, // Allows multiple null values
-  },
   // Google stores URLs as strings here. How does users
   // upload one by themselves?
   profile_picture: {

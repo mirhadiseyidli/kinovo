@@ -30,8 +30,8 @@ const apnsTokenSchema = new mongoose.Schema({
   }
 });
 
-// Compound unique index: each user-token pair must be unique
-apnsTokenSchema.index({ userId: 1, token: 1 }, { unique: true });
+// Each token can only exist once in the database (device uniqueness)
+apnsTokenSchema.index({ token: 1 }, { unique: true });
 // Index for efficient queries
 apnsTokenSchema.index({ userId: 1, isActive: 1 });
 apnsTokenSchema.index({ token: 1, isActive: 1 });
@@ -59,9 +59,38 @@ apnsTokenSchema.statics.findActiveTokensByUserIds = function(userIds) {
 };
 
 apnsTokenSchema.statics.deactivateToken = function(token) {
-  // Deactivate ALL entries for this token (across all users)
+  // Deactivate the token (only one entry should exist per token now)
   // This is called when APNs reports a token as invalid
-  return this.updateMany({ token }, { isActive: false, updatedAt: new Date() });
+  return this.updateOne({ token }, { isActive: false, updatedAt: new Date() });
+};
+
+apnsTokenSchema.statics.deactivateUserTokens = function(userId) {
+  // Deactivate all tokens for a specific user (called on logout)
+  return this.updateMany({ userId, isActive: true }, { isActive: false, updatedAt: new Date() });
+};
+
+apnsTokenSchema.statics.upsertToken = async function(token, userId) {
+  // Find existing token entry
+  const existingToken = await this.findOne({ token });
+  
+  if (existingToken) {
+    // Token exists - update userId and reactivate
+    existingToken.userId = userId;
+    existingToken.isActive = true;
+    existingToken.lastUsed = new Date();
+    existingToken.updatedAt = new Date();
+    return await existingToken.save();
+  } else {
+    // New token - create entry
+    return await this.create({
+      token,
+      userId,
+      isActive: true,
+      lastUsed: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+  }
 };
 
 apnsTokenSchema.statics.cleanupOldTokens = function() {

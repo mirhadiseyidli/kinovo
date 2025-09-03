@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { TouchableOpacity, ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { ThemedView } from '@/components/ThemedView';
 import { Feather } from '@expo/vector-icons';
 import { ThemedText } from '@/components/ThemedText';
+import TwoFactorAuth from '@/components/Auth/TwoFactorAuth';
 import { useUserDataLegacy as useUserData } from '@/hooks/useUserData';
 import api from '@/utils/api';
 import LabeledInput from '@/components/ProfileAndSettings/Profile/LabeledInput';
@@ -18,6 +19,8 @@ const EditUsername = () => {
   const [currentUsername, setCurrentUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const [loaddingPage, setLoaddingPage] = useState(false);
+  const [show2FA, setShow2FA] = useState(false);
+  const [userEmail, setUserEmail] = useState('');
 
   React.useEffect(() => {
     const loadUserData = async () => {
@@ -26,6 +29,9 @@ const EditUsername = () => {
       if (userData?.username) {
         setUsername(userData.username);
         setCurrentUsername(userData.username);
+      }
+      if (userData?.email) {
+        setUserEmail(userData.email);
       }
       setLoaddingPage(false);
     };
@@ -55,43 +61,50 @@ const EditUsername = () => {
   const handleSave = async () => {
     if (!validateUsername()) return;
 
-    // Show confirmation alert
-    Alert.alert(
-      'Confirm Username Change',
-      `Are you sure you want to change your username from '${currentUsername}' to '${username}'?`,
-      [
-        {
-          text: 'Cancel',
-          style: 'destructive',
-        },
-        {
-          text: 'Confirm',
-          onPress: async () => {
-            setLoading(true);
-            try {
-              const response = await api.post('/api/auth/change-username/protected', {
-                currentUsername,
-                newUsername: username,
-              });
-
-              if (response.data.success) {
-                Alert.alert('Success', 'Username changed successfully', [
-                  { text: 'OK', onPress: () => router.back() }
-                ]);
-              } else {
-                Alert.alert('Error', response.data.message || 'Failed to change username');
-              }
-            } catch (error: any) {
-              Alert.alert('Error', error.response?.data?.message || 'Failed to change username');
-            } finally {
-              setLoading(false);
-            }
-          },
-        },
-      ],
-      { cancelable: true }
-    );
+    // Show email verification
+    setShow2FA(true);
   };
+
+  const handleVerificationSuccess = async (verificationId: string, verificationCode: string) => {
+    try {
+      setLoading(true);
+      
+      // If email was verified, proceed with username change
+      if (verificationId === 'email-verified') {
+        const response = await api.post('/api/auth/change-username', {
+          currentUsername,
+          newUsername: username,
+          emailVerified: true
+        });
+
+        if (response.data.success) {
+          Alert.alert('Success', 'Username changed successfully', [
+            { text: 'OK', onPress: () => router.back() }
+          ]);
+        } else {
+          Alert.alert('Error', response.data.message || 'Failed to change username');
+        }
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.message || 'Failed to change username');
+    } finally {
+      setLoading(false);
+      setShow2FA(false);
+    }
+  };
+
+  if (show2FA) {
+    return (
+      <ThemedView style={{ flex: 1, padding: 16 }}>
+        <TwoFactorAuth
+          email={userEmail}
+          mode="email"
+          onVerificationSuccess={handleVerificationSuccess}
+          onCancel={() => setShow2FA(false)}
+        />
+      </ThemedView>
+    );
+  }
 
   if (loaddingPage) {
     return (
@@ -103,32 +116,42 @@ const EditUsername = () => {
 
   return (
     <ThemedView style={{ flex: 1 }}>
-      <ScrollView style={{ flex: 1, padding: 16 }}>
-        <LabeledInput
-          label="Username"
-          value={username}
-          onChangeText={setUsername}
-          placeholder="Enter username"
-          autoCapitalize="none"
-        />
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={handleSave}
-          disabled={loading}
-          style={{
-            alignItems: 'center',
-            backgroundColor: themeColors.mountainGreen,
-            paddingVertical: 12,
-            borderRadius: 8,
-            opacity: loading ? 0.7 : 1,
-            marginTop: 24,
-          }}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+      >
+        <ScrollView 
+          style={{ flex: 1, padding: 16 }}
+          keyboardShouldPersistTaps="handled"
         >
-          <ThemedText style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>
-            {loading ? 'Saving...' : 'Save Changes'}
-          </ThemedText>
-        </TouchableOpacity>
-      </ScrollView>
+          <LabeledInput
+            label="Username"
+            value={username}
+            onChangeText={setUsername}
+            placeholder="Enter username"
+            autoCapitalize="none"
+          />
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={handleSave}
+            disabled={loading}
+            style={{
+              alignItems: 'center',
+              backgroundColor: themeColors.mountainGreen,
+              paddingVertical: 12,
+              borderRadius: 8,
+              opacity: loading ? 0.7 : 1,
+              marginTop: 24,
+              marginBottom: 40,
+            }}
+          >
+            <ThemedText style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>
+              {loading ? 'Verifying...' : 'Save Changes'}
+            </ThemedText>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </ThemedView>
   );
 };

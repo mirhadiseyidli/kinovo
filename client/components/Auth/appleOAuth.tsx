@@ -63,14 +63,14 @@ const AppleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess, onLoginStart, on
 
       
       if (backendResponse.status === 200 && backendResponse.data.success) {
-        const { accessToken, refreshToken, user, firebaseToken } = backendResponse.data;
+        const { accessToken, refreshToken, user } = backendResponse.data;
 
         if (!accessToken || !refreshToken) {
           console.error('Missing tokens in response');
           throw new Error('Invalid token response from backend');
         }
 
-        onLoginSuccess(accessToken, refreshToken, user._id, firebaseToken);
+        onLoginSuccess(accessToken, refreshToken, user._id);
       } else {
         console.error('Authentication failed with status:', backendResponse.status);
         Alert.alert('Error', 'Authentication failed.');
@@ -109,7 +109,8 @@ const AppleOAuth: React.FC<AuthLoginProps> = ({ onLoginSuccess, onLoginStart, on
     <AuthButton 
       onPress={appleSignIn} 
       logo='apple' 
-      backgroundColor={themeColors.inputBackgroundColor} 
+      backgroundColor={colorScheme === 'dark' ? '#333333' : '#DEDDD0'} 
+      oauth_type='Apple'
     />
   );
 };

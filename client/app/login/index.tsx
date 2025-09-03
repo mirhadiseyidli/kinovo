@@ -4,6 +4,7 @@ import EmailLogin from '@/components/Auth/emailPasswordLogin';
 import GoogleOAuth from '@/components/Auth/googleOAuth';
 import AppleOAuth from '@/components/Auth/appleOAuth';
 import LoginLoadingOverlay from '@/components/Auth/LoginLoadingOverlay';
+import AnimatedBackground from '@/components/Auth/AnimatedBackground';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
@@ -85,21 +86,22 @@ export default function Auth() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={{ flex: 1, paddingTop: insets.top, backgroundColor: themeColors.background, flexShrink: 1 }}
     >
+      <AnimatedBackground />
       <ScrollView 
         bounces={false}
         keyboardShouldPersistTaps="handled"
         style={{ flex: 1, flexShrink: 1 }}
-        contentContainerStyle={{ justifyContent: 'space-between', paddingBottom: insets.bottom, flexShrink: 1 }}
+        contentContainerStyle={{ flex: 1, justifyContent: 'center', paddingBottom: insets.bottom, flexShrink: 1 }}
         showsVerticalScrollIndicator={false}
         scrollEnabled={true}
       >
         <View style={{ flex: 1 }}>
           {/* Logo and Company Name Section */}
-          <ThemedView style={{ 
+          <View style={{ 
             flexDirection: 'column', 
             alignItems: 'center', 
-            justifyContent: 'flex-start', 
-            paddingTop: Platform.OS === 'ios' ? 60 : 40,
+            justifyContent: 'center', 
+            // paddingTop: Platform.OS === 'ios' ? 100 : 40,
             flex: 1
           }}>
             <Image
@@ -112,24 +114,30 @@ export default function Auth() {
               }}
             />
             <ThemedText style={{ fontSize: 40, fontFamily: 'Helvetica Neue Bold', fontWeight: 'bold', letterSpacing: -1, alignSelf: 'center' }} allowFontScaling={false}>Kinovo</ThemedText>
-          </ThemedView>
+            <ThemedText style={{ fontSize: 18, marginBottom: 8, textAlign: 'center' }} allowFontScaling={false}>
+              Welcome Back!
+            </ThemedText>
+            <ThemedText style={{ fontSize: 14, color: themeColors.textThird, textAlign: 'center', marginBottom: 32 }} allowFontScaling={false}>
+              Log into your account
+            </ThemedText>
+          </View>
 
           {/* Login Section - Aligned to bottom */}
-          <ThemedView style={{ 
-            flex: 1, 
-            justifyContent: 'flex-end',
+          <View style={{ 
+            // flex: 1, 
+            // justifyContent: 'flex-end',
             paddingBottom: Platform.OS === 'ios' ? 40 : 20
           }}>
-            <ThemedView style={{ alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+            {/* <ThemedView style={{ alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
               <EmailLogin 
                 onLoginSuccess={handleLogin} 
                 onLoginStart={handleLoginStart}
                 onLoginError={handleLoginError}
               />
-            </ThemedView>
+            </ThemedView> */}
 
             {/* Separator */}
-            <ThemedView style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 16, flexShrink: 1, flexWrap: 'nowrap' }}>
+            {/* <ThemedView style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 16, flexShrink: 1, flexWrap: 'nowrap' }}>
               <ThemedView
                 style={{
                   flex: 1,
@@ -152,10 +160,10 @@ export default function Auth() {
                 or continue with
               </ThemedText>
               <ThemedView style={{ flex: 1, height: 1, backgroundColor: themeColors.textThird, flexShrink: 1, flexWrap: 'nowrap' }} />
-            </ThemedView>
+            </ThemedView> */}
 
             {/* OAuth Buttons */}
-            <ThemedView style={{ flexDirection: 'row', width: '100%', alignItems: 'center', justifyContent: 'space-evenly', paddingHorizontal: 16 }}>
+            <View style={{ flexDirection: 'column', gap: 16, width: '100%', alignItems: 'center', paddingHorizontal: 16, zIndex: 9999 }}>
               <AppleOAuth 
                 onLoginSuccess={handleLogin} 
                 onLoginStart={handleLoginStart}
@@ -167,12 +175,12 @@ export default function Auth() {
                 onLoginStart={handleLoginStart}
                 onLoginError={handleLoginError}
               />
-            </ThemedView>
-          </ThemedView>
+            </View>
+          </View>
         </View>
 
         {/* Sign Up Link */}
-        <ThemedView style={{ 
+        {/* <ThemedView style={{ 
           flexDirection: 'row', 
           alignItems: 'center', 
           justifyContent: 'center'
@@ -183,7 +191,7 @@ export default function Auth() {
               Sign Up
             </ThemedText>
           </TouchableOpacity>
-        </ThemedView>
+        </ThemedView> */}
       </ScrollView>
       
       {/* Loading Overlay */}

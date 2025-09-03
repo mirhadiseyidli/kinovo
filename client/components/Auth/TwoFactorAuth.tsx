@@ -1,14 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, TouchableOpacity, Alert, ActivityIndicator, TextInput, Keyboard } from 'react-native';
-import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
-import { initiatePhoneAuth } from '@/config/firebase';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import api from '@/utils/api';
+
+type VerificationConfirmation = {
+  verificationId: string;
+  confirm?: (code: string) => Promise<{ user: unknown }>;
+};
 
 interface TwoFactorAuthProps {
-  phoneNumber: string;
+  phoneNumber?: string;
+  email?: string;
+  mode?: 'phone' | 'email';
   onVerificationSuccess: (verificationId: string, verificationCode: string) => void;
   onVerificationStart?: () => void;
   onVerificationError?: () => void;
@@ -17,12 +23,14 @@ interface TwoFactorAuthProps {
 
 const TwoFactorAuth: React.FC<TwoFactorAuthProps> = ({
   phoneNumber,
+  email,
+  mode = phoneNumber ? 'phone' : 'email',
   onVerificationSuccess,
   onVerificationStart,
   onVerificationError,
   onCancel
 }) => {
-  const [confirmation, setConfirmation] = useState<FirebaseAuthTypes.ConfirmationResult | null>(null);
+  const [confirmation, setConfirmation] = useState<VerificationConfirmation | null>(null);
   const [verificationCode, setVerificationCode] = useState(['', '', '', '', '', '']);
   const [fullCode, setFullCode] = useState('');
   const inputRefs = useRef<TextInput[]>([]);
@@ -53,18 +61,28 @@ const TwoFactorAuth: React.FC<TwoFactorAuthProps> = ({
   const sendVerificationCode = async () => {
     try {
       setLoading(true);
-      const cleanedPhone = phoneNumber.replace(/\D/g, '');
-      const formattedPhone = cleanedPhone.length === 10 ? `+1${cleanedPhone}` : phoneNumber;
       
-      const result = await initiatePhoneAuth(formattedPhone);
-      
-      setConfirmation(result);
-      setResendTimer(60);
+      if (mode === 'email' && email) {
+        // Send email verification code
+        const response = await api.post('/api/auth/2fa/send', {
+          email: email
+        });
+        
+        if (response.data.success) {
+          setConfirmation({ verificationId: 'email-verification' });
+          setResendTimer(60);
+          Alert.alert('Success', 'Verification code sent to your email');
+        }
+      } else {
+        // Phone verification no longer supported - Firebase removed
+        Alert.alert('Error', 'Only email verification is available.');
+        return;
+      }
     } catch (error: any) {
       console.error('Error sending verification code:', error);
       Alert.alert(
         'Verification Error',
-        error.message || 'Failed to send verification code. Please try again.'
+        error.response?.data?.message || error.message || 'Failed to send verification code. Please try again.'
       );
     } finally {
       setLoading(false);
@@ -140,12 +158,22 @@ const TwoFactorAuth: React.FC<TwoFactorAuthProps> = ({
     try {
       setLoading(true);
       onVerificationStart?.();
-      const userCredential = await confirmation.confirm(code);
       
-      if (userCredential?.user && confirmation.verificationId) {
-        const result = await onVerificationSuccess(confirmation.verificationId, code);
+      if (mode === 'email' && email) {
+        // Verify email code
+        const response = await api.post('/api/auth/2fa/verify', {
+          email: email,
+          code: code
+        });
+        
+        if (response.data.success) {
+          onVerificationSuccess('email-verified', code);
+        } else {
+          throw new Error(response.data.message || 'Failed to verify code');
+        }
       } else {
-        throw new Error('Failed to verify code. Please try again.');
+        // Phone verification no longer supported
+        throw new Error('Only email verification is available.');
       }
     } catch (error: any) {
       console.error('Verification error:', error);
@@ -182,11 +210,11 @@ const TwoFactorAuth: React.FC<TwoFactorAuthProps> = ({
     <ThemedView style={{ flex: 1, width: '100%' }}>
       <ThemedView style={{ width: '100%' }}>
         <ThemedText style={{ fontSize: 24, marginBottom: 20, textAlign: 'center' }}>
-          Verify Your Phone
+          Verify Your {mode === 'email' ? 'Email' : 'Phone'}
         </ThemedText>
         
         <ThemedText style={{ textAlign: 'center', marginBottom: 20, color: themeColors.textSecondary }}>
-          Enter the 6-digit code sent to {phoneNumber}
+          Enter the 6-digit code sent to {mode === 'email' ? email : phoneNumber}
         </ThemedText>
 
         {/* Hidden input for iOS autofill */}
@@ -203,7 +231,7 @@ const TwoFactorAuth: React.FC<TwoFactorAuthProps> = ({
           onChangeText={handleHiddenInputChange}
           keyboardType="number-pad"
           textContentType="oneTimeCode"
-          autoComplete="sms-otp"
+          autoComplete="one-time-code"
           maxLength={6}
           autoFocus={true}
         />

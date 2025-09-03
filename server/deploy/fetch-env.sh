@@ -59,8 +59,6 @@ echo "" >> .env
 echo "# OpenAI" >> .env
 OPENAI_API_KEY=$(get_parameter "/kinovo/OPENAI_API_KEY") && echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> .env
 
-# Firebase environment variables removed - using APNs directly
-
 echo "" >> .env
 echo "# SMTP / Email" >> .env
 SMTP_HOST=$(get_parameter "/kinovo/SMTP_HOST") && echo "SMTP_HOST=$SMTP_HOST" >> .env

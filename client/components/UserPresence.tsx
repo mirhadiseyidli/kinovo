@@ -5,7 +5,7 @@ export function UserPresence() {
   // Initialize APNs token management (replaces FCM)
   useAPNsTokenManager();
   
-  // Initialize user presence tracking (replaces Firebase presence)
+  // Initialize user presence tracking
   useUserPresence();
 
   return null; // This component only handles side effects

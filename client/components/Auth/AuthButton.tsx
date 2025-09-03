@@ -6,7 +6,7 @@ import { AuthButtonProps } from '@/types/allTypes';
 import { ThemedText } from '../ThemedText';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
-const AuthButton: React.FC<AuthButtonProps & { disabled?: boolean }> = ({ onPress, logo, backgroundColor='white', disabled }) => {
+const AuthButton: React.FC<AuthButtonProps & { disabled?: boolean }> = ({ onPress, logo, backgroundColor='white', disabled, oauth_type }) => {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const [buttonHeight, setButtonHeight] = useState(0);
@@ -16,7 +16,7 @@ const AuthButton: React.FC<AuthButtonProps & { disabled?: boolean }> = ({ onPres
     setButtonHeight(height);
   };
 
-  const logoHeight = (buttonHeight * 50) / 100;
+  const logoHeight = (buttonHeight * 40) / 100;
 
   return (
     <TouchableOpacity
@@ -24,21 +24,21 @@ const AuthButton: React.FC<AuthButtonProps & { disabled?: boolean }> = ({ onPres
       disabled={disabled}
       onLayout={handleLayout}
       style={{
-        height: 72,
-        aspectRatio: 1, // Keeps it square
-        backgroundColor,
+        flexDirection: 'row',
+        gap: 8,
+        width: '100%',
+        paddingVertical: 16,
+        // height: 72,
+        // aspectRatio: 1, // Keeps it square
+        backgroundColor: colorScheme === 'dark' ? '#333333' : '#DEDDD0',
         borderRadius: 16, // Makes it fully rounded
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
-        elevation: 5, // Android shadow
       }}
-      activeOpacity={0.8} // ✅ Fix: activeOpacity moved outside of style
+      activeOpacity={0.8}
     >
       <FontAwesome name={logo} color={themeColors.text} size={logoHeight} />
+      <ThemedText style={{ fontSize: 16 }}>Continue with {oauth_type}</ThemedText>
     </TouchableOpacity>
   );
 };

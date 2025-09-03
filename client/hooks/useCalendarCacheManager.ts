@@ -14,7 +14,7 @@ export const useCalendarCacheManager = () => {
 
     try {
       // Get current cache data FIRST - implement cache-first strategy
-      const currentData = queryClient.getQueryData<EventWithTags[]>(QUERY_KEYS.EVENTS) || [];
+      const currentData = queryClient.getQueryData<EventWithTags[]>(QUERY_KEYS.USER_EVENTS) || [];
       
       // If we have cached data, use it immediately and fetch in background
       // This prevents the calendar from showing empty state on mount/refresh
@@ -90,9 +90,9 @@ export const useCalendarCacheManager = () => {
           .slice(0, MAX_CACHED_EVENTS);
       }
 
-      // Update the unified cache only if we have changes
+      // Update the user events cache only if we have changes
       // Use setQueryData with updater function for better performance
-      queryClient.setQueryData(QUERY_KEYS.EVENTS, (oldData: EventWithTags[] | undefined) => {
+      queryClient.setQueryData(QUERY_KEYS.USER_EVENTS, (oldData: EventWithTags[] | undefined) => {
         // If no old data, return final events
         if (!oldData || oldData.length === 0) {
           return finalEvents;

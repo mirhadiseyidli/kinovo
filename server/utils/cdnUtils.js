@@ -50,10 +50,15 @@ const processImage = async (buffer, options = {}) => {
 
     // Strip metadata for privacy and smaller file size
     if (strip) {
-      sharpInstance = sharpInstance.withMetadata({ 
-        exif: {}, 
-        icc: outputFormat === 'jpeg' ? metadata.icc : undefined // Keep ICC for JPEG quality
-      });
+      const metadataOptions = { exif: {} };
+      
+      // Only include ICC profile if it exists and is for JPEG
+      if (outputFormat === 'jpeg' && metadata.icc && Buffer.isBuffer(metadata.icc)) {
+        // Convert ICC Buffer to string if needed, or omit to avoid errors
+        // Sharp can handle JPEG color space conversion without explicit ICC
+      }
+      
+      sharpInstance = sharpInstance.withMetadata(metadataOptions);
     }
 
     // Convert and optimize based on format

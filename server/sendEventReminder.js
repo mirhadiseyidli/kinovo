@@ -7,7 +7,6 @@ process.env.AWS_LAMBDA_FUNCTION_NAME = process.env.AWS_LAMBDA_FUNCTION_NAME || '
 
 // Import optimized database connection
 const { connectToDatabase } = require('./database/connection');
-require('./config/firebase-admin');
 
 // Import the existing notification helper
 const {
@@ -85,5 +84,9 @@ module.exports.handler = async (event = {}) => {
     console.error(`Error sending reminder for event ${eventId}:`, err);
     // Propagate the error so Lambda marks the invocation as failed
     throw err;
+  } finally {
+    // Lambda connection cleanup is handled by the connection module's caching
+    // No need to explicitly close connection in Lambda as it will be reused
+    console.log('Lambda execution completed');
   }
 }; 

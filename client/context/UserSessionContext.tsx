@@ -6,7 +6,7 @@ import { LocationProvider, useLocation as useLocationOriginal } from './Location
  * UserSessionProvider - Consolidated provider for authenticated user data
  * 
  * This provider combines:
- * - NotificationProvider: Firebase notifications, friend requests  
+ * - NotificationProvider: notifications, friend requests  
  * - LocationProvider: Location permissions
  * 
  * Benefits:

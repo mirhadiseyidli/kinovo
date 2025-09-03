@@ -175,10 +175,9 @@ async function main() {
     // Only connect if running as standalone script
     const isStandalone = require.main === module;
     if (isStandalone) {
-      // Check connection state before connecting
-      if (mongoose.connection.readyState !== 1) {
-        await mongoose.connect(process.env.MONGODB_URI);
-      }
+      // Use the centralized connection function
+      const { connectToDatabase } = require('../database/connection');
+      await connectToDatabase();
     }
     
     // Check if we have OpenAI API key
@@ -197,6 +196,7 @@ async function main() {
     // Only close connection if running as standalone script
     if (require.main === module && mongoose.connection.readyState === 1) {
       await mongoose.connection.close();
+      console.log('Database connection closed');
     }
   }
 }

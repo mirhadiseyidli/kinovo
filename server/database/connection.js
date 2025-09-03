@@ -54,19 +54,50 @@ async function connectToDatabase() {
     cachedConnection = await mongoose.connect(process.env.MONGODB_URI, options);
     console.log('Connected to MongoDB successfully');
     
-    // Only attach listeners once
-    if (!listenersAttached) {
-      const db = mongoose.connection;
-      db.on('error', (error) => console.error('MongoDB connection error:', error));
-      db.on('disconnected', () => console.log('MongoDB disconnected'));
-      db.once('open', () => console.log('MongoDB connection established'));
-      listenersAttached = true;
-    }
+    // Setup connection event listeners with proper cleanup
+    setupConnectionListeners();
     
     return cachedConnection;
   } catch (error) {
     console.error('MongoDB connection failed:', error);
     throw error;
+  }
+}
+
+function setupConnectionListeners() {
+  const db = mongoose.connection;
+  
+  // Increase max listeners to prevent warning
+  db.setMaxListeners(20);
+  
+  // Remove existing listeners to prevent duplicates
+  db.removeAllListeners('error');
+  db.removeAllListeners('disconnected');
+  db.removeAllListeners('connected');
+  db.removeAllListeners('reconnected');
+  
+  // Setup listeners with proper cleanup tracking
+  if (!listenersAttached) {
+    db.on('error', (error) => {
+      console.error('MongoDB connection error:', error);
+    });
+    
+    db.on('disconnected', () => {
+      console.log('MongoDB disconnected');
+      // Reset connection cache and listeners flag on disconnect
+      cachedConnection = null;
+      listenersAttached = false;
+    });
+    
+    db.on('connected', () => {
+      console.log('MongoDB connection established');
+    });
+    
+    db.on('reconnected', () => {
+      console.log('MongoDB reconnected');
+    });
+    
+    listenersAttached = true;
   }
 }
 

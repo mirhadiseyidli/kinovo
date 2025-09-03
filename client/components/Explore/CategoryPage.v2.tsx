@@ -44,17 +44,18 @@ import { SkeletonBox } from '../Skeleton';
  */
 
 const CategoryPageV2: React.FC = () => {
-  const { category } = useLocalSearchParams();
+  const { category: categoryParam } = useLocalSearchParams();
+  const category = Array.isArray(categoryParam) ? categoryParam[0] : categoryParam;
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
-  const { errors, hasAnyError, setComponentError } = useCategoryError();
+  const { errors, hasAnyError } = useCategoryError();
 
   const navigateToCreateEvent = useCallback(async () => {
     // Store the selected category in AsyncStorage
     if (category) {
       try {
-        await AsyncStorage.setItem('selectedCategory', category as string);
+        await AsyncStorage.setItem('selectedCategory', category);
       } catch (error) {
         console.error('Error setting selected category:', error);
       }
@@ -69,7 +70,7 @@ const CategoryPageV2: React.FC = () => {
     <View style={{ padding: 16 }}>
       {/* Header Card */}
       <ThemedView style={{
-        backgroundColor: getCategoryColor(category as string),
+        backgroundColor: getCategoryColor(category),
         padding: 16,
         borderRadius: 24,
         alignItems: 'center',
@@ -78,7 +79,7 @@ const CategoryPageV2: React.FC = () => {
       }}>
         <View style={{ alignItems: 'center', marginVertical: 8 }}>
           <MaterialCommunityIcons 
-            name={getCategoryIcon(category as string)} 
+            name={getCategoryIcon(category)} 
             size={48} 
             color="white" 
             style={{ marginBottom: 8 }}
@@ -100,7 +101,7 @@ const CategoryPageV2: React.FC = () => {
         <CategoryErrorMessage 
           errors={errors} 
           showCachedDataWarning={true} 
-          categoryName={category as string}
+          categoryName={category}
         />
       )}
 
@@ -109,7 +110,6 @@ const CategoryPageV2: React.FC = () => {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 16,
       }}>
         <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>
           {category} Events
@@ -119,7 +119,7 @@ const CategoryPageV2: React.FC = () => {
   ), [category, themeColors, hasAnyError, errors]);
 
   // Custom event item renderer
-  const renderEventItem = useCallback((event: Event, index: number) => {
+  const renderEventItem = useCallback((event: Event) => {
     return (
       <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
         <EventComponent event={event} loading={false} />
@@ -190,7 +190,7 @@ const CategoryPageV2: React.FC = () => {
     );
   }, [category, themeColors]);
 
-  if (!category) {
+  if (!category || typeof category !== 'string') {
     return (
       <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ThemedText>Category not found</ThemedText>
@@ -202,7 +202,7 @@ const CategoryPageV2: React.FC = () => {
     <ThemedView style={{ flex: 1 }}>
       <InfiniteEventsList
         eventType="category"
-        category={category as string}
+        category={category}
         pageSize={10}
         useFlashList={true} // Use regular FlatList for better compatibility
         renderItem={renderEventItem}
@@ -210,11 +210,6 @@ const CategoryPageV2: React.FC = () => {
         renderLoadingState={renderLoadingState}
         ListHeaderComponent={renderListHeader}
         onEndReachedThreshold={0.5}
-        // Remove deprecated props - these are handled by the new architecture
-        // enableSmooth={true}
-        // keepPreviousData={true}
-        // staleTime={1000 * 60 * 5} // 5 minutes
-        // gcTime={1000 * 60 * 30} // 30 minutes
         testID={`category-${category}-infinite-list`}
         containerStyle={{ flex: 1 }}
         contentContainerStyle={{ 

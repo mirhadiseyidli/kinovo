@@ -3,18 +3,35 @@ const Event = require('../database/schemas/eventsSchema');
 const User = require('../database/schemas/usersSchema');
 const { createNearbyEventNotification, createEventCreationNotificationForFriends } = require('../controllers/notificationsController');
 
-// Helper function to find users within 50 miles using MongoDB's geospatial queries
+// Helper function to calculate distance using Haversine formula
+const calculateDistance = (lat1, lng1, lat2, lng2) => {
+  const R = 6371; // Radius of the Earth in kilometers
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; // Distance in kilometers
+};
+
+// Helper function to find users within 50 miles using coordinate comparison
 const findUsersWithin50Miles = async (lat, lng, excludeUserId = null, creatorId = null) => {
   try {
+    // Create bounding box for approximate area (more efficient than calculating distance for all users)
+    const latDelta = 50 / 69; // Approximate degrees per mile for latitude
+    const lngDelta = 50 / (69 * Math.cos(lat * Math.PI / 180)); // Approximate degrees per mile for longitude
+    
     const query = {
-      'location.coordinates': {
-        $near: {
-          $geometry: {
-            type: 'Point',
-            coordinates: [lng, lat]
-          },
-          $maxDistance: 80467.2 // 50 miles in meters (50 * 1609.344)
-        }
+      'location.coordinates.lat': {
+        $gte: lat - latDelta,
+        $lte: lat + latDelta,
+        $ne: null
+      },
+      'location.coordinates.lng': {
+        $gte: lng - lngDelta,
+        $lte: lng + lngDelta,
+        $ne: null
       }
     };
 
@@ -24,8 +41,28 @@ const findUsersWithin50Miles = async (lat, lng, excludeUserId = null, creatorId 
       query._id = { $nin: excludeIds };
     }
 
-    const users = await User.find(query).select('_id');
-    return users.map(user => user._id);
+    const users = await User.find(query).select('_id location.coordinates');
+    
+    // Filter by exact distance calculation
+    const nearbyUsers = [];
+    const maxDistanceKm = 80.467; // 50 miles in kilometers
+    
+    for (const user of users) {
+      if (user.location?.coordinates?.lat && user.location?.coordinates?.lng) {
+        const distance = calculateDistance(
+          lat,
+          lng,
+          user.location.coordinates.lat,
+          user.location.coordinates.lng
+        );
+        
+        if (distance <= maxDistanceKm) {
+          nearbyUsers.push(user._id);
+        }
+      }
+    }
+    
+    return nearbyUsers;
   } catch (error) {
     console.error('Error finding nearby users:', error);
     return [];

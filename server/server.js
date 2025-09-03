@@ -22,13 +22,14 @@ const storageRoutes = require('./routes/storageRoutes');
 const pushFetchRoutes = require('./routes/pushFetchRoutes');
 const vectorSearchRoutes = require('./routes/vectorSearchRoutes');
 
-// Database change streams removed (was Firebase)
-
 const app = express();
 
 // Set up EJS as the view engine
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+
+// Trust proxy - important for rate limiting behind nginx
+app.set('trust proxy', 1);
 
 // CORS Configuration
 const allowedOrigins = process.env.NODE_ENV === 'production'
@@ -39,6 +40,20 @@ app.use(cors({ origin: allowedOrigins, credentials: true }));
 
 // Middleware
 app.use(express.json()); // Parse JSON request bodies
+
+// Import rate limiters
+const {
+  generalLimiter,
+  authLimiter,
+  twoFactorLimiter,
+  aiLimiter,
+  searchLimiter,
+  eventWriteLimiter,
+  pushNotificationLimiter
+} = require('./middleware/rateLimiter');
+
+// Apply general rate limiting to all API routes
+app.use('/api/', generalLimiter);
 
 // Health Check Route
 app.get('/api/health', async (req, res) => {
@@ -67,8 +82,6 @@ async function startServer() {
     const { initializeVectorSearch } = require('./services/vectorSearchInitializer');
     await initializeVectorSearch({ autoIndex: process.env.AUTO_INDEX_EMBEDDINGS === 'true' });
 
-    // Database change streams removed (was Firebase)
-
     // Check Authentication (JWT based)
     const { verifyAccessToken } = require('./utils/token');
 
@@ -89,22 +102,22 @@ async function startServer() {
       }
     });
 
-    // Routes
-    app.use('/api/auth', authRoutes);
+    // Routes with specific rate limiters
+    app.use('/api/auth', authLimiter, authRoutes);
     app.use('/api/users', userRoutes);
-    app.use('/api/ai', aiRoutes);
-    app.use('/api/search', searchRoutes);
+    app.use('/api/ai', aiLimiter, aiRoutes);
+    app.use('/api/search', searchLimiter, searchRoutes);
     app.use('/api/managefriends', manageFriendsRoutes);
     app.use('/api/friendsuggestions', friendSuggestionsRoutes);
-    app.use('/api/manageevents', eventsRoutes);
+    app.use('/api/manageevents', eventWriteLimiter, eventsRoutes);
     app.use('/api/weather', weatherRoutes);
     app.use('/api/mapkit', mapKitRoutes);
-    app.use('/api/notifications', notificationsRoutes);
+    app.use('/api/notifications', pushNotificationLimiter, notificationsRoutes);
     app.use('/api', categoryRoutes);
     app.use('/api/google', googleApiRoutes);
     app.use('/api/storage', storageRoutes);
-    app.use('/api/push-fetch', pushFetchRoutes);
-    app.use('/api/vector-search', vectorSearchRoutes);
+    app.use('/api/push-fetch', pushNotificationLimiter, pushFetchRoutes);
+    app.use('/api/vector-search', aiLimiter, vectorSearchRoutes);
 
     // Start the cron jobs
     const accountDeletionCron = require('./cron/accountDeletionCron');

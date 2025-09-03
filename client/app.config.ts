@@ -12,8 +12,6 @@ const apsEnv =
     ? 'production' // or 'production' depending on your goal for preview
     : 'production';
 
-const plistPath = './GoogleService-Info.plist';
-
 export default ({ config }: ConfigContext): ExpoConfig => {
 
   return {
@@ -45,7 +43,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         usesNonExemptEncryption: false,
       },
       bundleIdentifier: 'com.kinovoapp.kinovo',
-      googleServicesFile: plistPath,
       supportsTablet: false,
       infoPlist: {
         UIApplicationSupportsIndirectInputEvents: false,
@@ -53,7 +50,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
           {
             CFBundleURLSchemes: [
               process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME!,
-              process.env.EXPO_PUBLIC_FIREBASE_IOS_URL_SCHEME!,
             ],
           },
           {
@@ -88,7 +84,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         BGTaskSchedulerPermittedIdentifiers: [
           'com.kinovoapp.kinovo.refresh'
         ],
-        FirebaseAppDelegateProxyEnabled: true,
         UNNotificationAlertStyle: 'alert',
         NSNotificationAlertSound: 'default', // or a custom sound file name
         NSUserActivityTypes: ['com.kinovoapp.kinovo.event'], // Added for calendar/reminder integration
@@ -125,9 +120,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
        "expo-font",
       'react-native-maps',
       'expo-secure-store',
-      '@react-native-firebase/app',
-      '@react-native-firebase/auth',
-      '@react-native-firebase/app-check',
       'expo-notifications',
       'expo-calendar',
       'expo-apple-authentication',

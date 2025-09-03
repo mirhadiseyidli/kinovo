@@ -7,6 +7,7 @@ const userPresenceService = require('../services/userPresenceService');
 
 /**
  * Register/update APNs device token
+ * New logic: One token per device, update userId on login
  */
 const registerDeviceToken = async (req, res) => {
   try {
@@ -17,42 +18,34 @@ const registerDeviceToken = async (req, res) => {
       return res.status(400).json({ error: 'Device token is required' });
     }
 
-    // Deactivate any existing entries for this token (from other users)
-    // This handles the case where user switches accounts on same device
-    await APNsToken.updateMany(
-      { token, userId: { $ne: userId } },
-      { isActive: false, updatedAt: new Date() }
-    );
-
-    // Deactivate old tokens for this user on other devices
-    await APNsToken.updateMany(
-      { userId, token: { $ne: token } },
-      { isActive: false, updatedAt: new Date() }
-    );
-
-    // Create or update the token for this specific user
-    // The compound unique index ensures one entry per user-token pair
-    
-    try {
-      const result = await APNsToken.findOneAndUpdate(
-        { userId, token },  // Match on BOTH userId and token
-        {
-          userId,
-          token,
-          isActive: true,
-          lastUsed: new Date(),
-          updatedAt: new Date()
-        },
-        { upsert: true, new: true }
-      );
-      
-      res.json({ success: true, message: 'Device token registered' });
-    } catch (dbError) {
-      console.error(`❌ APNs: Database operation failed:`, dbError);
-      res.status(500).json({ error: 'Database operation failed', details: dbError.message });
+    // Validate token format (APNs tokens should be 64 hex characters)
+    if (!/^[0-9a-fA-F]{64}$/.test(token)) {
+      return res.status(400).json({ error: 'Invalid APNs token format' });
     }
+
+    // Deactivate any existing active tokens for this user (they're switching devices or logging in fresh)
+    await APNsToken.deactivateUserTokens(userId);
+
+    // Use new upsert method - handles device-token uniqueness
+    // If token exists from another user, updates userId to current user
+    // If token doesn't exist, creates new entry
+    await APNsToken.upsertToken(token, userId);
+
+    res.json({ success: true, message: 'Device token registered successfully' });
   } catch (error) {
     console.error('Error registering device token:', error);
+    
+    // Handle duplicate key error gracefully (shouldn't happen with new schema but just in case)
+    if (error.code === 11000) {
+      try {
+        // Try to update existing token
+        await APNsToken.upsertToken(token, userId);
+        return res.json({ success: true, message: 'Device token updated successfully' });
+      } catch (retryError) {
+        console.error('Error on retry:', retryError);
+      }
+    }
+    
     res.status(500).json({ error: 'Failed to register device token' });
   }
 };
@@ -247,14 +240,8 @@ const invalidateDeviceToken = async (req, res) => {
   try {
     const userId = req.user._id;
     
-    // Deactivate all active tokens for this user
-    const result = await APNsToken.updateMany(
-      { userId, isActive: true },
-      { 
-        isActive: false,
-        updatedAt: new Date()
-      }
-    );
+    // Deactivate all active tokens for this user using new method
+    const result = await APNsToken.deactivateUserTokens(userId);
     
     res.json({ 
       success: true, 

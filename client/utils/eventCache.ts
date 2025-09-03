@@ -4,11 +4,24 @@ import { Event } from '@/types/allTypes';
 
 // Core cache operations
 export const getAllEvents = (): EventWithTags[] => {
+  // Deprecated - use getUserEvents or getDiscoveryEvents instead
+  console.warn('getAllEvents is deprecated. Use getUserEvents or getDiscoveryEvents instead.');
   return queryClient.getQueryData(QUERY_KEYS.EVENTS) || [];
 };
 
+export const getUserEvents = (): EventWithTags[] => {
+  return queryClient.getQueryData(QUERY_KEYS.USER_EVENTS) || [];
+};
+
+export const getDiscoveryEvents = (): EventWithTags[] => {
+  return queryClient.getQueryData(QUERY_KEYS.DISCOVERY_EVENTS) || [];
+};
+
 export const getEventsByTag = (tag: string): EventWithTags[] => {
-  const allEvents = getAllEvents();
+  // Check both stores for backward compatibility
+  const userEvents = getUserEvents();
+  const discoveryEvents = getDiscoveryEvents();
+  const allEvents = [...userEvents, ...discoveryEvents];
   return allEvents.filter(event => event._tags?.has(tag));
 };
 
@@ -397,4 +410,129 @@ export const batchUpdateEvents = (
       queryClient.setQueryData(['events', 'single', event._id], event);
     });
   }
+};
+
+// ============= NEW STORE-SPECIFIC FUNCTIONS =============
+
+/**
+ * Add event to user events cache (events where user is attendee)
+ */
+export const addEventToUserCache = (event: Event, userId: string) => {
+  queryClient.setQueryData(QUERY_KEYS.USER_EVENTS, (oldEvents: EventWithTags[] = []) => {
+    const eventMap = new Map<string, EventWithTags>();
+    oldEvents.forEach(e => e._id && eventMap.set(e._id, e));
+    
+    const tags = getTagsForEvent(event, userId);
+    eventMap.set(event._id!, {
+      ...event,
+      _tags: new Set(tags),
+      _metadata: {
+        addedAt: eventMap.get(event._id!)?._metadata?.addedAt || new Date(),
+        lastUpdated: new Date(),
+        source: 'upcoming',
+        userStatus: event.userStatus,
+      },
+    });
+    
+    return Array.from(eventMap.values());
+  });
+};
+
+/**
+ * Add event to discovery cache (friends, recommended events)
+ */
+export const addEventToDiscoveryCache = (event: Event, source: 'friends' | 'recommended' | 'nearby') => {
+  queryClient.setQueryData(QUERY_KEYS.DISCOVERY_EVENTS, (oldEvents: EventWithTags[] = []) => {
+    const eventMap = new Map<string, EventWithTags>();
+    oldEvents.forEach(e => e._id && eventMap.set(e._id, e));
+    
+    const tags = getTagsForEvent(event, undefined, source);
+    tags.push(source); // Add source tag
+    
+    eventMap.set(event._id!, {
+      ...event,
+      _tags: new Set(tags),
+      _metadata: {
+        addedAt: eventMap.get(event._id!)?._metadata?.addedAt || new Date(),
+        lastUpdated: new Date(),
+        source,
+        userStatus: null,
+      },
+    });
+    
+    return Array.from(eventMap.values());
+  });
+};
+
+/**
+ * Remove event from a specific store cache
+ */
+export const removeEventFromStoreCache = (eventId: string, cacheKey: typeof QUERY_KEYS.USER_EVENTS | typeof QUERY_KEYS.DISCOVERY_EVENTS) => {
+  queryClient.setQueryData(cacheKey, (oldEvents: EventWithTags[] = []) => {
+    return oldEvents.filter(e => e._id !== eventId);
+  });
+};
+
+/**
+ * Move event from discovery to user cache when user joins
+ */
+export const moveEventToUserCache = (event: Event, userId: string) => {
+  // Remove from discovery cache
+  removeEventFromStoreCache(event._id!, QUERY_KEYS.DISCOVERY_EVENTS);
+  
+  // Add to user cache with updated status
+  addEventToUserCache(event, userId);
+  
+  // Invalidate queries to trigger re-renders
+  queryClient.invalidateQueries({ queryKey: QUERY_KEYS.USER_EVENTS });
+  queryClient.invalidateQueries({ queryKey: QUERY_KEYS.DISCOVERY_EVENTS });
+};
+
+/**
+ * Handle when user leaves an event
+ */
+export const handleUserLeavesEvent = (eventId: string) => {
+  // Remove from user cache
+  removeEventFromStoreCache(eventId, QUERY_KEYS.USER_EVENTS);
+  
+  // Note: We don't add it back to discovery because the user explicitly left
+  // It might still show up in discovery on next refetch if it matches criteria
+  
+  queryClient.invalidateQueries({ queryKey: QUERY_KEYS.USER_EVENTS });
+};
+
+/**
+ * Handle RSVP status change
+ */
+export const handleRSVPChange = (event: Event, userId: string, newStatus: 'accepted' | 'maybe' | 'pending' | 'rejected') => {
+  // Update event in user cache with new status
+  queryClient.setQueryData(QUERY_KEYS.USER_EVENTS, (oldEvents: EventWithTags[] = []) => {
+    return oldEvents.map(e => {
+      if (e._id === event._id) {
+        // Update the attendee status
+        const updatedEvent = { ...e };
+        if (updatedEvent.attendees) {
+          updatedEvent.attendees = updatedEvent.attendees.map(attendee => {
+            const attendeeId = typeof attendee.user === 'string' ? attendee.user : attendee.user?._id;
+            if (attendeeId === userId) {
+              return { ...attendee, status: newStatus };
+            }
+            return attendee;
+          });
+        }
+        // Update metadata
+        updatedEvent._metadata = {
+          ...updatedEvent._metadata!,
+          userStatus: newStatus,
+          lastUpdated: new Date(),
+        };
+        // Recalculate tags
+        updatedEvent._tags = new Set(getTagsForEvent(updatedEvent, userId));
+        return updatedEvent;
+      }
+      return e;
+    });
+  });
+  
+  queryClient.invalidateQueries({ queryKey: QUERY_KEYS.USER_EVENTS });
 };

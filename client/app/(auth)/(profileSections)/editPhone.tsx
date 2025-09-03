@@ -10,7 +10,6 @@ import TwoFactorAuth from '@/components/Auth/TwoFactorAuth';
 import { useUserDataLegacy as useUserData } from '@/hooks/useUserData';
 import api from '@/utils/api';
 import LabeledInput from '@/components/ProfileAndSettings/Profile/LabeledInput';
-import { initiatePhoneAuth } from '@/config/firebase';
 
 const EditPhone = () => {
   const colorScheme = useColorScheme();
@@ -21,7 +20,7 @@ const EditPhone = () => {
   const [loading, setLoading] = useState(false);
   const [loaddingPage, setLoaddingPage] = useState(false);
   const [show2FA, setShow2FA] = useState(false);
-  const [confirmationResult, setConfirmationResult] = useState<any>(null);
+  const [userEmail, setUserEmail] = useState('');
 
   React.useEffect(() => {
     const loadUserData = async () => {
@@ -33,6 +32,9 @@ const EditPhone = () => {
         const formattedNum = rawNum.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3');
         setPhoneNumber(formattedNum);
         setCurrentPhoneNumber(userData.phone_number.full_num);
+      }
+      if (userData?.email) {
+        setUserEmail(userData.email);
       }
       setLoaddingPage(false);
     };
@@ -95,9 +97,7 @@ const EditPhone = () => {
         return;
       }
 
-      // Initiate phone verification through Firebase
-      const confirmation = await initiatePhoneAuth(formattedPhone);
-      setConfirmationResult(confirmation);
+      // Show email verification 
       setShow2FA(true);
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.message || error.message || 'Failed to verify phone number');
@@ -112,19 +112,21 @@ const EditPhone = () => {
       const cleanedPhone = phoneNumber.replace(/\D/g, '');
       const formattedPhone = `+1${cleanedPhone}`;
 
-      const response = await api.post('/api/auth/change-phone', {
-        currentPhoneNumber,
-        newPhoneNumber: formattedPhone,
-        verificationId,
-        verificationCode
-      });
+      // If email was verified, proceed with phone change
+      if (verificationId === 'email-verified') {
+        const response = await api.post('/api/auth/change-phone', {
+          currentPhoneNumber,
+          newPhoneNumber: formattedPhone,
+          emailVerified: true
+        });
 
-      if (response.data.success) {
-        Alert.alert('Success', 'Phone number changed successfully', [
-          { text: 'OK', onPress: () => router.back() }
-        ]);
-      } else {
-        Alert.alert('Error', response.data.message || 'Failed to change phone number');
+        if (response.data.success) {
+          Alert.alert('Success', 'Phone number changed successfully', [
+            { text: 'OK', onPress: () => router.back() }
+          ]);
+        } else {
+          Alert.alert('Error', response.data.message || 'Failed to change phone number');
+        }
       }
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.message || 'Failed to change phone number');
@@ -138,7 +140,8 @@ const EditPhone = () => {
     return (
       <ThemedView style={{ flex: 1, padding: 16 }}>
         <TwoFactorAuth
-          phoneNumber={phoneNumber.replace(/\D/g, '').length === 10 ? `+1${phoneNumber.replace(/\D/g, '')}` : phoneNumber}
+          email={userEmail}
+          mode="email"
           onVerificationSuccess={handleVerificationSuccess}
           onCancel={() => setShow2FA(false)}
         />

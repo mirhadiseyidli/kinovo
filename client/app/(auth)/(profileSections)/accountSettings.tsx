@@ -13,6 +13,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import DeleteAccountComponent from '@/components/ProfileAndSettings/Settings/DeleteAccountButton';
 import { useUserDataLegacy as useUserData } from '@/hooks/useUserData';
 import { useAccountDeletion } from '@/hooks/useAccountDeletion';
+import TwoFactorAuth from '@/components/Auth/TwoFactorAuth';
 import { User } from '@/types/allTypes';
 import * as Location from 'expo-location';
 import * as Contacts from 'expo-contacts';
@@ -20,7 +21,6 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Calendar from 'expo-calendar';
 import SettingComponent from '@/components/ProfileAndSettings/Settings/SettingComponent';
 import api from '@/utils/api';
-import TwoFactorAuth from '@/components/Auth/TwoFactorAuth';
 import { useCalendarSync } from '@/hooks/useCalendarSync';
 
 const accountSettings = () => {
@@ -60,30 +60,58 @@ const accountSettings = () => {
   const loadData = useCallback(async (fromPullToRefresh = false) => {
     try {
       setRefreshing(true);
-      const userData = await fetchUserData();
-      if (userData) {
-        setUser(userData);
-        setEmail(userData.email || '');
-        setPhoneNumber(userData.phone_number?.full_num || '');
-        setUsername(userData.username || '');
+      
+      // Fetch user data
+      try {
+        const userData = await fetchUserData();
+        if (userData) {
+          setUser(userData);
+          setEmail(userData.email || '');
+          setPhoneNumber(userData.phone_number?.full_num || '');
+          setUsername(userData.username || '');
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
       }
 
-      // Check permissions
-      const { status: locStatus } = await Location.getForegroundPermissionsAsync();
-      setLocationPermission(locStatus === 'granted' ? 'Enabled' : 'Disabled');
+      // Check permissions with individual error handling
+      try {
+        const { status: locStatus } = await Location.getForegroundPermissionsAsync();
+        setLocationPermission(locStatus === 'granted' ? 'Enabled' : 'Disabled');
+      } catch (error) {
+        console.error('Error checking location permissions:', error);
+        setLocationPermission('Error');
+      }
 
-      const { status: contactStatus } = await Contacts.getPermissionsAsync();
-      setContactsPermission(contactStatus === 'granted' ? 'Enabled' : 'Disabled');
+      try {
+        const { status: contactStatus } = await Contacts.getPermissionsAsync();
+        setContactsPermission(contactStatus === 'granted' ? 'Enabled' : 'Disabled');
+      } catch (error) {
+        console.error('Error checking contact permissions:', error);
+        setContactsPermission('Error');
+      }
 
-      const { status: photoStatus } = await ImagePicker.getMediaLibraryPermissionsAsync();
-      setPhotoPermission(photoStatus === 'granted' ? 'Enabled' : 'Disabled');
+      try {
+        const { status: photoStatus } = await ImagePicker.getMediaLibraryPermissionsAsync();
+        setPhotoPermission(photoStatus === 'granted' ? 'Enabled' : 'Disabled');
+      } catch (error) {
+        console.error('Error checking photo permissions:', error);
+        setPhotoPermission('Error');
+      }
 
-      const { status: calendarStatus } = await Calendar.getCalendarPermissionsAsync();
-      setCalendarPermission(calendarStatus === 'granted' ? 'Enabled' : 'Disabled');
+      try {
+        const { status: calendarStatus } = await Calendar.getCalendarPermissionsAsync();
+        setCalendarPermission(calendarStatus === 'granted' ? 'Enabled' : 'Disabled');
+      } catch (error) {
+        console.error('Error checking calendar permissions:', error);
+        setCalendarPermission('Error');
+      }
+    } catch (error) {
+      console.error('Error in loadData:', error);
     } finally {
       setRefreshing(false);
     }
-  }, []);
+  }, [fetchUserData]);
 
   const onRefresh = useCallback(async () => {
       await loadData(true);
@@ -93,10 +121,10 @@ const accountSettings = () => {
   useFocusEffect(
     useCallback(() => {
       loadData();
-    }, [loadData])
+    }, [])
   );
 
-  const handleChangePassword = () => {
+  const handleChangePassword = useCallback(() => {
     let provider = user?.google_id ? 'Google' : user?.apple_id ? 'Apple' : 'Regular';
     if (provider === 'Google' || provider === 'Apple') {
       Alert.alert(
@@ -107,7 +135,24 @@ const accountSettings = () => {
     } else {
       router.push('/(auth)/(profileSections)/changePassword');
     }
-  };
+  }, [user?.google_id, user?.apple_id, router]);
+
+  const handleEmailPress = useCallback(() => {
+    const provider = user?.google_id ? 'Google' : user?.apple_id ? 'Apple' : null;
+    if (provider) {
+      Alert.alert(
+        "Cannot Change Email",
+        `Email address cannot be changed for accounts created with ${provider}. Please contact support if you need to update your email address.`,
+        [{ text: "OK" }]
+      );
+    } else {
+      Alert.alert(
+        "Email Change Unavailable",
+        "Email address changes are currently not available. Please contact support if you need to update your email.",
+        [{ text: "OK" }]
+      );
+    }
+  }, [user?.google_id, user?.apple_id]);
 
   const handleDeleteAccount = () => {
     Alert.alert(
@@ -122,133 +167,26 @@ const accountSettings = () => {
           text: "Continue",
           style: "destructive",
           onPress: () => {
-            if (user?.google_id) {
-              // For Google accounts, verify with 2FA
-              if (!user.phone_number?.full_num) {
-                Alert.alert(
-                  "Error",
-                  "No phone number found. Please add a phone number in your profile settings first.",
-                  [
-                    {
-                      text: "Go to Settings",
-                      onPress: () => router.push('/(auth)/(profileSections)/editPhone')
-                    },
-                    {
-                      text: "Cancel",
-                      style: "cancel"
-                    }
-                  ]
-                );
-                return;
-              }
-              setShow2FA(true);
-            } else {
-              // For regular accounts, show password prompt
-              showPasswordPrompt();
-            }
+            // Use email verification for all accounts
+            setShow2FA(true);
           }
         }
       ]
     );
   };
 
-  const showPasswordPrompt = () => {
-    if (Platform.OS === 'ios') {
-      Alert.prompt(
-        "Enter Password",
-        "Please enter your password to confirm account deletion",
-        [
-          {
-            text: "Cancel",
-            style: "cancel"
-          },
-          {
-            text: "Delete Account",
-            style: "destructive",
-            onPress: async (password) => {
-              if (!password) {
-                Alert.alert("Error", "Please enter your password");
-                return;
-              }
-              verifyPasswordAndDelete(password);
-            }
-          }
-        ],
-        "secure-text"
-      );
-    } else {
-      // On Android, use a regular alert with custom input handling
-      Alert.alert(
-        "Confirm Password",
-        "For security reasons, please go to the Change Password screen to confirm your identity before deleting your account.",
-        [
-          {
-            text: "Cancel",
-            style: "cancel"
-          },
-          {
-            text: "Go to Change Password",
-            onPress: () => router.push('/(auth)/(profileSections)/changePassword')
-          }
-        ]
-      );
-    }
-  };
-
-  const verifyPasswordAndDelete = async (password: string) => {
-    try {
-      await api.post('/api/auth/verify-password/protected', { 
-        password,
-        email: user?.email
-      });
-      // After password verification, show final confirmation
-      Alert.alert(
-        "Confirm Deletion",
-        "Are you absolutely sure you want to delete your account? You will have 30 days to reactivate your account before it is permanently deleted.",
-        [
-          {
-            text: "Cancel",
-            style: "cancel"
-          },
-          {
-            text: "Delete Account",
-            style: "destructive",
-            onPress: handleConfirmDeletion
-          }
-        ]
-      );
-    } catch (err) {
-      Alert.alert(
-        "Error",
-        "Invalid password. Please try again.",
-        [
-          {
-            text: "OK",
-            onPress: () => showPasswordPrompt() // Show the prompt again
-          }
-        ]
-      );
-    }
-  };
-
   const handleVerificationSuccess = async (verificationId: string, verificationCode: string) => {
     try {
-      // Verify the code with backend
-      const response = await api.post('/api/auth/verify-code/protected', {
-        code: verificationCode,
-        purpose: 'account_deletion',
-        phoneNumber: user?.phone_number?.full_num
-      });
-
-      if (response.data.success) {
-        // Show final confirmation after successful verification
+      // If email was verified, show final confirmation
+      if (verificationId === 'email-verified') {
         Alert.alert(
           "Confirm Deletion",
           "Are you absolutely sure you want to delete your account? You will have 30 days to reactivate your account before it is permanently deleted.",
           [
             {
               text: "Cancel",
-              style: "cancel"
+              style: "cancel",
+              onPress: () => setShow2FA(false)
             },
             {
               text: "Delete Account",
@@ -258,12 +196,8 @@ const accountSettings = () => {
           ]
         );
       }
-    } catch (error) {
-      Alert.alert(
-        "Error",
-        "Failed to verify code. Please try again later."
-      );
-    } finally {
+    } catch (error: any) {
+      Alert.alert('Error', 'Failed to verify email. Please try again.');
       setShow2FA(false);
     }
   };
@@ -296,7 +230,8 @@ const accountSettings = () => {
     return (
       <ThemedView style={{ flex: 1, padding: 16 }}>
         <TwoFactorAuth
-          phoneNumber={user?.phone_number?.full_num || ''}
+          email={email}
+          mode="email"
           onVerificationSuccess={handleVerificationSuccess}
           onCancel={() => setShow2FA(false)}
         />
@@ -329,7 +264,8 @@ const accountSettings = () => {
                 icon="mail" 
                 title="Email Address"
                 subtitle={email || 'Not set'}
-                onPress={() => router.push('/(auth)/(profileSections)/editEmail')} 
+                onPress={handleEmailPress} 
+                enabled={false}
               />
               <SettingComponent 
                 icon="phone" 
@@ -348,13 +284,6 @@ const accountSettings = () => {
           <ThemedView style={{ flex: 1 }}>
             <ThemedText style={{ fontSize: 14, color: themeColors.placeholderTextColor, marginBottom: 10 }}>Security & Privacy</ThemedText>
             <ThemedView style={{ flexDirection: 'column', gap: 8 }}>
-              <SettingComponent 
-                icon="lock" 
-                title="Change Password" 
-                subtitle="•••••••••••••"
-                onPress={handleChangePassword}
-                enabled={!user?.google_id && !user?.apple_id}
-              />
               <SettingComponent 
                 icon="map-pin" 
                 title="Location Permissions"

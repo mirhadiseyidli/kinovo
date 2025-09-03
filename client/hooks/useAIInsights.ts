@@ -68,6 +68,9 @@ const fetchAIInsights = async (
   if (skipCache) {
     params['pull-to-refresh'] = 'true';
   }
+  
+  // Add user timezone for accurate time calculations
+  params.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const response = await api.get('/api/ai/insights', { 
     params,

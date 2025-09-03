@@ -44,7 +44,8 @@ import { CityErrorMessage } from '@/components/Explore/CityErrorMessage';
  */
 
 const CityPageV2: React.FC = () => {
-  const { city } = useLocalSearchParams();
+  const { city: cityParam } = useLocalSearchParams();
+  const city = Array.isArray(cityParam) ? cityParam[0] : cityParam;
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
   const router = useRouter();
@@ -58,14 +59,11 @@ const CityPageV2: React.FC = () => {
   // Get event count for the header - using the new TanStack Query hook
   const {
     data,
-    isLoading,
     isError: isEventsError,
-    isFetchingNextPage,
-  } = useInfiniteCityEvents(city as string, 10);
+  } = useInfiniteCityEvents(city, 10);
   
   // Extract events from paginated response
   const events = data?.pages.flatMap(page => page.events) ?? [];
-  const totalCount = data?.pages[0]?.totalCount ?? 0;
 
   // Report events errors to centralized error handling
   useEffect(() => {
@@ -83,7 +81,12 @@ const CityPageV2: React.FC = () => {
       {/* Header Image with Gradient Overlay */}
       <View style={{ height: 300, position: 'relative' }}>
         <Image
-          source={cityInfo?.image?.uri || cityInfo?.image}
+          source={(() => {
+            if (!cityInfo?.image) return undefined;
+            return typeof cityInfo.image === 'object' && 'uri' in cityInfo.image 
+              ? cityInfo.image.uri 
+              : cityInfo.image;
+          })()}
           style={{ width: '100%', height: '100%', position: 'absolute' }}
           contentFit="cover"
         />
@@ -121,12 +124,12 @@ const CityPageV2: React.FC = () => {
             <CityErrorMessage 
               errors={errors} 
               showCachedDataWarning={true} 
-              cityName={city as string}
+              cityName={city}
             />
           </View>
         )}
         
-        <ThemedView style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 16, marginTop: 16 }}>
+        <ThemedView style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>
             Events in {city}
           </ThemedText>
@@ -139,9 +142,9 @@ const CityPageV2: React.FC = () => {
   ), [city, cityInfo, stateName, cityDescription, themeColors, events.length, hasAnyError, errors]);
 
   // Custom event item renderer
-  const renderEventItem = useCallback((event: Event, index: number) => {
+  const renderEventItem = useCallback((event: Event) => {
     return (
-      <View style={{ paddingHorizontal: 16 }}>
+      <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
         <EventComponent event={event} loading={false} />
       </View>
     );
@@ -165,7 +168,6 @@ const CityPageV2: React.FC = () => {
             alignItems: 'center',
             justifyContent: 'center',
             minHeight: 120,
-            marginTop: 8,
           }}
         >
           <View style={{ marginBottom: 12 }}>
@@ -211,7 +213,7 @@ const CityPageV2: React.FC = () => {
   }, []);
 
   // Custom error state
-  const renderErrorState = useCallback((error: Error, retry: () => void) => {
+  const renderErrorState = useCallback(() => {
     return (
       <View style={{ paddingHorizontal: 16 }}>
         {/* Error State */}
@@ -261,9 +263,9 @@ const CityPageV2: React.FC = () => {
         </TouchableOpacity>
       </View>
     );
-  }, [themeColors, navigateToCreateEvent]);
+  }, [themeColors]);
 
-  if (!city) {
+  if (!city || typeof city !== 'string') {
     return (
       <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ThemedText>City not found</ThemedText>
@@ -275,7 +277,7 @@ const CityPageV2: React.FC = () => {
     <ThemedView style={{ flex: 1 }}>
       <InfiniteEventsList
         eventType="city"
-        city={city as string}
+        city={city}
         pageSize={10}
         useFlashList={true} // Use regular FlatList for better compatibility
         renderItem={renderEventItem}
@@ -289,7 +291,7 @@ const CityPageV2: React.FC = () => {
         contentContainerStyle={{ 
           paddingBottom: 16,
           paddingTop: 0, // Remove top padding since header handles spacing
-          gap: 16,
+          gap: 8,
         }}
       />
     </ThemedView>

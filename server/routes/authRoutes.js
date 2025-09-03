@@ -22,6 +22,12 @@ const {
   verifyResetCode,
   resetPassword
 } = require('../controllers/authController');
+const {
+  sendTwoFactorCode,
+  verifyTwoFactorCode,
+  checkTwoFactorStatus,
+  cleanupExpiredCodes
+} = require('../controllers/twoFactorController');
 const { tokenMiddleware } = require('../utils/tokenMiddleware');
 const router = express.Router();
 
@@ -41,6 +47,12 @@ router.post('/check-phone', checkPhone);
 router.post('/reset-password-request', resetPasswordRequest);
 router.post('/verify-reset-code', verifyResetCode);
 router.post('/reset-password', resetPassword);
+
+// Two-Factor Authentication routes (public)
+router.post('/2fa/send', sendTwoFactorCode);
+router.post('/2fa/verify', verifyTwoFactorCode);
+router.get('/2fa/status', checkTwoFactorStatus);
+router.delete('/2fa/cleanup', cleanupExpiredCodes); // Optional maintenance endpoint
 
 // Dual-use routes (both public and protected versions)
 router.post('/check-phone/protected', authMiddleware, checkPhone);

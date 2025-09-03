@@ -4,7 +4,6 @@ const UserContacts = require('../database/schemas/userContactsSchema');
 const UserNotificationPreferences = require('../database/schemas/userNotificationPreferencesSchema');
 const { generateAccessToken, generateRefreshToken } = require('../utils/token');
 const { verifyIdToken } = require('../utils/googleAuth');
-const { admin } = require('../config/firebase-admin');
 const jwt = require('jsonwebtoken');
 const logger = require('winston');
 const { verifyIdentityToken } = require('../utils/appleAuth');
@@ -44,6 +43,18 @@ const googleAuth = async (req, res) => {
     const email_verified = payload.email_verified;
 
     let user = await User.findOne({ google_id: userId });
+    
+    // If no user with google_id, check if email exists
+    if (!user && email) {
+      user = await User.findOne({ email: email });
+      
+      // If user exists with this email but no google_id, link the accounts
+      if (user) {
+        user.google_id = userId;
+        await user.save();
+      }
+    }
+    
     if (!user) {
       
       // Generate default profile image if none provided
@@ -82,7 +93,6 @@ const googleAuth = async (req, res) => {
 
     const accessToken = generateAccessToken({ _id: userDataFromDB._id, email: user.email });
     const refreshToken = generateRefreshToken({ _id: userDataFromDB._id, email: user.email });
-    const customToken = await admin.auth().createCustomToken(userDataFromDB._id.toString());
 
     res.json({
       success: true,
@@ -96,7 +106,6 @@ const googleAuth = async (req, res) => {
       },
       accessToken,
       refreshToken,
-      firebaseToken: customToken
     });
   } catch (err) {
     logger.error('Error verifying Google token:', err);
@@ -172,7 +181,6 @@ const appleAuth = async (req, res) => {
 
     const accessToken = generateAccessToken({ _id: existingUser._id, email: existingUser.email });
     const refreshToken = generateRefreshToken({ _id: existingUser._id, email: existingUser.email });
-    const customToken = await admin.auth().createCustomToken(existingUser._id.toString());
 
     res.json({
       success: true,
@@ -186,7 +194,6 @@ const appleAuth = async (req, res) => {
       },
       accessToken,
       refreshToken,
-      firebaseToken: customToken
     });
   } catch (err) {
     console.error('Error in Apple auth:', err);
@@ -225,7 +232,6 @@ const login = async (req, res) => {
 
     const accessToken = generateAccessToken({ _id: user._id, email: user.email });
     const refreshToken = generateRefreshToken({ _id: user._id, email: user.email });
-    const customToken = await admin.auth().createCustomToken(user._id.toString());
 
     return res.json({
       success: true,
@@ -240,7 +246,6 @@ const login = async (req, res) => {
       },
       accessToken,
       refreshToken,
-      firebaseToken: customToken
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -324,7 +329,6 @@ const signup = async (req, res) => {
 
       const accessToken = generateAccessToken({ _id: userDataFromDB._id, email: userDataFromDB.email });
       const refreshToken = generateRefreshToken({ _id: userDataFromDB._id, email: userDataFromDB.email });
-      const customToken = await admin.auth().createCustomToken(userDataFromDB._id.toString());
 
       return res.status(200).json({
         success: true,
@@ -338,7 +342,6 @@ const signup = async (req, res) => {
         },
         accessToken,
         refreshToken,
-        firebaseToken: customToken
       });
     }
 
@@ -425,7 +428,6 @@ const verifyLogin = async (req, res) => {
       });
     }
 
-    const customToken = await admin.auth().createCustomToken(user._id.toString());
     const accessToken = generateAccessToken({ _id: user._id, email: user.email });
     const refreshToken = generateRefreshToken({ _id: user._id, email: user.email });
 
@@ -442,7 +444,6 @@ const verifyLogin = async (req, res) => {
       },
       accessToken,
       refreshToken,
-      firebaseToken: customToken
     });
   } catch (error) {
     console.error('Error verifying login:', error);
@@ -689,12 +690,12 @@ const changeEmail = async (req, res) => {
 };
 
 const changePhone = async (req, res) => {
-  const { currentPhoneNumber, newPhoneNumber, verificationId, verificationCode } = req.body;
+  const { currentPhoneNumber, newPhoneNumber, emailVerified } = req.body;
 
-  if (!newPhoneNumber || !verificationId || !verificationCode) {
+  if (!newPhoneNumber || !emailVerified) {
     return res.status(400).json({
       success: false,
-      message: 'New phone number, verification ID, and verification code are required'
+      message: 'New phone number and email verification are required'
     });
   }
 
@@ -772,12 +773,12 @@ const checkPhone = async (req, res) => {
 };
 
 const changeUsername = async (req, res) => {
-  const { currentUsername, newUsername } = req.body;
+  const { currentUsername, newUsername, emailVerified } = req.body;
 
-  if (!currentUsername || !newUsername) {
+  if (!currentUsername || !newUsername || !emailVerified) {
     return res.status(400).json({
       success: false,
-      message: 'Current and new username are required'
+      message: 'Current username, new username, and email verification are required'
     });
   }
 

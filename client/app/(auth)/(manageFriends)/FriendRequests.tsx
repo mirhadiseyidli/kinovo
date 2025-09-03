@@ -38,7 +38,6 @@ export default function FriendRequests() {
           const response = await getReceivedFriendRequests();
           setRequests(response.data.requests);
           
-          // Mark friend requests as viewed for Firebase cleanup
           if (response.data.requests.length > 0) {
             markFriendRequestsAsViewed();
           }

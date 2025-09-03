@@ -37,7 +37,6 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
     (async (): Promise<void> => {
       const accessToken = await SecureStore.getItemAsync('accessToken');
       const refreshToken = await SecureStore.getItemAsync('refreshToken');
-      // Firebase token removed - using APNs directly
       const storedUserId = await AsyncStorage.getItem('userId');
 
       accessTokenRef.current = accessToken || '';

@@ -1,16 +1,17 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useEventsStore } from './useEventsStore';
+import { useUserEventsStore } from './useUserEventsStore';
+import { useDiscoveryEventsStore } from './useDiscoveryEventsStore';
 import { EVENT_TAGS, EventWithTags } from '@/utils/eventStore';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
 import api from '@/utils/api';
 
-// Upcoming Events Hook
+// Upcoming Events Hook - uses UserEventsStore
 export const useUpcomingEvents = (options?: { 
   limit?: number; 
   fromHomeScreen?: boolean;
 }) => {
-  const { data: allEvents = [], ...query } = useEventsStore();
+  const { data: allEvents = [], ...query } = useUserEventsStore();
   const { userId } = useAuthSession();
   
   const upcomingEvents = useMemo(() => {
@@ -37,14 +38,14 @@ export const useUpcomingEvents = (options?: {
   };
 };
 
-// Past Events Hook
+// Past Events Hook - uses UserEventsStore
 export const usePastEvents = (options?: {
   year?: number;
   month?: number; // 0-11
   page?: number;
   limit?: number;
 }) => {
-  const { data: allEvents = [], ...query } = useEventsStore();
+  const { data: allEvents = [], ...query } = useUserEventsStore();
   
   const pastEvents = useMemo(() => {
     let events = allEvents.filter(event => event._tags?.has(EVENT_TAGS.PAST));
@@ -93,9 +94,9 @@ export const usePastEvents = (options?: {
   };
 };
 
-// Friends Events Hook
+// Friends Events Hook - uses DiscoveryEventsStore
 export const useFriendsEvents = () => {
-  const { data: allEvents = [], ...query } = useEventsStore();
+  const { data: allEvents = [], ...query } = useDiscoveryEventsStore();
   
   const friendsEvents = useMemo(() => {
     const events = allEvents.filter(event => 
@@ -119,16 +120,20 @@ export const useFriendsEvents = () => {
 
 // User Events Hook (for viewing other users' events)
 export const useUserEvents = (targetUserId: string) => {
-  const { data: allEvents = [], ...query } = useEventsStore();
+  const userStoreQuery = useUserEventsStore();
+  const discoveryStoreQuery = useDiscoveryEventsStore();
+  
+  const allEvents = [...(userStoreQuery.data || []), ...(discoveryStoreQuery.data || [])];
+  const query = { ...userStoreQuery, isLoading: userStoreQuery.isLoading || discoveryStoreQuery.isLoading };
   
   const userEvents = useMemo(() => {
-    const events = allEvents.filter(event => 
+    const events = allEvents.filter((event: EventWithTags) => 
       event._tags?.has(EVENT_TAGS.USER(targetUserId)) ||
       event._tags?.has(EVENT_TAGS.CREATED_BY_USER(targetUserId))
     );
     
     // Sort by start time (most recent first)
-    events.sort((a, b) => 
+    events.sort((a: EventWithTags, b: EventWithTags) => 
       new Date(b.start_time || 0).getTime() - new Date(a.start_time || 0).getTime()
     );
     
@@ -144,12 +149,14 @@ export const useUserEvents = (targetUserId: string) => {
 
 // Single Event Hook (with fallback to API)
 export const useEvent = (eventId: string) => {
-  const { data: allEvents = [] } = useEventsStore();
-  const { userId } = useAuthSession();
+  const userStoreQuery = useUserEventsStore();
+  const discoveryStoreQuery = useDiscoveryEventsStore();
+  
+  const allEvents = [...(userStoreQuery.data || []), ...(discoveryStoreQuery.data || [])];
   
   // Check if event exists in store
   const cachedEvent = useMemo(() => 
-    allEvents.find(e => e._id === eventId), 
+    allEvents.find((e: EventWithTags) => e._id === eventId), 
     [allEvents, eventId]
   );
   
@@ -244,7 +251,7 @@ export const useAttentionRequiredEvents = (options?: {
   fromHomeScreen?: boolean;
   limit?: number;
 }) => {
-  const { data: allEvents = [], ...query } = useEventsStore();
+  const { data: allEvents = [], ...query } = useUserEventsStore();
   
   const attentionEvents = useMemo(() => {
     let events = allEvents.filter(event => 
@@ -267,15 +274,15 @@ export const useAttentionRequiredEvents = (options?: {
   };
 };
 
-// Recommended Events Hook
+// Recommended Events Hook - uses DiscoveryEventsStore
 export const useRecommendedEvents = (options?: {
   page?: number;
   limit?: number;
 }) => {
-  const { data: allEvents = [], ...query } = useEventsStore();
+  const { data: allEvents = [], ...query } = useDiscoveryEventsStore();
   
   const recommendedEvents = useMemo(() => {
-    let events = allEvents.filter(event => 
+    let events = allEvents.filter((event: EventWithTags) => 
       event._tags?.has(EVENT_TAGS.RECOMMENDED)
     );
     
@@ -301,7 +308,7 @@ export const useRecommendedEvents = (options?: {
 
 // Joined Events Hook (events user is participating in)
 export const useJoinedEvents = () => {
-  const { data: allEvents = [], ...query } = useEventsStore();
+  const { data: allEvents = [], ...query } = useUserEventsStore();
   const { userId } = useAuthSession();
   
   const joinedEvents = useMemo(() => {
@@ -325,7 +332,7 @@ export const useJoinedEvents = () => {
 
 // Created Events Hook (events created by user)
 export const useCreatedEvents = () => {
-  const { data: allEvents = [], ...query } = useEventsStore();
+  const { data: allEvents = [], ...query } = useUserEventsStore();
   const { userId } = useAuthSession();
   
   const createdEvents = useMemo(() => {
@@ -349,7 +356,7 @@ export const useCreatedEvents = () => {
 
 // Invited Events Hook (events user is invited to but hasn't responded)
 export const useInvitedEvents = () => {
-  const { data: allEvents = [], ...query } = useEventsStore();
+  const { data: allEvents = [], ...query } = useUserEventsStore();
   
   const invitedEvents = useMemo(() => {
     const events = allEvents.filter(event => 
@@ -373,7 +380,11 @@ export const useInvitedEvents = () => {
 
 // Category Events Hook
 export const useCategoryEvents = (category?: string) => {
-  const { data: allEvents = [], ...query } = useEventsStore();
+  const userStoreQuery = useUserEventsStore();
+  const discoveryStoreQuery = useDiscoveryEventsStore();
+  
+  const allEvents = [...(userStoreQuery.data || []), ...(discoveryStoreQuery.data || [])];
+  const query = { ...userStoreQuery, isLoading: userStoreQuery.isLoading || discoveryStoreQuery.isLoading };
   
   const categoryEvents = useMemo(() => {
     if (!category) return [];
@@ -434,7 +445,11 @@ export const useCategoryEvents = (category?: string) => {
 
 // City Events Hook
 export const useCityEvents = (city?: string) => {
-  const { data: allEvents = [], ...query } = useEventsStore();
+  const userStoreQuery = useUserEventsStore();
+  const discoveryStoreQuery = useDiscoveryEventsStore();
+  
+  const allEvents = [...(userStoreQuery.data || []), ...(discoveryStoreQuery.data || [])];
+  const query = { ...userStoreQuery, isLoading: userStoreQuery.isLoading || discoveryStoreQuery.isLoading };
   
   const cityEvents = useMemo(() => {
     if (!city) return [];
