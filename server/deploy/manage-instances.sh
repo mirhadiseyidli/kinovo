@@ -96,8 +96,6 @@ start_single_instance() {
             -p ${PORT}:5002 \
             --env-file .env \
             -e INSTANCE_ID="instance-${INSTANCE_NUM}" \
-            -e INSTANCE_PORT=$PORT \
-            --network host \
             kinovo-server
     fi
     
