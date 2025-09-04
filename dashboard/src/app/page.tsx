@@ -1,6 +1,6 @@
 'use client'
 
-import { useSession } from 'next-auth/react'
+import { useSession, signOut } from 'next-auth/react'
 import { redirect } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -82,13 +82,37 @@ export default function Dashboard() {
     return `${mins}m ${secs}s`
   }
 
+  const handleLogout = async () => {
+    try {
+      // Clear local storage tokens
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('accessToken')
+        localStorage.removeItem('userId')
+      }
+      
+      // Sign out from NextAuth (which will also clear session cookies)
+      await signOut({ callbackUrl: '/auth/signin' })
+    } catch (error) {
+      console.error('Logout error:', error)
+      // Force redirect even if logout fails
+      window.location.href = '/auth/signin'
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">Kinovo Analytics Dashboard</h1>
-          <p className="text-muted-foreground mt-2">Real-time insights into your app usage</p>
-          <div className="flex justify-between items-center mt-4">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">Kinovo Analytics Dashboard</h1>
+              <p className="text-muted-foreground mt-2">Real-time insights into your app usage</p>
+            </div>
+            <Button onClick={handleLogout} variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200">
+              Logout
+            </Button>
+          </div>
+          <div className="flex justify-between items-center">
             <p className="text-sm text-muted-foreground">
               Welcome, {session?.user?.name} • {new Date().toLocaleDateString()}
             </p>
