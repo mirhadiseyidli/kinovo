@@ -37,7 +37,7 @@ interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
 
 // Create axios instance with base configuration
 const api = axios.create({
-  baseURL: process.env.KINOVO_API_URL,
+  baseURL: process.env.NEXT_PUBLIC_KINOVO_API_URL,
   timeout: 30000,
 });
 
@@ -185,7 +185,7 @@ const refreshAccessToken = async (): Promise<string> => {
         reject(createTypedError('auth', 'Token refresh timeout', 408));
       }, REFRESH_TIMEOUT);
 
-      const response = await axios.post(`${process.env.KINOVO_API_URL}/api/auth/refresh-token`, {
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_KINOVO_API_URL}/api/auth/refresh-token`, {
         refreshToken,
       });
 
