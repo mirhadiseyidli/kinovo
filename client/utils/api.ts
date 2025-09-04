@@ -1,4 +1,4 @@
-import axios, { AxiosError, InternalAxiosRequestConfig, CancelToken } from 'axios';
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { router } from 'expo-router';
@@ -410,11 +410,8 @@ api.interceptors.response.use(
                           errorMessage.includes('unauthorized') || 
                           errorMessage.includes('Unauthorized')));
     
-    // If we have a 403 error, refresh token is invalid
-    if (statusCode === 403) {
-      await handleLogout();
-      return Promise.reject(createTypedError('auth', 'Refresh token invalid', 403));
-    }
+    // DON'T logout on regular 403 errors - only during token refresh
+    // Regular 403 errors might be permission issues, not auth issues
 
     // Prevent infinite retry loops
     if (originalRequest._retryCount && originalRequest._retryCount >= MAX_RETRY_COUNT) {

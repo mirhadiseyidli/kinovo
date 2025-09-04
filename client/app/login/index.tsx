@@ -87,21 +87,20 @@ export default function Auth() {
       style={{ flex: 1, paddingTop: insets.top, backgroundColor: themeColors.background, flexShrink: 1 }}
     >
       <AnimatedBackground />
-      <ScrollView 
-        bounces={false}
-        keyboardShouldPersistTaps="handled"
-        style={{ flex: 1, flexShrink: 1 }}
-        contentContainerStyle={{ flex: 1, justifyContent: 'center', paddingBottom: insets.bottom, flexShrink: 1 }}
-        showsVerticalScrollIndicator={false}
-        scrollEnabled={true}
+      <View 
+        style={{ 
+          flex: 1, 
+          justifyContent: 'center', 
+          paddingBottom: insets.bottom, 
+          flexShrink: 1 
+        }}
       >
         <View style={{ flex: 1 }}>
           {/* Logo and Company Name Section */}
           <View style={{ 
             flexDirection: 'column', 
             alignItems: 'center', 
-            justifyContent: 'center', 
-            // paddingTop: Platform.OS === 'ios' ? 100 : 40,
+            justifyContent: 'center',
             flex: 1
           }}>
             <Image
@@ -124,43 +123,8 @@ export default function Auth() {
 
           {/* Login Section - Aligned to bottom */}
           <View style={{ 
-            // flex: 1, 
-            // justifyContent: 'flex-end',
             paddingBottom: Platform.OS === 'ios' ? 40 : 20
           }}>
-            {/* <ThemedView style={{ alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-              <EmailLogin 
-                onLoginSuccess={handleLogin} 
-                onLoginStart={handleLoginStart}
-                onLoginError={handleLoginError}
-              />
-            </ThemedView> */}
-
-            {/* Separator */}
-            {/* <ThemedView style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 16, flexShrink: 1, flexWrap: 'nowrap' }}>
-              <ThemedView
-                style={{
-                  flex: 1,
-                  height: 1,
-                  backgroundColor: themeColors.textThird,
-                  flexShrink: 1,
-                  flexWrap: 'nowrap'
-                }}
-              />
-              <ThemedText
-                style={{
-                  marginHorizontal: 16,
-                  color: themeColors.textThird,
-                  textAlign: 'center',
-                  flexShrink: 1,
-                }}
-                adjustsFontSizeToFit={true}
-                numberOfLines={1}
-              >
-                or continue with
-              </ThemedText>
-              <ThemedView style={{ flex: 1, height: 1, backgroundColor: themeColors.textThird, flexShrink: 1, flexWrap: 'nowrap' }} />
-            </ThemedView> */}
 
             {/* OAuth Buttons */}
             <View style={{ flexDirection: 'column', gap: 16, width: '100%', alignItems: 'center', paddingHorizontal: 16, zIndex: 9999 }}>
@@ -178,21 +142,7 @@ export default function Auth() {
             </View>
           </View>
         </View>
-
-        {/* Sign Up Link */}
-        {/* <ThemedView style={{ 
-          flexDirection: 'row', 
-          alignItems: 'center', 
-          justifyContent: 'center'
-        }}>
-          <ThemedText>Don't have an account?</ThemedText>
-          <TouchableOpacity onPress={() => router.push('/login/signUp')}>
-            <ThemedText style={{ color: themeColors.mountainGreen, fontWeight: '600', textDecorationLine: 'underline', marginLeft: 4 }}>
-              Sign Up
-            </ThemedText>
-          </TouchableOpacity>
-        </ThemedView> */}
-      </ScrollView>
+      </View>
       
       {/* Loading Overlay */}
       <LoginLoadingOverlay 

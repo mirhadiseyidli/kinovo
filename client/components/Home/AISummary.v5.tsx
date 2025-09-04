@@ -148,12 +148,15 @@ const AISummaryV5 = React.memo<AISummaryV5Props>(({ refreshing, onFinishRefresh 
   const [stableInsights, setStableInsights] = useState<InsightCard | null>(null);
   const [loadingStartTime, setLoadingStartTime] = useState<number | null>(null);
 
+  // Stable error handler to prevent re-renders
+  const handleInsightsError = useCallback(() => {
+    setComponentError('aiInsights', true);
+  }, [setComponentError]);
+
   // AI Insights hook
   const { insights, refreshWithCacheInvalidation } = useAIInsights({
     enabled: true,
-    onError: () => {
-      setComponentError('aiInsights', true);
-    },
+    onError: handleInsightsError,
   });
 
   // Track loading start time

@@ -75,6 +75,9 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
     } catch (error) {
       const err = error as ApiError;
       console.error('Token check failed:', err.response?.data?.message || err.message);
+      
+      // Try to refresh the token
+      // refreshAccessToken will handle the logout decision based on error type
       await refreshAccessToken();
     }
   };
@@ -105,7 +108,17 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
     } catch (error) {
       const err = error as ApiError;
       console.error('Failed to refresh access token:', err.response?.data?.message || err.message);
-      signOut();
+      
+      // Only sign out if the refresh token is invalid (403)
+      // For all other errors (network issues, server down, etc.), keep user logged in
+      if (err.response?.status === 403) {
+        signOut();
+      } else {
+        // For network or other errors, just stay on loading screen
+        // The user can retry when connection is restored
+        console.log('Keeping user logged in despite refresh error');
+        setIsLoading(false);
+      }
     }
   };
 

@@ -1,5 +1,5 @@
 import AuthProvider, { useAuthSession } from "@/components/Auth/AuthProvider";
-import { Slot, useRouter } from "expo-router";
+import { Slot } from "expo-router";
 import { ReactNode, useState, useEffect, useCallback, useRef } from "react";
 import { View } from "react-native";
 // import * as SplashScreen from "expo-splash-screen";
@@ -23,6 +23,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/utils/queryClient';
 import { Host } from 'react-native-portalize';
 import '@/utils/polyfills';
+import { ErrorBoundary } from '@/components/ErrorBoundary/ErrorBoundary';
 
 // Configure how notifications are handled when the app is in the foreground
 Notifications.setNotificationHandler({
@@ -39,17 +40,19 @@ registerRootComponent(RootLayout);
 
 export default function RootLayout(): ReactNode {
   return (
-    <AuthProvider>
-      <QueryClientProvider client={queryClient}>
-          <GestureHandlerRootView style={{ flex: 1, backgroundColor: 'transparent' }}>
-            <KeyboardProvider statusBarTranslucent={false}>
-              <Host>
-                <InnerLayout />
-              </Host>
-            </KeyboardProvider>
-          </GestureHandlerRootView>
-      </QueryClientProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <QueryClientProvider client={queryClient}>
+            <GestureHandlerRootView style={{ flex: 1, backgroundColor: 'transparent' }}>
+              <KeyboardProvider statusBarTranslucent={false}>
+                <Host>
+                  <InnerLayout />
+                </Host>
+              </KeyboardProvider>
+            </GestureHandlerRootView>
+        </QueryClientProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 
@@ -61,7 +64,6 @@ function InnerLayout() {
   const [isFadingOut, setIsFadingOut] = useState(false);
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? 'dark'];
-  const router = useRouter();
   
   // Initialize automatic image cache management
   useAutomaticCacheManagement();

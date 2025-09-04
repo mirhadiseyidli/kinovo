@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useAuthSession } from '@/components/Auth/AuthProvider';
 import { useLocation } from '@/context/LocationContext';
 import api from '@/utils/api';
@@ -111,18 +111,21 @@ export const useAIInsights = (options: UseAIInsightsOptions = {}) => {
     enabled: enabled && !!userId,
     staleTime,
     refetchInterval: refetchInterval || undefined,
-    retry: 2,
+    retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
     refetchOnWindowFocus: false,
     refetchOnMount: true,
-    throwOnError: true,
+    throwOnError: false, // Don't throw errors - handle them gracefully
+    networkMode: 'online'
   });
 
-  // Handle errors
-  if (query.error) {
-    console.error('AI Insights fetch error:', query.error);
-    onError?.(query.error);
-  }
+  // Handle errors with useEffect to prevent render loop
+  useEffect(() => {
+    if (query.error) {
+      console.error('AI Insights fetch error:', query.error);
+      onError?.(query.error);
+    }
+  }, [query.error, onError]);
 
   // Return fallback insights if there's an error
   const insights = query.error ? getFallbackInsights() : query.data;

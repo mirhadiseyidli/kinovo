@@ -157,7 +157,7 @@ export const useOptimalCalendarQuery = (
       event: event,
       isModified: false,
       isCancelled: false,
-    })).sort((a, b) => a.date.getTime() - b.date.getTime());
+    })).sort((a: EventOccurrence, b: EventOccurrence) => a.date.getTime() - b.date.getTime());
   }, [eventsQuery.data]);
 
   // Helper functions
