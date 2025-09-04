@@ -49,7 +49,19 @@ const {
   aiLimiter,
   searchLimiter,
   eventWriteLimiter,
-  pushNotificationLimiter
+  eventReadLimiter,
+  userReadLimiter,
+  userWriteLimiter,
+  friendsReadLimiter,
+  friendsWriteLimiter,
+  notificationReadLimiter,
+  notificationWriteLimiter,
+  pushNotificationLimiter,
+  weatherLimiter,
+  mapKitLimiter,
+  googleApiLimiter,
+  storageLimiter,
+  categoryLimiter
 } = require('./middleware/rateLimiter');
 
 // Apply general rate limiting to all API routes
@@ -104,18 +116,18 @@ async function startServer() {
 
     // Routes with specific rate limiters
     app.use('/api/auth', authLimiter, authRoutes);
-    app.use('/api/users', userRoutes);
+    app.use('/api/users', userRoutes); // Rate limiting applied within route file
     app.use('/api/ai', aiLimiter, aiRoutes);
     app.use('/api/search', searchLimiter, searchRoutes);
-    app.use('/api/managefriends', manageFriendsRoutes);
-    app.use('/api/friendsuggestions', friendSuggestionsRoutes);
-    app.use('/api/manageevents', eventWriteLimiter, eventsRoutes);
-    app.use('/api/weather', weatherRoutes);
-    app.use('/api/mapkit', mapKitRoutes);
-    app.use('/api/notifications', pushNotificationLimiter, notificationsRoutes);
-    app.use('/api', categoryRoutes);
-    app.use('/api/google', googleApiRoutes);
-    app.use('/api/storage', storageRoutes);
+    app.use('/api/managefriends', manageFriendsRoutes); // Rate limiting applied within route file
+    app.use('/api/friendsuggestions', friendSuggestionsRoutes); // Rate limiting applied within route file
+    app.use('/api/manageevents', eventsRoutes); // Rate limiting applied within route file
+    app.use('/api/weather', weatherLimiter, weatherRoutes);
+    app.use('/api/mapkit', mapKitLimiter, mapKitRoutes);
+    app.use('/api/notifications', notificationsRoutes); // Rate limiting applied within route file
+    app.use('/api', categoryLimiter, categoryRoutes);
+    app.use('/api/google', googleApiLimiter, googleApiRoutes);
+    app.use('/api/storage', storageLimiter, storageRoutes);
     app.use('/api/push-fetch', pushNotificationLimiter, pushFetchRoutes);
     app.use('/api/vector-search', aiLimiter, vectorSearchRoutes);
 
