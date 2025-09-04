@@ -5,7 +5,7 @@ interface ApiError {
   message: string;
   status: number;
   code?: string;
-  data?: any;
+  data?: unknown;
   timestamp: number;
 }
 
@@ -23,7 +23,7 @@ interface AuthError extends ApiError {
 
 interface ServerError extends ApiError {
   type: 'server';
-  details?: any;
+  details?: unknown;
 }
 
 type TypedAxiosError = NetworkError | AuthError | ServerError;
@@ -64,13 +64,13 @@ const createTypedError = (
   type: 'network' | 'auth' | 'server',
   message: string,
   status: number,
-  additionalData?: any
+  additionalData?: unknown
 ): TypedAxiosError => {
   const baseError: ApiError = {
     message,
     status,
     timestamp: Date.now(),
-    ...additionalData,
+    ...(additionalData as object || {}),
   };
 
   switch (type) {
@@ -103,7 +103,7 @@ const createTypedError = (
 };
 
 // Enhanced waiting request management with memory leak prevention
-const processWaitingRequests = (token: string | null, error: any = null) => {
+const processWaitingRequests = (token: string | null, error: unknown = null) => {
   const now = Date.now();
   
   // Filter out expired requests to prevent memory leaks
@@ -213,7 +213,7 @@ const refreshAccessToken = async (): Promise<string> => {
         'auth',
         error?.response?.data?.message || error.message || 'Token refresh failed',
         error?.response?.status || 500,
-        { originalError: error }
+        { originalError: error as Error }
       );
       
       reject(typedError);
@@ -342,7 +342,7 @@ api.interceptors.response.use(
 
     // Handle other HTTP errors
     let typedError: TypedAxiosError;
-    const errorMessage = (data as any)?.message || '';
+    const errorMessage = (data as { message?: string })?.message || '';
     
     if (status >= 500) {
       typedError = createTypedError('server', errorMessage || 'Server error', status, { data });

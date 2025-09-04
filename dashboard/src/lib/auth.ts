@@ -1,4 +1,6 @@
-import { NextAuthOptions } from "next-auth"
+import NextAuth from "next-auth"
+import type { NextAuthOptions, Account, User, Session } from "next-auth"
+import type { JWT } from "next-auth/jwt"
 import GoogleProvider from "next-auth/providers/google"
 import api from "./api"
 
@@ -10,7 +12,7 @@ export const authOptions: NextAuthOptions = {
     })
   ],
   callbacks: {
-    async signIn({ user, account }) {
+    async signIn({ account }: { account: Account | null }) {
       if (account?.provider === "google") {
         try {
           console.log('NextAuth account object:', account)
@@ -43,7 +45,7 @@ export const authOptions: NextAuthOptions = {
       }
       return false
     },
-    async jwt({ token, account, user }) {
+    async jwt({ token, account, user }: { token: JWT; account: Account | null; user?: User }) {
       if (account && user) {
         // Store Kinovo JWT token
         try {
@@ -70,7 +72,7 @@ export const authOptions: NextAuthOptions = {
       }
       return token
     },
-    async session({ session, token }) {
+    async session({ session, token }: { session: Session; token: JWT }) {
       session.kinovoToken = token.kinovoToken as string
       session.role = token.role as string
       session.userId = token.userId as string

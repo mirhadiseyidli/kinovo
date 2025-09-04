@@ -42,8 +42,8 @@ export default function Dashboard() {
       setError(null)
       const response = await api.get('/api/analytics/today')
       setAnalytics(response.data.data)
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch analytics')
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Failed to fetch analytics')
     } finally {
       setLoading(false)
     }

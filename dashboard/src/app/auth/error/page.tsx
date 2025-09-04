@@ -62,7 +62,7 @@ export default function AuthError() {
           {error === 'AccessDenied' && (
             <p className="text-xs text-muted-foreground mt-4">
               This dashboard requires admin privileges. If you are an admin, 
-              please ensure you're signed in with the correct Google account 
+              please ensure you&apos;re signed in with the correct Google account 
               associated with your admin role in the Kinovo system.
             </p>
           )}
