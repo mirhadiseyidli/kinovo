@@ -474,13 +474,13 @@ api.interceptors.response.use(
         // Process waiting requests with error
         processWaitingRequests(null, refreshError);
         
-        // Only logout if refresh token is expired (403) or explicitly invalid
-        // For other errors (network issues, timeouts, etc.), keep user logged in
-        if (refreshError?.status === 403 || refreshError?.isRefreshTokenInvalid) {
-          // Refresh token is invalid/expired, must logout
+        // Only logout if refresh token is specifically invalid (403)
+        // For all other errors (network issues, server downtime, timeouts, 401, etc.), keep user logged in
+        if (refreshError?.status === 403) {
+          // Refresh token is invalid, must logout
           await handleLogout();
         } else {
-          // For other errors, just reject without logging out
+          // For network errors, server errors, timeouts, 401 errors, etc., just reject without logging out
           // This allows the app to retry later when conditions improve
           console.warn('Token refresh failed but keeping user logged in:', refreshError?.message);
         }
