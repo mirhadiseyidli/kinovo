@@ -17,8 +17,8 @@ export const authOptions: NextAuthOptions = {
           console.log('NextAuth account object:', account)
           console.log('ID Token:', account.id_token)
           
-          // Authenticate with Kinovo backend using Google ID token
-          const response = await api.post('/api/auth/google-auth', {
+          // Authenticate with Kinovo backend using web-specific endpoint
+          const response = await api.post('/api/auth/web/google-auth', {
             idToken: account.id_token
           })
 
@@ -48,22 +48,15 @@ export const authOptions: NextAuthOptions = {
       if (account && user) {
         // Store Kinovo JWT token
         try {
-          const response = await api.post('/api/auth/google-auth', {
+          const response = await api.post('/api/auth/web/google-auth', {
             idToken: account.id_token
           })
 
           if (response.data.success) {
             token.kinovoToken = response.data.accessToken
-            token.kinovoRefreshToken = response.data.refreshToken
+            // No need to store refreshToken - it's in httpOnly cookie
             token.role = response.data.user?.role
             token.userId = response.data.user?.id
-
-            // Store tokens in localStorage for API interceptor
-            if (typeof window !== 'undefined') {
-              localStorage.setItem('accessToken', response.data.accessToken)
-              localStorage.setItem('refreshToken', response.data.refreshToken)
-              localStorage.setItem('userId', response.data.user?.id)
-            }
           }
         } catch (error) {
           console.error('Error getting Kinovo token:', error)

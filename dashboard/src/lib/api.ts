@@ -39,6 +39,7 @@ interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_KINOVO_API_URL,
   timeout: 30000,
+  withCredentials: true, // Always send cookies
 });
 
 // Enhanced token refresh state management
@@ -172,21 +173,17 @@ const refreshAccessToken = async (): Promise<string> => {
     try {
       isRefreshing = true;
       
-      const refreshToken = typeof window !== 'undefined' 
-        ? localStorage.getItem('refreshToken') 
-        : null;
-        
-      if (!refreshToken) {
-        throw new Error('No refresh token available');
-      }
+      // With web auth, refresh token is in httpOnly cookie
+      // No need to check localStorage - the cookie will be sent automatically
 
-      // Set timeout for refresh request
+      // Set timeout for refresh request  
       const refreshTimeout = setTimeout(() => {
         reject(createTypedError('auth', 'Token refresh timeout', 408));
       }, REFRESH_TIMEOUT);
 
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_KINOVO_API_URL}/api/auth/refresh-token`, {
-        refreshToken,
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_KINOVO_API_URL}/api/auth/web/refresh-token`, {}, {
+        withCredentials: true, // Send cookies with request
+        timeout: REFRESH_TIMEOUT
       });
 
       clearTimeout(refreshTimeout);

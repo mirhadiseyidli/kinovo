@@ -255,6 +255,29 @@ class AnalyticsService {
     }
   }
 
+  // Backfill analytics with current user count (run once to fix existing data)
+  async backfillAnalytics() {
+    const today = new Date().toISOString().split('T')[0];
+    
+    try {
+      // Get actual total users count
+      const totalUsers = await User.countDocuments();
+      
+      // Update today's analytics with correct total users
+      await Analytics.findOneAndUpdate(
+        { date: today },
+        { $set: { totalUsers } },
+        { upsert: true }
+      );
+
+      console.log(`Analytics backfilled: ${totalUsers} total users`);
+      return { totalUsers };
+    } catch (error) {
+      console.error('Error backfilling analytics:', error);
+      throw error;
+    }
+  }
+
   // Get analytics dashboard data
   async getDashboardData(days = 30) {
     const endDate = new Date();

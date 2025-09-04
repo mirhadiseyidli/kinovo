@@ -28,16 +28,28 @@ const {
   checkTwoFactorStatus,
   cleanupExpiredCodes
 } = require('../controllers/twoFactorController');
+
+// Import web-specific auth controllers
+const {
+  webGoogleAuth,
+  webRefreshToken,
+  webLogout
+} = require('../controllers/webAuthController');
 const { tokenMiddleware } = require('../utils/tokenMiddleware');
 const router = express.Router();
 
-// Public authentication routes (pre-login/signup)
+// Public authentication routes (pre-login/signup) - Mobile
 router.post('/google-auth', googleAuth);
 router.post('/apple-auth', appleAuth);
 router.post('/login', login);
 router.post('/signup', signup);
 router.post('/refresh-token', tokenMiddleware, refreshToken);
 router.post('/verify-login', verifyLogin);
+
+// Web-specific authentication routes with httpOnly cookies
+router.post('/web/google-auth', webGoogleAuth);
+router.post('/web/refresh-token', webRefreshToken);
+router.post('/web/logout', webLogout);
 
 // Public phone verification routes (used during signup)
 router.post('/verify-phone', verifyPhone);

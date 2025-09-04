@@ -16,7 +16,7 @@ const requireAdmin = async (req, res, next) => {
     
     // Get user from database to check role
     const User = require('../database/schemas/usersSchema');
-    const user = await User.findById(decoded.id).select('role');
+    const user = await User.findById(decoded._id).select('role');
     
     if (!user) {
       return res.status(401).json({ success: false, message: 'User not found' });
@@ -55,6 +55,25 @@ router.get('/dashboard', requireAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch analytics dashboard'
+    });
+  }
+});
+
+// POST /api/analytics/backfill - Backfill analytics with current user count
+router.post('/backfill', requireAdmin, async (req, res) => {
+  try {
+    const result = await analyticsService.backfillAnalytics();
+    
+    res.json({
+      success: true,
+      message: 'Analytics backfilled successfully',
+      data: result
+    });
+  } catch (error) {
+    console.error('Error backfilling analytics:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to backfill analytics'
     });
   }
 });

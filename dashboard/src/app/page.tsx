@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import api from '@/lib/api'
+import { useTokenStorage } from '@/hooks/useTokenStorage'
 
 interface AnalyticsData {
   totalUsers: number
@@ -26,6 +27,10 @@ export default function Dashboard() {
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  
+  // Store tokens in localStorage when session is available
+  useTokenStorage()
+  
   console.log(session)
 
   useEffect(() => {
