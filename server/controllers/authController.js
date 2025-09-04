@@ -103,6 +103,7 @@ const googleAuth = async (req, res) => {
         last_name: userDataFromDB.last_name,
         full_name: userDataFromDB.full_name,
         profile_picture: userDataFromDB.profile_picture,
+        role: userDataFromDB.role,
       },
       accessToken,
       refreshToken,

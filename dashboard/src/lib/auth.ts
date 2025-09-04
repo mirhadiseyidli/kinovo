@@ -22,11 +22,14 @@ export const authOptions: NextAuthOptions = {
           })
 
           if (response.data.success) {
+            console.log('Received user data:', response.data.user)
+            console.log('User role:', response.data.user?.role)
+            
             // Check if user has admin role
             if (response.data.user?.role === 'admin') {
               return true
             } else {
-              console.error('User does not have admin privileges')
+              console.error('User does not have admin privileges. Current role:', response.data.user?.role)
               return '/auth/error?error=AccessDenied'
             }
           } else {
