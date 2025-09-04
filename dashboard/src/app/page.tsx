@@ -26,6 +26,7 @@ export default function Dashboard() {
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  console.log(session)
 
   useEffect(() => {
     if (status === 'loading') return

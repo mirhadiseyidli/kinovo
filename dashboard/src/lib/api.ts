@@ -147,14 +147,16 @@ const handleLogout = async () => {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('userId');
+      
+      // Redirect to login
+      window.location.href = '/auth/signin';
     }
-    
-    // Redirect to login
-    window.location.href = '/auth/signin';
   } catch (error) {
     console.error('Error during logout:', error);
     // Still redirect to login even if cleanup fails
-    window.location.href = '/auth/signin';
+    if (typeof window !== 'undefined') {
+      window.location.href = '/auth/signin';
+    }
   }
 };
 
@@ -277,8 +279,13 @@ api.interceptors.response.use(
 
     const { status, data } = error.response;
 
-    // Handle 401 errors with token refresh
+    // Handle 401 errors with token refresh (but skip during initial auth)
     if (status === 401 && originalConfig && !originalConfig._retry) {
+      // Skip token refresh for auth endpoints
+      if (originalConfig.url?.includes('/api/auth/')) {
+        return Promise.reject(createTypedError('auth', 'Authentication failed', 401, { data }));
+      }
+
       // Prevent infinite retry loops
       originalConfig._retry = true;
       originalConfig._retryCount = (originalConfig._retryCount || 0) + 1;
@@ -335,13 +342,14 @@ api.interceptors.response.use(
 
     // Handle other HTTP errors
     let typedError: TypedAxiosError;
+    const errorMessage = (data as any)?.message || '';
     
     if (status >= 500) {
-      typedError = createTypedError('server', data?.message || 'Server error', status, { data });
+      typedError = createTypedError('server', errorMessage || 'Server error', status, { data });
     } else if (status === 403) {
-      typedError = createTypedError('auth', data?.message || 'Access forbidden', status, { data });
+      typedError = createTypedError('auth', errorMessage || 'Access forbidden', status, { data });
     } else {
-      typedError = createTypedError('network', data?.message || 'Request failed', status, { data });
+      typedError = createTypedError('network', errorMessage || 'Request failed', status, { data });
     }
 
     return Promise.reject(typedError);

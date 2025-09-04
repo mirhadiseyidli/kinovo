@@ -13,12 +13,12 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user, account }) {
       if (account?.provider === "google") {
         try {
-          // Authenticate with Kinovo backend using Google token
-          const response = await api.post('/api/auth/google-login', {
-            email: user.email,
-            name: user.name,
-            googleId: account.providerAccountId,
-            accessToken: account.access_token
+          console.log('NextAuth account object:', account)
+          console.log('ID Token:', account.id_token)
+          
+          // Authenticate with Kinovo backend using Google ID token
+          const response = await api.post('/api/auth/google-auth', {
+            idToken: account.id_token
           })
 
           if (response.data.success) {
@@ -44,11 +44,8 @@ export const authOptions: NextAuthOptions = {
       if (account && user) {
         // Store Kinovo JWT token
         try {
-          const response = await api.post('/api/auth/google-login', {
-            email: user.email,
-            name: user.name,
-            googleId: account.providerAccountId,
-            accessToken: account.access_token
+          const response = await api.post('/api/auth/google-auth', {
+            idToken: account.id_token
           })
 
           if (response.data.success) {
