@@ -55,7 +55,6 @@ for i in $(seq 1 $INSTANCES); do
         -p ${PORT}:5002 \
         --env-file .env \
         -e INSTANCE_ID="instance-${i}" \
-        -e BACKEND_PORT=$PORT \
         kinovo-server
     
     # Check if container started successfully
