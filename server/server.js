@@ -34,7 +34,7 @@ app.set('trust proxy', 1);
 
 // CORS Configuration
 const allowedOrigins = process.env.NODE_ENV === 'production'
-  ? ['https://kinovo.app', 'https://www.kinovo.app']
+  ? ['https://kinovo.app', 'https://www.kinovo.app', 'https://admin.kinovo.app']
   : ['http://localhost:3000'];
 
 app.use(cors({ origin: allowedOrigins, credentials: true }));
