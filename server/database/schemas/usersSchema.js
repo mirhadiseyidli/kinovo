@@ -351,6 +351,12 @@ const usersSchema = new mongoose.Schema({
   bypass_two_factor_auth: {
     type: Boolean,
     default: false,
+  },
+  role: {
+    type: String,
+    enum: ['user', 'admin'],
+    default: 'user',
+    required: true
   }
 });
 

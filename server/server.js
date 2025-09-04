@@ -21,6 +21,7 @@ const googleApiRoutes = require('./routes/googleApiRoutes');
 const storageRoutes = require('./routes/storageRoutes');
 const pushFetchRoutes = require('./routes/pushFetchRoutes');
 const vectorSearchRoutes = require('./routes/vectorSearchRoutes');
+const analyticsRoutes = require('./routes/analyticsRoutes');
 
 const app = express();
 
@@ -94,6 +95,10 @@ async function startServer() {
     const { initializeVectorSearch } = require('./services/vectorSearchInitializer');
     await initializeVectorSearch({ autoIndex: process.env.AUTO_INDEX_EMBEDDINGS === 'true' });
 
+    // Initialize real-time analytics tracking
+    const analyticsService = require('./services/analyticsService');
+    await analyticsService.initializeChangeStreams();
+
     // Check Authentication (JWT based)
     const { verifyAccessToken } = require('./utils/token');
 
@@ -130,6 +135,7 @@ async function startServer() {
     app.use('/api/storage', storageLimiter, storageRoutes);
     app.use('/api/push-fetch', pushNotificationLimiter, pushFetchRoutes);
     app.use('/api/vector-search', aiLimiter, vectorSearchRoutes);
+    app.use('/api/analytics', analyticsRoutes);
 
     // Start the cron jobs
     const accountDeletionCron = require('./cron/accountDeletionCron');
