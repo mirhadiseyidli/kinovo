@@ -47,8 +47,8 @@ let refreshPromise: Promise<string> | null = null;
 
 // Store of waiting requests with proper typing and memory management
 let waitingRequests: Array<{
-  resolve: (value?: any) => void;
-  reject: (error?: any) => void;
+  resolve: (value?: unknown) => void;
+  reject: (error?: unknown) => void;
   config: CustomAxiosRequestConfig;
   timestamp: number;
 }> = [];
@@ -208,12 +208,13 @@ const refreshAccessToken = async (): Promise<string> => {
       } else {
         throw new Error('Invalid refresh response');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const axiosError = error as AxiosError;
       const typedError = createTypedError(
         'auth',
-        error?.response?.data?.message || error.message || 'Token refresh failed',
-        error?.response?.status || 500,
-        { originalError: error as Error }
+        (axiosError?.response?.data as { message?: string })?.message || (axiosError as Error).message || 'Token refresh failed',
+        axiosError?.response?.status || 500,
+        { originalError: axiosError }
       );
       
       reject(typedError);
