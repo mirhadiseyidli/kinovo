@@ -9,58 +9,31 @@ const analyticsSchema = new mongoose.Schema({
     index: true
   },
 
-  // ── Totals ──────────────────────────────
-  totalUsers: {
-    type: Number,
-    required: true,
-    default: 0
-  },
-  newUserCount: {
-    type: Number,
-    required: true,
-    default: 0
-  },
-  dailyActiveUserIds: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Users'
+  // ── User Activity Sessions ──────────────────────────────
+  sessions: [{
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Users',
+      required: true
+    },
+    startTime: {
+      type: Date,
+      required: true
+    },
+    endTime: {
+      type: Date
+    },
+    duration: {
+      type: Number, // in milliseconds
+      default: 0
+    }
   }],
 
-  // ── Sessions ────────────────────────────
-  sessionCount: {
-    type: Number,
-    required: true,
-    default: 0
-  },
-  avgSessionDuration: {
-    type: Number,
-    required: true,
-    default: 0
-  },
-
-  // ── Retention Cohorts ───────────────────
-  cohortDay0Ids: [{
+  // ── New User Registrations ──────────────────────────────
+  newUserIds: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Users'
   }],
-  cohortDay1Ids: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Users'
-  }],
-  cohortDay7Ids: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Users'
-  }],
-  cohortDay30Ids: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Users'
-  }],
-
-  // ── Location ─────────────────────────────
-  topStates: {
-    type: Map,
-    of: Number,
-    default: new Map()
-  },
 
   // ── Metadata ─────────────────────────────
   createdAt: {
@@ -76,21 +49,9 @@ const analyticsSchema = new mongoose.Schema({
 // Indexes for faster queries
 analyticsSchema.index({ date: -1 });
 analyticsSchema.index({ createdAt: -1 });
-
-// Virtual for daily active users count
-analyticsSchema.virtual('dailyActiveUsersCount').get(function() {
-  return this.dailyActiveUserIds ? this.dailyActiveUserIds.length : 0;
-});
-
-// Method to get retention rate for a cohort
-analyticsSchema.methods.getRetentionRate = function(cohortDay) {
-  const cohortField = `cohortDay${cohortDay}Ids`;
-  const cohortSize = this[cohortField] ? this[cohortField].length : 0;
-  const baseSize = this.cohortDay0Ids ? this.cohortDay0Ids.length : 0;
-  
-  if (baseSize === 0) return 0;
-  return ((cohortSize / baseSize) * 100).toFixed(2);
-};
+analyticsSchema.index({ 'sessions.userId': 1 });
+analyticsSchema.index({ 'sessions.startTime': 1 });
+analyticsSchema.index({ 'newUserIds': 1 });
 
 // Static method to find analytics for a date range
 analyticsSchema.statics.findByDateRange = function(startDate, endDate) {

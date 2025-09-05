@@ -15,9 +15,10 @@ export function useUserPresence() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
   
-  // Use refs to track intervals
+  // Use refs to track intervals and initialization state
   const heartbeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(true);
+  const initializedRef = useRef(false);
 
   // Send heartbeat to server
   const sendHeartbeat = useCallback(async () => {
@@ -53,14 +54,17 @@ export function useUserPresence() {
   // Handle app state changes
   const handleAppStateChange = useCallback((nextAppState: string) => {
     if (nextAppState === 'active') {
-      // App became active - send heartbeat and start interval
-      sendHeartbeat();
-      
-      // Start heartbeat interval (every 5 minutes)
-      if (heartbeatIntervalRef.current) {
-        clearInterval(heartbeatIntervalRef.current);
+      // Only send heartbeat if we're initialized
+      if (initializedRef.current) {
+        // App became active - send heartbeat and start interval
+        sendHeartbeat();
+        
+        // Start heartbeat interval (every 5 minutes)
+        if (heartbeatIntervalRef.current) {
+          clearInterval(heartbeatIntervalRef.current);
+        }
+        heartbeatIntervalRef.current = setInterval(sendHeartbeat, 5 * 60 * 1000);
       }
-      heartbeatIntervalRef.current = setInterval(sendHeartbeat, 5 * 60 * 1000);
       
     } else if (nextAppState === 'background' || nextAppState === 'inactive') {
       // App went to background or inactive - stop heartbeat and set offline immediately
@@ -86,6 +90,9 @@ export function useUserPresence() {
       // Send initial heartbeat
       await sendHeartbeat();
       
+      // Mark as initialized
+      initializedRef.current = true;
+      
       // Start heartbeat interval
       if (heartbeatIntervalRef.current) {
         clearInterval(heartbeatIntervalRef.current);
@@ -107,12 +114,16 @@ export function useUserPresence() {
   // Initialize presence when user is available
   useEffect(() => {
     mountedRef.current = true;
-    initializePresence();
+    
+    // Only initialize if we have a userId and haven't initialized yet
+    if (userId && !initializedRef.current) {
+      initializePresence();
+    }
     
     return () => {
       mountedRef.current = false;
     };
-  }, [initializePresence]);
+  }, [userId]); // Only depend on userId, not the entire initializePresence function
 
   // Setup app state listener
   useEffect(() => {
@@ -134,6 +145,8 @@ export function useUserPresence() {
         heartbeatIntervalRef.current = null;
       }
       
+      // Reset initialization state
+      initializedRef.current = false;
       // Set mounted to false (offline cleanup is handled by AuthProvider.signOut)
       mountedRef.current = false;
     };
