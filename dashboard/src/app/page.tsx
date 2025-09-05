@@ -34,6 +34,17 @@ interface RetentionData {
   targetDate: string
 }
 
+interface OnlineUser {
+  _id: string
+  userId: {
+    full_name: string
+    username: string
+    profile_picture?: string
+  }
+  online: boolean
+  lastActive: string
+}
+
 interface AnalyticsData {
   totalUsers: number
   totalUsersList: User[]
@@ -56,7 +67,7 @@ interface AnalyticsData {
   }
   currentlyOnline?: {
     count: number
-    users: any[]
+    users: OnlineUser[]
   }
   date?: string
 }
@@ -75,14 +86,6 @@ export default function Dashboard() {
   useTokenStorage()
   
   console.log(session)
-
-  useEffect(() => {
-    if (status === 'loading') return
-    if (!session) redirect('/auth/signin')
-    if (session.role !== 'admin') redirect('/auth/error?error=AccessDenied')
-
-    fetchAnalytics()
-  }, [session, status, selectedPeriod])
 
   const fetchAnalytics = async () => {
     try {
@@ -104,6 +107,14 @@ export default function Dashboard() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (status === 'loading') return
+    if (!session) redirect('/auth/signin')
+    if (session.role !== 'admin') redirect('/auth/error?error=AccessDenied')
+
+    fetchAnalytics()
+  }, [session, status, selectedPeriod])
 
   if (status === 'loading' || loading) {
     return (
@@ -489,7 +500,7 @@ export default function Dashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-wrap gap-2">
-                    {analytics.currentlyOnline.users.slice(0, 10).map((user: any) => (
+                    {analytics.currentlyOnline.users.slice(0, 10).map((user: OnlineUser) => (
                       <div key={user._id} className="flex items-center gap-2 p-2 bg-muted rounded-lg">
                         {user.userId?.profile_picture ? (
                           <img 
