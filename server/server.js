@@ -101,6 +101,10 @@ async function startServer() {
     const analyticsService = require('./services/analyticsService');
     await analyticsService.initializeChangeStreams();
 
+    // Initialize session tracking
+    const UserPresence = require('./database/schemas/userPresenceSchema');
+    await UserPresence.initializeSessions();
+
     // Check Authentication (JWT based)
     const { verifyAccessToken } = require('./utils/token');
 

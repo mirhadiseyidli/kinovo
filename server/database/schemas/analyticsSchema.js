@@ -16,6 +16,10 @@ const analyticsSchema = new mongoose.Schema({
       ref: 'Users',
       required: true
     },
+    sessionId: {
+      type: String,
+      required: true
+    },
     startTime: {
       type: Date,
       required: true
