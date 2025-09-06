@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 const User = require('../database/schemas/usersSchema');
-const { generateAccessToken, generateRefreshToken } = require('../utils/token');
+const { generateAccessToken, generateRefreshToken, verifyAccessToken } = require('../utils/token');
 // Use console for logging instead of logger
 const UserNotificationPreferences = require('../database/schemas/userNotificationPreferencesSchema');
 
@@ -103,9 +103,53 @@ const webGoogleAuth = async (req, res) => {
  * Web-specific token refresh using httpOnly cookie
  */
 const webRefreshToken = async (req, res) => {
-  const refreshToken = req.cookies.refreshToken;
-
+  // Try to get refresh token from cookie first
+  let refreshToken = req.cookies.refreshToken;
+  
+  // For NextAuth compatibility: Accept access token for refresh if no refresh token
+  // This is secure because we verify the token and check admin role
   if (!refreshToken) {
+    const authHeader = req.headers.authorization;
+    const accessToken = authHeader && authHeader.split(' ')[1];
+    
+    if (accessToken) {
+      try {
+        // Verify the access token
+        const decoded = verifyAccessToken(accessToken);
+        
+        // Check if user is admin
+        const user = await User.findById(decoded._id).select('role email');
+        if (user && user.role === 'admin') {
+          // Generate new tokens for admin user
+          const newAccessToken = generateAccessToken({
+            _id: decoded._id,
+            email: decoded.email,
+          });
+          
+          const newRefreshToken = generateRefreshToken({
+            _id: decoded._id,
+            email: decoded.email,
+          });
+          
+          // Set refresh token as httpOnly cookie for future requests
+          res.cookie('refreshToken', newRefreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            domain: process.env.NODE_ENV === 'production' ? '.kinovo.app' : 'localhost',
+            maxAge: 7 * 24 * 60 * 60 * 1000
+          });
+          
+          return res.json({ 
+            success: true,
+            accessToken: newAccessToken 
+          });
+        }
+      } catch (error) {
+        console.log('Access token verification failed:', error.message);
+      }
+    }
+    
     return res.status(401).json({ 
       success: false,
       message: 'Refresh token required' 

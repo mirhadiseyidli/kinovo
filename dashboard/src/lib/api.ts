@@ -181,10 +181,13 @@ const refreshAccessToken = async (): Promise<string> => {
         reject(createTypedError('auth', 'Token refresh timeout', 408));
       }, REFRESH_TIMEOUT);
 
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_KINOVO_API_URL}/api/auth/web/refresh-token`, {}, {
-        withCredentials: true, // Send cookies with request
-        timeout: REFRESH_TIMEOUT
-      });
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_KINOVO_API_URL}/api/auth/web/refresh-token`, 
+        {}, // Empty body - auth is via cookie or Authorization header
+        {
+          withCredentials: true, // Send cookies with request
+          timeout: REFRESH_TIMEOUT
+        }
+      );
 
       clearTimeout(refreshTimeout);
 

@@ -76,6 +76,11 @@ export const authOptions: NextAuthOptions = {
     error: '/auth/error',
   },
   events: {
+    async signIn(message) {
+      // After successful sign in, we need to establish the httpOnly cookie
+      // This runs server-side, so we can't directly set browser cookies here
+      console.log('SignIn event triggered:', message)
+    },
     async signOut() {
       // Clear tokens from localStorage on sign out
       if (typeof window !== 'undefined') {
